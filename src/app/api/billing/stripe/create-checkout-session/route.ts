@@ -10,9 +10,12 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const { planName } = await request.json();
+  const { planName, interval = "monthly" } = await request.json();
   if (planName !== "pro" && planName !== "business") {
     return NextResponse.json({ error: "Unknown plan" }, { status: 400 });
+  }
+  if (interval !== "monthly" && interval !== "yearly") {
+    return NextResponse.json({ error: "Invalid billing interval" }, { status: 400 });
   }
 
   const settings = await getPlatformSettings();
@@ -20,10 +23,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Card payments are currently unavailable." }, { status: 503 });
   }
 
-  const priceId = planName === "pro" ? settings.stripePricePro : settings.stripePriceBusiness;
+  const priceId =
+    interval === "yearly"
+      ? planName === "pro"
+        ? settings.stripePriceProYearly
+        : settings.stripePriceBusinessYearly
+      : planName === "pro"
+      ? settings.stripePricePro
+      : settings.stripePriceBusiness;
+
   if (!priceId) {
     return NextResponse.json(
-      { error: `Stripe price ID not configured for the ${planName} plan` },
+      { error: `Stripe price ID not configured for the ${planName} plan (${interval})` },
       { status: 500 }
     );
   }
@@ -50,8 +61,8 @@ export async function POST(request: Request) {
       customer: userRow?.stripe_customer_id || undefined,
       customer_email: userRow?.stripe_customer_id ? undefined : userRow?.email,
       client_reference_id: user.id,
-      metadata: { userId: user.id, planName },
-      subscription_data: { metadata: { userId: user.id, planName } },
+      metadata: { userId: user.id, planName, interval },
+      subscription_data: { metadata: { userId: user.id, planName, interval } },
       success_url: `${siteUrl}/dashboard/subscription?checkout=success`,
       cancel_url: `${siteUrl}/dashboard/subscription?checkout=cancelled`,
     });

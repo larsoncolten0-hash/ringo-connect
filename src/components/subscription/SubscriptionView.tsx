@@ -13,12 +13,14 @@ const ORDER = ["free", "pro", "business"];
 export default function SubscriptionView({
   plans,
   currentPlan,
+  currentInterval,
   paymentProvider,
   planExpiresAt,
   defaultMethod,
 }: {
   plans: any[];
   currentPlan: string;
+  currentInterval: "monthly" | "yearly";
   paymentProvider: "stripe" | "fapshi" | null;
   planExpiresAt: string | null;
   defaultMethod: "mobile_money" | "card";
@@ -27,6 +29,7 @@ export default function SubscriptionView({
   const { t, locale } = useLanguage();
   const [modalPlan, setModalPlan] = useState<any | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [interval, setIntervalState] = useState<"monthly" | "yearly">("monthly");
 
   const sortedPlans = [...plans].sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name));
 
@@ -45,12 +48,43 @@ export default function SubscriptionView({
       <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em] mb-1">
         {t.subscription.title}
       </h1>
-      <p className="text-sm text-ringo-muted mb-10 max-w-md">{t.subscription.subtitle}</p>
+      <p className="text-sm text-ringo-muted mb-6 max-w-md">{t.subscription.subtitle}</p>
+
+      {/* Page-level billing interval toggle — affects the price shown on
+          every card and the interval a new upgrade defaults to. */}
+      <div className="flex items-center gap-1.5 mb-8 bg-ringo-muted/10 rounded-card p-1 w-fit">
+        {(["monthly", "yearly"] as const).map((i) => {
+          const pro = sortedPlans.find((p) => p.name === "pro");
+          const savingsPct =
+            pro && Number(pro.price_usd) > 0
+              ? Math.round((1 - Number(pro.price_usd_yearly) / 12 / Number(pro.price_usd)) * 100)
+              : 0;
+          return (
+            <button
+              key={i}
+              onClick={() => setIntervalState(i)}
+              className={`flex items-center gap-1.5 text-sm font-medium px-4 py-1.5 rounded-card transition ${
+                interval === i ? "bg-ringo-surface text-ringo-indigo shadow-sm" : "text-ringo-muted"
+              }`}
+            >
+              {i === "monthly" ? t.subscription.billingMonthly : t.subscription.billingYearly}
+              {i === "yearly" && savingsPct > 0 && (
+                <span className="text-[10px] font-medium text-ringo-teal bg-ringo-teal/10 px-1.5 py-0.5 rounded-full">
+                  {t.subscription.saveBadge(savingsPct)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="grid sm:grid-cols-3 gap-5">
         {sortedPlans.map((plan) => {
           const copy = (t.plans as any)[plan.name] ?? { tagline: "", features: [] };
-          const priceUsd = isPaidPlan(plan.name) ? formatPrice(plan.price_usd, "USD", locale) : formatPrice(0, "USD", locale);
+          const rawPrice = interval === "yearly" ? plan.price_usd_yearly : plan.price_usd;
+          const priceUsd = isPaidPlan(plan.name)
+            ? formatPrice(rawPrice, "USD", locale)
+            : formatPrice(0, "USD", locale);
           const isCurrent = plan.name === currentPlan;
           const isRecommended = plan.name === "pro";
           const isDowngrade = ORDER.indexOf(plan.name) < ORDER.indexOf(currentPlan);
@@ -77,7 +111,11 @@ export default function SubscriptionView({
               <p className="text-xs text-ringo-muted mb-4">{copy.tagline}</p>
               <p className="text-2xl font-display font-medium text-ringo-text tabular-nums tracking-[-0.02em] mb-5">
                 {priceUsd}
-                {isPaidPlan(plan.name) && <span className="text-xs text-ringo-muted font-normal">/mo</span>}
+                {isPaidPlan(plan.name) && (
+                  <span className="text-xs text-ringo-muted font-normal">
+                    {interval === "yearly" ? t.subscription.perYear : t.subscription.perMonth}
+                  </span>
+                )}
               </p>
 
               <ul className="flex flex-col gap-2 mb-6 flex-1">
@@ -106,6 +144,11 @@ export default function SubscriptionView({
               ) : isCurrent ? (
                 <div className="text-center text-xs font-medium text-ringo-teal py-2.5 rounded-card bg-ringo-teal/10">
                   {t.subscription.currentPlan}
+                  {isPaidPlan(plan.name) && (
+                    <span className="block text-[10px] font-normal text-ringo-muted mt-0.5 capitalize">
+                      {currentInterval === "yearly" ? t.subscription.billingYearly : t.subscription.billingMonthly}
+                    </span>
+                  )}
                 </div>
               ) : isDowngrade ? (
                 <button
@@ -137,7 +180,10 @@ export default function SubscriptionView({
           planName={modalPlan.name}
           priceXaf={Number(modalPlan.price_xaf)}
           priceUsd={Number(modalPlan.price_usd)}
+          priceXafYearly={Number(modalPlan.price_xaf_yearly)}
+          priceUsdYearly={Number(modalPlan.price_usd_yearly)}
           defaultMethod={defaultMethod}
+          defaultInterval={interval}
           onClose={() => setModalPlan(null)}
           onSuccess={() => {
             setModalPlan(null);

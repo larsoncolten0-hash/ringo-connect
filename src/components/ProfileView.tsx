@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Copy, Check } from "lucide-react";
+import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { getButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
@@ -11,7 +12,20 @@ import SocialIcon from "./SocialIcon";
 type Tab = "links" | "catalog" | "about";
 
 export default function ProfileView({ profile }: { profile: any }) {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>("links");
+  const [copied, setCopied] = useState(false);
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API can fail (older browsers, non-HTTPS) — fail silently
+      // rather than showing an error for a non-critical convenience feature.
+    }
+  };
 
   const logClick = async (targetType: "link" | "product" | "whatsapp", targetId?: string) => {
     try {
@@ -45,7 +59,24 @@ export default function ProfileView({ profile }: { profile: any }) {
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-4 py-10" style={pageStyle}>
+    <main className="relative min-h-screen flex flex-col items-center px-4 py-10" style={pageStyle}>
+      <button
+        onClick={copyLink}
+        aria-label="Copy link to this page"
+        className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition"
+        style={{ backgroundColor: "rgba(255,255,255,0.7)", color: accent }}
+      >
+        {copied ? <Check size={15} /> : <Copy size={15} />}
+      </button>
+      {copied && (
+        <span
+          className="absolute top-14 right-4 text-xs px-2.5 py-1 rounded-full"
+          style={{ backgroundColor: "rgba(255,255,255,0.9)", color: accent }}
+        >
+          {t.profilePage.linkCopied}
+        </span>
+      )}
+
       <img
         src={profile.avatar_url || "/default-avatar.png"}
         alt={profile.name}

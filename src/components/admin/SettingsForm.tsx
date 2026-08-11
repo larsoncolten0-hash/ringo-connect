@@ -13,6 +13,8 @@ type Settings = {
   stripeWebhookSecretSet: boolean;
   stripePricePro: string | null;
   stripePriceBusiness: string | null;
+  stripePriceProYearly: string | null;
+  stripePriceBusinessYearly: string | null;
 };
 
 export default function SettingsForm({ initial }: { initial: Settings }) {
@@ -42,6 +44,8 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
       fapshiBaseUrl: settings.fapshiBaseUrl,
       stripePricePro: settings.stripePricePro,
       stripePriceBusiness: settings.stripePriceBusiness,
+      stripePriceProYearly: settings.stripePriceProYearly,
+      stripePriceBusinessYearly: settings.stripePriceBusinessYearly,
     };
     // Only send secret fields that were actually typed into — leaving a
     // field blank must never wipe an already-configured key.
@@ -210,7 +214,7 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Pro plan Price ID</span>
+            <span className="text-xs text-ringo-muted">Pro plan Price ID (monthly)</span>
             <input
               value={settings.stripePricePro || ""}
               onChange={(e) => setSettings({ ...settings, stripePricePro: e.target.value })}
@@ -219,10 +223,28 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Business plan Price ID</span>
+            <span className="text-xs text-ringo-muted">Pro plan Price ID (yearly)</span>
+            <input
+              value={settings.stripePriceProYearly || ""}
+              onChange={(e) => setSettings({ ...settings, stripePriceProYearly: e.target.value })}
+              placeholder="price_…"
+              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-ringo-muted">Business plan Price ID (monthly)</span>
             <input
               value={settings.stripePriceBusiness || ""}
               onChange={(e) => setSettings({ ...settings, stripePriceBusiness: e.target.value })}
+              placeholder="price_…"
+              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-ringo-muted">Business plan Price ID (yearly)</span>
+            <input
+              value={settings.stripePriceBusinessYearly || ""}
+              onChange={(e) => setSettings({ ...settings, stripePriceBusinessYearly: e.target.value })}
               placeholder="price_…"
               className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
             />

@@ -30,12 +30,20 @@ export async function applySuccessfulPayment({
   const { data: plan } = await admin.from("plans").select("id").eq("name", tx.plan_name).single();
   if (!plan) return { applied: false };
 
-  const updates: Record<string, any> = { plan_id: plan.id, payment_provider: provider };
+  const interval: "monthly" | "yearly" = tx.billing_interval === "yearly" ? "yearly" : "monthly";
+
+  const updates: Record<string, any> = {
+    plan_id: plan.id,
+    payment_provider: provider,
+    billing_interval: interval,
+  };
   if (provider === "fapshi") {
     // Mobile Money has no stored payment method to auto-renew — the plan
-    // is granted for 30 days from now, and the creator renews manually.
+    // is granted for one billing period from now, and the creator
+    // renews manually. 365 days for yearly rather than "add a year" to
+    // sidestep leap-year/month-length edge cases entirely.
     const expires = new Date();
-    expires.setDate(expires.getDate() + 30);
+    expires.setDate(expires.getDate() + (interval === "yearly" ? 365 : 30));
     updates.plan_expires_at = expires.toISOString();
   } else {
     // Stripe subscriptions renew themselves via webhook — no fixed expiry.

@@ -40,9 +40,21 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
-  const priceToPlan: Record<string, string> = {
-    ...(settings.stripePricePro ? { [settings.stripePricePro]: "pro" } : {}),
-    ...(settings.stripePriceBusiness ? { [settings.stripePriceBusiness]: "business" } : {}),
+
+  // Maps a Stripe Price ID back to which plan + interval it represents —
+  // four possible IDs now that each paid plan has a monthly and yearly
+  // Price object.
+  const priceToPlan: Record<string, { planName: string; interval: "monthly" | "yearly" }> = {
+    ...(settings.stripePricePro ? { [settings.stripePricePro]: { planName: "pro", interval: "monthly" } } : {}),
+    ...(settings.stripePriceProYearly
+      ? { [settings.stripePriceProYearly]: { planName: "pro", interval: "yearly" } }
+      : {}),
+    ...(settings.stripePriceBusiness
+      ? { [settings.stripePriceBusiness]: { planName: "business", interval: "monthly" } }
+      : {}),
+    ...(settings.stripePriceBusinessYearly
+      ? { [settings.stripePriceBusinessYearly]: { planName: "business", interval: "yearly" } }
+      : {}),
   };
 
   switch (event.type) {
@@ -50,6 +62,7 @@ export async function POST(request: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.userId || session.client_reference_id;
       const planName = session.metadata?.planName;
+      const interval = session.metadata?.interval === "yearly" ? "yearly" : "monthly";
       if (!userId || !planName) break;
 
       const { data: plan } = await admin.from("plans").select("id").eq("name", planName).single();
@@ -60,6 +73,7 @@ export async function POST(request: Request) {
         .update({
           plan_id: plan.id,
           payment_provider: "stripe",
+          billing_interval: interval,
           stripe_customer_id: session.customer as string,
           stripe_subscription_id: session.subscription as string,
           plan_expires_at: null, // Stripe renews itself; no fixed expiry to track
@@ -71,6 +85,7 @@ export async function POST(request: Request) {
         provider: "stripe",
         provider_transaction_id: session.id,
         plan_name: planName,
+        billing_interval: interval,
         amount: (session.amount_total || 0) / 100,
         currency: (session.currency || "usd").toUpperCase(),
         status: "success",
@@ -85,10 +100,15 @@ export async function POST(request: Request) {
 
       if (subscription.status === "active" || subscription.status === "trialing") {
         const priceId = subscription.items.data[0]?.price.id;
-        const planName = priceId ? priceToPlan[priceId] : null;
-        if (planName) {
-          const { data: plan } = await admin.from("plans").select("id").eq("name", planName).single();
-          if (plan) await admin.from("users").update({ plan_id: plan.id }).eq("id", userId);
+        const mapped = priceId ? priceToPlan[priceId] : null;
+        if (mapped) {
+          const { data: plan } = await admin.from("plans").select("id").eq("name", mapped.planName).single();
+          if (plan) {
+            await admin
+              .from("users")
+              .update({ plan_id: plan.id, billing_interval: mapped.interval })
+              .eq("id", userId);
+          }
         }
       } else if (["canceled", "unpaid", "incomplete_expired"].includes(subscription.status)) {
         const { data: freePlan } = await admin.from("plans").select("id").eq("name", "free").single();

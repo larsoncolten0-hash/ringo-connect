@@ -26,6 +26,8 @@ export default function PlansManager({ plans }: { plans: any[] }) {
         badge_removed: plan.badge_removed,
         price_usd: Number(plan.price_usd),
         price_xaf: Number(plan.price_xaf),
+        price_usd_yearly: Number(plan.price_usd_yearly),
+        price_xaf_yearly: Number(plan.price_xaf_yearly),
       }),
     });
     setSavingId(null);
@@ -41,8 +43,10 @@ export default function PlansManager({ plans }: { plans: any[] }) {
         <h1 className="font-display text-xl font-medium text-ringo-text tracking-[-0.01em]">Plans</h1>
         <p className="text-sm text-ringo-muted mt-1">
           Editing here changes what every creator on this plan sees immediately — including price display. Note:
-          for Stripe subscribers, changing <code className="text-xs">price_usd</code> here only updates the
-          displayed price; the actual amount charged is set by the Stripe Price object itself (Settings page).
+          for Stripe subscribers, changing <code className="text-xs">price_usd</code>/
+          <code className="text-xs">price_usd_yearly</code> here only updates the displayed price; the actual
+          amount charged is set by the Stripe Price objects themselves (both monthly and yearly Price IDs, in
+          Settings).
         </p>
       </div>
 
@@ -67,7 +71,7 @@ export default function PlansManager({ plans }: { plans: any[] }) {
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-4 gap-3 mb-4">
+            <div className="grid sm:grid-cols-2 gap-3 mb-3">
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-ringo-muted">Max links (blank = unlimited)</span>
                 <input
@@ -84,6 +88,10 @@ export default function PlansManager({ plans }: { plans: any[] }) {
                   className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text"
                 />
               </label>
+            </div>
+
+            <p className="text-xs text-ringo-muted mb-1.5">Monthly pricing</p>
+            <div className="grid sm:grid-cols-2 gap-3 mb-3">
               <label className="flex flex-col gap-1">
                 <span className="text-xs text-ringo-muted">Price (USD/mo)</span>
                 <input
@@ -97,6 +105,26 @@ export default function PlansManager({ plans }: { plans: any[] }) {
                 <input
                   value={plan.price_xaf}
                   onChange={(e) => updateField(plan.id, "price_xaf", e.target.value)}
+                  className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text"
+                />
+              </label>
+            </div>
+
+            <p className="text-xs text-ringo-muted mb-1.5">Yearly pricing</p>
+            <div className="grid sm:grid-cols-2 gap-3 mb-4">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-ringo-muted">Price (USD/yr)</span>
+                <input
+                  value={plan.price_usd_yearly}
+                  onChange={(e) => updateField(plan.id, "price_usd_yearly", e.target.value)}
+                  className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-ringo-muted">Price (XAF/yr)</span>
+                <input
+                  value={plan.price_xaf_yearly}
+                  onChange={(e) => updateField(plan.id, "price_xaf_yearly", e.target.value)}
                   className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text"
                 />
               </label>

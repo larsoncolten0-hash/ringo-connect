@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import { LanguageProvider } from "@/components/LanguageProvider";
 
 export default async function DashboardLayout({
   children,
@@ -30,16 +29,14 @@ export default async function DashboardLayout({
   const planName = (userRow?.plans as any)?.name ?? "free";
 
   return (
-    <LanguageProvider>
-      <DashboardShell
-        email={userRow?.email ?? user.email ?? ""}
-        username={profile?.username ?? "you"}
-        avatarUrl={profile?.avatar_url}
-        planName={planName}
-        isFreePlan={planName === "free"}
-      >
-        {children}
-      </DashboardShell>
-    </LanguageProvider>
+    <DashboardShell
+      email={userRow?.email ?? user.email ?? ""}
+      username={profile?.username ?? "you"}
+      avatarUrl={profile?.avatar_url}
+      planName={planName}
+      isFreePlan={planName === "free"}
+    >
+      {children}
+    </DashboardShell>
   );
 }

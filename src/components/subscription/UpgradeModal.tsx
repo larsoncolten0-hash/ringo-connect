@@ -6,26 +6,34 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 
 type Method = "mobile_money" | "card";
+type Interval = "monthly" | "yearly";
 type Step = "choose" | "mm-form" | "mm-processing" | "mm-success" | "mm-error" | "card-redirecting" | "card-error";
 
 export default function UpgradeModal({
   planName,
-  priceXaf: priceXafRaw,
-  priceUsd: priceUsdRaw,
+  priceXaf: priceXafMonthlyRaw,
+  priceUsd: priceUsdMonthlyRaw,
+  priceXafYearly: priceXafYearlyRaw,
+  priceUsdYearly: priceUsdYearlyRaw,
   defaultMethod,
+  defaultInterval = "monthly",
   onClose,
   onSuccess,
 }: {
   planName: "pro" | "business";
   priceXaf: number;
   priceUsd: number;
+  priceXafYearly: number;
+  priceUsdYearly: number;
   defaultMethod: Method;
+  defaultInterval?: Interval;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const { t } = useLanguage();
   const [step, setStep] = useState<Step>("choose");
   const [method, setMethod] = useState<Method>(defaultMethod);
+  const [billingInterval, setBillingInterval] = useState<Interval>(defaultInterval);
   const [phone, setPhone] = useState("");
   const [medium, setMedium] = useState<"mobile money" | "orange money">("mobile money");
   const [error, setError] = useState("");
@@ -34,8 +42,13 @@ export default function UpgradeModal({
 
   useEffect(() => () => clearInterval(pollTimer.current), []);
 
-  const priceXaf = formatPrice(priceXafRaw, "XAF");
-  const priceUsd = formatPrice(priceUsdRaw, "USD");
+  const priceXaf = formatPrice(billingInterval === "yearly" ? priceXafYearlyRaw : priceXafMonthlyRaw, "XAF");
+  const priceUsd = formatPrice(billingInterval === "yearly" ? priceUsdYearlyRaw : priceUsdMonthlyRaw, "USD");
+
+  // Savings badge: how much cheaper yearly is vs. paying monthly x12.
+  const yearlyMonthlyEquivalent = priceUsdYearlyRaw / 12;
+  const savingsPct =
+    priceUsdMonthlyRaw > 0 ? Math.round((1 - yearlyMonthlyEquivalent / priceUsdMonthlyRaw) * 100) : 0;
 
   const startCard = async () => {
     setStep("card-redirecting");
@@ -43,7 +56,7 @@ export default function UpgradeModal({
       const res = await fetch("/api/billing/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planName }),
+        body: JSON.stringify({ planName, interval: billingInterval }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || "Could not start checkout");
@@ -87,7 +100,7 @@ export default function UpgradeModal({
       const res = await fetch("/api/billing/fapshi/initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planName, phone, medium }),
+        body: JSON.stringify({ planName, phone, medium, interval: billingInterval }),
       });
       const data = await res.json();
       if (!res.ok || !data.transId) throw new Error(data.error || "Could not start payment");
@@ -120,6 +133,26 @@ export default function UpgradeModal({
             <h2 className="font-display text-lg font-medium text-ringo-text mb-4 capitalize">
               {t.subscription.choosePaymentMethod}
             </h2>
+
+            <div className="flex items-center gap-1.5 mb-4 bg-ringo-bg rounded-card p-1 w-fit">
+              {(["monthly", "yearly"] as Interval[]).map((i) => (
+                <button
+                  key={i}
+                  onClick={() => setBillingInterval(i)}
+                  className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-card transition ${
+                    billingInterval === i ? "bg-ringo-surface text-ringo-indigo shadow-sm" : "text-ringo-muted"
+                  }`}
+                >
+                  {i === "monthly" ? t.subscription.billingMonthly : t.subscription.billingYearly}
+                  {i === "yearly" && savingsPct > 0 && (
+                    <span className="text-[10px] font-medium text-ringo-teal bg-ringo-teal/10 px-1.5 py-0.5 rounded-full">
+                      {t.subscription.saveBadge(savingsPct)}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
             <div className="flex flex-col gap-2.5">
               <button
                 onClick={() => {

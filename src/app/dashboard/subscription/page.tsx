@@ -12,7 +12,7 @@ export default async function SubscriptionPage() {
 
   const { data: userRow } = await supabase
     .from("users")
-    .select("plans(name), payment_provider, plan_expires_at")
+    .select("plans(name), payment_provider, plan_expires_at, billing_interval")
     .eq("id", user.id)
     .single();
 
@@ -30,6 +30,7 @@ export default async function SubscriptionPage() {
     <SubscriptionView
       plans={plans || []}
       currentPlan={(userRow?.plans as any)?.name ?? "free"}
+      currentInterval={userRow?.billing_interval === "yearly" ? "yearly" : "monthly"}
       paymentProvider={userRow?.payment_provider ?? null}
       planExpiresAt={userRow?.plan_expires_at ?? null}
       defaultMethod={country === "CM" ? "mobile_money" : "card"}

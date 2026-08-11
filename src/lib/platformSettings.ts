@@ -11,6 +11,8 @@ export type PlatformSettings = {
   stripeWebhookSecret: string | null;
   stripePricePro: string | null;
   stripePriceBusiness: string | null;
+  stripePriceProYearly: string | null;
+  stripePriceBusinessYearly: string | null;
 };
 
 /**
@@ -20,6 +22,27 @@ export type PlatformSettings = {
  * means a deployment that hasn't touched the admin settings page yet
  * keeps working exactly as before — nothing breaks by adding this layer.
  */
+export async function getPlatformSettings(): Promise<PlatformSettings> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("platform_settings").select("*").limit(1).single();
+
+  return {
+    fapshiEnabled: data?.fapshi_enabled ?? true,
+    stripeEnabled: data?.stripe_enabled ?? true,
+    fapshiApiUser: decryptSecret(data?.fapshi_api_user_encrypted) || process.env.FAPSHI_API_USER || null,
+    fapshiApiKey: decryptSecret(data?.fapshi_api_key_encrypted) || process.env.FAPSHI_API_KEY || null,
+    fapshiBaseUrl: data?.fapshi_base_url || process.env.FAPSHI_BASE_URL || "https://sandbox.fapshi.com",
+    stripeSecretKey: decryptSecret(data?.stripe_secret_key_encrypted) || process.env.STRIPE_SECRET_KEY || null,
+    stripeWebhookSecret:
+      decryptSecret(data?.stripe_webhook_secret_encrypted) || process.env.STRIPE_WEBHOOK_SECRET || null,
+    stripePricePro: data?.stripe_price_pro || process.env.STRIPE_PRICE_PRO || null,
+    stripePriceBusiness: data?.stripe_price_business || process.env.STRIPE_PRICE_BUSINESS || null,
+    stripePriceProYearly: data?.stripe_price_pro_yearly || process.env.STRIPE_PRICE_PRO_YEARLY || null,
+    stripePriceBusinessYearly:
+      data?.stripe_price_business_yearly || process.env.STRIPE_PRICE_BUSINESS_YEARLY || null,
+  };
+}
+
 /**
  * Safe to send to the client: booleans for whether each secret is
  * configured, plus the non-secret fields as-is. Never includes an actual
@@ -39,24 +62,8 @@ export async function getMaskedPlatformSettings() {
     stripeWebhookSecretSet: !!settings.stripeWebhookSecret,
     stripePricePro: settings.stripePricePro,
     stripePriceBusiness: settings.stripePriceBusiness,
-  };
-}
-
-export async function getPlatformSettings(): Promise<PlatformSettings> {
-  const admin = createAdminClient();
-  const { data } = await admin.from("platform_settings").select("*").limit(1).single();
-
-  return {
-    fapshiEnabled: data?.fapshi_enabled ?? true,
-    stripeEnabled: data?.stripe_enabled ?? true,
-    fapshiApiUser: decryptSecret(data?.fapshi_api_user_encrypted) || process.env.FAPSHI_API_USER || null,
-    fapshiApiKey: decryptSecret(data?.fapshi_api_key_encrypted) || process.env.FAPSHI_API_KEY || null,
-    fapshiBaseUrl: data?.fapshi_base_url || process.env.FAPSHI_BASE_URL || "https://sandbox.fapshi.com",
-    stripeSecretKey: decryptSecret(data?.stripe_secret_key_encrypted) || process.env.STRIPE_SECRET_KEY || null,
-    stripeWebhookSecret:
-      decryptSecret(data?.stripe_webhook_secret_encrypted) || process.env.STRIPE_WEBHOOK_SECRET || null,
-    stripePricePro: data?.stripe_price_pro || process.env.STRIPE_PRICE_PRO || null,
-    stripePriceBusiness: data?.stripe_price_business || process.env.STRIPE_PRICE_BUSINESS || null,
+    stripePriceProYearly: settings.stripePriceProYearly,
+    stripePriceBusinessYearly: settings.stripePriceBusinessYearly,
   };
 }
 
@@ -77,6 +84,8 @@ export async function updatePlatformSettings(
     stripeWebhookSecret: string;
     stripePricePro: string;
     stripePriceBusiness: string;
+    stripePriceProYearly: string;
+    stripePriceBusinessYearly: string;
   }>,
   updatedByUserId: string
 ) {
@@ -91,6 +100,9 @@ export async function updatePlatformSettings(
   if (patch.fapshiBaseUrl !== undefined) dbPatch.fapshi_base_url = patch.fapshiBaseUrl;
   if (patch.stripePricePro !== undefined) dbPatch.stripe_price_pro = patch.stripePricePro;
   if (patch.stripePriceBusiness !== undefined) dbPatch.stripe_price_business = patch.stripePriceBusiness;
+  if (patch.stripePriceProYearly !== undefined) dbPatch.stripe_price_pro_yearly = patch.stripePriceProYearly;
+  if (patch.stripePriceBusinessYearly !== undefined)
+    dbPatch.stripe_price_business_yearly = patch.stripePriceBusinessYearly;
 
   // Secrets: only overwrite if a new non-empty value was actually
   // submitted — an empty string means "leave this one alone," not
