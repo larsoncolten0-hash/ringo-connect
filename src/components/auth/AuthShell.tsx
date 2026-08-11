@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function AuthShell({
   eyebrow,
@@ -15,8 +16,9 @@ export default function AuthShell({
     <div className="min-h-screen grid lg:grid-cols-[42%_1fr]">
       {/* Brand panel */}
       <div className="hidden lg:flex relative flex-col justify-between bg-[#0B1023] text-white p-10 overflow-hidden">
-        <Link href="/" className="font-display font-medium text-lg relative z-10">
-          Ringo Connect
+        <Link href="/" className="flex items-center gap-2.5 relative z-10">
+          <Image src="/logo.png" alt="" width={28} height={28} className="rounded-md" />
+          <span className="font-display font-medium text-lg">Ringo Connect</span>
         </Link>
 
         {/* Signature: pulsing signal rings + orbiting node — the "ring" in Ringo */}
@@ -45,8 +47,9 @@ export default function AuthShell({
       {/* Form panel */}
       <div className="flex flex-col justify-center px-6 py-12 sm:px-12">
         <div className="w-full max-w-sm mx-auto">
-          <Link href="/" className="lg:hidden font-display font-medium text-ringo-text mb-8 inline-block">
-            Ringo Connect
+          <Link href="/" className="lg:hidden flex items-center gap-2 mb-8">
+            <Image src="/logo.png" alt="" width={26} height={26} className="rounded-md" />
+            <span className="font-display font-medium text-ringo-text">Ringo Connect</span>
           </Link>
           <p className="text-xs font-medium tracking-wide uppercase text-ringo-indigo mb-2">
             {eyebrow}
