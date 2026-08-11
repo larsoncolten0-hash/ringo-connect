@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ringo-bg: #FAFAF8;
+  --ringo-surface: #FFFFFF;
+  --ringo-text: #0F172A;
+  --ringo-muted: #64748B;
+  --ringo-border: rgba(15, 23, 42, 0.12);
+}
+
+.dark {
+  --ringo-bg: #0B1120;
+  --ringo-surface: #1E293B;
+  --ringo-text: #F1F5F9;
+  --ringo-muted: #94A3B8;
+  --ringo-border: rgba(241, 245, 249, 0.14);
+}
+
+body {
+  background-color: var(--ringo-bg);
+  color: var(--ringo-text);
+  font-family: var(--font-body), sans-serif;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display), sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ring-pulse-1,
+  .animate-ring-pulse-2,
+  .animate-ring-pulse-3,
+  .animate-orbit,
+  .animate-dropdown-in {
+    animation: none !important;
+  }
+}
