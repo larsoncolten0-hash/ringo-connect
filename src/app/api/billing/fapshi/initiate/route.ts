@@ -40,7 +40,11 @@ export async function POST(request: Request) {
       phone,
       medium,
       userId: user.id,
-      externalId: `${user.id}:${planName}`,
+      // Fapshi requires externalId to match ^[a-zA-Z0-9\-_]{1,100}$ — no
+      // colons. A user's UUID already contains hyphens, so an underscore
+      // separator (rather than ":") keeps this splittable/readable
+      // without hitting a character Fapshi rejects.
+      externalId: `${user.id}_${planName}`,
       message: `Ringo Connect — ${planName} plan`,
     });
 
