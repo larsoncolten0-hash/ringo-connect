@@ -164,6 +164,9 @@ export const translations = {
       lastMonth: "Last month",
       allTime: "All time",
       pickEndDate: "Pick an end date",
+      basicAnalyticsTitle: "You're seeing totals only",
+      basicAnalyticsBody:
+        "Upgrade for date filtering, trend charts, and full breakdowns by link, product, source, and location.",
     },
     subscription: {
       eyebrow: "Subscription",
@@ -402,6 +405,9 @@ export const translations = {
       lastMonth: "Le mois dernier",
       allTime: "Depuis le début",
       pickEndDate: "Choisissez une date de fin",
+      basicAnalyticsTitle: "Vous ne voyez que les totaux",
+      basicAnalyticsBody:
+        "Changez d'offre pour le filtrage par date, les graphiques de tendance et les répartitions complètes par lien, produit, source et localisation.",
     },
     subscription: {
       eyebrow: "Abonnement",

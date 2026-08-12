@@ -20,7 +20,12 @@ export default async function AnalyticsPage() {
 
   if (!profile) redirect("/auth/login?error=profile_missing");
 
-  console.log("Analytics: fetching click_events for profile.id =", profile.id);
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("plans(full_analytics_enabled)")
+    .eq("id", user.id)
+    .single();
+  const fullAnalyticsEnabled = !!(userRow?.plans as any)?.full_analytics_enabled;
 
   // Capped at a generous limit — fine for a link-in-bio's realistic click
   // volume. A high-traffic profile would eventually want server-side
@@ -42,5 +47,12 @@ export default async function AnalyticsPage() {
   if (linksError) console.error("Analytics: links query failed:", linksError.message);
   if (productsError) console.error("Analytics: products query failed:", productsError.message);
 
-  return <AnalyticsView events={events || []} links={links || []} products={products || []} />;
+  return (
+    <AnalyticsView
+      events={events || []}
+      links={links || []}
+      products={products || []}
+      fullAnalyticsEnabled={fullAnalyticsEnabled}
+    />
+  );
 }
