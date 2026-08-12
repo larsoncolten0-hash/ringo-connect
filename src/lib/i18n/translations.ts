@@ -3,6 +3,15 @@ export type Locale = "en" | "fr";
 export const translations = {
   en: {
     profilePage: { linkCopied: "Link copied" },
+    installPrompt: {
+      title: "Install Ringo Connect",
+      body: "Add it to your home screen for quick access, just like a real app.",
+      installButton: "Install",
+      dismiss: "Not now",
+      iosStep1: "Tap the Share icon in Safari's toolbar",
+      iosStep2: "Scroll down and tap \"Add to Home Screen\"",
+      iosStep3: "Tap \"Add\" in the top right",
+    },
     landing: {
       login: "Log in",
       getStarted: "Get started",
@@ -10,8 +19,8 @@ export const translations = {
       heroEyebrow: "Link-in-bio, built for real commerce",
       heroTitle: "Your links, your catalog, one chat away.",
       heroSubtitle:
-        "One page for everything you share — links, products, and a direct line to WhatsApp. Free to start.",
-      heroCtaPrimary: "Create your page — it's free",
+        "One page for everything you share — links, products, and a direct line to WhatsApp.",
+      heroCtaPrimary: "Create your page",
       heroCtaSecondary: "Log in",
       featuresEyebrow: "Everything in one place",
       featuresTitle: "Built for creators who sell, not just share",
@@ -29,7 +38,7 @@ export const translations = {
         "Pick your colors, your background, your button style — your page shouldn't look like everyone else's.",
       ctaTitle: "Ready to bring it all together?",
       ctaSubtitle: "Set up your page in minutes. No credit card required to start.",
-      ctaButton: "Create your free page",
+      ctaButton: "Create your page",
       footerTagline: "One page for your links, your catalog, and a direct line to WhatsApp.",
       footerRights: "All rights reserved.",
     },
@@ -40,7 +49,7 @@ export const translations = {
       plan: "plan",
     },
     sidebar: {
-      freeBadge: "You're on Free",
+      freeBadge: "You're on Basic",
       unlockFeatures: "Unlock catalog & pixels",
       upgradePlan: "Upgrade plan →",
     },
@@ -222,6 +231,15 @@ export const translations = {
   },
   fr: {
     profilePage: { linkCopied: "Lien copié" },
+    installPrompt: {
+      title: "Installer Ringo Connect",
+      body: "Ajoutez-le à votre écran d'accueil pour un accès rapide, comme une vraie appli.",
+      installButton: "Installer",
+      dismiss: "Plus tard",
+      iosStep1: "Appuyez sur l'icône Partager dans la barre d'outils de Safari",
+      iosStep2: "Faites défiler et appuyez sur « Sur l'écran d'accueil »",
+      iosStep3: "Appuyez sur « Ajouter » en haut à droite",
+    },
     landing: {
       login: "Se connecter",
       getStarted: "Commencer",
@@ -229,8 +247,8 @@ export const translations = {
       heroEyebrow: "Le lien en bio, pensé pour le commerce réel",
       heroTitle: "Vos liens, votre catalogue, une conversation à portée de main.",
       heroSubtitle:
-        "Une seule page pour tout partager — liens, produits et une ligne directe vers WhatsApp. Gratuit pour commencer.",
-      heroCtaPrimary: "Créez votre page — c'est gratuit",
+        "Une seule page pour tout partager — liens, produits et une ligne directe vers WhatsApp.",
+      heroCtaPrimary: "Créez votre page",
       heroCtaSecondary: "Se connecter",
       featuresEyebrow: "Tout au même endroit",
       featuresTitle: "Pensé pour les créateurs qui vendent, pas seulement qui partagent",
@@ -248,7 +266,7 @@ export const translations = {
         "Choisissez vos couleurs, votre arrière-plan, le style de vos boutons — votre page ne doit pas ressembler à toutes les autres.",
       ctaTitle: "Prêt à tout rassembler ?",
       ctaSubtitle: "Configurez votre page en quelques minutes. Aucune carte bancaire requise pour commencer.",
-      ctaButton: "Créer ma page gratuite",
+      ctaButton: "Créer ma page",
       footerTagline: "Une page pour vos liens, votre catalogue, et une ligne directe vers WhatsApp.",
       footerRights: "Tous droits réservés.",
     },
@@ -259,7 +277,7 @@ export const translations = {
       plan: "offre",
     },
     sidebar: {
-      freeBadge: "Vous êtes sur Gratuit",
+      freeBadge: "Vous êtes sur",
       unlockFeatures: "Débloquez le catalogue et les pixels",
       upgradePlan: "Changer d'offre →",
     },

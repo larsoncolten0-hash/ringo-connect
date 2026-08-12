@@ -170,7 +170,7 @@ export default function AdminAnalyticsView({
                       {tx.status}
                     </span>
                   </td>
-                  <td className="text-ringo-muted">{new Date(tx.created_at).toLocaleDateString()}</td>
+                  <td className="text-ringo-muted">{new Date(tx.created_at).toLocaleDateString("en-US")}</td>
                 </tr>
               ))
             )}

@@ -92,7 +92,7 @@ export default function DateRangePicker({
       </button>
 
       {open && (
-        <div className="absolute right-0 sm:left-0 mt-2 z-50 bg-ringo-surface border border-ringo-border rounded-card shadow-lg flex flex-col sm:flex-row w-[calc(100vw-2rem)] max-w-[340px] sm:max-w-none sm:w-auto">
+        <div className="absolute right-0 mt-2 z-50 bg-ringo-surface border border-ringo-border rounded-card shadow-lg flex flex-col sm:flex-row w-[calc(100vw-2rem)] max-w-[340px] sm:w-auto sm:max-w-[calc(100vw-2rem)]">
           {/* Presets */}
           <div className="flex sm:flex-col gap-1 p-2 border-b sm:border-b-0 sm:border-r border-ringo-border overflow-x-auto sm:overflow-visible sm:w-40 shrink-0">
             {PRESETS.map((p) => (

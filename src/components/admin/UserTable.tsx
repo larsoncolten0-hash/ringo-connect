@@ -116,7 +116,7 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
                           {active ? "Active" : "Suspended"}
                         </span>
                       </td>
-                      <td className="text-ringo-muted">{new Date(u.created_at).toLocaleDateString()}</td>
+                      <td className="text-ringo-muted">{new Date(u.created_at).toLocaleDateString("en-US")}</td>
                       <td className="text-right px-4">
                         <button
                           onClick={() => patch(u.id, { status: active ? "suspended" : "active" })}

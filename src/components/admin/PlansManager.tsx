@@ -12,14 +12,22 @@ export default function PlansManager({ plans }: { plans: any[] }) {
     setRows((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
   };
 
+  // Coerces a possibly-null/possibly-empty-string field to a real number
+  // or null, correctly — the previous version only checked for "",
+  // which meant an untouched null field (Pro/Business's "unlimited")
+  // fell through to Number(null) === 0, silently corrupting unlimited
+  // access into zero access on every save that touched ANY other field.
+  const toNullableNumber = (v: any) => (v === "" || v === null || v === undefined ? null : Number(v));
+
   const save = async (plan: any) => {
     setSavingId(plan.id);
     const res = await fetch(`/api/admin/plans/${plan.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        max_links: plan.max_links === "" ? null : Number(plan.max_links),
-        max_products: plan.max_products === "" ? null : Number(plan.max_products),
+        display_name: plan.display_name,
+        max_links: toNullableNumber(plan.max_links),
+        max_products: toNullableNumber(plan.max_products),
         pixels_enabled: plan.pixels_enabled,
         custom_theme_enabled: plan.custom_theme_enabled,
         full_analytics_enabled: plan.full_analytics_enabled,
@@ -42,11 +50,14 @@ export default function PlansManager({ plans }: { plans: any[] }) {
       <div>
         <h1 className="font-display text-xl font-medium text-ringo-text tracking-[-0.01em]">Plans</h1>
         <p className="text-sm text-ringo-muted mt-1">
-          Editing here changes what every creator on this plan sees immediately — including price display. Note:
-          for Stripe subscribers, changing <code className="text-xs">price_usd</code>/
-          <code className="text-xs">price_usd_yearly</code> here only updates the displayed price; the actual
-          amount charged is set by the Stripe Price objects themselves (both monthly and yearly Price IDs, in
-          Settings).
+          Editing here changes what every creator on this plan sees immediately — including price display. The
+          name shown here is editable and purely cosmetic; the code in parentheses (
+          <code className="text-xs">free</code>/<code className="text-xs">pro</code>/
+          <code className="text-xs">business</code>) is the internal identifier checkout, renewals, and
+          translations rely on, and can't be changed here. Note: for Stripe subscribers, changing{" "}
+          <code className="text-xs">price_usd</code>/<code className="text-xs">price_usd_yearly</code> here only
+          updates the displayed price; the actual amount charged is set by the Stripe Price objects themselves
+          (both monthly and yearly Price IDs, in Settings).
         </p>
       </div>
 
@@ -54,8 +65,16 @@ export default function PlansManager({ plans }: { plans: any[] }) {
         {rows.map((plan) => (
           <div key={plan.id} className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-ringo-text capitalize">{plan.name}</h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <input
+                  value={plan.display_name ?? ""}
+                  onChange={(e) => updateField(plan.id, "display_name", e.target.value)}
+                  className="text-sm font-medium text-ringo-text bg-transparent border-b border-transparent hover:border-ringo-border focus:border-ringo-indigo focus:outline-none px-0.5 py-0.5 min-w-0"
+                  placeholder="Display name"
+                />
+                <span className="text-xs text-ringo-muted/60 font-mono shrink-0">({plan.name})</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
                 {savedId === plan.id && (
                   <span className="flex items-center gap-1 text-xs text-ringo-teal">
                     <Check size={13} /> Saved

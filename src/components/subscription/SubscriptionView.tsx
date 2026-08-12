@@ -113,7 +113,7 @@ export default function SubscriptionView({
               )}
 
               <p className="font-display text-lg font-medium text-ringo-text capitalize tracking-[-0.01em] mb-0.5">
-                {plan.name}
+                {plan.display_name || plan.name}
               </p>
               <p className="text-xs text-ringo-muted mb-4">{copy.tagline}</p>
               <p className="text-2xl font-display font-medium text-ringo-text tabular-nums tracking-[-0.02em] mb-5">
@@ -163,7 +163,7 @@ export default function SubscriptionView({
                   disabled={cancelling}
                   className="text-sm font-medium py-2.5 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo disabled:opacity-50"
                 >
-                  {t.subscription.downgrade} {t.subscription.to} {plan.name}
+                  {t.subscription.downgrade} {t.subscription.to} {plan.display_name || plan.name}
                 </button>
               ) : (
                 <button
@@ -174,7 +174,7 @@ export default function SubscriptionView({
                       : "border border-ringo-border text-ringo-text hover:border-ringo-indigo"
                   }`}
                 >
-                  {t.subscription.upgrade} {t.subscription.to} {plan.name}
+                  {t.subscription.upgrade} {t.subscription.to} {plan.display_name || plan.name}
                 </button>
               )}
             </div>

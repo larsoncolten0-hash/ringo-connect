@@ -3,6 +3,7 @@ import { assertAdmin } from "@/lib/assertAdmin";
 import { NextResponse } from "next/server";
 
 const EDITABLE_FIELDS = [
+  "display_name",
   "max_links",
   "max_products",
   "pixels_enabled",
@@ -11,6 +12,8 @@ const EDITABLE_FIELDS = [
   "badge_removed",
   "price_usd",
   "price_xaf",
+  "price_usd_yearly",
+  "price_xaf_yearly",
 ];
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {

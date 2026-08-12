@@ -40,7 +40,7 @@ export default function RankedBarList({
             </span>
             <span className="text-ringo-text truncate flex-1">{item.label}</span>
             <span className="text-ringo-muted font-medium tabular-nums shrink-0">
-              {item.count.toLocaleString()}
+              {item.count.toLocaleString("en-US")}
             </span>
           </div>
         </div>
