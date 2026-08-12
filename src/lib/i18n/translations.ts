@@ -19,8 +19,8 @@ export const translations = {
       heroEyebrow: "Link-in-bio, built for real commerce",
       heroTitle: "Your links, your catalog, one chat away.",
       heroSubtitle:
-        "One page for everything you share — links, products, and a direct line to WhatsApp.",
-      heroCtaPrimary: "Create your page",
+        "One page for everything you share — links, products, and a direct line to WhatsApp. Free to start.",
+      heroCtaPrimary: "Create your page — it's free",
       heroCtaSecondary: "Log in",
       featuresEyebrow: "Everything in one place",
       featuresTitle: "Built for creators who sell, not just share",
@@ -38,7 +38,7 @@ export const translations = {
         "Pick your colors, your background, your button style — your page shouldn't look like everyone else's.",
       ctaTitle: "Ready to bring it all together?",
       ctaSubtitle: "Set up your page in minutes. No credit card required to start.",
-      ctaButton: "Create your page",
+      ctaButton: "Create your free page",
       footerTagline: "One page for your links, your catalog, and a direct line to WhatsApp.",
       footerRights: "All rights reserved.",
     },
@@ -49,7 +49,7 @@ export const translations = {
       plan: "plan",
     },
     sidebar: {
-      freeBadge: "You're on Basic",
+      freeBadge: "You're on Free",
       unlockFeatures: "Unlock catalog & pixels",
       upgradePlan: "Upgrade plan →",
     },
@@ -182,6 +182,7 @@ export const translations = {
       expiresOn: (date: string) => `Renews via Mobile Money — expires ${date}`,
       renewNow: "Renew now",
       choosePaymentMethod: "Choose how to pay",
+      methodUnavailable: "Currently unavailable",
       mobileMoney: "Mobile Money",
       mobileMoneyDesc: "MTN Mobile Money or Orange Money — Cameroon",
       card: "Card",
@@ -206,6 +207,15 @@ export const translations = {
       free: {
         tagline: "Everything you need to get started.",
         features: ["Up to 5 links", "Unlimited social icons", "WhatsApp chat button", "Basic analytics (totals)"],
+      },
+      basic: {
+        tagline: "For creators who've outgrown the free tier.",
+        features: [
+          "Unlimited links",
+          "Unlimited social icons",
+          "WhatsApp chat button",
+          "Basic analytics (totals)",
+        ],
       },
       pro: {
         tagline: "For creators ready to sell.",
@@ -247,8 +257,8 @@ export const translations = {
       heroEyebrow: "Le lien en bio, pensé pour le commerce réel",
       heroTitle: "Vos liens, votre catalogue, une conversation à portée de main.",
       heroSubtitle:
-        "Une seule page pour tout partager — liens, produits et une ligne directe vers WhatsApp.",
-      heroCtaPrimary: "Créez votre page",
+        "Une seule page pour tout partager — liens, produits et une ligne directe vers WhatsApp. Gratuit pour commencer.",
+      heroCtaPrimary: "Créez votre page — c'est gratuit",
       heroCtaSecondary: "Se connecter",
       featuresEyebrow: "Tout au même endroit",
       featuresTitle: "Pensé pour les créateurs qui vendent, pas seulement qui partagent",
@@ -266,7 +276,7 @@ export const translations = {
         "Choisissez vos couleurs, votre arrière-plan, le style de vos boutons — votre page ne doit pas ressembler à toutes les autres.",
       ctaTitle: "Prêt à tout rassembler ?",
       ctaSubtitle: "Configurez votre page en quelques minutes. Aucune carte bancaire requise pour commencer.",
-      ctaButton: "Créer ma page",
+      ctaButton: "Créer ma page gratuite",
       footerTagline: "Une page pour vos liens, votre catalogue, et une ligne directe vers WhatsApp.",
       footerRights: "Tous droits réservés.",
     },
@@ -277,7 +287,7 @@ export const translations = {
       plan: "offre",
     },
     sidebar: {
-      freeBadge: "Vous êtes sur",
+      freeBadge: "Vous êtes sur Gratuit",
       unlockFeatures: "Débloquez le catalogue et les pixels",
       upgradePlan: "Changer d'offre →",
     },
@@ -410,6 +420,7 @@ export const translations = {
       expiresOn: (date: string) => `Renouvelé via Mobile Money — expire le ${date}`,
       renewNow: "Renouveler maintenant",
       choosePaymentMethod: "Choisissez votre mode de paiement",
+      methodUnavailable: "Actuellement indisponible",
       mobileMoney: "Mobile Money",
       mobileMoneyDesc: "MTN Mobile Money ou Orange Money — Cameroun",
       card: "Carte",
@@ -434,6 +445,15 @@ export const translations = {
       free: {
         tagline: "Tout ce qu'il faut pour démarrer.",
         features: ["Jusqu'à 5 liens", "Icônes sociales illimitées", "Bouton de chat WhatsApp", "Analyses de base (totaux)"],
+      },
+      basic: {
+        tagline: "Pour les créateurs qui ont dépassé l'offre gratuite.",
+        features: [
+          "Liens illimités",
+          "Icônes sociales illimitées",
+          "Bouton de chat WhatsApp",
+          "Analyses de base (totaux)",
+        ],
       },
       pro: {
         tagline: "Pour les créateurs prêts à vendre.",

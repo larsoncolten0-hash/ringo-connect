@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const { planName, interval = "monthly" } = await request.json();
-  if (planName !== "pro" && planName !== "business") {
+  if (!["basic", "pro", "business"].includes(planName)) {
     return NextResponse.json({ error: "Unknown plan" }, { status: 400 });
   }
   if (interval !== "monthly" && interval !== "yearly") {
@@ -23,14 +23,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Card payments are currently unavailable." }, { status: 503 });
   }
 
-  const priceId =
-    interval === "yearly"
-      ? planName === "pro"
-        ? settings.stripePriceProYearly
-        : settings.stripePriceBusinessYearly
-      : planName === "pro"
-      ? settings.stripePricePro
-      : settings.stripePriceBusiness;
+  const priceIdByPlan: Record<string, { monthly: string | null; yearly: string | null }> = {
+    basic: { monthly: settings.stripePriceBasic, yearly: settings.stripePriceBasicYearly },
+    pro: { monthly: settings.stripePricePro, yearly: settings.stripePriceProYearly },
+    business: { monthly: settings.stripePriceBusiness, yearly: settings.stripePriceBusinessYearly },
+  };
+  const priceId = priceIdByPlan[planName][interval as "monthly" | "yearly"];
 
   if (!priceId) {
     return NextResponse.json(

@@ -42,9 +42,15 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   // Maps a Stripe Price ID back to which plan + interval it represents —
-  // four possible IDs now that each paid plan has a monthly and yearly
-  // Price object.
+  // six possible IDs now that each of the three paid plans has a
+  // monthly and yearly Price object.
   const priceToPlan: Record<string, { planName: string; interval: "monthly" | "yearly" }> = {
+    ...(settings.stripePriceBasic
+      ? { [settings.stripePriceBasic]: { planName: "basic", interval: "monthly" } }
+      : {}),
+    ...(settings.stripePriceBasicYearly
+      ? { [settings.stripePriceBasicYearly]: { planName: "basic", interval: "yearly" } }
+      : {}),
     ...(settings.stripePricePro ? { [settings.stripePricePro]: { planName: "pro", interval: "monthly" } } : {}),
     ...(settings.stripePriceProYearly
       ? { [settings.stripePriceProYearly]: { planName: "pro", interval: "yearly" } }

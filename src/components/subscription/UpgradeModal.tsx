@@ -17,16 +17,20 @@ export default function UpgradeModal({
   priceUsdYearly: priceUsdYearlyRaw,
   defaultMethod,
   defaultInterval = "monthly",
+  fapshiEnabled = true,
+  stripeEnabled = true,
   onClose,
   onSuccess,
 }: {
-  planName: "pro" | "business";
+  planName: "basic" | "pro" | "business";
   priceXaf: number;
   priceUsd: number;
   priceXafYearly: number;
   priceUsdYearly: number;
   defaultMethod: Method;
   defaultInterval?: Interval;
+  fapshiEnabled?: boolean;
+  stripeEnabled?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -156,11 +160,17 @@ export default function UpgradeModal({
             <div className="flex flex-col gap-2.5">
               <button
                 onClick={() => {
+                  if (!fapshiEnabled) return;
                   setMethod("mobile_money");
                   setStep("mm-form");
                 }}
+                disabled={!fapshiEnabled}
                 className={`flex items-center gap-3 rounded-card border p-3.5 text-left transition ${
-                  method === "mobile_money" ? "border-ringo-indigo bg-ringo-indigo/5" : "border-ringo-border"
+                  !fapshiEnabled
+                    ? "border-ringo-border opacity-50 cursor-not-allowed"
+                    : method === "mobile_money"
+                    ? "border-ringo-indigo bg-ringo-indigo/5"
+                    : "border-ringo-border hover:border-ringo-indigo"
                 }`}
               >
                 <span className="w-9 h-9 rounded-full bg-ringo-teal/10 flex items-center justify-center shrink-0">
@@ -168,23 +178,35 @@ export default function UpgradeModal({
                 </span>
                 <span className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-ringo-text">{t.subscription.mobileMoney}</p>
-                  <p className="text-xs text-ringo-muted">{t.subscription.mobileMoneyDesc}</p>
+                  <p className="text-xs text-ringo-muted">
+                    {fapshiEnabled ? t.subscription.mobileMoneyDesc : t.subscription.methodUnavailable}
+                  </p>
                 </span>
-                <span className="text-sm font-medium text-ringo-text shrink-0">{priceXaf}</span>
+                {fapshiEnabled && <span className="text-sm font-medium text-ringo-text shrink-0">{priceXaf}</span>}
               </button>
 
               <button
-                onClick={startCard}
-                className="flex items-center gap-3 rounded-card border border-ringo-border p-3.5 text-left transition hover:border-ringo-indigo"
+                onClick={() => {
+                  if (!stripeEnabled) return;
+                  startCard();
+                }}
+                disabled={!stripeEnabled}
+                className={`flex items-center gap-3 rounded-card border p-3.5 text-left transition ${
+                  !stripeEnabled
+                    ? "border-ringo-border opacity-50 cursor-not-allowed"
+                    : "border-ringo-border hover:border-ringo-indigo"
+                }`}
               >
                 <span className="w-9 h-9 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
                   <CreditCard size={16} className="text-ringo-indigo" />
                 </span>
                 <span className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-ringo-text">{t.subscription.card}</p>
-                  <p className="text-xs text-ringo-muted">{t.subscription.cardDesc}</p>
+                  <p className="text-xs text-ringo-muted">
+                    {stripeEnabled ? t.subscription.cardDesc : t.subscription.methodUnavailable}
+                  </p>
                 </span>
-                <span className="text-sm font-medium text-ringo-text shrink-0">{priceUsd}</span>
+                {stripeEnabled && <span className="text-sm font-medium text-ringo-text shrink-0">{priceUsd}</span>}
               </button>
             </div>
           </>

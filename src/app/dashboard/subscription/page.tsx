@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { getPlatformSettings } from "@/lib/platformSettings";
 import SubscriptionView from "@/components/subscription/SubscriptionView";
 
 export default async function SubscriptionPage() {
@@ -25,6 +26,13 @@ export default async function SubscriptionPage() {
   // the likelier payment method (Mobile Money for Cameroon, Card
   // otherwise). The person can still switch either way in the modal.
   const country = headers().get("x-vercel-ip-country");
+  const settings = await getPlatformSettings();
+
+  let defaultMethod: "mobile_money" | "card" = country === "CM" ? "mobile_money" : "card";
+  // If geo suggests a provider the admin has turned off, fall back to
+  // whichever one is actually enabled instead of defaulting to a dead option.
+  if (defaultMethod === "mobile_money" && !settings.fapshiEnabled) defaultMethod = "card";
+  if (defaultMethod === "card" && !settings.stripeEnabled) defaultMethod = "mobile_money";
 
   return (
     <SubscriptionView
@@ -33,8 +41,10 @@ export default async function SubscriptionPage() {
       currentInterval={userRow?.billing_interval === "yearly" ? "yearly" : "monthly"}
       paymentProvider={userRow?.payment_provider ?? null}
       planExpiresAt={userRow?.plan_expires_at ?? null}
-      defaultMethod={country === "CM" ? "mobile_money" : "card"}
+      defaultMethod={defaultMethod}
       isCameroon={country === "CM"}
+      fapshiEnabled={settings.fapshiEnabled}
+      stripeEnabled={settings.stripeEnabled}
     />
   );
 }

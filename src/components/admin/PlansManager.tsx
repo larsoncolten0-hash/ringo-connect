@@ -36,6 +36,14 @@ export default function PlansManager({ plans }: { plans: any[] }) {
         price_xaf: Number(plan.price_xaf),
         price_usd_yearly: Number(plan.price_usd_yearly),
         price_xaf_yearly: Number(plan.price_xaf_yearly),
+        features_en: (plan.features_en_text ?? (plan.features_en || []).join("\n"))
+          .split("\n")
+          .map((f: string) => f.trim())
+          .filter(Boolean),
+        features_fr: (plan.features_fr_text ?? (plan.features_fr || []).join("\n"))
+          .split("\n")
+          .map((f: string) => f.trim())
+          .filter(Boolean),
       }),
     });
     setSavingId(null);
@@ -145,6 +153,30 @@ export default function PlansManager({ plans }: { plans: any[] }) {
                   value={plan.price_xaf_yearly}
                   onChange={(e) => updateField(plan.id, "price_xaf_yearly", e.target.value)}
                   className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text"
+                />
+              </label>
+            </div>
+
+            <p className="text-xs text-ringo-muted mb-1.5">
+              Feature list shown on the creator subscription page — one per line, in each language.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3 mb-4">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-ringo-muted">Features (English)</span>
+                <textarea
+                  value={plan.features_en_text ?? (plan.features_en || []).join("\n")}
+                  onChange={(e) => updateField(plan.id, "features_en_text", e.target.value)}
+                  rows={5}
+                  className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text resize-y font-mono"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-ringo-muted">Features (Français)</span>
+                <textarea
+                  value={plan.features_fr_text ?? (plan.features_fr || []).join("\n")}
+                  onChange={(e) => updateField(plan.id, "features_fr_text", e.target.value)}
+                  rows={5}
+                  className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text resize-y font-mono"
                 />
               </label>
             </div>

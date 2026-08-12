@@ -14,6 +14,8 @@ const EDITABLE_FIELDS = [
   "price_xaf",
   "price_usd_yearly",
   "price_xaf_yearly",
+  "features_en",
+  "features_fr",
 ];
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {

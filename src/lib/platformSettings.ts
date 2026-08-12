@@ -17,8 +17,10 @@ export type PlatformSettings = {
   fapshiBaseUrl: string;
   stripeSecretKey: string | null;
   stripeWebhookSecret: string | null;
+  stripePriceBasic: string | null;
   stripePricePro: string | null;
   stripePriceBusiness: string | null;
+  stripePriceBasicYearly: string | null;
   stripePriceProYearly: string | null;
   stripePriceBusinessYearly: string | null;
 };
@@ -56,6 +58,10 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
     fapshiBaseUrl: fapshiTestMode ? "https://sandbox.fapshi.com" : "https://live.fapshi.com",
     stripeSecretKey: stripeSecretKey || process.env.STRIPE_SECRET_KEY || null,
     stripeWebhookSecret: stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET || null,
+    stripePriceBasic:
+      (stripeTestMode ? data?.stripe_price_basic_test : data?.stripe_price_basic_live) ||
+      process.env.STRIPE_PRICE_BASIC ||
+      null,
     stripePricePro:
       (stripeTestMode ? data?.stripe_price_pro_test : data?.stripe_price_pro_live) ||
       process.env.STRIPE_PRICE_PRO ||
@@ -63,6 +69,10 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
     stripePriceBusiness:
       (stripeTestMode ? data?.stripe_price_business_test : data?.stripe_price_business_live) ||
       process.env.STRIPE_PRICE_BUSINESS ||
+      null,
+    stripePriceBasicYearly:
+      (stripeTestMode ? data?.stripe_price_basic_yearly_test : data?.stripe_price_basic_yearly_live) ||
+      process.env.STRIPE_PRICE_BASIC_YEARLY ||
       null,
     stripePriceProYearly:
       (stripeTestMode ? data?.stripe_price_pro_yearly_test : data?.stripe_price_pro_yearly_live) ||
@@ -97,6 +107,8 @@ export async function getMaskedPlatformSettings() {
 
     stripeSecretKeyTestSet: !!data?.stripe_secret_key_test_encrypted,
     stripeWebhookSecretTestSet: !!data?.stripe_webhook_secret_test_encrypted,
+    stripePriceBasicTest: data?.stripe_price_basic_test || null,
+    stripePriceBasicYearlyTest: data?.stripe_price_basic_yearly_test || null,
     stripePriceProTest: data?.stripe_price_pro_test || null,
     stripePriceProYearlyTest: data?.stripe_price_pro_yearly_test || null,
     stripePriceBusinessTest: data?.stripe_price_business_test || null,
@@ -104,6 +116,8 @@ export async function getMaskedPlatformSettings() {
 
     stripeSecretKeyLiveSet: !!data?.stripe_secret_key_live_encrypted,
     stripeWebhookSecretLiveSet: !!data?.stripe_webhook_secret_live_encrypted,
+    stripePriceBasicLive: data?.stripe_price_basic_live || null,
+    stripePriceBasicYearlyLive: data?.stripe_price_basic_yearly_live || null,
     stripePriceProLive: data?.stripe_price_pro_live || null,
     stripePriceProYearlyLive: data?.stripe_price_pro_yearly_live || null,
     stripePriceBusinessLive: data?.stripe_price_business_live || null,
@@ -124,6 +138,8 @@ export type PlatformSettingsPatch = Partial<{
 
   stripeSecretKeyTest: string;
   stripeWebhookSecretTest: string;
+  stripePriceBasicTest: string;
+  stripePriceBasicYearlyTest: string;
   stripePriceProTest: string;
   stripePriceProYearlyTest: string;
   stripePriceBusinessTest: string;
@@ -131,6 +147,8 @@ export type PlatformSettingsPatch = Partial<{
 
   stripeSecretKeyLive: string;
   stripeWebhookSecretLive: string;
+  stripePriceBasicLive: string;
+  stripePriceBasicYearlyLive: string;
   stripePriceProLive: string;
   stripePriceProYearlyLive: string;
   stripePriceBusinessLive: string;
@@ -157,6 +175,9 @@ export async function updatePlatformSettings(patch: PlatformSettingsPatch, updat
 
   // Price IDs aren't secret — stored plainly, overwritten whenever a
   // value is explicitly provided (including clearing to empty).
+  if (patch.stripePriceBasicTest !== undefined) dbPatch.stripe_price_basic_test = patch.stripePriceBasicTest;
+  if (patch.stripePriceBasicYearlyTest !== undefined)
+    dbPatch.stripe_price_basic_yearly_test = patch.stripePriceBasicYearlyTest;
   if (patch.stripePriceProTest !== undefined) dbPatch.stripe_price_pro_test = patch.stripePriceProTest;
   if (patch.stripePriceProYearlyTest !== undefined)
     dbPatch.stripe_price_pro_yearly_test = patch.stripePriceProYearlyTest;
@@ -165,6 +186,9 @@ export async function updatePlatformSettings(patch: PlatformSettingsPatch, updat
   if (patch.stripePriceBusinessYearlyTest !== undefined)
     dbPatch.stripe_price_business_yearly_test = patch.stripePriceBusinessYearlyTest;
 
+  if (patch.stripePriceBasicLive !== undefined) dbPatch.stripe_price_basic_live = patch.stripePriceBasicLive;
+  if (patch.stripePriceBasicYearlyLive !== undefined)
+    dbPatch.stripe_price_basic_yearly_live = patch.stripePriceBasicYearlyLive;
   if (patch.stripePriceProLive !== undefined) dbPatch.stripe_price_pro_live = patch.stripePriceProLive;
   if (patch.stripePriceProYearlyLive !== undefined)
     dbPatch.stripe_price_pro_yearly_live = patch.stripePriceProYearlyLive;

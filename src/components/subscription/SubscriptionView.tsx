@@ -8,7 +8,7 @@ import { formatPrice } from "@/lib/currency";
 import { isPaidPlan } from "@/lib/pricing";
 import UpgradeModal from "./UpgradeModal";
 
-const ORDER = ["free", "pro", "business"];
+const ORDER = ["free", "basic", "pro", "business"];
 
 export default function SubscriptionView({
   plans,
@@ -18,6 +18,8 @@ export default function SubscriptionView({
   planExpiresAt,
   defaultMethod,
   isCameroon,
+  fapshiEnabled,
+  stripeEnabled,
 }: {
   plans: any[];
   currentPlan: string;
@@ -26,6 +28,8 @@ export default function SubscriptionView({
   planExpiresAt: string | null;
   defaultMethod: "mobile_money" | "card";
   isCameroon: boolean;
+  fapshiEnabled: boolean;
+  stripeEnabled: boolean;
 }) {
   const router = useRouter();
   const { t, locale } = useLanguage();
@@ -81,7 +85,9 @@ export default function SubscriptionView({
 
       <div className="grid sm:grid-cols-3 gap-5">
         {sortedPlans.map((plan) => {
-          const copy = (t.plans as any)[plan.name] ?? { tagline: "", features: [] };
+          const copy = (t.plans as any)[plan.name] ?? { tagline: "" };
+          const features: string[] =
+            (locale === "fr" ? plan.features_fr : plan.features_en) || [];
           const rawPrice = isCameroon
             ? interval === "yearly"
               ? plan.price_xaf_yearly
@@ -126,7 +132,7 @@ export default function SubscriptionView({
               </p>
 
               <ul className="flex flex-col gap-2 mb-6 flex-1">
-                {copy.features.map((f: string) => (
+                {features.map((f: string) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-ringo-text">
                     <Check size={15} className="text-ringo-teal shrink-0 mt-0.5" />
                     {f}
@@ -191,6 +197,8 @@ export default function SubscriptionView({
           priceUsdYearly={Number(modalPlan.price_usd_yearly)}
           defaultMethod={defaultMethod}
           defaultInterval={interval}
+          fapshiEnabled={fapshiEnabled}
+          stripeEnabled={stripeEnabled}
           onClose={() => setModalPlan(null)}
           onSuccess={() => {
             setModalPlan(null);

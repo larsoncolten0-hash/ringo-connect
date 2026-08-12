@@ -14,12 +14,16 @@ type Settings = {
   fapshiApiKeyLiveSet: boolean;
   stripeSecretKeyTestSet: boolean;
   stripeWebhookSecretTestSet: boolean;
+  stripePriceBasicTest: string | null;
+  stripePriceBasicYearlyTest: string | null;
   stripePriceProTest: string | null;
   stripePriceProYearlyTest: string | null;
   stripePriceBusinessTest: string | null;
   stripePriceBusinessYearlyTest: string | null;
   stripeSecretKeyLiveSet: boolean;
   stripeWebhookSecretLiveSet: boolean;
+  stripePriceBasicLive: string | null;
+  stripePriceBasicYearlyLive: string | null;
   stripePriceProLive: string | null;
   stripePriceProYearlyLive: string | null;
   stripePriceBusinessLive: string | null;
@@ -120,10 +124,14 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
     setError("");
 
     const body: Record<string, any> = {
+      stripePriceBasicTest: settings.stripePriceBasicTest,
+      stripePriceBasicYearlyTest: settings.stripePriceBasicYearlyTest,
       stripePriceProTest: settings.stripePriceProTest,
       stripePriceProYearlyTest: settings.stripePriceProYearlyTest,
       stripePriceBusinessTest: settings.stripePriceBusinessTest,
       stripePriceBusinessYearlyTest: settings.stripePriceBusinessYearlyTest,
+      stripePriceBasicLive: settings.stripePriceBasicLive,
+      stripePriceBasicYearlyLive: settings.stripePriceBasicYearlyLive,
       stripePriceProLive: settings.stripePriceProLive,
       stripePriceProYearlyLive: settings.stripePriceProYearlyLive,
       stripePriceBusinessLive: settings.stripePriceBusinessLive,
@@ -284,6 +292,18 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
               placeholder="whsec_…"
             />
             <Field
+              label="Basic — monthly Price ID"
+              value={settings.stripePriceBasicTest ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceBasicTest: v })}
+              placeholder="price_…"
+            />
+            <Field
+              label="Basic — yearly Price ID"
+              value={settings.stripePriceBasicYearlyTest ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceBasicYearlyTest: v })}
+              placeholder="price_…"
+            />
+            <Field
               label="Pro — monthly Price ID"
               value={settings.stripePriceProTest ?? ""}
               onChange={(v) => setSettings({ ...settings, stripePriceProTest: v })}
@@ -326,6 +346,18 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
               onChange={(v) => setDraftField("stripeWebhookSecretLive", v)}
               configured={settings.stripeWebhookSecretLiveSet}
               placeholder="whsec_…"
+            />
+            <Field
+              label="Basic — monthly Price ID"
+              value={settings.stripePriceBasicLive ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceBasicLive: v })}
+              placeholder="price_…"
+            />
+            <Field
+              label="Basic — yearly Price ID"
+              value={settings.stripePriceBasicYearlyLive ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceBasicYearlyLive: v })}
+              placeholder="price_…"
             />
             <Field
               label="Pro — monthly Price ID"
