@@ -92,7 +92,16 @@ export default function AdminShell({ email, children }: { email: string; childre
           <Image src="/logo.png" alt="" width={22} height={22} className="rounded-md" />
           <span className="font-display font-medium text-white text-sm">Admin</span>
         </Link>
-        <ThemeToggle iconOnly variant="onDark" />
+        <div className="flex items-center gap-1">
+          <ThemeToggle iconOnly variant="onDark" />
+          <Link
+            href="/auth/logout"
+            aria-label="Log out"
+            className="w-9 h-9 flex items-center justify-center rounded-full text-white/50 hover:text-ringo-coral hover:bg-white/10 transition-colors"
+          >
+            <LogOut size={16} />
+          </Link>
+        </div>
       </div>
 
       <main className="p-6 lg:p-10 pb-24 lg:pb-10">{children}</main>
