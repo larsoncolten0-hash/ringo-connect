@@ -17,6 +17,7 @@ export default function SubscriptionView({
   paymentProvider,
   planExpiresAt,
   defaultMethod,
+  isCameroon,
 }: {
   plans: any[];
   currentPlan: string;
@@ -24,6 +25,7 @@ export default function SubscriptionView({
   paymentProvider: "stripe" | "fapshi" | null;
   planExpiresAt: string | null;
   defaultMethod: "mobile_money" | "card";
+  isCameroon: boolean;
 }) {
   const router = useRouter();
   const { t, locale } = useLanguage();
@@ -55,10 +57,9 @@ export default function SubscriptionView({
       <div className="flex items-center gap-1.5 mb-8 bg-ringo-muted/10 rounded-card p-1 w-fit">
         {(["monthly", "yearly"] as const).map((i) => {
           const pro = sortedPlans.find((p) => p.name === "pro");
-          const savingsPct =
-            pro && Number(pro.price_usd) > 0
-              ? Math.round((1 - Number(pro.price_usd_yearly) / 12 / Number(pro.price_usd)) * 100)
-              : 0;
+          const monthlyBase = isCameroon ? Number(pro?.price_xaf) : Number(pro?.price_usd);
+          const yearlyBase = isCameroon ? Number(pro?.price_xaf_yearly) : Number(pro?.price_usd_yearly);
+          const savingsPct = pro && monthlyBase > 0 ? Math.round((1 - yearlyBase / 12 / monthlyBase) * 100) : 0;
           return (
             <button
               key={i}
@@ -81,10 +82,16 @@ export default function SubscriptionView({
       <div className="grid sm:grid-cols-3 gap-5">
         {sortedPlans.map((plan) => {
           const copy = (t.plans as any)[plan.name] ?? { tagline: "", features: [] };
-          const rawPrice = interval === "yearly" ? plan.price_usd_yearly : plan.price_usd;
-          const priceUsd = isPaidPlan(plan.name)
-            ? formatPrice(rawPrice, "USD", locale)
-            : formatPrice(0, "USD", locale);
+          const rawPrice = isCameroon
+            ? interval === "yearly"
+              ? plan.price_xaf_yearly
+              : plan.price_xaf
+            : interval === "yearly"
+            ? plan.price_usd_yearly
+            : plan.price_usd;
+          const displayPrice = isPaidPlan(plan.name)
+            ? formatPrice(rawPrice, isCameroon ? "XAF" : "USD", locale)
+            : formatPrice(0, isCameroon ? "XAF" : "USD", locale);
           const isCurrent = plan.name === currentPlan;
           const isRecommended = plan.name === "pro";
           const isDowngrade = ORDER.indexOf(plan.name) < ORDER.indexOf(currentPlan);
@@ -110,7 +117,7 @@ export default function SubscriptionView({
               </p>
               <p className="text-xs text-ringo-muted mb-4">{copy.tagline}</p>
               <p className="text-2xl font-display font-medium text-ringo-text tabular-nums tracking-[-0.02em] mb-5">
-                {priceUsd}
+                {displayPrice}
                 {isPaidPlan(plan.name) && (
                   <span className="text-xs text-ringo-muted font-normal">
                     {interval === "yearly" ? t.subscription.perYear : t.subscription.perMonth}

@@ -6,26 +6,94 @@ import { Check, ShieldCheck, AlertTriangle } from "lucide-react";
 type Settings = {
   fapshiEnabled: boolean;
   stripeEnabled: boolean;
-  fapshiApiUserSet: boolean;
-  fapshiApiKeySet: boolean;
-  fapshiBaseUrl: string;
-  stripeSecretKeySet: boolean;
-  stripeWebhookSecretSet: boolean;
-  stripePricePro: string | null;
-  stripePriceBusiness: string | null;
-  stripePriceProYearly: string | null;
-  stripePriceBusinessYearly: string | null;
+  fapshiTestMode: boolean;
+  stripeTestMode: boolean;
+  fapshiApiUserTestSet: boolean;
+  fapshiApiKeyTestSet: boolean;
+  fapshiApiUserLiveSet: boolean;
+  fapshiApiKeyLiveSet: boolean;
+  stripeSecretKeyTestSet: boolean;
+  stripeWebhookSecretTestSet: boolean;
+  stripePriceProTest: string | null;
+  stripePriceProYearlyTest: string | null;
+  stripePriceBusinessTest: string | null;
+  stripePriceBusinessYearlyTest: string | null;
+  stripeSecretKeyLiveSet: boolean;
+  stripeWebhookSecretLiveSet: boolean;
+  stripePriceProLive: string | null;
+  stripePriceProYearlyLive: string | null;
+  stripePriceBusinessLive: string | null;
+  stripePriceBusinessYearlyLive: string | null;
 };
+
+function ModeSwitch({
+  testMode,
+  onChange,
+}: {
+  testMode: boolean;
+  onChange: (testMode: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 bg-ringo-muted/10 rounded-full p-1">
+      <button
+        onClick={() => onChange(true)}
+        className={`text-xs font-medium px-3 py-1 rounded-full transition ${
+          testMode ? "bg-ringo-surface text-ringo-text shadow-sm" : "text-ringo-muted"
+        }`}
+      >
+        Test
+      </button>
+      <button
+        onClick={() => onChange(false)}
+        className={`text-xs font-medium px-3 py-1 rounded-full transition ${
+          !testMode ? "bg-ringo-coral text-white shadow-sm" : "text-ringo-muted"
+        }`}
+      >
+        Live
+      </button>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  configured,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  configured?: boolean;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs text-ringo-muted">
+        {label} {configured && <span className="text-ringo-teal">· configured</span>}
+      </span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder || (configured ? "Enter a new value to replace it" : "Not set")}
+        className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
+      />
+    </label>
+  );
+}
 
 export default function SettingsForm({ initial }: { initial: Settings }) {
   const [settings, setSettings] = useState(initial);
-  const [fapshiApiUser, setFapshiApiUser] = useState("");
-  const [fapshiApiKey, setFapshiApiKey] = useState("");
-  const [stripeSecretKey, setStripeSecretKey] = useState("");
-  const [stripeWebhookSecret, setStripeWebhookSecret] = useState("");
+  const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+
+  const setDraftField = (key: string, value: string) => setDraft((d) => ({ ...d, [key]: value }));
 
   const toggle = async (field: "fapshiEnabled" | "stripeEnabled") => {
     const next = { ...settings, [field]: !settings[field] };
@@ -37,22 +105,44 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
     });
   };
 
+  const setMode = async (field: "fapshiTestMode" | "stripeTestMode", testMode: boolean) => {
+    const next = { ...settings, [field]: testMode };
+    setSettings(next);
+    await fetch("/api/admin/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: testMode }),
+    });
+  };
+
   const save = async () => {
     setSaving(true);
     setError("");
+
     const body: Record<string, any> = {
-      fapshiBaseUrl: settings.fapshiBaseUrl,
-      stripePricePro: settings.stripePricePro,
-      stripePriceBusiness: settings.stripePriceBusiness,
-      stripePriceProYearly: settings.stripePriceProYearly,
-      stripePriceBusinessYearly: settings.stripePriceBusinessYearly,
+      stripePriceProTest: settings.stripePriceProTest,
+      stripePriceProYearlyTest: settings.stripePriceProYearlyTest,
+      stripePriceBusinessTest: settings.stripePriceBusinessTest,
+      stripePriceBusinessYearlyTest: settings.stripePriceBusinessYearlyTest,
+      stripePriceProLive: settings.stripePriceProLive,
+      stripePriceProYearlyLive: settings.stripePriceProYearlyLive,
+      stripePriceBusinessLive: settings.stripePriceBusinessLive,
+      stripePriceBusinessYearlyLive: settings.stripePriceBusinessYearlyLive,
     };
     // Only send secret fields that were actually typed into — leaving a
     // field blank must never wipe an already-configured key.
-    if (fapshiApiUser) body.fapshiApiUser = fapshiApiUser;
-    if (fapshiApiKey) body.fapshiApiKey = fapshiApiKey;
-    if (stripeSecretKey) body.stripeSecretKey = stripeSecretKey;
-    if (stripeWebhookSecret) body.stripeWebhookSecret = stripeWebhookSecret;
+    for (const key of [
+      "fapshiApiUserTest",
+      "fapshiApiKeyTest",
+      "fapshiApiUserLive",
+      "fapshiApiKeyLive",
+      "stripeSecretKeyTest",
+      "stripeWebhookSecretTest",
+      "stripeSecretKeyLive",
+      "stripeWebhookSecretLive",
+    ]) {
+      if (draft[key]) body[key] = draft[key];
+    }
 
     const res = await fetch("/api/admin/settings", {
       method: "POST",
@@ -68,10 +158,7 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
     }
 
     setSettings(data.settings);
-    setFapshiApiUser("");
-    setFapshiApiKey("");
-    setStripeSecretKey("");
-    setStripeWebhookSecret("");
+    setDraft({});
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -84,171 +171,187 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
         </h1>
         <p className="text-sm text-ringo-muted mt-1 flex items-start gap-1.5">
           <ShieldCheck size={14} className="text-ringo-teal shrink-0 mt-0.5" />
-          Secret keys are encrypted before storage and never sent back to the browser — fields below show whether
-          a key is configured, not the key itself.
+          Secret keys are encrypted before storage and never sent back to the browser. Test and live credentials
+          are both stored independently — switching modes never loses the other set.
         </p>
       </div>
 
-      {/* Provider toggles */}
+      {/* Provider on/off toggles */}
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <h2 className="text-sm font-medium text-ringo-text mb-4">Providers</h2>
         <div className="flex flex-col gap-3">
-          <label className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-ringo-text">Fapshi (Mobile Money — Cameroon)</p>
-              <p className="text-xs text-ringo-muted">
-                {settings.fapshiApiUserSet && settings.fapshiApiKeySet ? "Configured" : "Not configured yet"}
+          {(["fapshiEnabled", "stripeEnabled"] as const).map((field) => (
+            <label key={field} className="flex items-center justify-between">
+              <p className="text-sm text-ringo-text">
+                {field === "fapshiEnabled" ? "Fapshi (Mobile Money — Cameroon)" : "Stripe (Card — everywhere else)"}
               </p>
-            </div>
-            <button
-              onClick={() => toggle("fapshiEnabled")}
-              role="switch"
-              aria-checked={settings.fapshiEnabled}
-              className={`w-10 h-6 rounded-full relative transition-colors ${
-                settings.fapshiEnabled ? "bg-ringo-teal" : "bg-ringo-muted/30"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                  settings.fapshiEnabled ? "translate-x-[18px]" : ""
+              <button
+                onClick={() => toggle(field)}
+                role="switch"
+                aria-checked={settings[field]}
+                className={`w-10 h-6 rounded-full relative transition-colors ${
+                  settings[field] ? "bg-ringo-teal" : "bg-ringo-muted/30"
                 }`}
-              />
-            </button>
-          </label>
-
-          <label className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-ringo-text">Stripe (Card — everywhere else)</p>
-              <p className="text-xs text-ringo-muted">
-                {settings.stripeSecretKeySet ? "Configured" : "Not configured yet"}
-              </p>
-            </div>
-            <button
-              onClick={() => toggle("stripeEnabled")}
-              role="switch"
-              aria-checked={settings.stripeEnabled}
-              className={`w-10 h-6 rounded-full relative transition-colors ${
-                settings.stripeEnabled ? "bg-ringo-teal" : "bg-ringo-muted/30"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                  settings.stripeEnabled ? "translate-x-[18px]" : ""
-                }`}
-              />
-            </button>
-          </label>
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    settings[field] ? "translate-x-[18px]" : ""
+                  }`}
+                />
+              </button>
+            </label>
+          ))}
         </div>
       </div>
 
-      {/* Fapshi keys */}
+      {/* Fapshi credentials */}
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <h2 className="text-sm font-medium text-ringo-text mb-1">Fapshi</h2>
-        <p className="text-xs text-ringo-muted mb-4">From your Fapshi dashboard.</p>
-        <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">
-              API user {settings.fapshiApiUserSet && <span className="text-ringo-teal">· configured</span>}
-            </span>
-            <input
-              value={fapshiApiUser}
-              onChange={(e) => setFapshiApiUser(e.target.value)}
-              placeholder={settings.fapshiApiUserSet ? "Enter a new value to replace it" : "Not set"}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-medium text-ringo-text">Fapshi</h2>
+          <ModeSwitch testMode={settings.fapshiTestMode} onChange={(v) => setMode("fapshiTestMode", v)} />
+        </div>
+        <p className="text-xs text-ringo-muted mb-4">
+          Currently using <strong className={settings.fapshiTestMode ? "text-ringo-text" : "text-ringo-coral"}>
+            {settings.fapshiTestMode ? "sandbox.fapshi.com" : "live.fapshi.com"}
+          </strong>{" "}
+          for real checkouts.
+        </p>
+
+        <div className="grid sm:grid-cols-2 gap-5">
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-medium text-ringo-muted uppercase tracking-wide">Test credentials</p>
+            <Field
+              label="API user"
+              value={draft.fapshiApiUserTest ?? ""}
+              onChange={(v) => setDraftField("fapshiApiUserTest", v)}
+              configured={settings.fapshiApiUserTestSet}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">
-              API key {settings.fapshiApiKeySet && <span className="text-ringo-teal">· configured</span>}
-            </span>
-            <input
+            <Field
+              label="API key"
               type="password"
-              value={fapshiApiKey}
-              onChange={(e) => setFapshiApiKey(e.target.value)}
-              placeholder={settings.fapshiApiKeySet ? "Enter a new value to replace it" : "Not set"}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
+              value={draft.fapshiApiKeyTest ?? ""}
+              onChange={(v) => setDraftField("fapshiApiKeyTest", v)}
+              configured={settings.fapshiApiKeyTestSet}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Base URL (sandbox vs live)</span>
-            <select
-              value={settings.fapshiBaseUrl}
-              onChange={(e) => setSettings({ ...settings, fapshiBaseUrl: e.target.value })}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
-            >
-              <option value="https://sandbox.fapshi.com">Sandbox (testing)</option>
-              <option value="https://live.fapshi.com">Live (real payments)</option>
-            </select>
-          </label>
+          </div>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-medium text-ringo-coral uppercase tracking-wide">Live credentials</p>
+            <Field
+              label="API user"
+              value={draft.fapshiApiUserLive ?? ""}
+              onChange={(v) => setDraftField("fapshiApiUserLive", v)}
+              configured={settings.fapshiApiUserLiveSet}
+            />
+            <Field
+              label="API key"
+              type="password"
+              value={draft.fapshiApiKeyLive ?? ""}
+              onChange={(v) => setDraftField("fapshiApiKeyLive", v)}
+              configured={settings.fapshiApiKeyLiveSet}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Stripe keys */}
+      {/* Stripe credentials */}
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <h2 className="text-sm font-medium text-ringo-text mb-1">Stripe</h2>
-        <p className="text-xs text-ringo-muted mb-4">From your Stripe dashboard.</p>
-        <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">
-              Secret key {settings.stripeSecretKeySet && <span className="text-ringo-teal">· configured</span>}
-            </span>
-            <input
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-medium text-ringo-text">Stripe</h2>
+          <ModeSwitch testMode={settings.stripeTestMode} onChange={(v) => setMode("stripeTestMode", v)} />
+        </div>
+        <p className="text-xs text-ringo-muted mb-4">
+          Stripe segregates test and live data entirely — Price IDs from test mode won't work in live mode and
+          vice versa, so each needs its own set.
+        </p>
+
+        <div className="grid sm:grid-cols-2 gap-5">
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-medium text-ringo-muted uppercase tracking-wide">Test</p>
+            <Field
+              label="Secret key"
               type="password"
-              value={stripeSecretKey}
-              onChange={(e) => setStripeSecretKey(e.target.value)}
-              placeholder={settings.stripeSecretKeySet ? "Enter a new value to replace it" : "sk_live_… or sk_test_…"}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
+              value={draft.stripeSecretKeyTest ?? ""}
+              onChange={(v) => setDraftField("stripeSecretKeyTest", v)}
+              configured={settings.stripeSecretKeyTestSet}
+              placeholder="sk_test_…"
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">
-              Webhook signing secret{" "}
-              {settings.stripeWebhookSecretSet && <span className="text-ringo-teal">· configured</span>}
-            </span>
-            <input
+            <Field
+              label="Webhook signing secret"
               type="password"
-              value={stripeWebhookSecret}
-              onChange={(e) => setStripeWebhookSecret(e.target.value)}
-              placeholder={settings.stripeWebhookSecretSet ? "Enter a new value to replace it" : "whsec_…"}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
+              value={draft.stripeWebhookSecretTest ?? ""}
+              onChange={(v) => setDraftField("stripeWebhookSecretTest", v)}
+              configured={settings.stripeWebhookSecretTestSet}
+              placeholder="whsec_…"
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Pro plan Price ID (monthly)</span>
-            <input
-              value={settings.stripePricePro || ""}
-              onChange={(e) => setSettings({ ...settings, stripePricePro: e.target.value })}
+            <Field
+              label="Pro — monthly Price ID"
+              value={settings.stripePriceProTest ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceProTest: v })}
               placeholder="price_…"
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Pro plan Price ID (yearly)</span>
-            <input
-              value={settings.stripePriceProYearly || ""}
-              onChange={(e) => setSettings({ ...settings, stripePriceProYearly: e.target.value })}
+            <Field
+              label="Pro — yearly Price ID"
+              value={settings.stripePriceProYearlyTest ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceProYearlyTest: v })}
               placeholder="price_…"
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Business plan Price ID (monthly)</span>
-            <input
-              value={settings.stripePriceBusiness || ""}
-              onChange={(e) => setSettings({ ...settings, stripePriceBusiness: e.target.value })}
+            <Field
+              label="Business — monthly Price ID"
+              value={settings.stripePriceBusinessTest ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceBusinessTest: v })}
               placeholder="price_…"
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Business plan Price ID (yearly)</span>
-            <input
-              value={settings.stripePriceBusinessYearly || ""}
-              onChange={(e) => setSettings({ ...settings, stripePriceBusinessYearly: e.target.value })}
+            <Field
+              label="Business — yearly Price ID"
+              value={settings.stripePriceBusinessYearlyTest ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceBusinessYearlyTest: v })}
               placeholder="price_…"
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
             />
-          </label>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-medium text-ringo-coral uppercase tracking-wide">Live</p>
+            <Field
+              label="Secret key"
+              type="password"
+              value={draft.stripeSecretKeyLive ?? ""}
+              onChange={(v) => setDraftField("stripeSecretKeyLive", v)}
+              configured={settings.stripeSecretKeyLiveSet}
+              placeholder="sk_live_…"
+            />
+            <Field
+              label="Webhook signing secret"
+              type="password"
+              value={draft.stripeWebhookSecretLive ?? ""}
+              onChange={(v) => setDraftField("stripeWebhookSecretLive", v)}
+              configured={settings.stripeWebhookSecretLiveSet}
+              placeholder="whsec_…"
+            />
+            <Field
+              label="Pro — monthly Price ID"
+              value={settings.stripePriceProLive ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceProLive: v })}
+              placeholder="price_…"
+            />
+            <Field
+              label="Pro — yearly Price ID"
+              value={settings.stripePriceProYearlyLive ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceProYearlyLive: v })}
+              placeholder="price_…"
+            />
+            <Field
+              label="Business — monthly Price ID"
+              value={settings.stripePriceBusinessLive ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceBusinessLive: v })}
+              placeholder="price_…"
+            />
+            <Field
+              label="Business — yearly Price ID"
+              value={settings.stripePriceBusinessYearlyLive ?? ""}
+              onChange={(v) => setSettings({ ...settings, stripePriceBusinessYearlyLive: v })}
+              placeholder="price_…"
+            />
+          </div>
         </div>
       </div>
 

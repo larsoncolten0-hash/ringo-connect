@@ -34,6 +34,7 @@ export default async function SubscriptionPage() {
       paymentProvider={userRow?.payment_provider ?? null}
       planExpiresAt={userRow?.plan_expires_at ?? null}
       defaultMethod={country === "CM" ? "mobile_money" : "card"}
+      isCameroon={country === "CM"}
     />
   );
 }

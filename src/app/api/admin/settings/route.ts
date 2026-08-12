@@ -19,12 +19,32 @@ export async function POST(request: Request) {
   // only that a settings change happened, and which non-secret fields
   // changed. A secret's value should never appear in a log anywhere.
   const nonSecretChanges: Record<string, any> = {};
-  for (const key of ["fapshiEnabled", "stripeEnabled", "fapshiBaseUrl", "stripePricePro", "stripePriceBusiness"]) {
+  for (const key of [
+    "fapshiEnabled",
+    "stripeEnabled",
+    "fapshiTestMode",
+    "stripeTestMode",
+    "stripePriceProTest",
+    "stripePriceProYearlyTest",
+    "stripePriceBusinessTest",
+    "stripePriceBusinessYearlyTest",
+    "stripePriceProLive",
+    "stripePriceProYearlyLive",
+    "stripePriceBusinessLive",
+    "stripePriceBusinessYearlyLive",
+  ]) {
     if (key in body) nonSecretChanges[key] = body[key];
   }
-  const secretsChanged = ["fapshiApiUser", "fapshiApiKey", "stripeSecretKey", "stripeWebhookSecret"].filter(
-    (k) => k in body && body[k]
-  );
+  const secretsChanged = [
+    "fapshiApiUserTest",
+    "fapshiApiKeyTest",
+    "fapshiApiUserLive",
+    "fapshiApiKeyLive",
+    "stripeSecretKeyTest",
+    "stripeWebhookSecretTest",
+    "stripeSecretKeyLive",
+    "stripeWebhookSecretLive",
+  ].filter((k) => k in body && body[k]);
 
   const adminClient = createAdminClient();
   await adminClient.from("admin_audit_log").insert({
