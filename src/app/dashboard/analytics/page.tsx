@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AnalyticsView from "@/components/AnalyticsView";
 
+// See src/app/admin/settings/page.tsx for why this matters.
+export const dynamic = "force-dynamic";
+
 export default async function AnalyticsPage() {
   const supabase = createClient();
   const {

@@ -2,6 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 
+// See src/app/admin/settings/page.tsx for why this matters — this layout
+// is what feeds the sidebar's plan badge, so a stale cache here could
+// keep showing "Free" right after an upgrade.
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {

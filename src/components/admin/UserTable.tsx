@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Search, Users } from "lucide-react";
 
 export default function UserTable({ users, plans }: { users: any[]; plans: any[] }) {
+  const router = useRouter();
   const [rows, setRows] = useState(users);
   const [query, setQuery] = useState("");
 
@@ -18,6 +20,8 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
       // Revert on failure rather than leaving the UI showing a change
       // that didn't actually save.
       setRows(users);
+    } else {
+      router.refresh();
     }
   };
 

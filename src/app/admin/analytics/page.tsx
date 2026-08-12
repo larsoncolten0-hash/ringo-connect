@@ -1,6 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import AdminAnalyticsView from "@/components/admin/AdminAnalyticsView";
 
+// See src/app/admin/settings/page.tsx for why this is needed on every
+// admin page — without it, navigating back to a page via the sidebar can
+// show stale cached data until a hard reload.
+export const dynamic = "force-dynamic";
+
 export default async function AdminAnalyticsPage() {
   const supabase = createClient();
 

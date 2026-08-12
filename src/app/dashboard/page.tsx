@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Editor from "@/components/Editor";
 
+// See src/app/admin/settings/page.tsx for why this matters: without it,
+// navigating back here via the sidebar can show stale cached data.
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const supabase = createClient();
   const {

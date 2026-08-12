@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 
 export default function PlansManager({ plans }: { plans: any[] }) {
+  const router = useRouter();
   const [rows, setRows] = useState(plans);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export default function PlansManager({ plans }: { plans: any[] }) {
     setSavingId(null);
     if (res.ok) {
       setSavedId(plan.id);
+      router.refresh();
       setTimeout(() => setSavedId(null), 1600);
     }
   };

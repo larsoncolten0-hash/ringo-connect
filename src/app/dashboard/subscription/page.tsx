@@ -4,6 +4,11 @@ import { headers } from "next/headers";
 import { getPlatformSettings } from "@/lib/platformSettings";
 import SubscriptionView from "@/components/subscription/SubscriptionView";
 
+// See src/app/admin/settings/page.tsx for why this matters — especially
+// here, since showing a stale plan/payment status after an upgrade or
+// cancellation would be actively misleading, not just inconvenient.
+export const dynamic = "force-dynamic";
+
 export default async function SubscriptionPage() {
   const supabase = createClient();
   const {

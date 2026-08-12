@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, ShieldCheck, AlertTriangle } from "lucide-react";
 
 type Settings = {
@@ -91,6 +92,7 @@ function Field({
 }
 
 export default function SettingsForm({ initial }: { initial: Settings }) {
+  const router = useRouter();
   const [settings, setSettings] = useState(initial);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -107,6 +109,11 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: next[field] }),
     });
+    // Without this, Next's client-side Router Cache keeps serving the
+    // pre-toggle version of this page if you navigate away and back —
+    // plain fetch() mutations (unlike Server Actions) don't trigger
+    // Next's automatic cache invalidation, so it has to be done explicitly.
+    router.refresh();
   };
 
   const setMode = async (field: "fapshiTestMode" | "stripeTestMode", testMode: boolean) => {
@@ -117,6 +124,7 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: testMode }),
     });
+    router.refresh();
   };
 
   const save = async () => {
@@ -168,6 +176,7 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
     setSettings(data.settings);
     setDraft({});
     setSaved(true);
+    router.refresh();
     setTimeout(() => setSaved(false), 2000);
   };
 
