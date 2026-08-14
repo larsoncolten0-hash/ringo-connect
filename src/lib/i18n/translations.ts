@@ -2,7 +2,17 @@ export type Locale = "en" | "fr";
 
 export const translations = {
   en: {
-    profilePage: { linkCopied: "Link copied" },
+    profilePage: {
+      linkCopied: "Link copied",
+      email: "Email",
+      phone: "Phone",
+      location: "Location",
+      hours: "Hours",
+      noAboutInfo: "No additional info yet.",
+      linksHeading: "Links",
+      catalogHeading: "Catalog",
+      viewDetails: "View details",
+    },
     installPrompt: {
       title: "Install Ringo Connect",
       body: "Add it to your home screen for quick access, just like a real app.",
@@ -62,8 +72,9 @@ export const translations = {
         name: "Display name",
         namePlaceholder: "Your name",
         bio: "Bio",
-        bioPlaceholder: "A short line about you or your business",
+        bioPlaceholder: "Profession",
         bioCount: (n: number) => `${n}/150`,
+        coverPhoto: "Cover photo",
       },
       whatsapp: "WhatsApp",
       whatsappNumber: "Phone number",
@@ -82,6 +93,7 @@ export const translations = {
       delete: "Delete",
       linkTitlePlaceholder: "Link title",
       linkUrlPlaceholder: "https://",
+      linkDescriptionPlaceholder: "Short description (optional)",
       noLinksYet: "No links yet — add your first one.",
       untitledLink: "Untitled link",
       catalog: "Catalog",
@@ -97,7 +109,7 @@ export const translations = {
       about: {
         title: "About",
         longBio: "Full description",
-        longBioPlaceholder: "Tell visitors more about you or your business",
+        longBioPlaceholder: "",
         email: "Email",
         phone: "Phone number",
         company: "Company",
@@ -128,6 +140,8 @@ export const translations = {
         pill: "Pill",
         preview: "Preview",
         sampleLink: "Your link",
+        resetToDefault: "Reset to default",
+        resetConfirm: "Reset your colors and button style back to the default look? This can't be undone.",
       },
       upload: {
         tooLarge: "Images must be under 5MB.",
@@ -248,7 +262,17 @@ export const translations = {
     },
   },
   fr: {
-    profilePage: { linkCopied: "Lien copié" },
+    profilePage: {
+      linkCopied: "Lien copié",
+      email: "E-mail",
+      phone: "Téléphone",
+      location: "Lieu",
+      hours: "Horaires",
+      noAboutInfo: "Aucune information supplémentaire pour l'instant.",
+      linksHeading: "Liens",
+      catalogHeading: "Catalogue",
+      viewDetails: "Voir les détails",
+    },
     installPrompt: {
       title: "Installer Ringo Connect",
       body: "Ajoutez-le à votre écran d'accueil pour un accès rapide, comme une vraie appli.",
@@ -308,8 +332,9 @@ export const translations = {
         name: "Nom affiché",
         namePlaceholder: "Votre nom",
         bio: "Bio",
-        bioPlaceholder: "Une courte phrase sur vous ou votre activité",
+        bioPlaceholder: "Profession",
         bioCount: (n: number) => `${n}/150`,
+        coverPhoto: "Photo de couverture",
       },
       whatsapp: "WhatsApp",
       whatsappNumber: "Numéro de téléphone",
@@ -328,6 +353,7 @@ export const translations = {
       delete: "Supprimer",
       linkTitlePlaceholder: "Titre du lien",
       linkUrlPlaceholder: "https://",
+      linkDescriptionPlaceholder: "Courte description (optionnel)",
       noLinksYet: "Aucun lien pour l'instant — ajoutez le premier.",
       untitledLink: "Lien sans titre",
       catalog: "Catalogue",
@@ -374,6 +400,8 @@ export const translations = {
         pill: "Pilule",
         preview: "Aperçu",
         sampleLink: "Votre lien",
+        resetToDefault: "Réinitialiser",
+        resetConfirm: "Réinitialiser vos couleurs et le style des boutons à l'apparence par défaut ? Cette action est irréversible.",
       },
       upload: {
         tooLarge: "Les images doivent faire moins de 5 Mo.",

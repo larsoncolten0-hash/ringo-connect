@@ -9,7 +9,7 @@ import { getButtonStyle, getRadiusClass, getBackgroundStyle, type ButtonStyle, t
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 
-const ACCENT_PRESETS = ["#4F46E5", "#FF6B4A", "#14B8A6", "#E11D48", "#059669", "#D97706", "#0EA5E9", "#7C3AED", "#0F172A"];
+const ACCENT_PRESETS = ["#D4A954", "#4F46E5", "#FF6B4A", "#14B8A6", "#E11D48", "#059669", "#D97706", "#0EA5E9", "#7C3AED", "#0F172A"];
 
 export default function ThemeCard({
   profileId,
@@ -30,12 +30,12 @@ export default function ThemeCard({
 }) {
   const supabase = createClient();
   const { t } = useLanguage();
-  const [accent, setAccent] = useState(initial.themeColor || "#4F46E5");
+  const [accent, setAccent] = useState(initial.themeColor || "#D4A954");
   const [bgStyle, setBgStyle] = useState<BackgroundStyle>(initial.backgroundStyle || "solid");
-  const [bgColor, setBgColor] = useState(initial.backgroundColor || "#FAFAF8");
+  const [bgColor, setBgColor] = useState(initial.backgroundColor || "#0A0A0A");
   const [bgGradientEnd, setBgGradientEnd] = useState(initial.backgroundGradientEnd || "#E0E7FF");
-  const [textColor, setTextColor] = useState(initial.textColor || "#0F172A");
-  const [btnStyle, setBtnStyle] = useState<ButtonStyle>(initial.buttonStyle || "fill");
+  const [textColor, setTextColor] = useState(initial.textColor || "#FAFAFA");
+  const [btnStyle, setBtnStyle] = useState<ButtonStyle>(initial.buttonStyle || "outline");
   const [btnRadius, setBtnRadius] = useState<ButtonRadius>(initial.buttonRadius || "rounded");
   const pulse = useSavedPulse();
   const persistTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -46,6 +46,48 @@ export default function ThemeCard({
       await supabase.from("profiles").update(patch).eq("id", profileId);
       pulse.show();
     }, 300);
+  };
+
+  // Same values as the profiles table's column defaults (see
+  // add-cover-photo-new-defaults.sql) — kept in sync manually since one
+  // lives in SQL and the other in the client, but they should always
+  // match: this is "what a brand-new signup starts with."
+  const DEFAULTS = {
+    themeColor: "#D4A954",
+    backgroundStyle: "solid" as BackgroundStyle,
+    backgroundColor: "#0A0A0A",
+    textColor: "#FAFAFA",
+    buttonStyle: "outline" as ButtonStyle,
+    buttonRadius: "rounded" as ButtonRadius,
+  };
+
+  const resetToDefaults = async () => {
+    if (!window.confirm(t.editor.theme.resetConfirm)) return;
+
+    clearTimeout(persistTimer.current);
+
+    setAccent(DEFAULTS.themeColor);
+    setBgStyle(DEFAULTS.backgroundStyle);
+    setBgColor(DEFAULTS.backgroundColor);
+    setBgGradientEnd("#E0E7FF");
+    setTextColor(DEFAULTS.textColor);
+    setBtnStyle(DEFAULTS.buttonStyle);
+    setBtnRadius(DEFAULTS.buttonRadius);
+
+    await supabase
+      .from("profiles")
+      .update({
+        theme_color: DEFAULTS.themeColor,
+        background_style: DEFAULTS.backgroundStyle,
+        background_color: DEFAULTS.backgroundColor,
+        background_gradient_end: null,
+        text_color: DEFAULTS.textColor,
+        button_style: DEFAULTS.buttonStyle,
+        button_radius: DEFAULTS.buttonRadius,
+      })
+      .eq("id", profileId);
+
+    pulse.show();
   };
 
   if (!themeEnabled) {
@@ -69,7 +111,17 @@ export default function ThemeCard({
     <EditorCard
       icon={Palette}
       title={t.editor.theme.title}
-      action={<SavedPulse visible={pulse.visible} label={t.editor.saved} />}
+      action={
+        <div className="flex items-center gap-3">
+          <button
+            onClick={resetToDefaults}
+            className="text-xs font-medium text-ringo-muted hover:text-ringo-coral transition-colors"
+          >
+            {t.editor.theme.resetToDefault}
+          </button>
+          <SavedPulse visible={pulse.visible} label={t.editor.saved} />
+        </div>
+      }
     >
       <p className="text-xs text-ringo-muted mb-4">{t.editor.theme.description}</p>
 

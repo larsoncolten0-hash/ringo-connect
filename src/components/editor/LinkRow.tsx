@@ -67,7 +67,7 @@ export default function LinkRow({
           <p className="text-sm font-medium text-ringo-text truncate">
             {link.title || t.editor.untitledLink}
           </p>
-          <p className="text-xs text-ringo-muted truncate">{link.url}</p>
+          <p className="text-xs text-ringo-muted truncate">{link.description || link.url}</p>
         </button>
 
         <ChevronDown
@@ -101,6 +101,13 @@ export default function LinkRow({
                 onBlur={(e) => onPersist({ url: e.target.value })}
                 placeholder={t.editor.linkUrlPlaceholder}
                 inputMode="url"
+                className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-muted"
+              />
+              <input
+                value={link.description ?? ""}
+                onChange={(e) => onChange({ description: e.target.value })}
+                onBlur={(e) => onPersist({ description: e.target.value })}
+                placeholder={t.editor.linkDescriptionPlaceholder}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-muted"
               />
               <button

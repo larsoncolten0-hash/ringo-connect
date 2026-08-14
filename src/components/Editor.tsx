@@ -38,6 +38,7 @@ export default function Editor({
         profileId={profile.id}
         userId={userId}
         initialAvatarUrl={profile.avatar_url}
+        initialCoverUrl={profile.cover_image_url}
         initialName={profile.name}
         initialBio={profile.bio}
       />

@@ -12,18 +12,21 @@ export default function ProfileHeaderCard({
   profileId,
   userId,
   initialAvatarUrl,
+  initialCoverUrl,
   initialName,
   initialBio,
 }: {
   profileId: string;
   userId: string;
   initialAvatarUrl: string | null;
+  initialCoverUrl: string | null;
   initialName: string | null;
   initialBio: string | null;
 }) {
   const supabase = createClient();
   const { t } = useLanguage();
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl || "");
+  const [coverUrl, setCoverUrl] = useState(initialCoverUrl || "");
   const [name, setName] = useState(initialName || "");
   const [bio, setBio] = useState(initialBio || "");
   const pulse = useSavedPulse();
@@ -35,6 +38,25 @@ export default function ProfileHeaderCard({
 
   return (
     <EditorCard icon={User} title={t.editor.profile.title} action={<SavedPulse visible={pulse.visible} label={t.editor.saved} />}>
+      {/* Cover photo — the banner image behind the avatar on the public
+          page. Wide/rectangular, so it uses a "square" shape upload
+          rather than the circular avatar treatment. */}
+      <div className="mb-4">
+        <label className="text-xs text-ringo-muted mb-1.5 block">{t.editor.profile.coverPhoto}</label>
+        <ImageUploadField
+          value={coverUrl}
+          onChange={(url) => {
+            setCoverUrl(url);
+            persist({ cover_image_url: url });
+          }}
+          userId={userId}
+          folder="cover"
+          shape="square"
+          size={96}
+          errorText={t.editor.upload}
+        />
+      </div>
+
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
         <ImageUploadField
           value={avatarUrl}
