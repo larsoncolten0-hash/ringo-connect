@@ -20,6 +20,7 @@ export default function SubscriptionView({
   isCameroon,
   fapshiEnabled,
   stripeEnabled,
+  isOnboarding = false,
 }: {
   plans: any[];
   currentPlan: string;
@@ -30,6 +31,7 @@ export default function SubscriptionView({
   isCameroon: boolean;
   fapshiEnabled: boolean;
   stripeEnabled: boolean;
+  isOnboarding?: boolean;
 }) {
   const router = useRouter();
   const { t, locale } = useLanguage();
@@ -49,12 +51,14 @@ export default function SubscriptionView({
   return (
     <div className="max-w-4xl">
       <p className="text-xs font-medium tracking-wide uppercase text-ringo-indigo mb-2">
-        {t.subscription.eyebrow}
+        {isOnboarding ? t.subscription.onboardingEyebrow : t.subscription.eyebrow}
       </p>
       <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em] mb-1">
-        {t.subscription.title}
+        {isOnboarding ? t.subscription.onboardingTitle : t.subscription.title}
       </h1>
-      <p className="text-sm text-ringo-muted mb-6 max-w-md">{t.subscription.subtitle}</p>
+      <p className="text-sm text-ringo-muted mb-6 max-w-md">
+        {isOnboarding ? t.subscription.onboardingSubtitle : t.subscription.subtitle}
+      </p>
 
       {/* Page-level billing interval toggle — affects the price shown on
           every card and the interval a new upgrade defaults to. */}
@@ -155,14 +159,25 @@ export default function SubscriptionView({
                   </button>
                 </div>
               ) : isCurrent ? (
-                <div className="text-center text-xs font-medium text-ringo-teal py-2.5 rounded-card bg-ringo-teal/10">
-                  {t.subscription.currentPlan}
-                  {isPaidPlan(plan.name) && (
-                    <span className="block text-[10px] font-normal text-ringo-muted mt-0.5 capitalize">
-                      {currentInterval === "yearly" ? t.subscription.billingYearly : t.subscription.billingMonthly}
-                    </span>
-                  )}
-                </div>
+                isOnboarding ? (
+                  <button
+                    onClick={() => router.push("/dashboard")}
+                    className="text-sm font-medium py-2.5 rounded-card bg-ringo-indigo text-white hover:bg-ringo-indigo/90"
+                  >
+                    {isPaidPlan(plan.name)
+                      ? `${t.subscription.continueWith} ${plan.display_name || plan.name}`
+                      : t.subscription.continueFree}
+                  </button>
+                ) : (
+                  <div className="text-center text-xs font-medium text-ringo-teal py-2.5 rounded-card bg-ringo-teal/10">
+                    {t.subscription.currentPlan}
+                    {isPaidPlan(plan.name) && (
+                      <span className="block text-[10px] font-normal text-ringo-muted mt-0.5 capitalize">
+                        {currentInterval === "yearly" ? t.subscription.billingYearly : t.subscription.billingMonthly}
+                      </span>
+                    )}
+                  </div>
+                )
               ) : isDowngrade ? (
                 <button
                   onClick={handleDowngrade}
@@ -180,7 +195,9 @@ export default function SubscriptionView({
                       : "border border-ringo-border text-ringo-text hover:border-ringo-indigo"
                   }`}
                 >
-                  {t.subscription.upgrade} {t.subscription.to} {plan.display_name || plan.name}
+                  {isOnboarding
+                    ? `${t.subscription.continueWith} ${plan.display_name || plan.name}`
+                    : `${t.subscription.upgrade} ${t.subscription.to} ${plan.display_name || plan.name}`}
                 </button>
               )}
             </div>
@@ -202,7 +219,11 @@ export default function SubscriptionView({
           onClose={() => setModalPlan(null)}
           onSuccess={() => {
             setModalPlan(null);
-            router.refresh();
+            if (isOnboarding) {
+              router.push("/dashboard");
+            } else {
+              router.refresh();
+            }
           }}
         />
       )}

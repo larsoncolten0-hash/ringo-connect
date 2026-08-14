@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import { Reorder } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -77,8 +78,11 @@ export default function CatalogCard({
   if (catalogLocked) {
     return (
       <EditorCard icon={ShoppingBag} title={t.editor.catalog}>
-        <div className="border border-dashed border-ringo-border rounded-card p-6 text-center text-sm text-ringo-muted">
+        <div className="border border-dashed border-ringo-border rounded-card p-6 text-center text-sm text-ringo-muted flex flex-col items-center gap-3">
           {t.editor.catalogLocked}
+          <Link href="/dashboard/subscription" className="text-xs font-medium text-ringo-indigo">
+            {t.sidebar.upgradePlan}
+          </Link>
         </div>
       </EditorCard>
     );

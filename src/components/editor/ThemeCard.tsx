@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { Palette } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -50,8 +51,11 @@ export default function ThemeCard({
   if (!themeEnabled) {
     return (
       <EditorCard icon={Palette} title={t.editor.theme.title}>
-        <div className="border border-dashed border-ringo-border rounded-card p-6 text-center text-sm text-ringo-muted">
+        <div className="border border-dashed border-ringo-border rounded-card p-6 text-center text-sm text-ringo-muted flex flex-col items-center gap-3">
           {t.editor.theme.locked}
+          <Link href="/dashboard/subscription" className="text-xs font-medium text-ringo-indigo">
+            {t.sidebar.upgradePlan}
+          </Link>
         </div>
       </EditorCard>
     );

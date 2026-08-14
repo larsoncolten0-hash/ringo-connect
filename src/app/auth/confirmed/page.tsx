@@ -10,7 +10,11 @@ export default function ConfirmedPage() {
 
   useEffect(() => {
     if (countdown === 0) {
-      router.push("/dashboard");
+      // New signups land on the subscription page first, not straight
+      // into the editor — the ?onboarding=true flag lets that page show
+      // "choose a plan to get started" framing and a plain "Continue"
+      // action for Free, instead of the normal upgrade/downgrade wording.
+      router.push("/dashboard/subscription?onboarding=true");
       return;
     }
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
@@ -21,7 +25,7 @@ export default function ConfirmedPage() {
     <AuthShell
       eyebrow="You're in"
       title="Email confirmed"
-      subtitle="Your account is active and your page is ready to build."
+      subtitle="One quick step before your page is ready to build."
     >
       <div className="flex flex-col items-center text-center gap-4 py-4">
         <div className="w-12 h-12 rounded-full bg-ringo-teal/10 flex items-center justify-center">
@@ -36,10 +40,10 @@ export default function ConfirmedPage() {
           </svg>
         </div>
         <p className="text-sm text-ringo-muted">
-          Taking you to your dashboard in {countdown}…
+          Taking you to choose a plan in {countdown}…
         </p>
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push("/dashboard/subscription?onboarding=true")}
           className="text-sm text-ringo-indigo font-medium hover:underline"
         >
           Go now

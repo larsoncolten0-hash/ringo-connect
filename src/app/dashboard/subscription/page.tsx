@@ -9,7 +9,11 @@ import SubscriptionView from "@/components/subscription/SubscriptionView";
 // cancellation would be actively misleading, not just inconvenient.
 export const dynamic = "force-dynamic";
 
-export default async function SubscriptionPage() {
+export default async function SubscriptionPage({
+  searchParams,
+}: {
+  searchParams: { onboarding?: string };
+}) {
   const supabase = createClient();
   const {
     data: { user },
@@ -50,6 +54,7 @@ export default async function SubscriptionPage() {
       isCameroon={country === "CM"}
       fapshiEnabled={settings.fapshiEnabled}
       stripeEnabled={settings.stripeEnabled}
+      isOnboarding={searchParams.onboarding === "true"}
     />
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import NextLink from "next/link";
 import { Reorder } from "framer-motion";
 import { Link2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -80,7 +81,14 @@ export default function LinksCard({
         </button>
       }
     >
-      {limitReached && <p className="text-xs text-ringo-coral mb-3">{t.editor.linkLimitReached(maxLinks!)}</p>}
+      {limitReached && (
+        <p className="text-xs text-ringo-coral mb-3">
+          {t.editor.linkLimitReached(maxLinks!)}{" "}
+          <NextLink href="/dashboard/subscription" className="font-medium underline">
+            {t.sidebar.upgradePlan}
+          </NextLink>
+        </p>
+      )}
       {links.length === 0 && <p className="text-sm text-ringo-muted">{t.editor.noLinksYet}</p>}
 
       <Reorder.Group axis="y" values={links} onReorder={handleReorder} className="flex flex-col gap-2">
