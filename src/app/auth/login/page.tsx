@@ -3,14 +3,13 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import AuthShell from "@/components/auth/AuthShell";
 import FormField from "@/components/auth/FormField";
 import SubmitButton from "@/components/auth/SubmitButton";
 import FormBanner from "@/components/auth/FormBanner";
 
 function LoginForm() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -18,12 +17,11 @@ function LoginForm() {
   const [resendSent, setResendSent] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
 
   useEffect(() => {
     const errParam = searchParams.get("error");
     if (errParam === "confirmation_failed") {
-      setError("That confirmation link is invalid or has expired. Log in to request a new one, or enter your email below to resend it.");
+      setError("That confirmation link is invalid or has expired. Log in to request a new one, or enter your email or username below to resend it.");
       setNeedsConfirmation(true);
     } else if (errParam === "profile_missing") {
       setError("We couldn't find your profile. If you just signed up, confirm your email first — otherwise contact support.");
@@ -36,44 +34,40 @@ function LoginForm() {
     setNeedsConfirmation(false);
     setLoading(true);
 
-    const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password }),
+    });
+    const data = await res.json();
+    setLoading(false);
 
-    if (loginError || !data.user) {
-      if (/email not confirmed/i.test(loginError?.message || "")) {
+    if (!res.ok) {
+      if (data.error === "unconfirmed") {
         setError("Confirm your email before logging in — check your inbox for the link.");
         setNeedsConfirmation(true);
-      } else if (loginError?.message === "Invalid login credentials") {
-        setError("That email and password don't match an account.");
+      } else if (data.error === "suspended") {
+        setError("This account has been suspended. Contact support for help.");
       } else {
-        setError(loginError?.message || "Something went wrong. Try again.");
+        setError("That email/username and password don't match an account.");
       }
-      setLoading(false);
       return;
     }
 
-    const { data: userRow } = await supabase
-      .from("users")
-      .select("role, status")
-      .eq("id", data.user.id)
-      .single();
-
-    if (userRow?.status === "suspended") {
-      setError("This account has been suspended. Contact support for help.");
-      await supabase.auth.signOut();
-      setLoading(false);
-      return;
-    }
-
-    router.push(userRow?.role === "admin" ? "/admin" : "/dashboard");
+    router.push(data.role === "admin" ? "/admin" : "/dashboard");
     router.refresh();
   };
 
   const handleResend = async () => {
-    if (!email) {
-      setError("Enter your email above first, then resend.");
+    if (!identifier) {
+      setError("Enter your email or username above first, then resend.");
       return;
     }
-    await supabase.auth.resend({ type: "signup", email });
+    await fetch("/api/auth/resend-confirmation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier }),
+    });
     setResendSent(true);
   };
 
@@ -88,12 +82,12 @@ function LoginForm() {
         {resendSent && <FormBanner type="success">Confirmation email resent — check your inbox.</FormBanner>}
 
         <FormField
-          label="Email"
-          type="email"
-          value={email}
-          onChange={setEmail}
-          autoComplete="email"
-          placeholder="you@example.com"
+          label="Email or username"
+          type="text"
+          value={identifier}
+          onChange={setIdentifier}
+          autoComplete="username"
+          placeholder="you@example.com or yourname"
         />
         <div>
           <FormField

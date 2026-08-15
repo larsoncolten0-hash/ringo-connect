@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, Mail, Phone, Clock } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
@@ -91,49 +92,80 @@ export default function ProfileView({ profile }: { profile: any }) {
         >
           {copied ? <Check size={15} /> : <Copy size={15} />}
         </button>
-        {copied && (
-          <span
-            className="absolute top-14 right-4 text-xs px-2.5 py-1 rounded-full z-10"
-            style={{ backgroundColor: "rgba(255,255,255,0.9)", color: accent }}
-          >
-            {t.profilePage.linkCopied}
-          </span>
-        )}
+        <AnimatePresence>
+          {copied && (
+            <motion.span
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="absolute top-14 right-4 text-xs px-2.5 py-1 rounded-full z-10"
+              style={{ backgroundColor: "rgba(255,255,255,0.9)", color: accent }}
+            >
+              {t.profilePage.linkCopied}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="relative z-10 flex flex-col items-center px-4 -mt-16 w-full">
-        <img
-          src={profile.avatar_url || "/default-avatar.png"}
-          alt={profile.name}
-          className="w-36 h-36 sm:w-40 sm:h-40 rounded-full object-cover ring-4"
-          style={{ ["--tw-ring-color" as any]: hexToRgba(accent, 0.85), backgroundColor: bgColor }}
-        />
+        <div className="relative animate-fade-up">
+          {/* Subtle pulsing glow — the same ring-pulse signature used on
+              the auth pages, scaled down and tinted to the creator's own
+              accent color rather than the fixed brand palette. */}
+          <span
+            className="absolute inset-0 rounded-full animate-ring-pulse-1 pointer-events-none"
+            style={{ border: `2px solid ${accent}` }}
+          />
+          <span
+            className="absolute inset-0 rounded-full animate-ring-pulse-2 pointer-events-none"
+            style={{ border: `2px solid ${accent}` }}
+          />
+          <img
+            src={profile.avatar_url || "/default-avatar.png"}
+            alt={profile.name}
+            className="relative w-36 h-36 sm:w-40 sm:h-40 rounded-full object-cover ring-4"
+            style={{ ["--tw-ring-color" as any]: hexToRgba(accent, 0.85), backgroundColor: bgColor }}
+          />
+        </div>
 
-        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight uppercase mt-3 text-center">
+        <h1
+          className="font-display text-2xl sm:text-3xl font-bold tracking-tight uppercase mt-3 text-center animate-fade-up"
+          style={{ animationDelay: "80ms" }}
+        >
           {firstName} {restName && <span style={{ color: accent }}>{restName}</span>}
         </h1>
 
         {profile.bio && (
-          <p className="text-sm mt-1 text-center max-w-xs" style={{ opacity: 0.75 }}>
+          <p
+            className="text-sm mt-1 text-center max-w-xs animate-fade-up"
+            style={{ opacity: 0.75, animationDelay: "140ms" }}
+          >
             {profile.bio}
           </p>
         )}
 
         {profile.about_location && (
-          <div className="flex items-center gap-1.5 mt-2 text-sm" style={{ color: accent }}>
+          <div
+            className="flex items-center gap-1.5 mt-2 text-sm animate-fade-up"
+            style={{ color: accent, animationDelay: "180ms" }}
+          >
             <MapPin size={14} />
             {profile.about_location}
           </div>
         )}
 
         {profile.about_long_bio && (
-          <p className="text-sm mt-3 text-center max-w-md leading-relaxed" style={{ opacity: 0.85 }}>
+          <p
+            className="text-sm mt-3 text-center max-w-md leading-relaxed animate-fade-up"
+            style={{ opacity: 0.85, animationDelay: "220ms" }}
+          >
             {profile.about_long_bio}
           </p>
         )}
 
         {profile.whatsapp_number && (
-          <div className="flex gap-3 mt-5 w-full max-w-sm">
+          <div className="flex gap-3 mt-5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
             <WhatsAppButton
               number={profile.whatsapp_number}
               message={profile.default_whatsapp_message}
@@ -152,14 +184,17 @@ export default function ProfileView({ profile }: { profile: any }) {
         )}
 
         {profile.social_links?.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-2.5 mt-5">
+          <div
+            className="flex flex-wrap justify-center gap-2.5 mt-5 animate-fade-up"
+            style={{ animationDelay: "300ms" }}
+          >
             {profile.social_links.map((s: any) => (
               <SocialIcon key={s.id} platform={s.platform} url={s.url} themed />
             ))}
           </div>
         )}
 
-        <div className="w-full max-w-md mt-6 flex flex-col gap-6">
+        <div className="w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up" style={{ animationDelay: "340ms" }}>
           {(() => {
             const hasRoleCard = profile.about_position || profile.about_company;
             const contactRows = [
@@ -288,7 +323,7 @@ export default function ProfileView({ profile }: { profile: any }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => logClick("link", link.id)}
-                    className={`flex items-center gap-3 p-3 transition hover:brightness-95 ${radiusClass}`}
+                    className={`flex items-center gap-3 p-3 transition hover:brightness-95 hover:-translate-y-0.5 active:scale-[0.98] active:brightness-90 ${radiusClass}`}
                     style={linkButtonStyle}
                   >
                     {link.image_url && (
@@ -312,7 +347,7 @@ export default function ProfileView({ profile }: { profile: any }) {
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => setShowCatalog((v) => !v)}
-                className={`flex items-center justify-between p-3.5 transition ${radiusClass}`}
+                className={`flex items-center justify-between p-3.5 transition active:scale-[0.98] ${radiusClass}`}
                 style={{
                   border: `1px solid ${borderTint}`,
                   backgroundColor: showCatalog ? hexToRgba(accent, 0.08) : "transparent",
@@ -330,65 +365,75 @@ export default function ProfileView({ profile }: { profile: any }) {
                 />
               </button>
 
-              {showCatalog && (
-                <div className="grid grid-cols-2 gap-3">
-                  {profile.products
-                    .sort((a: any, b: any) => a.sort_order - b.sort_order)
-                    .map((product: any) => (
-                      <div
-                        key={product.id}
-                        className={`overflow-hidden ${radiusClass}`}
-                        style={{ border: `1px solid ${borderTint}` }}
-                      >
-                        {product.image_url && (
-                          <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-full aspect-square object-cover"
-                          />
-                        )}
-                        <div className="p-3">
-                          <p className="text-sm font-semibold truncate">{product.name}</p>
-                          {product.price && (
-                            <p
-                              className="text-sm font-bold mt-0.5"
-                              style={{ color: accent }}
-                              suppressHydrationWarning
-                            >
-                              {formatPrice(product.price, profile.currency)}
-                            </p>
-                          )}
-                          {/* Full-width, stacked CTAs — the old side-by-side
-                              tiny icon buttons were cramped on a phone-width
-                              half-grid card; a real tap target beats a
-                              compact one here. */}
-                          <div className="flex flex-col gap-1.5 mt-2.5">
-                            {product.landing_url && (
-                              <a
-                                href={product.landing_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={() => logClick("product", product.id)}
-                                className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 transition hover:brightness-95 ${radiusClass}`}
-                                style={{ border: `1px solid ${borderTint}` }}
-                              >
-                                <ExternalLink size={12} />
-                                {t.profilePage.viewDetails}
-                              </a>
+              <AnimatePresence initial={false}>
+                {showCatalog && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      {profile.products
+                        .sort((a: any, b: any) => a.sort_order - b.sort_order)
+                        .map((product: any) => (
+                          <div
+                            key={product.id}
+                            className={`overflow-hidden transition hover:-translate-y-0.5 ${radiusClass}`}
+                            style={{ border: `1px solid ${borderTint}` }}
+                          >
+                            {product.image_url && (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                className="w-full aspect-square object-cover"
+                              />
                             )}
-                            <WhatsAppButton
-                              number={profile.whatsapp_number}
-                              message={product.whatsapp_message || `Hi, I'm interested in ${product.name}`}
-                              radiusClass={radiusClass}
-                              buttonStyle={linkButtonStyle}
-                              onClick={() => logClick("whatsapp", product.id)}
-                            />
+                            <div className="p-3">
+                              <p className="text-sm font-semibold truncate">{product.name}</p>
+                              {product.price && (
+                                <p
+                                  className="text-sm font-bold mt-0.5"
+                                  style={{ color: accent }}
+                                  suppressHydrationWarning
+                                >
+                                  {formatPrice(product.price, profile.currency)}
+                                </p>
+                              )}
+                              {/* Full-width, stacked CTAs — the old side-by-side
+                                  tiny icon buttons were cramped on a phone-width
+                                  half-grid card; a real tap target beats a
+                                  compact one here. */}
+                              <div className="flex flex-col gap-1.5 mt-2.5">
+                                {product.landing_url && (
+                                  <a
+                                    href={product.landing_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => logClick("product", product.id)}
+                                    className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 transition hover:brightness-95 active:scale-[0.97] ${radiusClass}`}
+                                    style={{ border: `1px solid ${borderTint}` }}
+                                  >
+                                    <ExternalLink size={12} />
+                                    {t.profilePage.viewDetails}
+                                  </a>
+                                )}
+                                <WhatsAppButton
+                                  number={profile.whatsapp_number}
+                                  message={product.whatsapp_message || `Hi, I'm interested in ${product.name}`}
+                                  radiusClass={radiusClass}
+                                  buttonStyle={linkButtonStyle}
+                                  onClick={() => logClick("whatsapp", product.id)}
+                                />
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
+                        ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </div>

@@ -109,7 +109,7 @@ export const translations = {
       about: {
         title: "About",
         longBio: "Full description",
-        longBioPlaceholder: "",
+        longBioPlaceholder: "Tell visitors more about you or your business",
         email: "Email",
         phone: "Phone number",
         company: "Company",
