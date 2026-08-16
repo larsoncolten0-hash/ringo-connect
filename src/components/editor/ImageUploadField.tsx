@@ -11,14 +11,20 @@ export default function ImageUploadField({
   onChange,
   userId,
   folder,
+  pathPrefix,
   shape = "square",
   size = 64,
   errorText,
 }: {
   value?: string | null;
   onChange: (url: string) => void;
-  userId: string;
-  folder: string; // e.g. "avatar", "links", "products"
+  userId?: string;
+  folder?: string; // e.g. "avatar", "links", "products"
+  // Overrides the userId/folder-based path entirely — used for the
+  // public signup-request form, where no account (and therefore no
+  // userId) exists yet. Matches the "signup-requests" storage policy,
+  // which is scoped separately from the per-user-id upload policy.
+  pathPrefix?: string;
   shape?: "circle" | "square";
   size?: number;
   errorText?: { tooLarge: string; wrongType: string; failed: string };
@@ -43,7 +49,9 @@ export default function ImageUploadField({
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() || "jpg";
-      const path = `${userId}/${folder}/${crypto.randomUUID()}.${ext}`;
+      const path = pathPrefix
+        ? `${pathPrefix}/${crypto.randomUUID()}.${ext}`
+        : `${userId}/${folder}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("uploads").upload(path, file, {
         upsert: true,
         cacheControl: "3600",

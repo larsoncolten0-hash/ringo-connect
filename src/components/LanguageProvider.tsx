@@ -12,7 +12,7 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
+  const [locale, setLocaleState] = useState<Locale>("fr");
 
   useEffect(() => {
     const saved = localStorage.getItem("ringo-lang");
@@ -20,8 +20,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       setLocaleState(saved);
       return;
     }
-    // Fall back to the browser's language on first visit.
-    setLocaleState(navigator.language.toLowerCase().startsWith("fr") ? "fr" : "en");
+    // Defaults to French unless the browser clearly signals English —
+    // flipped from the previous default-to-English behavior, since the
+    // primary audience here is French-speaking.
+    setLocaleState(navigator.language.toLowerCase().startsWith("en") ? "en" : "fr");
   }, []);
 
   const setLocale = useCallback((next: Locale) => {

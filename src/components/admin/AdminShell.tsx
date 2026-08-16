@@ -3,11 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, LogOut } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, LogOut } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Users", icon: Users, exact: true },
+  { href: "/admin/requests", label: "Requests", icon: Inbox },
   { href: "/admin/plans", label: "Plans", icon: Layers },
   { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
