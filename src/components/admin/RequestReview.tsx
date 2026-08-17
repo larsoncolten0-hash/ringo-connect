@@ -85,39 +85,52 @@ export default function RequestReview({ request, plans, addons }: { request: any
   const sendCharge = async () => {
     setChargeError("");
     setChargeStatus("sending");
-    const res = await fetch(`/api/admin/requests/${request.id}/charge`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone: chargePhone, medium: chargeMedium, planId, billingInterval }),
-    });
-    const data = await res.json();
+    // Wrapped in try/catch so a network error, timeout, or non-JSON error
+    // response surfaces as a real failure instead of leaving chargeStatus
+    // stuck on "sending" forever with no feedback.
+    try {
+      const res = await fetch(`/api/admin/requests/${request.id}/charge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: chargePhone, medium: chargeMedium, planId, billingInterval }),
+      });
+      const data = await res.json();
 
-    if (!res.ok) {
-      setChargeError(data.error || "Could not start the charge.");
-      setChargeStatus("failed");
-      return;
-    }
-
-    setChargeStatus("pending");
-    pollAttempts.current = 0;
-    pollTimer.current = setInterval(async () => {
-      pollAttempts.current++;
-      const statusRes = await fetch(`/api/admin/requests/${request.id}/charge-status`);
-      const statusData = await statusRes.json();
-
-      if (statusData.status === "SUCCESSFUL") {
-        clearInterval(pollTimer.current);
-        setChargeStatus("success");
-      } else if (statusData.status === "FAILED" || statusData.status === "EXPIRED") {
-        clearInterval(pollTimer.current);
+      if (!res.ok) {
+        setChargeError(data.error || "Could not start the charge.");
         setChargeStatus("failed");
-        setChargeError("The customer did not confirm the payment.");
-      } else if (pollAttempts.current >= 40) {
-        clearInterval(pollTimer.current);
-        setChargeStatus("failed");
-        setChargeError("Timed out waiting for confirmation.");
+        return;
       }
-    }, 3000);
+
+      setChargeStatus("pending");
+      pollAttempts.current = 0;
+      pollTimer.current = setInterval(async () => {
+        pollAttempts.current++;
+        try {
+          const statusRes = await fetch(`/api/admin/requests/${request.id}/charge-status`);
+          const statusData = await statusRes.json();
+
+          if (statusData.status === "SUCCESSFUL") {
+            clearInterval(pollTimer.current);
+            setChargeStatus("success");
+          } else if (statusData.status === "FAILED" || statusData.status === "EXPIRED") {
+            clearInterval(pollTimer.current);
+            setChargeStatus("failed");
+            setChargeError("The customer did not confirm the payment.");
+          } else if (pollAttempts.current >= 40) {
+            clearInterval(pollTimer.current);
+            setChargeStatus("failed");
+            setChargeError("Timed out waiting for confirmation.");
+          }
+        } catch {
+          // Transient network error while polling — the attempts>=40
+          // cutoff above still ends the poll eventually.
+        }
+      }, 3000);
+    } catch (err: any) {
+      setChargeError(err.message || "Could not start the charge.");
+      setChargeStatus("failed");
+    }
   };
 
   const canCreate =

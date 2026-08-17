@@ -188,40 +188,55 @@ export default function GetStartedFlow({
       setCreatedRequestId(created);
     }
 
-    const res = await fetch(`/api/signup-requests/${requestId}/pay`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone: payPhone, medium: payMedium }),
-    });
-    const data = await res.json();
+    // Everything past this point talks to Fapshi (directly, or indirectly
+    // via our own route) — wrapped in try/catch so a network error, a
+    // timeout, or a non-JSON error response surfaces as a real failure
+    // state instead of leaving payStatus stuck on "sending" forever with
+    // no feedback at all.
+    try {
+      const res = await fetch(`/api/signup-requests/${requestId}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: payPhone, medium: payMedium }),
+      });
+      const data = await res.json();
 
-    if (!res.ok) {
-      setPayError(data.error || t.getStarted.payFailed);
-      setPayStatus("failed");
-      return;
-    }
-
-    setPayStatus("waiting");
-    let attempts = 0;
-    const poll = setInterval(async () => {
-      attempts++;
-      const statusRes = await fetch(`/api/signup-requests/${requestId}/pay-status`);
-      const statusData = await statusRes.json();
-
-      if (statusData.status === "SUCCESSFUL") {
-        clearInterval(poll);
-        setPayStatus("success");
-        setTimeout(() => setStep("success"), 700);
-      } else if (statusData.status === "FAILED" || statusData.status === "EXPIRED") {
-        clearInterval(poll);
+      if (!res.ok) {
+        setPayError(data.error || t.getStarted.payFailed);
         setPayStatus("failed");
-        setPayError(t.getStarted.payFailed);
-      } else if (attempts >= 40) {
-        clearInterval(poll);
-        setPayStatus("failed");
-        setPayError(t.getStarted.payFailed);
+        return;
       }
-    }, 3000);
+
+      setPayStatus("waiting");
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const statusRes = await fetch(`/api/signup-requests/${requestId}/pay-status`);
+          const statusData = await statusRes.json();
+
+          if (statusData.status === "SUCCESSFUL") {
+            clearInterval(poll);
+            setPayStatus("success");
+            setTimeout(() => setStep("success"), 700);
+          } else if (statusData.status === "FAILED" || statusData.status === "EXPIRED") {
+            clearInterval(poll);
+            setPayStatus("failed");
+            setPayError(t.getStarted.payFailed);
+          } else if (attempts >= 40) {
+            clearInterval(poll);
+            setPayStatus("failed");
+            setPayError(t.getStarted.payFailed);
+          }
+        } catch {
+          // Transient network error while polling — if it keeps failing,
+          // the attempts>=40 cutoff above still ends the poll eventually.
+        }
+      }, 3000);
+    } catch (err: any) {
+      setPayError(err.message || t.getStarted.payFailed);
+      setPayStatus("failed");
+    }
   };
 
   return (
