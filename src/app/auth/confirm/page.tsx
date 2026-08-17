@@ -31,6 +31,11 @@ function ConfirmInner() {
     supabase.auth.verifyOtp({ token_hash, type }).then(({ error }) => {
       if (error) {
         setStatus("error");
+      } else if (type === "recovery") {
+        // Password recovery lands on the reset-password form, not the
+        // generic "you're confirmed" page — verifyOtp already established
+        // the session, so reset-password picks it up via getSession().
+        router.replace("/auth/reset-password");
       } else {
         router.replace("/auth/confirmed");
       }
