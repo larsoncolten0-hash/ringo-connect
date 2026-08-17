@@ -1,13 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Inbox } from "lucide-react";
 
 const STATUS_ORDER: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
 
 export default function RequestsTable({ requests }: { requests: any[] }) {
+  const router = useRouter();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const sorted = [...requests].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
   const pendingCount = requests.filter((r) => r.status === "pending").length;
+
+  const deleteRequest = async (id: string) => {
+    if (!window.confirm("Delete this request and everything submitted with it? This can't be undone.")) return;
+    setDeletingId(id);
+    const res = await fetch(`/api/admin/requests/${id}/delete`, { method: "POST" });
+    setDeletingId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Could not delete this request.");
+      return;
+    }
+    router.refresh();
+  };
 
   return (
     <div className="max-w-4xl flex flex-col gap-4">
@@ -75,12 +93,23 @@ export default function RequestsTable({ requests }: { requests: any[] }) {
                       </td>
                       <td className="text-ringo-muted">{new Date(r.created_at).toLocaleDateString("en-US")}</td>
                       <td className="px-4 text-right">
-                        <Link
-                          href={`/admin/requests/${r.id}`}
-                          className="text-xs px-3 py-1.5 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors"
-                        >
-                          Review
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/admin/requests/${r.id}`}
+                            className="text-xs px-3 py-1.5 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors"
+                          >
+                            Review
+                          </Link>
+                          {r.status !== "approved" && (
+                            <button
+                              onClick={() => deleteRequest(r.id)}
+                              disabled={deletingId === r.id}
+                              className="text-xs px-3 py-1.5 rounded-card border border-ringo-border text-ringo-muted hover:border-red-500 hover:text-red-500 transition-colors disabled:opacity-50"
+                            >
+                              {deletingId === r.id ? "Deleting…" : "Delete"}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

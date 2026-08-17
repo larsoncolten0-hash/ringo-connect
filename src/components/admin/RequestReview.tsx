@@ -45,6 +45,9 @@ export default function RequestReview({ request, plans, addons }: { request: any
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
 
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   const pollTimer = useRef<ReturnType<typeof setInterval>>();
   const pollAttempts = useRef(0);
 
@@ -182,12 +185,43 @@ export default function RequestReview({ request, plans, addons }: { request: any
     window.location.href = "/admin/requests";
   };
 
+  const deleteRequest = async () => {
+    if (!window.confirm("Delete this request and everything submitted with it? This can't be undone.")) return;
+    setDeleteError("");
+    setDeleting(true);
+    const res = await fetch(`/api/admin/requests/${request.id}/delete`, { method: "POST" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setDeleteError(data.error || "Could not delete this request.");
+      setDeleting(false);
+      return;
+    }
+    window.location.href = "/admin/requests";
+  };
+
   return (
     <div className="max-w-2xl flex flex-col gap-5">
-      <Link href="/admin/requests" className="flex items-center gap-1.5 text-sm text-ringo-muted w-fit">
-        <ArrowLeft size={15} />
-        Back to requests
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/admin/requests" className="flex items-center gap-1.5 text-sm text-ringo-muted w-fit">
+          <ArrowLeft size={15} />
+          Back to requests
+        </Link>
+        {request.status !== "approved" && (
+          <button
+            onClick={deleteRequest}
+            disabled={deleting}
+            className="text-sm text-ringo-muted hover:text-red-500 transition-colors disabled:opacity-50"
+          >
+            {deleting ? "Deleting…" : "Delete request"}
+          </button>
+        )}
+      </div>
+      {deleteError && (
+        <p className="text-sm text-red-500 flex items-center gap-1.5 -mt-2">
+          <AlertTriangle size={14} />
+          {deleteError}
+        </p>
+      )}
 
       {/* Submitted info summary */}
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
