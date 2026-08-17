@@ -43,16 +43,16 @@ function ModeSwitch({
     <div className="flex items-center gap-1 bg-ringo-muted/10 rounded-full p-1">
       <button
         onClick={() => onChange(true)}
-        className={`text-xs font-medium px-3 py-1 rounded-full transition ${
-          testMode ? "bg-ringo-surface text-ringo-text shadow-sm" : "text-ringo-muted"
+        className={`text-xs font-medium px-3 py-1 rounded-full border transition ${
+          testMode ? "bg-ringo-surface text-ringo-text border-ringo-border shadow-sm" : "border-transparent text-ringo-muted"
         }`}
       >
         Test
       </button>
       <button
         onClick={() => onChange(false)}
-        className={`text-xs font-medium px-3 py-1 rounded-full transition ${
-          !testMode ? "bg-ringo-coral text-white shadow-sm" : "text-ringo-muted"
+        className={`text-xs font-medium px-3 py-1 rounded-full border transition ${
+          !testMode ? "bg-ringo-coral text-white border-ringo-coral shadow-sm" : "border-transparent text-ringo-muted"
         }`}
       >
         Live
@@ -207,8 +207,8 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
                 onClick={() => toggle(field)}
                 role="switch"
                 aria-checked={settings[field]}
-                className={`w-10 h-6 rounded-full relative transition-colors ${
-                  settings[field] ? "bg-ringo-teal" : "bg-ringo-muted/30"
+                className={`w-10 h-6 rounded-full relative border transition-colors ${
+                  settings[field] ? "bg-ringo-teal border-ringo-teal" : "bg-slate-700 border-slate-700"
                 }`}
               >
                 <span
@@ -240,8 +240,8 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
             onClick={() => toggle("allowCustomerPaymentAtSignup")}
             role="switch"
             aria-checked={settings.allowCustomerPaymentAtSignup}
-            className={`shrink-0 w-10 h-6 rounded-full relative transition-colors ${
-              settings.allowCustomerPaymentAtSignup ? "bg-ringo-teal" : "bg-ringo-muted/30"
+            className={`shrink-0 w-10 h-6 rounded-full relative border transition-colors ${
+              settings.allowCustomerPaymentAtSignup ? "bg-ringo-teal border-ringo-teal" : "bg-slate-700 border-slate-700"
             }`}
           >
             <span
