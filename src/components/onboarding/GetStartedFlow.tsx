@@ -29,8 +29,13 @@ export default function GetStartedFlow({
   allowPayNow: boolean;
 }) {
   const { t, locale } = useLanguage();
-  const [step, setStep] = useState<Step>("plan");
-  const [selectedPlan, setSelectedPlan] = useState<any | null>(null);
+  // Only Business shows right now (filtered server-side), so there's
+  // nothing to actually pick — auto-select it and start straight on the
+  // info step. The picker UI below stays intact rather than being
+  // ripped out, so re-enabling it later (if more plans come back) is
+  // just reverting these two lines.
+  const [step, setStep] = useState<Step>(plans.length === 1 ? "info" : "plan");
+  const [selectedPlan, setSelectedPlan] = useState<any | null>(plans.length === 1 ? plans[0] : null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(() =>
     addons.filter((a) => a.required).map((a) => a.id)
