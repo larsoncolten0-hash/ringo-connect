@@ -90,6 +90,7 @@ export default function Editor({
         initialPosition={profile.about_position}
         initialLocation={profile.about_location}
         initialHours={profile.about_hours}
+        initialExtraPhones={profile.profile_phone_numbers || []}
       />
 
       <PixelsCard

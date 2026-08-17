@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Info } from "lucide-react";
+import { Info, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
@@ -16,6 +16,7 @@ export default function AboutCard({
   initialPosition,
   initialLocation,
   initialHours,
+  initialExtraPhones,
 }: {
   profileId: string;
   initialLongBio: string | null;
@@ -25,6 +26,7 @@ export default function AboutCard({
   initialPosition: string | null;
   initialLocation: string | null;
   initialHours: string | null;
+  initialExtraPhones: { id: string; phone_number: string }[];
 }) {
   const supabase = createClient();
   const { t } = useLanguage();
@@ -35,6 +37,7 @@ export default function AboutCard({
   const [position, setPosition] = useState(initialPosition || "");
   const [location, setLocation] = useState(initialLocation || "");
   const [hours, setHours] = useState(initialHours || "");
+  const [extraPhones, setExtraPhones] = useState(initialExtraPhones);
   const pulse = useSavedPulse();
 
   const save = async () => {
@@ -51,6 +54,29 @@ export default function AboutCard({
       })
       .eq("id", profileId);
     pulse.show();
+  };
+
+  const addExtraPhone = async () => {
+    const { data } = await supabase
+      .from("profile_phone_numbers")
+      .insert({ profile_id: profileId, phone_number: "", sort_order: extraPhones.length })
+      .select()
+      .single();
+    if (data) setExtraPhones((prev) => [...prev, data]);
+  };
+
+  const updateExtraPhone = (id: string, phone_number: string) => {
+    setExtraPhones((prev) => prev.map((p) => (p.id === id ? { ...p, phone_number } : p)));
+  };
+
+  const persistExtraPhone = async (id: string, phone_number: string) => {
+    await supabase.from("profile_phone_numbers").update({ phone_number }).eq("id", id);
+    pulse.show();
+  };
+
+  const removeExtraPhone = async (id: string) => {
+    setExtraPhones((prev) => prev.filter((p) => p.id !== id));
+    await supabase.from("profile_phone_numbers").delete().eq("id", id);
   };
 
   return (
@@ -101,6 +127,36 @@ export default function AboutCard({
             inputMode="tel"
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
+        </div>
+
+        {/* Additional phone numbers — shown below the primary one on the
+            live page's business card, not replacing it. */}
+        <div className="flex flex-col gap-2 border-t border-ringo-border pt-3">
+          <div>
+            <p className="text-sm font-medium text-ringo-text">{t.editor.about.extraPhonesLabel}</p>
+            <p className="text-xs text-ringo-muted">{t.editor.about.extraPhonesHint}</p>
+          </div>
+          {extraPhones.map((p) => (
+            <div key={p.id} className="flex items-center gap-2">
+              <input
+                value={p.phone_number}
+                onChange={(e) => updateExtraPhone(p.id, e.target.value)}
+                onBlur={(e) => persistExtraPhone(p.id, e.target.value)}
+                placeholder={t.editor.about.phonePlaceholder}
+                inputMode="tel"
+                className="flex-1 border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
+              />
+              <button
+                onClick={() => removeExtraPhone(p.id)}
+                className="shrink-0 text-ringo-muted hover:text-red-500"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ))}
+          <button onClick={addExtraPhone} className="text-sm font-medium text-ringo-indigo text-left">
+            {t.editor.about.addPhone}
+          </button>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-2">

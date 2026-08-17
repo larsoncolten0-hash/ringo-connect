@@ -16,6 +16,7 @@ export default async function AdminRequestDetailPage({ params }: { params: { id:
   if (!signupRequest) notFound();
 
   const { data: plans } = await admin.from("plans").select("*").order("price_usd", { ascending: true });
+  const { data: addons } = await admin.from("addons").select("*").order("sort_order", { ascending: true });
 
-  return <RequestReview request={signupRequest} plans={plans || []} />;
+  return <RequestReview request={signupRequest} plans={plans || []} addons={addons || []} />;
 }

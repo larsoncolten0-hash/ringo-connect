@@ -21,7 +21,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select(`*, social_links(*), links(*), products(*)`)
+    .select(`*, social_links(*), links(*), products(*), profile_phone_numbers(*)`)
     .eq("user_id", user.id)
     .single();
 

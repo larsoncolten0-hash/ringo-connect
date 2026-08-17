@@ -14,7 +14,7 @@ export default async function PublicProfilePage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      `*, social_links(*), links(*), products(*)`
+      `*, social_links(*), links(*), products(*), profile_phone_numbers(*)`
     )
     .eq("username", params.username)
     .eq("published", true)

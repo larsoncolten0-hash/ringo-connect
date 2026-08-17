@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     requested_links: Array.isArray(body.requested_links) ? body.requested_links : [],
     requested_products: Array.isArray(body.requested_products) ? body.requested_products : [],
     requested_social_links: Array.isArray(body.requested_social_links) ? body.requested_social_links : [],
+    requested_addon_ids: Array.isArray(body.requested_addon_ids) ? body.requested_addon_ids : [],
   });
 
   if (error) {

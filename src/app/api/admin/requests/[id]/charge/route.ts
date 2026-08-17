@@ -16,7 +16,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const { data: signupRequest } = await adminClient
     .from("signup_requests")
-    .select("id, status, full_name")
+    .select("id, status, full_name, requested_addon_ids")
     .eq("id", params.id)
     .single();
 
@@ -27,7 +27,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { data: plan } = await adminClient.from("plans").select("price_xaf, price_xaf_yearly, name").eq("id", planId).single();
   if (!plan) return NextResponse.json({ error: "Plan not found." }, { status: 404 });
 
-  const amount = billingInterval === "yearly" ? Number(plan.price_xaf_yearly) : Number(plan.price_xaf);
+  let amount = billingInterval === "yearly" ? Number(plan.price_xaf_yearly) : Number(plan.price_xaf);
+
+  const addonIds: string[] = signupRequest.requested_addon_ids || [];
+  if (addonIds.length > 0) {
+    const { data: selectedAddons } = await adminClient.from("addons").select("price_xaf").in("id", addonIds);
+    amount += (selectedAddons || []).reduce((sum, a) => sum + Number(a.price_xaf), 0);
+  }
 
   try {
     // No real user exists yet — the customer's requestId stands in for

@@ -12,7 +12,13 @@ export default async function GetStartedPage() {
     .select("*")
     .order("price_usd", { ascending: true });
 
+  const { data: addons } = await supabase
+    .from("addons")
+    .select("*")
+    .eq("active", true)
+    .order("sort_order", { ascending: true });
+
   const { country } = extractRequestContext(headers());
 
-  return <GetStartedFlow plans={plans || []} isCameroon={country === "CM"} />;
+  return <GetStartedFlow plans={plans || []} addons={addons || []} isCameroon={country === "CM"} />;
 }

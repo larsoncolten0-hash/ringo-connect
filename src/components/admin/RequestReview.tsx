@@ -14,7 +14,7 @@ import {
 type UsernameStatus = "idle" | "checking" | "available" | "taken";
 type ChargeStatus = "idle" | "sending" | "pending" | "success" | "failed";
 
-export default function RequestReview({ request, plans }: { request: any; plans: any[] }) {
+export default function RequestReview({ request, plans, addons }: { request: any; plans: any[]; addons: any[] }) {
   const supabase = createClient();
 
   // Editable, pre-filled from what the customer submitted — admin can
@@ -50,6 +50,14 @@ export default function RequestReview({ request, plans }: { request: any; plans:
 
   const selectedPlan = plans.find((p) => p.id === planId);
   const isPaidPlan = selectedPlan && Number(selectedPlan.price_usd) > 0;
+
+  const requestedAddons = addons.filter((a) => (request.requested_addon_ids || []).includes(a.id));
+  const addonsTotalXaf = requestedAddons.reduce((sum, a) => sum + Number(a.price_xaf), 0);
+  const addonsTotalUsd = requestedAddons.reduce((sum, a) => sum + Number(a.price_usd), 0);
+  // A required add-on can mean money is owed even on a free plan — the
+  // payment section needs to appear whenever ANYTHING is owed, not just
+  // when the plan itself has a price.
+  const somethingOwed = isPaidPlan || addonsTotalXaf > 0 || addonsTotalUsd > 0;
 
   useEffect(() => () => clearInterval(pollTimer.current), []);
 
@@ -120,7 +128,7 @@ export default function RequestReview({ request, plans }: { request: any; plans:
     fullName.trim() &&
     whatsappNumber.trim() &&
     planId &&
-    (!isPaidPlan || paymentMethod === "manual" || chargeStatus === "success");
+    (!somethingOwed || paymentMethod === "manual" || chargeStatus === "success");
 
   const createAccount = async () => {
     setCreateError("");
@@ -138,7 +146,7 @@ export default function RequestReview({ request, plans }: { request: any; plans:
         avatarUrl: request.avatar_url,
         planId,
         billingInterval,
-        paymentMethod: isPaidPlan ? paymentMethod : "none",
+        paymentMethod: somethingOwed ? paymentMethod : "none",
       }),
     });
     const data = await res.json();
@@ -363,7 +371,22 @@ export default function RequestReview({ request, plans }: { request: any; plans:
               ))}
             </div>
 
-            {isPaidPlan && (
+            {requestedAddons.length > 0 && (
+              <div className="rounded-card border border-ringo-border p-3.5 text-sm flex flex-col gap-1">
+                <p className="text-xs font-medium text-ringo-muted uppercase tracking-wide mb-1">Requested add-ons</p>
+                {requestedAddons.map((a) => (
+                  <div key={a.id} className="flex justify-between text-ringo-text">
+                    <span>
+                      {a.name}
+                      {a.required && <span className="text-ringo-indigo text-xs ml-1.5">(required)</span>}
+                    </span>
+                    <span>{a.price_xaf} XAF</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {somethingOwed && (
               <>
                 <div className="flex items-center gap-1 bg-ringo-muted/10 rounded-full p-1 w-fit">
                   {(["monthly", "yearly"] as const).map((iv) => (

@@ -16,11 +16,22 @@ type LinkItem = { title: string; url: string };
 type ProductItem = { name: string; price: string; image_url: string };
 type SocialItem = { platform: string; url: string };
 
-export default function GetStartedFlow({ plans, isCameroon }: { plans: any[]; isCameroon: boolean }) {
+export default function GetStartedFlow({
+  plans,
+  addons,
+  isCameroon,
+}: {
+  plans: any[];
+  addons: any[];
+  isCameroon: boolean;
+}) {
   const { t, locale } = useLanguage();
   const [step, setStep] = useState<Step>("plan");
   const [selectedPlan, setSelectedPlan] = useState<any | null>(null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(() =>
+    addons.filter((a) => a.required).map((a) => a.id)
+  );
 
   const [fullName, setFullName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -62,6 +73,29 @@ export default function GetStartedFlow({ plans, isCameroon }: { plans: any[]; is
     setSocials((prev) => prev.map((s, idx) => (idx === i ? { platform: detectPlatform(url), url } : s)));
   const removeSocial = (i: number) => setSocials((prev) => prev.filter((_, idx) => idx !== i));
 
+  const toggleAddon = (addon: any) => {
+    if (addon.required) return; // can't be unchecked
+    setSelectedAddonIds((prev) =>
+      prev.includes(addon.id) ? prev.filter((id) => id !== addon.id) : [...prev, addon.id]
+    );
+  };
+
+  const getPrice = (item: any) => (isCameroon ? Number(item.price_xaf) : Number(item.price_usd));
+
+  const planPrice = selectedPlan
+    ? isCameroon
+      ? billingInterval === "yearly"
+        ? Number(selectedPlan.price_xaf_yearly)
+        : Number(selectedPlan.price_xaf)
+      : billingInterval === "yearly"
+      ? Number(selectedPlan.price_usd_yearly)
+      : Number(selectedPlan.price_usd)
+    : 0;
+
+  const selectedAddons = addons.filter((a) => selectedAddonIds.includes(a.id));
+  const addonsTotal = selectedAddons.reduce((sum, a) => sum + getPrice(a), 0);
+  const grandTotal = planPrice + addonsTotal;
+
   const submit = async () => {
     setError("");
     if (!fullName.trim() || !whatsapp.trim()) {
@@ -86,6 +120,7 @@ export default function GetStartedFlow({ plans, isCameroon }: { plans: any[]; is
           ? products.filter((p) => p.name.trim()).map((p) => ({ ...p, price: p.price ? Number(p.price) : null }))
           : [],
         requested_social_links: socials.filter((s) => s.url.trim()),
+        requested_addon_ids: selectedAddonIds,
       }),
     });
     setSubmitting(false);
@@ -357,6 +392,75 @@ export default function GetStartedFlow({ plans, isCameroon }: { plans: any[]; is
                   {t.getStarted.addSocial}
                 </button>
               </div>
+
+              {addons.length > 0 && (
+                <div className="border-t border-ringo-border pt-4 flex flex-col gap-3">
+                  <div>
+                    <p className="text-sm font-medium">{t.getStarted.addonsHeading}</p>
+                    <p className="text-xs text-ringo-muted">{t.getStarted.addonsHint}</p>
+                  </div>
+
+                  {addons.map((addon) => {
+                    const checked = selectedAddonIds.includes(addon.id);
+                    return (
+                      <label
+                        key={addon.id}
+                        className={`flex items-center justify-between gap-3 rounded-card border p-3 ${
+                          addon.required ? "opacity-80" : "cursor-pointer"
+                        } ${checked ? "border-ringo-indigo bg-ringo-indigo/5" : "border-ringo-border"}`}
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={addon.required}
+                            onChange={() => toggleAddon(addon)}
+                            className="accent-ringo-indigo"
+                          />
+                          <span className="text-sm">
+                            {addon.name}
+                            {addon.required && (
+                              <span className="ml-1.5 text-[10px] uppercase tracking-wide text-ringo-indigo">
+                                {t.getStarted.requiredTag}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                        <span className="text-sm font-medium text-ringo-text shrink-0" suppressHydrationWarning>
+                          {formatPrice(getPrice(addon), isCameroon ? "XAF" : "USD", locale)}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+
+              {selectedPlan && (
+                <div className="border-t border-ringo-border pt-4">
+                  <p className="text-sm font-medium mb-2">{t.getStarted.totalHeading}</p>
+                  <div className="rounded-card border border-ringo-border p-3.5 flex flex-col gap-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-ringo-muted">
+                        {t.getStarted.totalPlan} ({selectedPlan.display_name || selectedPlan.name})
+                      </span>
+                      <span suppressHydrationWarning>{formatPrice(planPrice, isCameroon ? "XAF" : "USD", locale)}</span>
+                    </div>
+                    {selectedAddons.map((a) => (
+                      <div key={a.id} className="flex justify-between text-ringo-muted">
+                        <span>
+                          {t.getStarted.totalAddon}: {a.name}
+                        </span>
+                        <span suppressHydrationWarning>{formatPrice(getPrice(a), isCameroon ? "XAF" : "USD", locale)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between font-bold text-ringo-text pt-1.5 mt-1 border-t border-ringo-border">
+                      <span>{t.getStarted.totalDue}</span>
+                      <span suppressHydrationWarning>{formatPrice(grandTotal, isCameroon ? "XAF" : "USD", locale)}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-ringo-muted mt-2">{t.getStarted.totalNote}</p>
+                </div>
+              )}
 
               <button
                 onClick={submit}

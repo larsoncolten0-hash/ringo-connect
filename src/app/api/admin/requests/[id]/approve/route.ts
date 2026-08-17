@@ -143,7 +143,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const userUpdates: Record<string, any> = { plan_id: plan.id, billing_interval: interval };
 
-  if (paymentMethod === "charge") {
+  if (paymentMethod === "charge" && isPaidPlan) {
     userUpdates.payment_provider = "fapshi";
     const expires = new Date();
     expires.setDate(expires.getDate() + (interval === "yearly" ? 365 : 30));
@@ -160,32 +160,52 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   await adminClient.from("users").update(userUpdates).eq("id", newUserId);
 
-  // Record the transaction for an accurate financial picture — skipped
-  // entirely for a free plan, since there's nothing to record.
-  if (paymentMethod === "charge" && isPaidPlan) {
-    const amount = interval === "yearly" ? Number(plan.price_xaf_yearly) : Number(plan.price_xaf);
-    await adminClient.from("payment_transactions").insert({
-      user_id: newUserId,
-      provider: "fapshi",
-      provider_transaction_id: signupRequest.pending_fapshi_trans_id,
-      plan_name: plan.name,
-      billing_interval: interval,
-      amount,
-      currency: "XAF",
-      status: "success",
-    });
-  } else if (paymentMethod === "manual" && isPaidPlan) {
-    const amount = interval === "yearly" ? Number(plan.price_usd_yearly) : Number(plan.price_usd);
-    await adminClient.from("payment_transactions").insert({
-      user_id: newUserId,
-      provider: "manual",
-      provider_transaction_id: `manual-${signupRequest.id}`,
-      plan_name: plan.name,
-      billing_interval: interval,
-      amount,
-      currency: "USD",
-      status: "success",
-    });
+  // Add-ons apply regardless of whether the plan itself is paid — a
+  // required add-on (e.g. the physical card) on an otherwise-free plan
+  // still needs to be charged/recorded, so this can't gate on isPaidPlan
+  // alone.
+  const addonIds: string[] = signupRequest.requested_addon_ids || [];
+  let addonsXaf = 0;
+  let addonsUsd = 0;
+  if (addonIds.length > 0) {
+    const { data: selectedAddons } = await adminClient
+      .from("addons")
+      .select("name, price_xaf, price_usd")
+      .in("id", addonIds);
+    for (const a of selectedAddons || []) {
+      addonsXaf += Number(a.price_xaf);
+      addonsUsd += Number(a.price_usd);
+    }
+  }
+
+  if (paymentMethod === "charge") {
+    const amount = (interval === "yearly" ? Number(plan.price_xaf_yearly) : Number(plan.price_xaf)) + addonsXaf;
+    if (amount > 0) {
+      await adminClient.from("payment_transactions").insert({
+        user_id: newUserId,
+        provider: "fapshi",
+        provider_transaction_id: signupRequest.pending_fapshi_trans_id,
+        plan_name: plan.name,
+        billing_interval: interval,
+        amount,
+        currency: "XAF",
+        status: "success",
+      });
+    }
+  } else if (paymentMethod === "manual") {
+    const amount = (interval === "yearly" ? Number(plan.price_usd_yearly) : Number(plan.price_usd)) + addonsUsd;
+    if (amount > 0) {
+      await adminClient.from("payment_transactions").insert({
+        user_id: newUserId,
+        provider: "manual",
+        provider_transaction_id: `manual-${signupRequest.id}`,
+        plan_name: plan.name,
+        billing_interval: interval,
+        amount,
+        currency: "USD",
+        status: "success",
+      });
+    }
   }
 
   await adminClient

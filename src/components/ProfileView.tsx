@@ -197,6 +197,17 @@ export default function ProfileView({ profile }: { profile: any }) {
         <div className="w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up" style={{ animationDelay: "340ms" }}>
           {(() => {
             const hasRoleCard = profile.about_position || profile.about_company;
+
+            const extraPhoneRows = (profile.profile_phone_numbers || [])
+              .filter((p: any) => p.phone_number?.trim())
+              .sort((a: any, b: any) => a.sort_order - b.sort_order)
+              .map((p: any) => ({
+                icon: Phone,
+                label: t.profilePage.phone,
+                value: p.phone_number,
+                href: `tel:${p.phone_number.replace(/[^0-9+]/g, "")}`,
+              }));
+
             const contactRows = [
               profile.about_email && {
                 icon: Mail,
@@ -210,6 +221,7 @@ export default function ProfileView({ profile }: { profile: any }) {
                 value: profile.about_phone,
                 href: `tel:${profile.about_phone.replace(/[^0-9+]/g, "")}`,
               },
+              ...extraPhoneRows,
               profile.about_location && {
                 icon: MapPin,
                 label: t.profilePage.location,
@@ -290,14 +302,14 @@ export default function ProfileView({ profile }: { profile: any }) {
                         );
                         return item.href ? (
                           <a
-                            key={item.label}
+                            key={`${item.label}-${item.value}`}
                             href={item.href}
                             className="flex items-start gap-2.5 transition hover:opacity-75"
                           >
                             {inner}
                           </a>
                         ) : (
-                          <div key={item.label} className="flex items-start gap-2.5">
+                          <div key={`${item.label}-${item.value}`} className="flex items-start gap-2.5">
                             {inner}
                           </div>
                         );
