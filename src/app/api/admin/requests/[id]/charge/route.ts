@@ -1,6 +1,7 @@
 import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiDirectPay } from "@/lib/fapshi";
+import { getPlatformSettings } from "@/lib/platformSettings";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -10,6 +11,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { phone, medium, planId, billingInterval } = await request.json().catch(() => ({}));
   if (!phone || !["mobile money", "orange money"].includes(medium) || !planId) {
     return NextResponse.json({ error: "Phone, medium, and plan are required." }, { status: 400 });
+  }
+
+  const settings = await getPlatformSettings();
+  if (!settings.fapshiEnabled) {
+    return NextResponse.json({ error: "Mobile Money payments are currently unavailable." }, { status: 503 });
   }
 
   const adminClient = createAdminClient();

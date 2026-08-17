@@ -10,6 +10,7 @@ import { decryptSecret, encryptSecret } from "@/lib/crypto";
 export type PlatformSettings = {
   fapshiEnabled: boolean;
   stripeEnabled: boolean;
+  allowCustomerPaymentAtSignup: boolean;
   fapshiTestMode: boolean;
   stripeTestMode: boolean;
   fapshiApiUser: string | null;
@@ -49,6 +50,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
   return {
     fapshiEnabled: data?.fapshi_enabled ?? true,
     stripeEnabled: data?.stripe_enabled ?? true,
+    allowCustomerPaymentAtSignup: data?.allow_customer_payment_at_signup ?? false,
     fapshiTestMode,
     stripeTestMode,
     fapshiApiUser: fapshiApiUser || process.env.FAPSHI_API_USER || null,
@@ -97,6 +99,7 @@ export async function getMaskedPlatformSettings() {
   return {
     fapshiEnabled: data?.fapshi_enabled ?? true,
     stripeEnabled: data?.stripe_enabled ?? true,
+    allowCustomerPaymentAtSignup: data?.allow_customer_payment_at_signup ?? false,
     fapshiTestMode: data?.fapshi_test_mode ?? true,
     stripeTestMode: data?.stripe_test_mode ?? true,
 
@@ -128,6 +131,7 @@ export async function getMaskedPlatformSettings() {
 export type PlatformSettingsPatch = Partial<{
   fapshiEnabled: boolean;
   stripeEnabled: boolean;
+  allowCustomerPaymentAtSignup: boolean;
   fapshiTestMode: boolean;
   stripeTestMode: boolean;
 
@@ -170,6 +174,8 @@ export async function updatePlatformSettings(patch: PlatformSettingsPatch, updat
 
   if (patch.fapshiEnabled !== undefined) dbPatch.fapshi_enabled = patch.fapshiEnabled;
   if (patch.stripeEnabled !== undefined) dbPatch.stripe_enabled = patch.stripeEnabled;
+  if (patch.allowCustomerPaymentAtSignup !== undefined)
+    dbPatch.allow_customer_payment_at_signup = patch.allowCustomerPaymentAtSignup;
   if (patch.fapshiTestMode !== undefined) dbPatch.fapshi_test_mode = patch.fapshiTestMode;
   if (patch.stripeTestMode !== undefined) dbPatch.stripe_test_mode = patch.stripeTestMode;
 

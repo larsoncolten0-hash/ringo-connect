@@ -1,15 +1,22 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import RequestsTable from "@/components/admin/RequestsTable";
+import { notFound } from "next/navigation";
+import RequestReview from "@/components/admin/RequestReview";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminRequestsPage() {
+export default async function AdminRequestDetailPage({ params }: { params: { id: string } }) {
   const admin = createAdminClient();
 
-  const { data: requests } = await admin
+  const { data: signupRequest } = await admin
     .from("signup_requests")
-    .select("*, plans(display_name, name)")
-    .order("created_at", { ascending: false });
+    .select("*")
+    .eq("id", params.id)
+    .single();
 
-  return <RequestsTable requests={requests || []} />;
+  if (!signupRequest) notFound();
+
+  const { data: plans } = await admin.from("plans").select("*").order("price_usd", { ascending: true });
+  const { data: addons } = await admin.from("addons").select("*").order("sort_order", { ascending: true });
+
+  return <RequestReview request={signupRequest} plans={plans || []} addons={addons || []} />;
 }

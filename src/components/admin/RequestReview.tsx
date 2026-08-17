@@ -34,7 +34,7 @@ export default function RequestReview({ request, plans, addons }: { request: any
   const [chargeMedium, setChargeMedium] = useState<"mobile money" | "orange money">("mobile money");
 
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
-  const [chargeStatus, setChargeStatus] = useState<ChargeStatus>("idle");
+  const [chargeStatus, setChargeStatus] = useState<ChargeStatus>(request.customer_paid ? "success" : "idle");
   const [chargeError, setChargeError] = useState("");
 
   const [creating, setCreating] = useState(false);
@@ -203,9 +203,17 @@ export default function RequestReview({ request, plans, addons }: { request: any
           </span>
         </div>
         {request.business_note && <p className="text-sm text-ringo-muted mb-1">"{request.business_note}"</p>}
+        {request.delivery_location && (
+          <p className="text-xs text-ringo-muted">Delivery location: {request.delivery_location}</p>
+        )}
         {request.email && <p className="text-xs text-ringo-muted">Submitted email: {request.email}</p>}
         {request.suggested_username && (
           <p className="text-xs text-ringo-muted">Requested page name: {request.suggested_username}</p>
+        )}
+        {request.customer_paid && (
+          <p className="text-xs font-medium text-ringo-teal mt-2 flex items-center gap-1.5">
+            <Check size={13} /> Customer already paid via Mobile Money — payment confirmed.
+          </p>
         )}
 
         {(request.requested_links?.length > 0 ||

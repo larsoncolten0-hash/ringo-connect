@@ -7,6 +7,7 @@ import { Check, ShieldCheck, AlertTriangle } from "lucide-react";
 type Settings = {
   fapshiEnabled: boolean;
   stripeEnabled: boolean;
+  allowCustomerPaymentAtSignup: boolean;
   fapshiTestMode: boolean;
   stripeTestMode: boolean;
   fapshiApiUserTestSet: boolean;
@@ -101,7 +102,7 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
 
   const setDraftField = (key: string, value: string) => setDraft((d) => ({ ...d, [key]: value }));
 
-  const toggle = async (field: "fapshiEnabled" | "stripeEnabled") => {
+  const toggle = async (field: "fapshiEnabled" | "stripeEnabled" | "allowCustomerPaymentAtSignup") => {
     const next = { ...settings, [field]: !settings[field] };
     setSettings(next);
     await fetch("/api/admin/settings", {
@@ -219,6 +220,37 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
             </label>
           ))}
         </div>
+      </div>
+
+      {/* Get Started form behavior */}
+      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <h2 className="text-sm font-medium text-ringo-text mb-1">Get Started form</h2>
+        <p className="text-xs text-ringo-muted mb-4">
+          Controls the public signup-request form at <code className="text-[11px]">/get-started</code>.
+        </p>
+        <label className="flex items-center justify-between">
+          <div className="pr-4">
+            <p className="text-sm text-ringo-text">Let customers pay immediately</p>
+            <p className="text-xs text-ringo-muted mt-0.5">
+              When on, the form offers "Pay now with Mobile Money" alongside the default "Submit without paying."
+              When off (default), customers can only submit — admin always handles payment during review.
+            </p>
+          </div>
+          <button
+            onClick={() => toggle("allowCustomerPaymentAtSignup")}
+            role="switch"
+            aria-checked={settings.allowCustomerPaymentAtSignup}
+            className={`shrink-0 w-10 h-6 rounded-full relative transition-colors ${
+              settings.allowCustomerPaymentAtSignup ? "bg-ringo-teal" : "bg-ringo-muted/30"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                settings.allowCustomerPaymentAtSignup ? "translate-x-[18px]" : ""
+              }`}
+            />
+          </button>
+        </label>
       </div>
 
       {/* Fapshi credentials */}
