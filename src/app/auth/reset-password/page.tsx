@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AuthShell from "@/components/auth/AuthShell";
 import FormField from "@/components/auth/FormField";
 import SubmitButton from "@/components/auth/SubmitButton";
 import FormBanner from "@/components/auth/FormBanner";
 
-export default function ResetPasswordPage() {
+function ResetPasswordInner() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,10 +17,20 @@ export default function ResetPasswordPage() {
   const [sessionReady, setSessionReady] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
-  // Supabase's password-recovery link signs the user in via a token in the
-  // URL fragment and fires this event once the session is ready.
+  // Two different link shapes can land here, depending on how the
+  // recovery email was generated:
+  //  - implicit/token_hash flow: Supabase signs the user in itself and
+  //    fires PASSWORD_RECOVERY (or a session is already present by the
+  //    time we mount, e.g. coming from /auth/confirm's verifyOtp call).
+  //  - PKCE flow (GoTrue's default {{ .ConfirmationURL }} template):
+  //    lands here with a bare ?code=... that still has to be exchanged
+  //    for a session ourselves — the client's automatic
+  //    detectSessionInUrl handling doesn't reliably fire
+  //    PASSWORD_RECOVERY for this shape, so without this the page just
+  //    sees "no session" and calls a perfectly valid code "expired".
   useEffect(() => {
     const {
       data: { subscription },
@@ -30,12 +40,22 @@ export default function ResetPasswordPage() {
         setCheckingSession(false);
       }
     });
-    // In case the event already fired before this listener mounted, or the
-    // link simply isn't valid — give it a moment before concluding either way.
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setSessionReady(true);
-      setCheckingSession(false);
-    });
+
+    const code = searchParams.get("code");
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+        if (!error && data.session) setSessionReady(true);
+        setCheckingSession(false);
+      });
+    } else {
+      // In case the event already fired before this listener mounted, or
+      // the link simply isn't valid — give it a moment before concluding
+      // either way.
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) setSessionReady(true);
+        setCheckingSession(false);
+      });
+    }
     return () => subscription.unsubscribe();
   }, []);
 
@@ -106,5 +126,14 @@ export default function ResetPasswordPage() {
         </form>
       )}
     </AuthShell>
+  );
+}
+
+// useSearchParams requires a Suspense boundary in the App Router
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
