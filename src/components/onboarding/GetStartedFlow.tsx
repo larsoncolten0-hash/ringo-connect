@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Check, ArrowLeft, Loader2, X } from "lucide-react";
@@ -67,6 +67,13 @@ export default function GetStartedFlow({
   const [payError, setPayError] = useState("");
 
   const [pathPrefix] = useState(() => `signup-requests/${crypto.randomUUID()}`);
+
+  // Guards createRequest against being entered twice concurrently. A ref
+  // (not state) because it must take effect the instant it's set —
+  // state updates are batched/async, so two fast clicks on the submit
+  // button can both fire before a `submitting` state re-render lands,
+  // each creating its own signup_requests row.
+  const requestInFlight = useRef(false);
 
   const catalogAllowed = selectedPlan ? Number(selectedPlan.max_products) !== 0 : false;
   const maxLinks: number | null = selectedPlan?.max_links ?? null;
@@ -154,10 +161,16 @@ export default function GetStartedFlow({
   };
 
   const submitWithoutPaying = async () => {
+    if (requestInFlight.current) return; // already submitting — ignore the repeat click
+    requestInFlight.current = true;
     setSubmitting(true);
-    const id = await createRequest();
-    setSubmitting(false);
-    if (id) setStep("success");
+    try {
+      const id = await createRequest();
+      if (id) setStep("success");
+    } finally {
+      requestInFlight.current = false;
+      setSubmitting(false);
+    }
   };
 
   const handleInfoContinue = () => {
@@ -174,26 +187,28 @@ export default function GetStartedFlow({
   };
 
   const sendPayment = async () => {
+    if (requestInFlight.current) return; // already submitting — ignore the repeat click
+    requestInFlight.current = true;
     setPayError("");
     setPayStatus("sending");
 
-    let requestId = createdRequestId;
-    if (!requestId) {
-      const created = await createRequest();
-      if (!created) {
-        setPayStatus("idle");
-        return;
-      }
-      requestId = created;
-      setCreatedRequestId(created);
-    }
-
-    // Everything past this point talks to Fapshi (directly, or indirectly
-    // via our own route) — wrapped in try/catch so a network error, a
-    // timeout, or a non-JSON error response surfaces as a real failure
-    // state instead of leaving payStatus stuck on "sending" forever with
-    // no feedback at all.
     try {
+      let requestId = createdRequestId;
+      if (!requestId) {
+        const created = await createRequest();
+        if (!created) {
+          setPayStatus("idle");
+          return;
+        }
+        requestId = created;
+        setCreatedRequestId(created);
+      }
+
+      // Everything past this point talks to Fapshi (directly, or indirectly
+      // via our own route) — wrapped in try/catch so a network error, a
+      // timeout, or a non-JSON error response surfaces as a real failure
+      // state instead of leaving payStatus stuck on "sending" forever with
+      // no feedback at all.
       const res = await fetch(`/api/signup-requests/${requestId}/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -236,6 +251,8 @@ export default function GetStartedFlow({
     } catch (err: any) {
       setPayError(err.message || t.getStarted.payFailed);
       setPayStatus("failed");
+    } finally {
+      requestInFlight.current = false;
     }
   };
 

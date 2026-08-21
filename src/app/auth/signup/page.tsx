@@ -136,7 +136,7 @@ export default function SignupPage() {
             <span className="text-sm font-medium text-ringo-text">Username</span>
             <div className="relative mt-1.5">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-ringo-muted">
-                ringoconnect.co/
+                ringoconnectltd.com/
               </span>
               <input
                 type="text"
@@ -144,7 +144,7 @@ export default function SignupPage() {
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
                 required
                 placeholder="yourname"
-                className={`w-full rounded-card border bg-ringo-surface pl-[7.7rem] pr-9 py-2.5 text-sm text-ringo-text outline-none transition focus:ring-2 focus:ring-ringo-indigo/40 ${
+                className={`w-full rounded-card border bg-ringo-surface pl-[9.6rem] pr-9 py-2.5 text-sm text-ringo-text outline-none transition focus:ring-2 focus:ring-ringo-indigo/40 ${
                   usernameStatus === "taken" || usernameStatus === "invalid"
                     ? "border-red-500"
                     : usernameStatus === "available"

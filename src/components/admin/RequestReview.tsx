@@ -612,7 +612,7 @@ export default function RequestReview({ request, plans, addons }: { request: any
           </p>
           <div className="flex flex-col gap-1.5 font-mono text-sm bg-ringo-surface rounded-card p-3 border border-ringo-border">
             <p>
-              Page: ringoconnect.com/<strong>{created.username}</strong>
+              Page: ringoconnectltd.com/<strong>{created.username}</strong>
             </p>
             <p>
               Username: <strong>{created.username}</strong>
