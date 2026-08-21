@@ -24,6 +24,12 @@ export type PlatformSettings = {
   stripePriceBasicYearly: string | null;
   stripePriceProYearly: string | null;
   stripePriceBusinessYearly: string | null;
+  // Shown on the /get-started success screen when a customer submits
+  // without paying online — tells them where to send a manual Mobile
+  // Money deposit. Not secret, just admin-editable contact details.
+  manualPaymentName: string;
+  manualPaymentMtnNumber: string;
+  manualPaymentOrangeNumber: string;
 };
 
 export async function getPlatformSettings(): Promise<PlatformSettings> {
@@ -84,6 +90,11 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       (stripeTestMode ? data?.stripe_price_business_yearly_test : data?.stripe_price_business_yearly_live) ||
       process.env.STRIPE_PRICE_BUSINESS_YEARLY ||
       null,
+    // Defaults match the numbers/name in use today — the DB column just
+    // lets an admin change them later without a code change.
+    manualPaymentName: data?.manual_payment_name || "Nonche Thierry",
+    manualPaymentMtnNumber: data?.manual_payment_mtn_number || "675825300",
+    manualPaymentOrangeNumber: data?.manual_payment_orange_number || "694028846",
   };
 }
 
@@ -125,6 +136,10 @@ export async function getMaskedPlatformSettings() {
     stripePriceProYearlyLive: data?.stripe_price_pro_yearly_live || null,
     stripePriceBusinessLive: data?.stripe_price_business_live || null,
     stripePriceBusinessYearlyLive: data?.stripe_price_business_yearly_live || null,
+
+    manualPaymentName: data?.manual_payment_name || "Nonche Thierry",
+    manualPaymentMtnNumber: data?.manual_payment_mtn_number || "675825300",
+    manualPaymentOrangeNumber: data?.manual_payment_orange_number || "694028846",
   };
 }
 
@@ -157,6 +172,10 @@ export type PlatformSettingsPatch = Partial<{
   stripePriceProYearlyLive: string;
   stripePriceBusinessLive: string;
   stripePriceBusinessYearlyLive: string;
+
+  manualPaymentName: string;
+  manualPaymentMtnNumber: string;
+  manualPaymentOrangeNumber: string;
 }>;
 
 /**
@@ -202,6 +221,11 @@ export async function updatePlatformSettings(patch: PlatformSettingsPatch, updat
     dbPatch.stripe_price_business_live = patch.stripePriceBusinessLive;
   if (patch.stripePriceBusinessYearlyLive !== undefined)
     dbPatch.stripe_price_business_yearly_live = patch.stripePriceBusinessYearlyLive;
+
+  if (patch.manualPaymentName !== undefined) dbPatch.manual_payment_name = patch.manualPaymentName;
+  if (patch.manualPaymentMtnNumber !== undefined) dbPatch.manual_payment_mtn_number = patch.manualPaymentMtnNumber;
+  if (patch.manualPaymentOrangeNumber !== undefined)
+    dbPatch.manual_payment_orange_number = patch.manualPaymentOrangeNumber;
 
   // Secrets: only overwrite if a new non-empty value was actually
   // submitted — an empty string means "leave this one alone," not

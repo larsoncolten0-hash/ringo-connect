@@ -30,6 +30,9 @@ type Settings = {
   stripePriceProYearlyLive: string | null;
   stripePriceBusinessLive: string | null;
   stripePriceBusinessYearlyLive: string | null;
+  manualPaymentName: string;
+  manualPaymentMtnNumber: string;
+  manualPaymentOrangeNumber: string;
 };
 
 function ModeSwitch({
@@ -145,6 +148,9 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
       stripePriceProYearlyLive: settings.stripePriceProYearlyLive,
       stripePriceBusinessLive: settings.stripePriceBusinessLive,
       stripePriceBusinessYearlyLive: settings.stripePriceBusinessYearlyLive,
+      manualPaymentName: settings.manualPaymentName,
+      manualPaymentMtnNumber: settings.manualPaymentMtnNumber,
+      manualPaymentOrangeNumber: settings.manualPaymentOrangeNumber,
     };
     // Only send secret fields that were actually typed into — leaving a
     // field blank must never wipe an already-configured key.
@@ -251,6 +257,35 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
             />
           </button>
         </label>
+      </div>
+
+      {/* Manual Mobile Money payment details */}
+      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <h2 className="text-sm font-medium text-ringo-text mb-1">Manual payment details</h2>
+        <p className="text-xs text-ringo-muted mb-4">
+          Shown to customers on the <code className="text-[11px]">/get-started</code> success screen when they
+          submit without paying online — tells them where to send a Mobile Money deposit.
+        </p>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <Field
+            label="Name on the numbers"
+            value={settings.manualPaymentName}
+            onChange={(v) => setSettings({ ...settings, manualPaymentName: v })}
+            placeholder="e.g. Nonche Thierry"
+          />
+          <Field
+            label="MTN Mobile Money number"
+            value={settings.manualPaymentMtnNumber}
+            onChange={(v) => setSettings({ ...settings, manualPaymentMtnNumber: v })}
+            placeholder="e.g. 675825300"
+          />
+          <Field
+            label="Orange Money number"
+            value={settings.manualPaymentOrangeNumber}
+            onChange={(v) => setSettings({ ...settings, manualPaymentOrangeNumber: v })}
+            placeholder="e.g. 694028846"
+          />
+        </div>
       </div>
 
       {/* Fapshi credentials */}

@@ -39,6 +39,8 @@ export const translations = {
       submitError: "Something went wrong. Please try again.",
       successTitle: "Thank you!",
       successBody: "We received your information. We'll set up your page and contact you on WhatsApp soon.",
+      successBodyManualPayment: (mtn: string, orange: string, name: string) =>
+        `We've successfully received your request! To complete your order, please make a Mobile Money deposit to MTN: ${mtn} or Orange: ${orange} (name on the numbers: ${name}). Once you've paid, just send us a text on WhatsApp to confirm and we'll set up your page right away.`,
       backHome: "Back to home",
       linksHeading: "Your links (optional)",
       linksHint: "Add links to your social pages, videos, or anything else.",
@@ -368,6 +370,8 @@ export const translations = {
       submitError: "Une erreur s'est produite. Veuillez réessayer.",
       successTitle: "Merci !",
       successBody: "Nous avons reçu vos informations. Nous allons créer votre page et vous contacter sur WhatsApp bientôt.",
+      successBodyManualPayment: (mtn: string, orange: string, name: string) =>
+        `Nous avons bien reçu votre demande ! Pour finaliser votre commande, veuillez effectuer un dépôt Mobile Money au MTN : ${mtn} ou Orange : ${orange} (nom sur les numéros : ${name}). Une fois le paiement effectué, envoyez-nous simplement un texto sur WhatsApp pour confirmer et nous créerons votre page tout de suite.`,
       backHome: "Retour à l'accueil",
       linksHeading: "Vos liens (optionnel)",
       linksHint: "Ajoutez des liens vers vos pages sociales, vidéos, ou autre chose.",

@@ -22,11 +22,17 @@ export default function GetStartedFlow({
   addons,
   isCameroon,
   allowPayNow,
+  manualPaymentName,
+  manualPaymentMtnNumber,
+  manualPaymentOrangeNumber,
 }: {
   plans: any[];
   addons: any[];
   isCameroon: boolean;
   allowPayNow: boolean;
+  manualPaymentName: string;
+  manualPaymentMtnNumber: string;
+  manualPaymentOrangeNumber: string;
 }) {
   const { t, locale } = useLanguage();
   // Only Business shows right now (filtered server-side), so there's
@@ -65,6 +71,11 @@ export default function GetStartedFlow({
   const [payMedium, setPayMedium] = useState<"mobile money" | "orange money">("mobile money");
   const [payStatus, setPayStatus] = useState<PayStatus>("idle");
   const [payError, setPayError] = useState("");
+  // True only once a Fapshi payment actually confirms — decides whether
+  // the success screen thanks them for paying, or tells them how to pay
+  // manually (they either never chose to pay now, or gave up and hit
+  // "continue without paying").
+  const [paidOnline, setPaidOnline] = useState(false);
 
   const [pathPrefix] = useState(() => `signup-requests/${crypto.randomUUID()}`);
 
@@ -233,6 +244,7 @@ export default function GetStartedFlow({
           if (statusData.status === "SUCCESSFUL") {
             clearInterval(poll);
             setPayStatus("success");
+            setPaidOnline(true);
             setTimeout(() => setStep("success"), 700);
           } else if (statusData.status === "FAILED" || statusData.status === "EXPIRED") {
             clearInterval(poll);
@@ -756,7 +768,11 @@ export default function GetStartedFlow({
               <Check size={28} className="text-ringo-teal" />
             </span>
             <h1 className="font-display text-xl font-bold">{t.getStarted.successTitle}</h1>
-            <p className="text-sm text-ringo-muted max-w-xs">{t.getStarted.successBody}</p>
+            <p className={`text-sm text-ringo-muted ${paidOnline ? "max-w-xs" : "max-w-sm"}`}>
+              {paidOnline
+                ? t.getStarted.successBody
+                : t.getStarted.successBodyManualPayment(manualPaymentMtnNumber, manualPaymentOrangeNumber, manualPaymentName)}
+            </p>
             <Link href="/" className="text-sm text-ringo-indigo font-medium mt-2">
               {t.getStarted.backHome}
             </Link>

@@ -32,6 +32,9 @@ export default async function GetStartedPage() {
       addons={addons || []}
       isCameroon={country === "CM"}
       allowPayNow={settings.allowCustomerPaymentAtSignup}
+      manualPaymentName={settings.manualPaymentName}
+      manualPaymentMtnNumber={settings.manualPaymentMtnNumber}
+      manualPaymentOrangeNumber={settings.manualPaymentOrangeNumber}
     />
   );
 }

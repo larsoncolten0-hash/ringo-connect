@@ -32,6 +32,9 @@ export async function POST(request: Request) {
     "stripePriceProYearlyLive",
     "stripePriceBusinessLive",
     "stripePriceBusinessYearlyLive",
+    "manualPaymentName",
+    "manualPaymentMtnNumber",
+    "manualPaymentOrangeNumber",
   ]) {
     if (key in body) nonSecretChanges[key] = body[key];
   }
