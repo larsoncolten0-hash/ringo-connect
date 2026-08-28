@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Eye, MousePointerClick, ShoppingBag, MessageCircle, Lock } from "lucide-react";
+import { Eye, MousePointerClick, ShoppingBag, MessageCircle, Lock, TrendingUp, Share2, MapPin, Globe2, ListOrdered } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getPresetRange, buildTrendData, type DateRange } from "@/lib/dateRanges";
@@ -10,6 +10,9 @@ import DateRangePicker from "@/components/analytics/DateRangePicker";
 import StatCard from "@/components/analytics/StatCard";
 import TrendChart from "@/components/analytics/TrendChart";
 import RankedBarList from "@/components/analytics/RankedBarList";
+import AnalyticsCard from "@/components/analytics/AnalyticsCard";
+import WorldMap, { type CountryMetricCounts } from "@/components/analytics/WorldMap";
+import EventsTable from "@/components/analytics/EventsTable";
 
 type ClickEvent = {
   target_type: "page" | "link" | "product" | "whatsapp";
@@ -157,6 +160,19 @@ export default function AnalyticsView({
       .slice(0, 8);
   }, [filtered, regionNames, t]);
 
+  // Per-country page-view / link-click counts for the choropleth — same
+  // `filtered` events the rest of the page already aggregates, just
+  // grouped by country instead of by link/product/source.
+  const countsByCountry = useMemo(() => {
+    const map: Record<string, CountryMetricCounts> = {};
+    filtered.forEach((e) => {
+      if (!e.country || (e.target_type !== "page" && e.target_type !== "link")) return;
+      if (!map[e.country]) map[e.country] = { page: 0, link: 0 };
+      map[e.country][e.target_type]++;
+    });
+    return map;
+  }, [filtered]);
+
   return (
     <div className="flex flex-col gap-5 max-w-5xl">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -189,32 +205,63 @@ export default function AnalyticsView({
         </div>
       ) : (
         <>
-          <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-            <p className="text-sm font-medium text-ringo-text tracking-[-0.01em] mb-4">{t.analytics.clicksOverTime}</p>
+          <AnalyticsCard icon={TrendingUp} title={t.analytics.clicksOverTime}>
             <TrendChart data={trendData} />
-          </div>
+          </AnalyticsCard>
+
+          <AnalyticsCard icon={Globe2} title={t.analytics.worldMapTitle}>
+            <WorldMap
+              countsByCountry={countsByCountry}
+              regionNames={regionNames}
+              labels={{ pageViews: t.analytics.pageViews, linkClicks: t.analytics.linkClicks }}
+              emptyLabel={t.analytics.noLocations}
+            />
+          </AnalyticsCard>
 
           <div className="grid lg:grid-cols-2 gap-4">
-            <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-              <p className="text-sm font-medium text-ringo-text tracking-[-0.01em] mb-4">{t.analytics.topLinks}</p>
+            <AnalyticsCard icon={MousePointerClick} title={t.analytics.topLinks}>
               <RankedBarList items={topLinks} emptyLabel={t.analytics.noLinkClicks} />
-            </div>
-            <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-              <p className="text-sm font-medium text-ringo-text tracking-[-0.01em] mb-4">{t.analytics.topProducts}</p>
+            </AnalyticsCard>
+            <AnalyticsCard icon={ShoppingBag} title={t.analytics.topProducts}>
               <RankedBarList items={topProducts} emptyLabel={t.analytics.noProductClicks} />
-            </div>
+            </AnalyticsCard>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-4">
-            <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-              <p className="text-sm font-medium text-ringo-text tracking-[-0.01em] mb-4">{t.analytics.trafficSources}</p>
+            <AnalyticsCard icon={Share2} title={t.analytics.trafficSources}>
               <RankedBarList items={topSources} emptyLabel={t.analytics.noSources} />
-            </div>
-            <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-              <p className="text-sm font-medium text-ringo-text tracking-[-0.01em] mb-4">{t.analytics.locations}</p>
+            </AnalyticsCard>
+            <AnalyticsCard icon={MapPin} title={t.analytics.locations}>
               <RankedBarList items={topLocations} emptyLabel={t.analytics.noLocations} />
-            </div>
+            </AnalyticsCard>
           </div>
+
+          <AnalyticsCard icon={ListOrdered} title={t.analytics.recentActivity}>
+            <EventsTable
+              events={filtered}
+              links={safeLinks}
+              products={safeProducts}
+              regionNames={regionNames}
+              labels={{
+                type: t.analytics.colType,
+                target: t.analytics.colTarget,
+                source: t.analytics.colSource,
+                location: t.analytics.colLocation,
+                time: t.analytics.colTime,
+                typeLabels: {
+                  page: t.analytics.eventTypePage,
+                  link: t.analytics.eventTypeLink,
+                  product: t.analytics.eventTypeProduct,
+                  whatsapp: t.analytics.eventTypeWhatsapp,
+                },
+                direct: t.analytics.direct,
+                unknown: t.analytics.unknown,
+                empty: t.analytics.noEvents,
+                of: t.analytics.of,
+                itemLabel: t.analytics.eventsLabel,
+              }}
+            />
+          </AnalyticsCard>
         </>
       )}
     </div>
