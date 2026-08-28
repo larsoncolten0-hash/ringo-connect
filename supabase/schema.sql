@@ -43,6 +43,15 @@ create table profiles (
   default_whatsapp_message text default 'Hi! I found you on Ringo Connect.',
   facebook_pixel_id text,
   tiktok_pixel_id text,
+  -- Server-side Meta Conversions API / TikTok Events API credentials.
+  -- Encrypted with SETTINGS_ENCRYPTION_KEY (see src/lib/crypto.ts) before
+  -- storage — even though this row is publicly SELECT-able (RLS: publish
+  -- = true), a leaked row only yields ciphertext, never a usable token.
+  facebook_capi_token_encrypted text,
+  tiktok_events_token_encrypted text,
+  -- Non-secret: shown in Meta Events Manager's "Test events" tab so the
+  -- creator can confirm events are arriving before relying on them.
+  facebook_test_event_code text,
   about_long_bio text,
   about_email text,
   about_location text,

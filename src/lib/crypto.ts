@@ -47,3 +47,9 @@ export function decryptSecret(stored: string | null | undefined): string | null 
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
   return decrypted.toString("utf8");
 }
+
+/** Lowercase hex SHA-256 — the exact format Meta's Conversions API and
+ *  TikTok's Events API require for hashed identifiers (external_id etc). */
+export function sha256Hex(value: string): string {
+  return crypto.createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
+}

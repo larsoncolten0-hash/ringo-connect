@@ -1,20 +1,118 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
 import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, Mail, Phone, Clock } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { getButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
+import { ensureVisitorId, captureTtclid, newEventId } from "@/lib/pixelClient";
+import { metaEventName, tiktokEventName, isValidFacebookPixelId, isValidTiktokPixelId } from "@/lib/pixelEvents";
 import WhatsAppButton from "./WhatsAppButton";
 import CallButton from "./CallButton";
 import SocialIcon from "./SocialIcon";
 
-export default function ProfileView({ profile }: { profile: any }) {
+export default function ProfileView({
+  profile,
+  pixelsEnabled,
+  pageViewEventId,
+}: {
+  profile: any;
+  pixelsEnabled?: boolean;
+  pageViewEventId?: string;
+}) {
   const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
   const [showCatalog, setShowCatalog] = useState(true);
+
+  // Populated client-side only (cookies aren't readable during SSR) —
+  // the Meta/TikTok Pixel scripts below stay unrendered until this is
+  // set, so `external_id` is always present on the very first PageView
+  // rather than trickling in on a later event.
+  const [visitorId, setVisitorId] = useState<string | null>(null);
+  useEffect(() => {
+    setVisitorId(ensureVisitorId());
+    captureTtclid();
+  }, []);
+
+  const fbPixelId = pixelsEnabled && profile.facebook_pixel_id && isValidFacebookPixelId(profile.facebook_pixel_id)
+    ? profile.facebook_pixel_id
+    : null;
+  const ttPixelId = pixelsEnabled && profile.tiktok_pixel_id && isValidTiktokPixelId(profile.tiktok_pixel_id)
+    ? profile.tiktok_pixel_id
+    : null;
+
+  const logClick = async (
+    targetType: "link" | "product" | "whatsapp",
+    targetId?: string,
+    content?: { name?: string; price?: number | null; currency?: string | null }
+  ) => {
+    const eventId = newEventId();
+    const value = typeof content?.price === "number" ? content.price : undefined;
+    const currency = content?.currency || undefined;
+
+    // Browser-side Pixel calls — best-effort: an ad blocker commonly
+    // strips fbq/ttq entirely, which must never break the actual link
+    // click. The same eventId also goes to /api/track below, so Meta/
+    // TikTok can merge this with the server-side event instead of
+    // counting it twice.
+    try {
+      const fbq = (window as any).fbq;
+      if (fbPixelId && typeof fbq === "function") {
+        fbq(
+          "track",
+          metaEventName(targetType),
+          {
+            ...(content?.name ? { content_name: content.name } : {}),
+            ...(targetId ? { content_ids: [targetId], content_type: "product" } : {}),
+            ...(value !== undefined ? { value, currency: currency || "USD" } : {}),
+          },
+          { eventID: eventId }
+        );
+      }
+    } catch (err) {
+      console.error("Meta Pixel track failed:", err);
+    }
+    try {
+      const ttq = (window as any).ttq;
+      if (ttPixelId && typeof ttq?.track === "function") {
+        ttq.track(
+          tiktokEventName(targetType),
+          {
+            ...(content?.name || targetId ? { contents: [{ content_id: targetId, content_name: content?.name }] } : {}),
+            ...(value !== undefined ? { value, currency: currency || "USD" } : {}),
+          },
+          { event_id: eventId }
+        );
+      }
+    } catch (err) {
+      console.error("TikTok Pixel track failed:", err);
+    }
+
+    try {
+      const res = await fetch("/api/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId: profile.id,
+          targetType,
+          targetId: targetId ?? null,
+          eventId,
+          contentName: content?.name ?? null,
+          value: value ?? null,
+          currency: currency ?? null,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        console.error("Track request failed:", res.status, body);
+      }
+    } catch (err) {
+      console.error("Track request errored:", err);
+    }
+  };
 
   const copyLink = async () => {
     try {
@@ -24,22 +122,6 @@ export default function ProfileView({ profile }: { profile: any }) {
     } catch {
       // Clipboard API can fail (older browsers, non-HTTPS) — fail silently
       // rather than showing an error for a non-critical convenience feature.
-    }
-  };
-
-  const logClick = async (targetType: "link" | "product" | "whatsapp", targetId?: string) => {
-    try {
-      const res = await fetch("/api/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: profile.id, targetType, targetId: targetId ?? null }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        console.error("Track request failed:", res.status, body);
-      }
-    } catch (err) {
-      console.error("Track request errored:", err);
     }
   };
 
@@ -68,6 +150,55 @@ export default function ProfileView({ profile }: { profile: any }) {
 
   return (
     <main className="relative min-h-screen flex flex-col items-center pb-10" style={pageStyle}>
+      {/* Pixel base code — deliberately held back until `visitorId` is
+          set (client-only, see the effect above) so the very first
+          PageView already carries external_id, rather than firing once
+          without it and never getting a second chance at that visitor's
+          first-touch event. fbPixelId/ttPixelId are pre-validated
+          (isValidFacebookPixelId/isValidTiktokPixelId) — only ever a
+          plain numeric/alphanumeric id ever reaches this inline script,
+          since profile.facebook_pixel_id/tiktok_pixel_id are otherwise
+          creator-controlled free text. */}
+      {visitorId && fbPixelId && pageViewEventId && (
+        <>
+          <Script
+            id="meta-pixel"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '${fbPixelId}', {external_id:'${visitorId}'});
+fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
+`,
+            }}
+          />
+          <noscript>
+            <img
+              height={1}
+              width={1}
+              style={{ display: "none" }}
+              src={`https://www.facebook.com/tr?id=${fbPixelId}&ev=PageView&noscript=1`}
+              alt=""
+            />
+          </noscript>
+        </>
+      )}
+      {visitorId && ttPixelId && (
+        <Script
+          id="tiktok-pixel"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+!function (w, d, t) {
+  w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<e.length;n++)ttq.setAndDefer(e,e[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script");n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
+  ttq.load('${ttPixelId}', {external_id:'${visitorId}'});
+  ttq.page();
+}(window, document, 'ttq');
+`,
+          }}
+        />
+      )}
+
       {/* Cover photo — falls back to a soft accent-tinted gradient when
           the creator hasn't uploaded one, rather than an empty/broken area. */}
       <div className="relative w-full h-52 sm:h-60 overflow-hidden shrink-0">
@@ -171,7 +302,7 @@ export default function ProfileView({ profile }: { profile: any }) {
               message={profile.default_whatsapp_message}
               radiusClass={radiusClass}
               buttonStyle={linkButtonStyle}
-              onClick={() => logClick("whatsapp")}
+              onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
             />
             <div className="flex-1">
               <CallButton
@@ -334,7 +465,7 @@ export default function ProfileView({ profile }: { profile: any }) {
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => logClick("link", link.id)}
+                    onClick={() => logClick("link", link.id, { name: link.title })}
                     className={`flex items-center gap-3 p-3 transition hover:brightness-95 hover:-translate-y-0.5 active:scale-[0.98] active:brightness-90 ${radiusClass}`}
                     style={linkButtonStyle}
                   >
@@ -423,7 +554,13 @@ export default function ProfileView({ profile }: { profile: any }) {
                                     href={product.landing_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    onClick={() => logClick("product", product.id)}
+                                    onClick={() =>
+                                      logClick("product", product.id, {
+                                        name: product.name,
+                                        price: product.price ? Number(product.price) : null,
+                                        currency: profile.currency,
+                                      })
+                                    }
                                     className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 transition hover:brightness-95 active:scale-[0.97] ${radiusClass}`}
                                     style={{ border: `1px solid ${borderTint}` }}
                                   >
@@ -436,7 +573,7 @@ export default function ProfileView({ profile }: { profile: any }) {
                                   message={product.whatsapp_message || `Hi, I'm interested in ${product.name}`}
                                   radiusClass={radiusClass}
                                   buttonStyle={linkButtonStyle}
-                                  onClick={() => logClick("whatsapp", product.id)}
+                                  onClick={() => logClick("whatsapp", product.id, { name: product.name })}
                                 />
                               </div>
                             </div>

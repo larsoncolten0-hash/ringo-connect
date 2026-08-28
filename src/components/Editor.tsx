@@ -98,6 +98,9 @@ export default function Editor({
         pixelsEnabled={!!plan?.pixels_enabled}
         initialFacebookId={profile.facebook_pixel_id}
         initialTiktokId={profile.tiktok_pixel_id}
+        initialTestEventCode={profile.facebook_test_event_code}
+        facebookCapiConfigured={!!profile.facebookCapiConfigured}
+        tiktokEventsConfigured={!!profile.tiktokEventsConfigured}
       />
     </div>
   );

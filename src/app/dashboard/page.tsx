@@ -27,5 +27,15 @@ export default async function DashboardPage() {
 
   if (!profile) redirect("/auth/login?error=profile_missing");
 
-  return <Editor profile={profile} plan={userRow?.plans} userId={user.id} />;
+  // The raw encrypted CAPI/Events API tokens must never reach the
+  // browser — Server → Client component props get serialized into the
+  // page's own payload regardless of whether the client component reads
+  // every field, so even an unused key would otherwise ship to the
+  // owner's own browser tab. Swap them for plain "is one saved?" flags,
+  // which is all PixelsCard needs to render its "Configured" badges.
+  const { facebook_capi_token_encrypted, tiktok_events_token_encrypted, ...profileForClient } = profile;
+  (profileForClient as any).facebookCapiConfigured = !!facebook_capi_token_encrypted;
+  (profileForClient as any).tiktokEventsConfigured = !!tiktok_events_token_encrypted;
+
+  return <Editor profile={profileForClient} plan={userRow?.plans} userId={user.id} />;
 }
