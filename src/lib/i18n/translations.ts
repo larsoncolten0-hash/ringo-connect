@@ -362,6 +362,8 @@ export const translations = {
       statusPaid: "Paid",
       statusReversed: "Reversed",
       holdNotice: (days: number) => `New commissions become available to withdraw after a ${days}-day hold.`,
+      holdNoticeInstant: "New commissions are available to withdraw immediately.",
+      unlocksOn: (date: string) => `Unlocks ${date}`,
       payoutMethod: "Payout method",
       payoutMethodHint: "Where should we send your money?",
       methodMobileMoney: "Mobile Money",
@@ -391,6 +393,7 @@ export const translations = {
       suspendedNotice: "Your affiliate account has been suspended. Contact support if you think this is a mistake.",
       requestSuccess: "Payout requested — we'll process it shortly.",
       linkCopied: "Referral link copied",
+      refresh: "Refresh",
     },
     plans: {
       free: {
@@ -789,6 +792,8 @@ export const translations = {
       statusPaid: "Payée",
       statusReversed: "Annulée",
       holdNotice: (days: number) => `Les nouvelles commissions deviennent disponibles après un délai de ${days} jours.`,
+      holdNoticeInstant: "Les nouvelles commissions sont disponibles immédiatement.",
+      unlocksOn: (date: string) => `Débloqué le ${date}`,
       payoutMethod: "Mode de paiement",
       payoutMethodHint: "Où devons-nous envoyer votre argent ?",
       methodMobileMoney: "Mobile Money",
@@ -818,6 +823,7 @@ export const translations = {
       suspendedNotice: "Votre compte d'affiliation a été suspendu. Contactez le support si vous pensez qu'il s'agit d'une erreur.",
       requestSuccess: "Retrait demandé — nous allons le traiter sous peu.",
       linkCopied: "Lien de parrainage copié",
+      refresh: "Actualiser",
     },
     plans: {
       free: {

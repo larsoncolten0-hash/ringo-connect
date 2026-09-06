@@ -12,6 +12,7 @@ import {
   Banknote,
   AlertTriangle,
   PauseCircle,
+  RefreshCw,
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
@@ -53,12 +54,25 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
     [overview.monthly, activeCurrency]
   );
 
+  const [refreshing, setRefreshing] = useState(false);
+
   const refresh = async () => {
     const res = await fetch("/api/affiliate/dashboard");
     if (res.ok) {
       const data = await res.json();
       setOverview(data.overview);
     }
+  };
+
+  // Balances/settings only update in this tab after YOUR OWN actions
+  // (saving a payout method, requesting a payout) — an admin changing the
+  // program's minimum payout or commission rate elsewhere doesn't push
+  // anything here on its own. This button exists so checking "did that
+  // change land yet" never requires a full page reload.
+  const manualRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
   };
 
   const statusLabel = (status: string) => (t.affiliate as any)[`status${status[0].toUpperCase()}${status.slice(1)}`] || status;
@@ -88,10 +102,21 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
 
   return (
     <div className="max-w-5xl flex flex-col gap-6">
-      <div>
-        <p className="text-xs font-medium tracking-wide uppercase text-ringo-indigo mb-2">{t.affiliate.eyebrow}</p>
-        <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em] mb-1">{t.affiliate.title}</h1>
-        <p className="text-sm text-ringo-muted max-w-lg">{t.affiliate.subtitle}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium tracking-wide uppercase text-ringo-indigo mb-2">{t.affiliate.eyebrow}</p>
+          <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em] mb-1">{t.affiliate.title}</h1>
+          <p className="text-sm text-ringo-muted max-w-lg">{t.affiliate.subtitle}</p>
+        </div>
+        <button
+          onClick={manualRefresh}
+          disabled={refreshing}
+          aria-label={t.affiliate.refresh}
+          className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-ringo-muted hover:text-ringo-text px-3 py-2 rounded-card border border-ringo-border hover:border-ringo-indigo transition-colors disabled:opacity-50"
+        >
+          <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
+          {t.affiliate.refresh}
+        </button>
       </div>
 
       {!overview.settings.enabled && (
@@ -248,7 +273,7 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
           <p className="text-sm font-medium text-ringo-text">{t.affiliate.commissionHistory}</p>
           <p className="text-xs text-ringo-muted mt-1 flex items-center gap-1.5">
             <Clock size={12} className="shrink-0" />
-            {t.affiliate.holdNotice(overview.settings.holdDays)}
+            {overview.settings.holdDays === 0 ? t.affiliate.holdNoticeInstant : t.affiliate.holdNotice(overview.settings.holdDays)}
           </p>
         </div>
         {overview.commissions.length === 0 ? (
@@ -278,6 +303,11 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
                         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[displayStatus]}`}>
                           {statusLabel(displayStatus)}
                         </span>
+                        {isHeld && (
+                          <p className="text-[10px] text-ringo-muted mt-1">
+                            {t.affiliate.unlocksOn(new Date(c.availableAt).toLocaleDateString(locale))}
+                          </p>
+                        )}
                       </td>
                       <td className="text-ringo-muted px-5">{new Date(c.createdAt).toLocaleDateString(locale)}</td>
                     </tr>
