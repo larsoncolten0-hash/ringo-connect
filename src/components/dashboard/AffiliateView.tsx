@@ -429,13 +429,23 @@ function BalanceCard({
       {!hasPayoutMethod ? (
         <p className="text-xs text-ringo-muted">{t.affiliate.addPayoutMethodFirst}</p>
       ) : (
-        <button
-          onClick={request}
-          disabled={!canRequest || requesting}
-          className="w-full text-sm font-medium py-2.5 rounded-card bg-ringo-indigo text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-ringo-indigo/90 transition-colors"
-        >
-          {requesting ? t.affiliate.requestingPayout : t.affiliate.requestPayoutFor(currency)}
-        </button>
+        <>
+          <button
+            onClick={request}
+            disabled={!canRequest || requesting}
+            className="w-full text-sm font-medium py-2.5 rounded-card bg-ringo-indigo text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-ringo-indigo/90 transition-colors"
+          >
+            {requesting ? t.affiliate.requestingPayout : t.affiliate.requestPayoutFor(currency)}
+          </button>
+          {/* Spells out exactly why the button above is greyed out —
+              otherwise "disabled with no explanation" reads as broken
+              rather than as "you're not there yet." */}
+          {!canRequest && !requesting && (
+            <p className="text-xs text-ringo-muted text-center -mt-1">
+              {disabled ? t.affiliate.payoutsUnavailable : t.affiliate.belowMinimum}
+            </p>
+          )}
+        </>
       )}
     </div>
   );
