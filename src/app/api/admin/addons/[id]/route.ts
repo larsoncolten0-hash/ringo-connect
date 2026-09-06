@@ -2,7 +2,7 @@ import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
-const EDITABLE_FIELDS = ["name", "price_xaf", "price_usd", "required", "active"];
+const EDITABLE_FIELDS = ["name", "price_xaf", "price_usd", "required", "active", "show_on_affiliate_page"];
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const admin = await assertAdmin();

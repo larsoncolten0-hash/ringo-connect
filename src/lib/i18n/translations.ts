@@ -79,6 +79,9 @@ export const translations = {
       payTryAgain: "Try again",
       payContinueWithoutPaying: "Continue without paying",
       payBack: "Back",
+      couponCodeLabel: "Coupon / partner code (optional)",
+      couponCodePlaceholder: "Enter your partner's code",
+      couponCodeApplied: "Applied from your partner's link.",
     },
     installPrompt: {
       title: "Install Ringo Connect",
@@ -509,6 +512,9 @@ export const translations = {
       payTryAgain: "Réessayer",
       payContinueWithoutPaying: "Continuer sans payer",
       payBack: "Retour",
+      couponCodeLabel: "Code coupon / partenaire (optionnel)",
+      couponCodePlaceholder: "Entrez le code de votre partenaire",
+      couponCodeApplied: "Appliqué depuis le lien de votre partenaire.",
     },
     installPrompt: {
       title: "Installer Ringo Connect",

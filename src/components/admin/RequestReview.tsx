@@ -236,6 +236,11 @@ export default function RequestReview({ request, plans, addons }: { request: any
           <div>
             <p className="font-medium text-ringo-text">{request.full_name}</p>
             <p className="text-sm text-ringo-muted">{request.whatsapp_number}</p>
+            {request.source === "affiliate" && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-ringo-coral mt-0.5">
+                Via affiliate link{request.referral_code ? ` — code ${request.referral_code}` : ""}
+              </span>
+            )}
           </div>
           <span
             className={`ml-auto text-xs px-2.5 py-1 rounded-full font-medium capitalize ${

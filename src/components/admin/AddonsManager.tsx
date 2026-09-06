@@ -8,7 +8,13 @@ export default function AddonsManager({ addons }: { addons: any[] }) {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
-  const [newAddon, setNewAddon] = useState({ name: "", price_xaf: "", price_usd: "", required: false });
+  const [newAddon, setNewAddon] = useState({
+    name: "",
+    price_xaf: "",
+    price_usd: "",
+    required: false,
+    show_on_affiliate_page: true,
+  });
   const [creating, setCreating] = useState(false);
 
   const updateField = (id: string, field: string, value: any) => {
@@ -26,6 +32,7 @@ export default function AddonsManager({ addons }: { addons: any[] }) {
         price_usd: Number(addon.price_usd),
         required: addon.required,
         active: addon.active,
+        show_on_affiliate_page: addon.show_on_affiliate_page,
       }),
     });
     setSavingId(null);
@@ -127,6 +134,15 @@ export default function AddonsManager({ addons }: { addons: any[] }) {
                 />
                 Active (shown on the form)
               </label>
+              <label className="flex items-center gap-2 text-sm text-ringo-text">
+                <input
+                  type="checkbox"
+                  checked={!!addon.show_on_affiliate_page}
+                  onChange={(e) => updateField(addon.id, "show_on_affiliate_page", e.target.checked)}
+                  className="accent-ringo-indigo"
+                />
+                Show on affiliate get-started page
+              </label>
             </div>
           </div>
         ))}
@@ -180,6 +196,15 @@ export default function AddonsManager({ addons }: { addons: any[] }) {
               className="accent-ringo-indigo"
             />
             Required for everyone
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ringo-text">
+            <input
+              type="checkbox"
+              checked={newAddon.show_on_affiliate_page}
+              onChange={(e) => setNewAddon({ ...newAddon, show_on_affiliate_page: e.target.checked })}
+              className="accent-ringo-indigo"
+            />
+            Show on affiliate get-started page
           </label>
           <button
             onClick={createAddon}

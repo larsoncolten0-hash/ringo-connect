@@ -33,6 +33,11 @@ export async function POST(request: Request) {
       requested_products: Array.isArray(body.requested_products) ? body.requested_products : [],
       requested_social_links: Array.isArray(body.requested_social_links) ? body.requested_social_links : [],
       requested_addon_ids: Array.isArray(body.requested_addon_ids) ? body.requested_addon_ids : [],
+      // "affiliate" = submitted through /get-started-affiliate, where
+      // online payment is mandatory — see the matching check in
+      // /api/signup-requests/[id]/pay. Anything else falls back to the
+      // regular public-form default.
+      source: body.source === "affiliate" ? "affiliate" : "get_started",
     })
     .select("id")
     .single();

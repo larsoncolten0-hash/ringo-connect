@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const admin = await assertAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { name, price_xaf, price_usd, required } = await request.json().catch(() => ({}));
+  const { name, price_xaf, price_usd, required, show_on_affiliate_page } = await request.json().catch(() => ({}));
   if (!name?.trim()) {
     return NextResponse.json({ error: "Name is required." }, { status: 400 });
   }
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     price_xaf: Number(price_xaf) || 0,
     price_usd: Number(price_usd) || 0,
     required: !!required,
+    show_on_affiliate_page: show_on_affiliate_page !== false,
     sort_order: count || 0,
   });
 

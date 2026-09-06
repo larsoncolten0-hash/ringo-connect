@@ -18,10 +18,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // checked here, server-side — otherwise the toggle only controls
   // whether the "Pay now" button is shown, not whether this endpoint
   // actually accepts a payment. A hidden button isn't a real off switch.
+  //
+  // allowCustomerPaymentAtSignup only ever governed the PUBLIC
+  // /get-started form's optional "pay now" choice — it says nothing
+  // about /get-started-affiliate, where paying online isn't an option
+  // among others, it's the whole point of the page. That flow's requests
+  // carry source = 'affiliate' and skip this particular check
+  // accordingly; the actual payments on/off switch (fapshiEnabled)
+  // still applies to both.
   const settings = await getPlatformSettings();
-  if (!settings.allowCustomerPaymentAtSignup) {
-    return NextResponse.json({ error: "Paying during signup isn't available right now." }, { status: 403 });
-  }
   if (!settings.fapshiEnabled) {
     return NextResponse.json({ error: "Mobile Money payments are currently unavailable." }, { status: 503 });
   }
@@ -30,12 +35,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const { data: signupRequest } = await admin
     .from("signup_requests")
-    .select("id, status, full_name, requested_plan_id, requested_interval, requested_addon_ids")
+    .select("id, status, full_name, requested_plan_id, requested_interval, requested_addon_ids, source")
     .eq("id", params.id)
     .single();
 
   if (!signupRequest || signupRequest.status !== "pending") {
     return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
+  }
+  if (signupRequest.source !== "affiliate" && !settings.allowCustomerPaymentAtSignup) {
+    return NextResponse.json({ error: "Paying during signup isn't available right now." }, { status: 403 });
   }
   if (!signupRequest.requested_plan_id) {
     return NextResponse.json({ error: "No plan was selected." }, { status: 400 });

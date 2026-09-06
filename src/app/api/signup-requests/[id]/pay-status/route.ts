@@ -19,6 +19,14 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   try {
     const tx = await fapshiGetStatus(signupRequest.pending_fapshi_trans_id);
+    if (tx.status === "SUCCESSFUL") {
+      // Marks the request as paid for the admin's review screen — without
+      // this, RequestReview.tsx's "customer already paid" indicator and
+      // its chargeStatus="success" seed (which unblocks account creation
+      // without the admin needing to charge the customer a second time)
+      // never actually had anything setting the flag they read.
+      await admin.from("signup_requests").update({ customer_paid: true }).eq("id", params.id);
+    }
     return NextResponse.json({ status: tx.status, transId: tx.transId });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Could not check payment status." }, { status: 502 });

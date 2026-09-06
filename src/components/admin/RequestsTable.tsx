@@ -71,7 +71,14 @@ export default function RequestsTable({ requests }: { requests: any[] }) {
                               {initial}
                             </span>
                           )}
-                          <p className="text-ringo-text font-medium truncate max-w-[160px]">{r.full_name}</p>
+                          <div className="min-w-0">
+                            <p className="text-ringo-text font-medium truncate max-w-[160px]">{r.full_name}</p>
+                            {r.source === "affiliate" && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-ringo-coral">
+                                Affiliate{r.referral_code ? ` · ${r.referral_code}` : ""}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="text-ringo-muted">{r.whatsapp_number}</td>

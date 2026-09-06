@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Check, ArrowLeft, Loader2, X } from "lucide-react";
@@ -26,6 +26,7 @@ export default function GetStartedFlow({
   manualPaymentName,
   manualPaymentMtnNumber,
   manualPaymentOrangeNumber,
+  variant = "standard",
 }: {
   plans: any[];
   addons: any[];
@@ -34,6 +35,12 @@ export default function GetStartedFlow({
   manualPaymentName: string;
   manualPaymentMtnNumber: string;
   manualPaymentOrangeNumber: string;
+  // "affiliate" = /get-started-affiliate: payment is mandatory (no
+  // "submit without paying" escape hatch, no pay-now/pay-later choice
+  // screen — straight into payment), and a coupon/referral code field is
+  // shown and editable rather than only captured silently in the
+  // background. Everything else about the flow is identical.
+  variant?: "standard" | "affiliate";
 }) {
   const { t, locale } = useLanguage();
   // Only Business shows right now (filtered server-side), so there's
@@ -55,6 +62,22 @@ export default function GetStartedFlow({
   const [avatarUrl, setAvatarUrl] = useState("");
   const [note, setNote] = useState("");
   const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [referralPrefilled, setReferralPrefilled] = useState(false);
+
+  // Same capture mechanism as everywhere else (see src/lib/referral.ts) —
+  // prefills from ?ref=CODE if that's how this person got here, but stays
+  // a normal editable field either way. On the standard flow this just
+  // reproduces what used to happen silently at submit time; on the
+  // affiliate flow it's actually shown on screen (see the coupon code
+  // field in the info step below).
+  useEffect(() => {
+    const stored = getReferralCode();
+    if (stored) {
+      setReferralCode(stored);
+      setReferralPrefilled(true);
+    }
+  }, []);
 
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -150,7 +173,8 @@ export default function GetStartedFlow({
         full_name: fullName.trim(),
         whatsapp_number: whatsapp.trim(),
         email: email.trim() || null,
-        referral_code: getReferralCode(),
+        referral_code: referralCode.trim() || null,
+        source: variant === "affiliate" ? "affiliate" : "get_started",
         suggested_username: username.trim() || null,
         avatar_url: avatarUrl || null,
         business_note: note.trim() || null,
@@ -187,7 +211,16 @@ export default function GetStartedFlow({
   };
 
   const handleInfoContinue = () => {
-    if (allowPayNow) {
+    if (variant === "affiliate") {
+      setError("");
+      if (!fullName.trim() || !whatsapp.trim()) {
+        setError(t.getStarted.requiredError);
+        return;
+      }
+      // Payment is mandatory here — there's no pay-later choice screen to
+      // show, straight into the payment step.
+      setStep("paying");
+    } else if (allowPayNow) {
       setError("");
       if (!fullName.trim() || !whatsapp.trim()) {
         setError(t.getStarted.requiredError);
@@ -583,6 +616,31 @@ export default function GetStartedFlow({
                 </div>
               )}
 
+              {variant === "affiliate" && (
+                <div className="border-t border-ringo-border pt-4">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-sm font-medium">{t.getStarted.couponCodeLabel}</span>
+                    <div className="relative">
+                      <input
+                        value={referralCode}
+                        onChange={(e) => {
+                          setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 40));
+                          setReferralPrefilled(false);
+                        }}
+                        placeholder={t.getStarted.couponCodePlaceholder}
+                        className={`w-full border rounded-card px-3.5 py-2.5 pr-9 text-sm bg-ringo-surface ${
+                          referralPrefilled ? "border-ringo-teal" : "border-ringo-border"
+                        }`}
+                      />
+                      {referralPrefilled && (
+                        <Check size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ringo-teal" />
+                      )}
+                    </div>
+                  </label>
+                  {referralPrefilled && <p className="mt-1 text-xs text-ringo-teal">{t.getStarted.couponCodeApplied}</p>}
+                </div>
+              )}
+
               {selectedPlan && (
                 <div className="border-t border-ringo-border pt-4">
                   <p className="text-sm font-medium mb-2">{t.getStarted.totalHeading}</p>
@@ -615,7 +673,11 @@ export default function GetStartedFlow({
                 className="flex items-center justify-center gap-2 py-3 rounded-card bg-ringo-indigo text-white text-sm font-medium disabled:opacity-60 mt-2"
               >
                 {submitting && <Loader2 size={15} className="animate-spin" />}
-                {submitting ? t.getStarted.submitting : allowPayNow ? t.getStarted.continueButton : t.getStarted.submitButton}
+                {submitting
+                  ? t.getStarted.submitting
+                  : variant === "affiliate" || allowPayNow
+                  ? t.getStarted.continueButton
+                  : t.getStarted.submitButton}
               </button>
             </div>
           </>
@@ -681,7 +743,10 @@ export default function GetStartedFlow({
           <>
             <button
               onClick={() => {
-                setStep("payChoice");
+                // Affiliate mode never shows the payChoice screen — going
+                // back from here has to return to "info", not to a step
+                // that was never entered.
+                setStep(variant === "affiliate" ? "info" : "payChoice");
                 setPayStatus("idle");
                 setPayError("");
               }}
@@ -752,12 +817,17 @@ export default function GetStartedFlow({
                   >
                     {t.getStarted.payTryAgain}
                   </button>
-                  <button
-                    onClick={() => setStep("success")}
-                    className="py-2.5 rounded-card border border-ringo-border text-ringo-text text-sm font-medium"
-                  >
-                    {t.getStarted.payContinueWithoutPaying}
-                  </button>
+                  {/* Affiliate mode has no pay-later fallback — payment
+                      is the whole point of this page, not one option
+                      among others. */}
+                  {variant !== "affiliate" && (
+                    <button
+                      onClick={() => setStep("success")}
+                      className="py-2.5 rounded-card border border-ringo-border text-ringo-text text-sm font-medium"
+                    >
+                      {t.getStarted.payContinueWithoutPaying}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
