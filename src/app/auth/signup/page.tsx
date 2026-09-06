@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getReferralCode } from "@/lib/referral";
+import { Check } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
 import FormField from "@/components/auth/FormField";
 import SubmitButton from "@/components/auth/SubmitButton";
@@ -20,8 +21,23 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
+  const [referralCode, setReferralCode] = useState("");
+  const [referralPrefilled, setReferralPrefilled] = useState(false);
   const supabase = createClient();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Pre-fills from whatever ?ref=CODE was captured earlier (see
+  // src/lib/referral.ts) when this person's own affiliate link brought
+  // them here — still a plain editable field either way, so someone who
+  // was just told a code by a friend (no link involved) can type it in
+  // themselves.
+  useEffect(() => {
+    const stored = getReferralCode();
+    if (stored) {
+      setReferralCode(stored);
+      setReferralPrefilled(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (!username) {
@@ -62,7 +78,7 @@ export default function SignupPage() {
 
     setLoading(true);
 
-    const ref = getReferralCode();
+    const ref = referralCode.trim();
 
     const { error: signUpError } = await supabase.auth.signUp({
       email,
@@ -209,6 +225,32 @@ export default function SignupPage() {
                 />
               ))}
             </div>
+          )}
+        </div>
+
+        <div className="mb-4">
+          <label className="block">
+            <span className="text-sm font-medium text-ringo-text">Referral code (optional)</span>
+            <div className="relative mt-1.5">
+              <input
+                type="text"
+                value={referralCode}
+                onChange={(e) => {
+                  setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 40));
+                  setReferralPrefilled(false);
+                }}
+                placeholder="Have a code? Enter it here"
+                className={`w-full rounded-card border bg-ringo-surface px-3.5 py-2.5 pr-9 text-sm text-ringo-text placeholder:text-ringo-muted/60 outline-none transition focus:ring-2 focus:ring-ringo-indigo/40 ${
+                  referralPrefilled ? "border-ringo-teal" : "border-ringo-border focus:border-ringo-indigo"
+                }`}
+              />
+              {referralPrefilled && (
+                <Check size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ringo-teal" />
+              )}
+            </div>
+          </label>
+          {referralPrefilled && (
+            <p className="mt-1 text-xs text-ringo-teal">Applied from your referral link.</p>
           )}
         </div>
 

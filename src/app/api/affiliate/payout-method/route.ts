@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await saveAffiliatePayoutMethod(method, details);
+    await saveAffiliatePayoutMethod(user.id, method, details);
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Could not save payout method." }, { status: 400 });
   }

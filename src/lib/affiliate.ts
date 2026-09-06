@@ -201,20 +201,29 @@ export async function getMyAffiliateOverview(): Promise<AffiliateOverview | null
   };
 }
 
+/**
+ * Written via the service-role client, not the caller's own RLS-scoped
+ * session — public.users carries extra protection beyond plain RLS (see
+ * the plan_id-guarding trigger this project already has), and unlike
+ * every other self-service field in the app (which lives in profiles/
+ * links/products/etc.), a payout method has to land on the users table
+ * itself. Going through the RLS-scoped client here risked the write
+ * silently no-oping if it tripped that guard, which is exactly what was
+ * happening. userId must already be verified by the caller (see the
+ * /api/affiliate/payout-method route) — this function does no auth check
+ * of its own, the same way every other admin-client write in this app
+ * relies on its route having checked first.
+ */
 export async function saveAffiliatePayoutMethod(
+  userId: string,
   method: "mobile_money" | "paypal" | "bank",
   details: Record<string, any>
 ) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const { error } = await supabase
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("users")
     .update({ affiliate_payout_method: method, affiliate_payout_details: details })
-    .eq("id", user.id);
+    .eq("id", userId);
   if (error) throw new Error(error.message);
 }
 

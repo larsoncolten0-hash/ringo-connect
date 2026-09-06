@@ -40,7 +40,12 @@ export function captureReferralFromUrl() {
   try {
     const ref = new URLSearchParams(window.location.search).get("ref");
     if (!ref) return;
-    const code = ref.trim().toUpperCase().slice(0, 20);
+    // 40 chars, not the shorter length you'd expect from a "code" —
+    // set_affiliate_code()'s fallback path (when its usual short random
+    // code generator fails) stamps the affiliate's full 32-char id as
+    // their code instead, so this has to be long enough not to truncate
+    // that and silently break attribution.
+    const code = ref.trim().toUpperCase().slice(0, 40);
     if (!code || readStored()) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, ts: Date.now() } as StoredReferral));
   } catch {

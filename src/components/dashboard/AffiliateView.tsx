@@ -35,7 +35,16 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
   const [copied, setCopied] = useState(false);
 
   const referralLink = `${siteUrl.replace(/\/$/, "")}/?ref=${overview.affiliateCode}`;
-  const currencies = useMemo(() => Object.keys(overview.totalsByCurrency), [overview.totalsByCurrency]);
+  const ZERO_TOTALS = { pending: 0, available: 0, requested: 0, paid: 0 };
+  const getTotals = (cur: string) => overview.totalsByCurrency[cur] ?? ZERO_TOTALS;
+  // Always at least XAF/USD so the balance + "Request payout" card (and
+  // the payout method form's whole reason for being there) is visible
+  // from day one — not just once a first commission has landed. Real
+  // currencies the affiliate has actually earned in still take priority.
+  const currencies = useMemo(() => {
+    const earned = Object.keys(overview.totalsByCurrency);
+    return earned.length > 0 ? earned : ["XAF", "USD"];
+  }, [overview.totalsByCurrency]);
   const [chartCurrency, setChartCurrency] = useState(currencies[0] || "XAF");
   const activeCurrency = currencies.includes(chartCurrency) ? chartCurrency : currencies[0] || "XAF";
 
@@ -131,35 +140,32 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
           <StatCard
             key={cur}
             label={`${t.affiliate.statAvailable} (${cur})`}
-            value={formatPrice(overview.totalsByCurrency[cur].available, cur, locale)}
+            value={formatPrice(getTotals(cur).available, cur, locale)}
             icon={Wallet}
             accent="coral"
           />
         ))}
-        {currencies.length === 0 && (
-          <StatCard label={t.affiliate.statAvailable} value={formatPrice(0, "USD", locale)} icon={Wallet} accent="coral" />
-        )}
       </div>
 
-      {/* Balances + payout requests, per currency */}
-      {currencies.length > 0 && (
-        <div className="grid sm:grid-cols-2 gap-4">
-          {currencies.map((cur) => (
-            <BalanceCard
-              key={cur}
-              currency={cur}
-              totals={overview.totalsByCurrency[cur]}
-              minPayout={cur === "XAF" ? overview.settings.minPayoutXaf : overview.settings.minPayoutUsd}
-              holdDays={overview.settings.holdDays}
-              hasPayoutMethod={!!overview.payoutMethod}
-              disabled={!overview.settings.enabled || overview.suspended}
-              onRequested={refresh}
-              locale={locale}
-              t={t}
-            />
-          ))}
-        </div>
-      )}
+      {/* Balances + payout requests, per currency — always shown, even
+          before a first commission lands, so the payout method form and
+          the request button are never simply missing from the page. */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        {currencies.map((cur) => (
+          <BalanceCard
+            key={cur}
+            currency={cur}
+            totals={getTotals(cur)}
+            minPayout={cur === "XAF" ? overview.settings.minPayoutXaf : overview.settings.minPayoutUsd}
+            holdDays={overview.settings.holdDays}
+            hasPayoutMethod={!!overview.payoutMethod}
+            disabled={!overview.settings.enabled || overview.suspended}
+            onRequested={refresh}
+            locale={locale}
+            t={t}
+          />
+        ))}
+      </div>
 
       {/* Earnings chart */}
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
