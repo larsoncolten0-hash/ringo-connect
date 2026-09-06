@@ -15,6 +15,14 @@ export type PlatformSettings = {
   stripeTestMode: boolean;
   fapshiApiUser: string | null;
   fapshiApiKey: string | null;
+  // Fapshi issues credentials per "service" — the collection service
+  // above (fapshiApiUser/fapshiApiKey) is what customers pay INTO; this
+  // pair is a separate service specifically for disbursing money OUT
+  // (affiliate payouts). Falls back to the collection credentials when
+  // not set, so nothing breaks for a project that hasn't configured a
+  // dedicated payout service yet — see src/lib/fapshi.ts.
+  fapshiPayoutApiUser: string | null;
+  fapshiPayoutApiKey: string | null;
   fapshiBaseUrl: string;
   stripeSecretKey: string | null;
   stripeWebhookSecret: string | null;
@@ -46,6 +54,13 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
     ? decryptSecret(data?.fapshi_api_key_test_encrypted)
     : decryptSecret(data?.fapshi_api_key_live_encrypted);
 
+  const fapshiPayoutApiUser = fapshiTestMode
+    ? decryptSecret(data?.fapshi_payout_api_user_test_encrypted)
+    : decryptSecret(data?.fapshi_payout_api_user_live_encrypted);
+  const fapshiPayoutApiKey = fapshiTestMode
+    ? decryptSecret(data?.fapshi_payout_api_key_test_encrypted)
+    : decryptSecret(data?.fapshi_payout_api_key_live_encrypted);
+
   const stripeSecretKey = stripeTestMode
     ? decryptSecret(data?.stripe_secret_key_test_encrypted)
     : decryptSecret(data?.stripe_secret_key_live_encrypted);
@@ -61,6 +76,8 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
     stripeTestMode,
     fapshiApiUser: fapshiApiUser || process.env.FAPSHI_API_USER || null,
     fapshiApiKey: fapshiApiKey || process.env.FAPSHI_API_KEY || null,
+    fapshiPayoutApiUser: fapshiPayoutApiUser || process.env.FAPSHI_PAYOUT_API_USER || null,
+    fapshiPayoutApiKey: fapshiPayoutApiKey || process.env.FAPSHI_PAYOUT_API_KEY || null,
     // Base URL is derived from the mode automatically — no separate field
     // to keep in sync with the credentials.
     fapshiBaseUrl: fapshiTestMode ? "https://sandbox.fapshi.com" : "https://live.fapshi.com",
@@ -119,6 +136,11 @@ export async function getMaskedPlatformSettings() {
     fapshiApiUserLiveSet: !!data?.fapshi_api_user_live_encrypted,
     fapshiApiKeyLiveSet: !!data?.fapshi_api_key_live_encrypted,
 
+    fapshiPayoutApiUserTestSet: !!data?.fapshi_payout_api_user_test_encrypted,
+    fapshiPayoutApiKeyTestSet: !!data?.fapshi_payout_api_key_test_encrypted,
+    fapshiPayoutApiUserLiveSet: !!data?.fapshi_payout_api_user_live_encrypted,
+    fapshiPayoutApiKeyLiveSet: !!data?.fapshi_payout_api_key_live_encrypted,
+
     stripeSecretKeyTestSet: !!data?.stripe_secret_key_test_encrypted,
     stripeWebhookSecretTestSet: !!data?.stripe_webhook_secret_test_encrypted,
     stripePriceBasicTest: data?.stripe_price_basic_test || null,
@@ -154,6 +176,11 @@ export type PlatformSettingsPatch = Partial<{
   fapshiApiKeyTest: string;
   fapshiApiUserLive: string;
   fapshiApiKeyLive: string;
+
+  fapshiPayoutApiUserTest: string;
+  fapshiPayoutApiKeyTest: string;
+  fapshiPayoutApiUserLive: string;
+  fapshiPayoutApiKeyLive: string;
 
   stripeSecretKeyTest: string;
   stripeWebhookSecretTest: string;
@@ -236,6 +263,11 @@ export async function updatePlatformSettings(patch: PlatformSettingsPatch, updat
   if (patch.fapshiApiKeyTest) dbPatch.fapshi_api_key_test_encrypted = encryptSecret(patch.fapshiApiKeyTest);
   if (patch.fapshiApiUserLive) dbPatch.fapshi_api_user_live_encrypted = encryptSecret(patch.fapshiApiUserLive);
   if (patch.fapshiApiKeyLive) dbPatch.fapshi_api_key_live_encrypted = encryptSecret(patch.fapshiApiKeyLive);
+
+  if (patch.fapshiPayoutApiUserTest) dbPatch.fapshi_payout_api_user_test_encrypted = encryptSecret(patch.fapshiPayoutApiUserTest);
+  if (patch.fapshiPayoutApiKeyTest) dbPatch.fapshi_payout_api_key_test_encrypted = encryptSecret(patch.fapshiPayoutApiKeyTest);
+  if (patch.fapshiPayoutApiUserLive) dbPatch.fapshi_payout_api_user_live_encrypted = encryptSecret(patch.fapshiPayoutApiUserLive);
+  if (patch.fapshiPayoutApiKeyLive) dbPatch.fapshi_payout_api_key_live_encrypted = encryptSecret(patch.fapshiPayoutApiKeyLive);
 
   if (patch.stripeSecretKeyTest)
     dbPatch.stripe_secret_key_test_encrypted = encryptSecret(patch.stripeSecretKeyTest);

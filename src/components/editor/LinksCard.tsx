@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
 import LinkRow from "./LinkRow";
+import { useEditorPreview } from "./EditorPreviewContext";
 
 export default function LinksCard({
   profileId,
@@ -27,6 +28,7 @@ export default function LinksCard({
   );
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout>>();
+  const { updateDraft } = useEditorPreview();
 
   const limitReached = maxLinks != null && links.length >= maxLinks;
 
@@ -38,13 +40,19 @@ export default function LinksCard({
       .select()
       .single();
     if (data) {
-      setLinks([...links, data]);
+      const next = [...links, data];
+      setLinks(next);
+      updateDraft({ links: next });
       setJustAddedId(data.id);
     }
   };
 
   const updateLink = (id: string, patch: any) => {
-    setLinks((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    setLinks((prev) => {
+      const next = prev.map((l) => (l.id === id ? { ...l, ...patch } : l));
+      updateDraft({ links: next });
+      return next;
+    });
   };
 
   const persistLink = async (id: string, patch: any) => {
@@ -52,18 +60,28 @@ export default function LinksCard({
   };
 
   const deleteLink = async (id: string) => {
-    setLinks((prev) => prev.filter((l) => l.id !== id));
+    setLinks((prev) => {
+      const next = prev.filter((l) => l.id !== id);
+      updateDraft({ links: next });
+      return next;
+    });
     await supabase.from("links").delete().eq("id", id);
   };
 
   // Reorder fires continuously while dragging — debounce the DB writes so
   // we're not hammering Supabase on every pixel of movement, while state
-  // (and therefore the visual order) updates instantly.
+  // (and therefore the visual order) updates instantly. sort_order is
+  // stamped onto the in-memory items immediately too (not just written to
+  // Supabase later) — the live preview re-sorts by that field the same
+  // way the real public page does, so without this the drag would look
+  // like it snaps back until the debounced write actually lands.
   const handleReorder = (newOrder: any[]) => {
-    setLinks(newOrder);
+    const reindexed = newOrder.map((link, i) => ({ ...link, sort_order: i }));
+    setLinks(reindexed);
+    updateDraft({ links: reindexed });
     clearTimeout(persistTimer.current);
     persistTimer.current = setTimeout(() => {
-      Promise.all(newOrder.map((link, i) => supabase.from("links").update({ sort_order: i }).eq("id", link.id)));
+      Promise.all(reindexed.map((link) => supabase.from("links").update({ sort_order: link.sort_order }).eq("id", link.id)));
     }, 400);
   };
 

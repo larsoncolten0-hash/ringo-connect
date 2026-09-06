@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
+import { useEditorPreview } from "./EditorPreviewContext";
 
 export default function WhatsAppCard({
   profileId,
@@ -21,6 +22,7 @@ export default function WhatsAppCard({
   const [number, setNumber] = useState(initialNumber || "");
   const [message, setMessage] = useState(initialMessage || "");
   const pulse = useSavedPulse();
+  const { updateDraft } = useEditorPreview();
 
   const save = async () => {
     await supabase
@@ -37,7 +39,10 @@ export default function WhatsAppCard({
           <label className="text-xs text-ringo-muted mb-1 block">{t.editor.whatsappNumber}</label>
           <input
             value={number}
-            onChange={(e) => setNumber(e.target.value)}
+            onChange={(e) => {
+              setNumber(e.target.value);
+              updateDraft({ whatsapp_number: e.target.value });
+            }}
             placeholder="+1 555 123 4567"
             className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
@@ -46,7 +51,10 @@ export default function WhatsAppCard({
           <label className="text-xs text-ringo-muted mb-1 block">{t.editor.whatsappDefaultMessage}</label>
           <input
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              updateDraft({ default_whatsapp_message: e.target.value });
+            }}
             placeholder={t.editor.whatsappMessagePlaceholder}
             className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />

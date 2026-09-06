@@ -7,6 +7,7 @@ import { detectPlatform } from "@/lib/utils";
 import { useLanguage } from "@/components/LanguageProvider";
 import SocialIcon from "@/components/SocialIcon";
 import EditorCard from "./EditorCard";
+import { useEditorPreview } from "./EditorPreviewContext";
 
 export default function SocialLinksCard({
   profileId,
@@ -20,6 +21,7 @@ export default function SocialLinksCard({
   const [socials, setSocials] = useState(initialSocials);
   const [url, setUrl] = useState("");
   const [adding, setAdding] = useState(false);
+  const { updateDraft } = useEditorPreview();
 
   const addSocial = async () => {
     const trimmed = url.trim();
@@ -31,13 +33,19 @@ export default function SocialLinksCard({
       .insert({ profile_id: profileId, platform, url: trimmed, sort_order: socials.length })
       .select()
       .single();
-    if (data) setSocials([...socials, data]);
+    if (data) {
+      const next = [...socials, data];
+      setSocials(next);
+      updateDraft({ social_links: next });
+    }
     setUrl("");
     setAdding(false);
   };
 
   const removeSocial = async (id: string) => {
-    setSocials(socials.filter((s) => s.id !== id));
+    const next = socials.filter((s) => s.id !== id);
+    setSocials(next);
+    updateDraft({ social_links: next });
     await supabase.from("social_links").delete().eq("id", id);
   };
 

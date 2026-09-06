@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { getReferralCode } from "@/lib/referral";
 import AuthShell from "@/components/auth/AuthShell";
 import FormField from "@/components/auth/FormField";
 import SubmitButton from "@/components/auth/SubmitButton";
@@ -61,11 +62,16 @@ export default function SignupPage() {
 
     setLoading(true);
 
+    const ref = getReferralCode();
+
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { username }, // read by the handle_new_auth_user trigger
+        // Read by the handle_new_auth_user trigger (username) and the
+        // affiliate system's attribute_referral trigger (ref) — see
+        // supabase/migrations/2026-09-06_affiliate_system.sql.
+        data: { username, ...(ref ? { ref } : {}) },
         emailRedirectTo: `${window.location.origin}/auth/confirm`,
       },
     });

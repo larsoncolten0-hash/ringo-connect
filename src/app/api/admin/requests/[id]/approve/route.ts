@@ -63,11 +63,19 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // Create the actual account — email_confirm: true is what skips email
   // verification entirely, which is only possible via this Admin API,
   // never through the normal client-side signUp() flow.
+  //
+  // ref carries whatever affiliate code the customer's browser had stored
+  // when they filled out /get-started (see src/lib/referral.ts) — the
+  // affiliate system's attribute_referral trigger reads it from here the
+  // same way it reads it off a normal signUp().
   const { data: created, error: createError } = await adminClient.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-    user_metadata: { username: username.toLowerCase() },
+    user_metadata: {
+      username: username.toLowerCase(),
+      ...(signupRequest.referral_code ? { ref: signupRequest.referral_code } : {}),
+    },
   });
 
   if (createError || !created.user) {

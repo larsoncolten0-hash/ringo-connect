@@ -9,6 +9,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
 import ProductRow from "./ProductRow";
 import CurrencySelect from "./CurrencySelect";
+import { useEditorPreview } from "./EditorPreviewContext";
 
 export default function CatalogCard({
   profileId,
@@ -33,11 +34,13 @@ export default function CatalogCard({
   const [currency, setCurrency] = useState(initialCurrency || "USD");
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout>>();
+  const { updateDraft } = useEditorPreview();
 
   const limitReached = maxProducts != null && products.length >= maxProducts;
 
   const changeCurrency = async (code: string) => {
     setCurrency(code);
+    updateDraft({ currency: code });
     await supabase.from("profiles").update({ currency: code }).eq("id", profileId);
   };
 
@@ -49,13 +52,19 @@ export default function CatalogCard({
       .select()
       .single();
     if (data) {
-      setProducts([...products, data]);
+      const next = [...products, data];
+      setProducts(next);
+      updateDraft({ products: next });
       setJustAddedId(data.id);
     }
   };
 
   const updateProduct = (id: string, patch: any) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    setProducts((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
+      updateDraft({ products: next });
+      return next;
+    });
   };
 
   const persistProduct = async (id: string, patch: any) => {
@@ -63,15 +72,24 @@ export default function CatalogCard({
   };
 
   const deleteProduct = async (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+    setProducts((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      updateDraft({ products: next });
+      return next;
+    });
     await supabase.from("products").delete().eq("id", id);
   };
 
+  // sort_order is reindexed onto the items immediately (not just written
+  // to Supabase after the debounce) — the live preview re-sorts by that
+  // field the same way the real public page does.
   const handleReorder = (newOrder: any[]) => {
-    setProducts(newOrder);
+    const reindexed = newOrder.map((p, i) => ({ ...p, sort_order: i }));
+    setProducts(reindexed);
+    updateDraft({ products: reindexed });
     clearTimeout(persistTimer.current);
     persistTimer.current = setTimeout(() => {
-      Promise.all(newOrder.map((p, i) => supabase.from("products").update({ sort_order: i }).eq("id", p.id)));
+      Promise.all(reindexed.map((p) => supabase.from("products").update({ sort_order: p.sort_order }).eq("id", p.id)));
     }, 400);
   };
 

@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
 import ImageUploadField from "./ImageUploadField";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
+import { useEditorPreview } from "./EditorPreviewContext";
 
 export default function ProfileHeaderCard({
   profileId,
@@ -30,6 +31,7 @@ export default function ProfileHeaderCard({
   const [name, setName] = useState(initialName || "");
   const [bio, setBio] = useState(initialBio || "");
   const pulse = useSavedPulse();
+  const { updateDraft } = useEditorPreview();
 
   const persist = async (patch: Record<string, string>) => {
     await supabase.from("profiles").update(patch).eq("id", profileId);
@@ -47,6 +49,7 @@ export default function ProfileHeaderCard({
           value={coverUrl}
           onChange={(url) => {
             setCoverUrl(url);
+            updateDraft({ cover_image_url: url });
             persist({ cover_image_url: url });
           }}
           userId={userId}
@@ -62,6 +65,7 @@ export default function ProfileHeaderCard({
           value={avatarUrl}
           onChange={(url) => {
             setAvatarUrl(url);
+            updateDraft({ avatar_url: url });
             persist({ avatar_url: url });
           }}
           userId={userId}
@@ -73,7 +77,10 @@ export default function ProfileHeaderCard({
         <div className="flex-1 w-full flex flex-col gap-3">
           <input
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              updateDraft({ name: e.target.value });
+            }}
             onBlur={() => persist({ name })}
             placeholder={t.editor.profile.namePlaceholder}
             className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
@@ -81,7 +88,11 @@ export default function ProfileHeaderCard({
           <div>
             <textarea
               value={bio}
-              onChange={(e) => setBio(e.target.value.slice(0, 150))}
+              onChange={(e) => {
+                const next = e.target.value.slice(0, 150);
+                setBio(next);
+                updateDraft({ bio: next });
+              }}
               onBlur={() => persist({ bio })}
               placeholder={t.editor.profile.bioPlaceholder}
               rows={2}

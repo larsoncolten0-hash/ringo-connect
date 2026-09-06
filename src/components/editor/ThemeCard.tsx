@@ -8,6 +8,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { getButtonStyle, getRadiusClass, getBackgroundStyle, type ButtonStyle, type ButtonRadius, type BackgroundStyle } from "@/lib/theme";
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
+import { useEditorPreview } from "./EditorPreviewContext";
 
 const ACCENT_PRESETS = ["#D4A954", "#4F46E5", "#FF6B4A", "#14B8A6", "#E11D48", "#059669", "#D97706", "#0EA5E9", "#7C3AED", "#0F172A"];
 
@@ -39,6 +40,7 @@ export default function ThemeCard({
   const [btnRadius, setBtnRadius] = useState<ButtonRadius>(initial.buttonRadius || "rounded");
   const pulse = useSavedPulse();
   const persistTimer = useRef<ReturnType<typeof setTimeout>>();
+  const { updateDraft } = useEditorPreview();
 
   const persist = (patch: Record<string, any>) => {
     clearTimeout(persistTimer.current);
@@ -73,6 +75,15 @@ export default function ThemeCard({
     setTextColor(DEFAULTS.textColor);
     setBtnStyle(DEFAULTS.buttonStyle);
     setBtnRadius(DEFAULTS.buttonRadius);
+    updateDraft({
+      theme_color: DEFAULTS.themeColor,
+      background_style: DEFAULTS.backgroundStyle,
+      background_color: DEFAULTS.backgroundColor,
+      background_gradient_end: null,
+      text_color: DEFAULTS.textColor,
+      button_style: DEFAULTS.buttonStyle,
+      button_radius: DEFAULTS.buttonRadius,
+    });
 
     await supabase
       .from("profiles")
@@ -136,6 +147,7 @@ export default function ThemeCard({
                   key={preset}
                   onClick={() => {
                     setAccent(preset);
+                    updateDraft({ theme_color: preset });
                     persist({ theme_color: preset });
                   }}
                   aria-label={preset}
@@ -155,6 +167,7 @@ export default function ThemeCard({
                   value={accent}
                   onChange={(e) => {
                     setAccent(e.target.value);
+                    updateDraft({ theme_color: e.target.value });
                     persist({ theme_color: e.target.value });
                   }}
                   className="absolute inset-0 opacity-0 cursor-pointer"
@@ -172,6 +185,7 @@ export default function ThemeCard({
                   key={s}
                   onClick={() => {
                     setBgStyle(s);
+                    updateDraft({ background_style: s });
                     persist({ background_style: s });
                   }}
                   className={`text-xs px-3 py-1.5 rounded-card border transition ${
@@ -188,6 +202,7 @@ export default function ThemeCard({
                 value={bgColor}
                 onChange={(e) => {
                   setBgColor(e.target.value);
+                  updateDraft({ background_color: e.target.value });
                   persist({ background_color: e.target.value });
                 }}
                 className="w-8 h-8 rounded-card border border-ringo-border cursor-pointer"
@@ -198,6 +213,7 @@ export default function ThemeCard({
                   value={bgGradientEnd}
                   onChange={(e) => {
                     setBgGradientEnd(e.target.value);
+                    updateDraft({ background_gradient_end: e.target.value });
                     persist({ background_gradient_end: e.target.value });
                   }}
                   className="w-8 h-8 rounded-card border border-ringo-border cursor-pointer"
@@ -215,6 +231,7 @@ export default function ThemeCard({
                   key={preset}
                   onClick={() => {
                     setTextColor(preset);
+                    updateDraft({ text_color: preset });
                     persist({ text_color: preset });
                   }}
                   style={{ backgroundColor: preset }}
@@ -228,6 +245,7 @@ export default function ThemeCard({
                 value={textColor}
                 onChange={(e) => {
                   setTextColor(e.target.value);
+                  updateDraft({ text_color: e.target.value });
                   persist({ text_color: e.target.value });
                 }}
                 className="w-7 h-7 rounded-card border border-ringo-border cursor-pointer"
@@ -244,6 +262,7 @@ export default function ThemeCard({
                   key={s}
                   onClick={() => {
                     setBtnStyle(s);
+                    updateDraft({ button_style: s });
                     persist({ button_style: s });
                   }}
                   className={`text-xs px-3 py-1.5 rounded-card border transition ${
@@ -265,6 +284,7 @@ export default function ThemeCard({
                   key={r}
                   onClick={() => {
                     setBtnRadius(r);
+                    updateDraft({ button_radius: r });
                     persist({ button_radius: r });
                   }}
                   className={`text-xs px-3 py-1.5 border transition ${getRadiusClass(r)} ${

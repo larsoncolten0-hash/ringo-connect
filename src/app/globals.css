@@ -28,6 +28,17 @@ h1, h2, h3, .font-display {
   font-family: var(--font-display), sans-serif;
 }
 
+/* Keeps an element scrollable while hiding the scrollbar chrome itself —
+   used by the Editor's live-preview phone mockup, where a visible
+   scrollbar breaks the illusion of a real device screen. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* old Edge/IE */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, newer Edge */
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-ring-pulse-1,
   .animate-ring-pulse-2,

@@ -24,6 +24,7 @@ export async function POST(request: Request) {
       suggested_username: body.suggested_username || null,
       avatar_url: body.avatar_url || null,
       business_note: body.business_note || null,
+      referral_code: typeof body.referral_code === "string" ? body.referral_code.trim().toUpperCase().slice(0, 20) || null : null,
       delivery_location: body.delivery_location || null,
       requested_plan_id: body.requested_plan_id || null,
       requested_interval: body.requested_interval === "yearly" ? "yearly" : "monthly",

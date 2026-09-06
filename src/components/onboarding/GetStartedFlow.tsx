@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Check, ArrowLeft, Loader2, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { getReferralCode } from "@/lib/referral";
 import LanguageToggle from "@/components/LanguageToggle";
 import { formatPrice } from "@/lib/currency";
 import { detectPlatform } from "@/lib/utils";
@@ -149,6 +150,7 @@ export default function GetStartedFlow({
         full_name: fullName.trim(),
         whatsapp_number: whatsapp.trim(),
         email: email.trim() || null,
+        referral_code: getReferralCode(),
         suggested_username: username.trim() || null,
         avatar_url: avatarUrl || null,
         business_note: note.trim() || null,

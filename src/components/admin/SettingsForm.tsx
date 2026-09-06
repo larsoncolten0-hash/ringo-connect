@@ -14,6 +14,10 @@ type Settings = {
   fapshiApiKeyTestSet: boolean;
   fapshiApiUserLiveSet: boolean;
   fapshiApiKeyLiveSet: boolean;
+  fapshiPayoutApiUserTestSet: boolean;
+  fapshiPayoutApiKeyTestSet: boolean;
+  fapshiPayoutApiUserLiveSet: boolean;
+  fapshiPayoutApiKeyLiveSet: boolean;
   stripeSecretKeyTestSet: boolean;
   stripeWebhookSecretTestSet: boolean;
   stripePriceBasicTest: string | null;
@@ -159,6 +163,10 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
       "fapshiApiKeyTest",
       "fapshiApiUserLive",
       "fapshiApiKeyLive",
+      "fapshiPayoutApiUserTest",
+      "fapshiPayoutApiKeyTest",
+      "fapshiPayoutApiUserLive",
+      "fapshiPayoutApiKeyLive",
       "stripeSecretKeyTest",
       "stripeWebhookSecretTest",
       "stripeSecretKeyLive",
@@ -333,6 +341,53 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
               onChange={(v) => setDraftField("fapshiApiKeyLive", v)}
               configured={settings.fapshiApiKeyLiveSet}
             />
+          </div>
+        </div>
+
+        {/* Fapshi issues separate credentials per "service" — the pair
+            above is for collecting subscription payments; this pair is a
+            distinct service used only to send money out (affiliate
+            payouts). Leave blank to keep reusing the collection
+            credentials for payouts, as before. */}
+        <div className="mt-5 pt-5 border-t border-ringo-border/60">
+          <h3 className="text-xs font-medium text-ringo-text mb-1">Payout (disbursement) service</h3>
+          <p className="text-xs text-ringo-muted mb-4">
+            A separate Fapshi service used only for sending money out — affiliate payouts. Leave blank to keep
+            using the collection credentials above for payouts.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-5">
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-medium text-ringo-muted uppercase tracking-wide">Test credentials</p>
+              <Field
+                label="API user"
+                value={draft.fapshiPayoutApiUserTest ?? ""}
+                onChange={(v) => setDraftField("fapshiPayoutApiUserTest", v)}
+                configured={settings.fapshiPayoutApiUserTestSet}
+              />
+              <Field
+                label="API key"
+                type="password"
+                value={draft.fapshiPayoutApiKeyTest ?? ""}
+                onChange={(v) => setDraftField("fapshiPayoutApiKeyTest", v)}
+                configured={settings.fapshiPayoutApiKeyTestSet}
+              />
+            </div>
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-medium text-ringo-coral uppercase tracking-wide">Live credentials</p>
+              <Field
+                label="API user"
+                value={draft.fapshiPayoutApiUserLive ?? ""}
+                onChange={(v) => setDraftField("fapshiPayoutApiUserLive", v)}
+                configured={settings.fapshiPayoutApiUserLiveSet}
+              />
+              <Field
+                label="API key"
+                type="password"
+                value={draft.fapshiPayoutApiKeyLive ?? ""}
+                onChange={(v) => setDraftField("fapshiPayoutApiKeyLive", v)}
+                configured={settings.fapshiPayoutApiKeyLiveSet}
+              />
+            </div>
           </div>
         </div>
       </div>

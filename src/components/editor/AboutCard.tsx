@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
+import { useEditorPreview } from "./EditorPreviewContext";
 
 export default function AboutCard({
   profileId,
@@ -39,6 +40,7 @@ export default function AboutCard({
   const [hours, setHours] = useState(initialHours || "");
   const [extraPhones, setExtraPhones] = useState(initialExtraPhones);
   const pulse = useSavedPulse();
+  const { updateDraft } = useEditorPreview();
 
   const save = async () => {
     await supabase
@@ -62,11 +64,21 @@ export default function AboutCard({
       .insert({ profile_id: profileId, phone_number: "", sort_order: extraPhones.length })
       .select()
       .single();
-    if (data) setExtraPhones((prev) => [...prev, data]);
+    if (data) {
+      setExtraPhones((prev) => {
+        const next = [...prev, data];
+        updateDraft({ profile_phone_numbers: next });
+        return next;
+      });
+    }
   };
 
   const updateExtraPhone = (id: string, phone_number: string) => {
-    setExtraPhones((prev) => prev.map((p) => (p.id === id ? { ...p, phone_number } : p)));
+    setExtraPhones((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, phone_number } : p));
+      updateDraft({ profile_phone_numbers: next });
+      return next;
+    });
   };
 
   const persistExtraPhone = async (id: string, phone_number: string) => {
@@ -75,7 +87,11 @@ export default function AboutCard({
   };
 
   const removeExtraPhone = async (id: string) => {
-    setExtraPhones((prev) => prev.filter((p) => p.id !== id));
+    setExtraPhones((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      updateDraft({ profile_phone_numbers: next });
+      return next;
+    });
     await supabase.from("profile_phone_numbers").delete().eq("id", id);
   };
 
@@ -84,7 +100,10 @@ export default function AboutCard({
       <div className="flex flex-col gap-3">
         <textarea
           value={longBio}
-          onChange={(e) => setLongBio(e.target.value)}
+          onChange={(e) => {
+            setLongBio(e.target.value);
+            updateDraft({ about_long_bio: e.target.value });
+          }}
           onBlur={save}
           placeholder={t.editor.about.longBioPlaceholder}
           rows={3}
@@ -95,14 +114,20 @@ export default function AboutCard({
         <div className="grid sm:grid-cols-2 gap-2">
           <input
             value={company}
-            onChange={(e) => setCompany(e.target.value)}
+            onChange={(e) => {
+              setCompany(e.target.value);
+              updateDraft({ about_company: e.target.value });
+            }}
             onBlur={save}
             placeholder={t.editor.about.company}
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
           <input
             value={position}
-            onChange={(e) => setPosition(e.target.value)}
+            onChange={(e) => {
+              setPosition(e.target.value);
+              updateDraft({ about_position: e.target.value });
+            }}
             onBlur={save}
             placeholder={t.editor.about.position}
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
@@ -113,7 +138,10 @@ export default function AboutCard({
         <div className="grid sm:grid-cols-2 gap-2">
           <input
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              updateDraft({ about_email: e.target.value });
+            }}
             onBlur={save}
             placeholder={t.editor.about.email}
             inputMode="email"
@@ -121,7 +149,10 @@ export default function AboutCard({
           />
           <input
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              updateDraft({ about_phone: e.target.value });
+            }}
             onBlur={save}
             placeholder={t.editor.about.phone}
             inputMode="tel"
@@ -162,14 +193,20 @@ export default function AboutCard({
         <div className="grid sm:grid-cols-2 gap-2">
           <input
             value={location}
-            onChange={(e) => setLocation(e.target.value)}
+            onChange={(e) => {
+              setLocation(e.target.value);
+              updateDraft({ about_location: e.target.value });
+            }}
             onBlur={save}
             placeholder={t.editor.about.location}
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
           <input
             value={hours}
-            onChange={(e) => setHours(e.target.value)}
+            onChange={(e) => {
+              setHours(e.target.value);
+              updateDraft({ about_hours: e.target.value });
+            }}
             onBlur={save}
             placeholder={t.editor.about.hours}
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"

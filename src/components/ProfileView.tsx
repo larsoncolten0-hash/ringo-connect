@@ -18,10 +18,17 @@ export default function ProfileView({
   profile,
   pixelsEnabled,
   pageViewEventId,
+  preview = false,
 }: {
   profile: any;
   pixelsEnabled?: boolean;
   pageViewEventId?: string;
+  // Renders inside the dashboard Editor's live preview panel instead of
+  // as the actual public page: never fires ad-pixel events or records a
+  // click in analytics for the creator's own preview interactions, and
+  // hides the "copy link" affordance (window.location.href there would be
+  // the dashboard's own URL, not the profile's).
+  preview?: boolean;
 }) {
   const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
@@ -37,10 +44,10 @@ export default function ProfileView({
     captureTtclid();
   }, []);
 
-  const fbPixelId = pixelsEnabled && profile.facebook_pixel_id && isValidFacebookPixelId(profile.facebook_pixel_id)
+  const fbPixelId = !preview && pixelsEnabled && profile.facebook_pixel_id && isValidFacebookPixelId(profile.facebook_pixel_id)
     ? profile.facebook_pixel_id
     : null;
-  const ttPixelId = pixelsEnabled && profile.tiktok_pixel_id && isValidTiktokPixelId(profile.tiktok_pixel_id)
+  const ttPixelId = !preview && pixelsEnabled && profile.tiktok_pixel_id && isValidTiktokPixelId(profile.tiktok_pixel_id)
     ? profile.tiktok_pixel_id
     : null;
 
@@ -49,6 +56,10 @@ export default function ProfileView({
     targetId?: string,
     content?: { name?: string; price?: number | null; currency?: string | null }
   ) => {
+    // A click inside the editor's live preview isn't a real visitor —
+    // never fire pixels or record it in analytics.
+    if (preview) return;
+
     const eventId = newEventId();
     const value = typeof content?.price === "number" ? content.price : undefined;
     const currency = content?.currency || undefined;
@@ -149,7 +160,10 @@ export default function ProfileView({
   const restName = nameParts.slice(1).join(" ");
 
   return (
-    <main className="relative min-h-screen flex flex-col items-center pb-10" style={pageStyle}>
+    <main
+      className={`relative flex flex-col items-center pb-10 ${preview ? "min-h-full" : "min-h-screen"}`}
+      style={pageStyle}
+    >
       {/* Pixel base code — deliberately held back until `visitorId` is
           set (client-only, see the effect above) so the very first
           PageView already carries external_id, rather than firing once
@@ -215,16 +229,18 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           style={{ background: `linear-gradient(to bottom, transparent 35%, ${bgColor} 92%)` }}
         />
 
-        <button
-          onClick={copyLink}
-          aria-label="Copy link to this page"
-          className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition z-10"
-          style={{ backgroundColor: "rgba(255,255,255,0.7)", color: accent }}
-        >
-          {copied ? <Check size={15} /> : <Copy size={15} />}
-        </button>
+        {!preview && (
+          <button
+            onClick={copyLink}
+            aria-label="Copy link to this page"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition z-10"
+            style={{ backgroundColor: "rgba(255,255,255,0.7)", color: accent }}
+          >
+            {copied ? <Check size={15} /> : <Copy size={15} />}
+          </button>
+        )}
         <AnimatePresence>
-          {copied && (
+          {!preview && copied && (
             <motion.span
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}

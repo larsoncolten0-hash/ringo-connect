@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import { LanguageProvider } from "@/components/LanguageProvider";
+import ReferralCapture from "@/components/ReferralCapture";
 import "./globals.css";
 
 const display = Space_Grotesk({
@@ -45,6 +46,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
+        <ReferralCapture />
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
