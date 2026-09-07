@@ -122,6 +122,7 @@ export async function fapshiDirectPay(params: {
     method: "POST",
     headers: headers(settings.fapshiApiUser!, settings.fapshiApiKey!),
     body: JSON.stringify(params),
+    cache: "no-store",
   });
 
   const data = await res.json();
@@ -144,6 +145,11 @@ export async function fapshiGetStatus(
   const res = await fetch(`${settings.fapshiBaseUrl}/payment-status/${transId}`, {
     method: "GET",
     headers: headers(settings.fapshiApiUser!, settings.fapshiApiKey!),
+    // A status check exists specifically to get the CURRENT state — never
+    // let Next.js's default fetch caching hand back a stale "PENDING"
+    // from an earlier check. See the `dynamic` export on the pay-status
+    // route for the other half of this fix.
+    cache: "no-store",
   });
 
   const data = await res.json();
@@ -189,6 +195,7 @@ export async function fapshiPayout(params: {
     method: "POST",
     headers: headers(settings.fapshiApiUser!, settings.fapshiApiKey!),
     body: JSON.stringify(body),
+    cache: "no-store",
   });
 
   const data = await res.json();
@@ -210,6 +217,7 @@ export async function fapshiGetBalance(): Promise<FapshiBalance> {
   const res = await fetch(`${settings.fapshiBaseUrl}/balance`, {
     method: "GET",
     headers: headers(settings.fapshiApiUser!, settings.fapshiApiKey!),
+    cache: "no-store",
   });
 
   const data = await res.json();

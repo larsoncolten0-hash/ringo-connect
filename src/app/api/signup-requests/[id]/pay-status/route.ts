@@ -2,6 +2,17 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus } from "@/lib/fapshi";
 import { NextResponse } from "next/server";
 
+// Forces this route to actually run on every request instead of being
+// served from Next.js's static/edge cache. This handler reads no cookies
+// and no request-derived input besides the URL param, so without this it
+// qualifies as statically optimizable — the FIRST response (typically
+// "PENDING", checked moments after direct-pay is initiated) gets cached
+// and every later poll, for every customer, replays that same frozen
+// snapshot forever instead of re-checking Fapshi. That's what was causing
+// the client to spin on "waiting for payment" even after a payment had
+// actually gone through.
+export const dynamic = "force-dynamic";
+
 // Public — same customer-facing pattern as the pay route this checks on.
 // Never trust a claimed status from the client, always re-verify with an
 // authenticated GET straight to Fapshi.
