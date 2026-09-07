@@ -1,4 +1,4 @@
-import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
+import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus } from "@/lib/fapshi";
 import { NextResponse } from "next/server";
@@ -9,29 +9,30 @@ import { NextResponse } from "next/server";
 // flow at all — this polling is the only verification mechanism, so it
 // matters even more here than in the self-service path.
 //
+// Admin-only, deliberately not assertCanApproveRequests — pairs with
+// charge/route.ts being admin-only. A super creator never starts a
+// charge, so there's never a status to poll for them either.
+//
 // Public-facing pay-status (src/app/api/signup-requests/[id]/pay-status)
 // hit a bug where Next.js statically cached this exact shape of route —
 // no cookies read besides the auth check, no cache: "no-store" on the
 // Fapshi fetch — so a stale status kept getting served forever. This
-// route reads cookies via assertCanApproveRequests() (which forces
-// dynamic rendering) and fapshiGetStatus() itself now sets
-// cache: "no-store", so it isn't at risk of the same thing — but keep
-// both of those true if this ever gets refactored.
+// route reads cookies via assertAdmin() (which forces dynamic rendering)
+// and fapshiGetStatus() itself now sets cache: "no-store", so it isn't at
+// risk of the same thing — but keep both of those true if this ever gets
+// refactored.
 export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const admin = await assertCanApproveRequests();
+  const admin = await assertAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const adminClient = createAdminClient();
   const { data: signupRequest } = await adminClient
     .from("signup_requests")
-    .select("pending_fapshi_trans_id, referral_code")
+    .select("pending_fapshi_trans_id")
     .eq("id", params.id)
     .single();
 
   if (!signupRequest?.pending_fapshi_trans_id) {
-    return NextResponse.json({ error: "No charge has been started for this request." }, { status: 404 });
-  }
-  if (!canReviewerAccessRequest(admin, signupRequest.referral_code)) {
     return NextResponse.json({ error: "No charge has been started for this request." }, { status: 404 });
   }
 

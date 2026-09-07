@@ -6,9 +6,13 @@
 --     affiliate_code (see canReviewerAccessRequest in
 --     src/lib/assertAdmin.ts). Someone else's requests are a 404 to them,
 --     not just hidden in the UI.
---   - Can approve (and charge, as part of approving) — cannot reject and
---     cannot delete a request. Those stay full-admin-only
---     (reject/route.ts, delete/route.ts).
+--   - Can only approve — cannot reject, cannot delete, and cannot charge
+--     (there's no "Charge now" option in their review screen at all).
+--     Every request they can see came from /get-started-affiliate, where
+--     paying online is mandatory before the request exists, so charging
+--     is never their job — approving just re-records the payment that
+--     already happened. Reject/delete/charge/charge-status all stay
+--     full-admin-only (see the matching route files).
 --   - No access to the rest of /admin — settings, plans, add-ons,
 --     affiliate payouts, analytics, or the creators list.
 -- See src/lib/assertAdmin.ts (assertCanApproveRequests,

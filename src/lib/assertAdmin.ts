@@ -35,11 +35,15 @@ export type RequestReviewer = {
 /**
  * Verifies the current request is from either a full admin OR a "super
  * creator" — a regular creator an admin has separately granted
- * can_approve_requests to (see the matching migration). Used only by the
- * signup-request approve/charge/charge-status routes — nothing else
- * should accept this weaker check, since a super creator has no other
- * admin capability. Deliberately excludes reject and delete — those stay
- * assertAdmin-only, see reject/route.ts and delete/route.ts.
+ * can_approve_requests to (see the matching migration). Used only by
+ * approve/route.ts — nothing else should accept this weaker check, since
+ * a super creator has no other admin capability. Deliberately excludes
+ * reject, delete, charge, and charge-status — those stay
+ * assertAdmin-only (see the matching route files). A super creator never
+ * charges anyone: every request they can see came from
+ * /get-started-affiliate, where paying online is mandatory before the
+ * request exists at all, so there's nothing left to charge and no charge
+ * status to poll.
  *
  * A super creator is additionally scoped to only the requests that came
  * in through their own affiliate link — every caller of this function

@@ -1,11 +1,18 @@
-import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
+import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiDirectPay } from "@/lib/fapshi";
 import { getPlatformSettings } from "@/lib/platformSettings";
 import { NextResponse } from "next/server";
 
+// Admin-only, deliberately not assertCanApproveRequests — a super
+// creator only ever reviews /get-started-affiliate requests, where
+// paying online is mandatory before the request exists at all, so
+// there's nothing left for them to charge. The review UI never renders
+// a "Charge now" option for them (see RequestReview's canCharge prop);
+// this route being admin-only backs that up server-side, so it can't be
+// hit directly to charge — or double-charge — a customer either.
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const admin = await assertCanApproveRequests();
+  const admin = await assertAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { phone, medium, planId, billingInterval } = await request.json().catch(() => ({}));
@@ -22,16 +29,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const { data: signupRequest } = await adminClient
     .from("signup_requests")
-    .select("id, status, full_name, requested_addon_ids, referral_code")
+    .select("id, status, full_name, requested_addon_ids")
     .eq("id", params.id)
     .single();
 
   if (!signupRequest || signupRequest.status !== "pending") {
-    return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
-  }
-  // Same affiliate-scoping as approve/route.ts — a super creator can only
-  // charge/approve requests that came in through their own link.
-  if (!canReviewerAccessRequest(admin, signupRequest.referral_code)) {
     return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
   }
 

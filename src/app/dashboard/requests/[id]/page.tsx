@@ -35,6 +35,7 @@ export default async function DashboardRequestDetailPage({ params }: { params: {
       basePath="/dashboard/requests"
       canDelete={reviewer.isAdmin}
       canReject={reviewer.isAdmin}
+      canCharge={reviewer.isAdmin}
     />
   );
 }

@@ -21,6 +21,7 @@ export default function RequestReview({
   basePath = "/admin/requests",
   canDelete = true,
   canReject = true,
+  canCharge = true,
 }: {
   request: any;
   plans: any[];
@@ -35,6 +36,15 @@ export default function RequestReview({
   // reject/route.ts); these props only hide the buttons.
   canDelete?: boolean;
   canReject?: boolean;
+  // False for a super creator. Every request they can see came from
+  // /get-started-affiliate, where paying online is mandatory before the
+  // request even exists — so there's nothing left for them to charge,
+  // and letting them trigger a brand new Fapshi charge here would just
+  // risk charging the customer a second time. They only ever get the
+  // "already paid" bookkeeping path; the live "Charge now" flow (and the
+  // API routes behind it) stay full-admin-only, for the get_started
+  // requests where pay-later is an option.
+  canCharge?: boolean;
 }) {
   const supabase = createClient();
 
@@ -50,7 +60,7 @@ export default function RequestReview({
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     request.requested_interval === "yearly" ? "yearly" : "monthly"
   );
-  const [paymentMethod, setPaymentMethod] = useState<"charge" | "manual">("charge");
+  const [paymentMethod, setPaymentMethod] = useState<"charge" | "manual">(canCharge ? "charge" : "manual");
   const [chargePhone, setChargePhone] = useState(request.whatsapp_number || "");
   const [chargeMedium, setChargeMedium] = useState<"mobile money" | "orange money">("mobile money");
 
@@ -486,26 +496,37 @@ export default function RequestReview({
                   ))}
                 </div>
 
-                <div className="flex gap-1 bg-ringo-muted/10 rounded-full p-1 w-fit">
-                  <button
-                    onClick={() => setPaymentMethod("charge")}
-                    className={`text-xs font-medium px-3.5 py-1.5 rounded-full transition ${
-                      paymentMethod === "charge" ? "bg-ringo-surface text-ringo-text shadow-sm" : "text-ringo-muted"
-                    }`}
-                  >
-                    Charge now
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod("manual")}
-                    className={`text-xs font-medium px-3.5 py-1.5 rounded-full transition ${
-                      paymentMethod === "manual" ? "bg-ringo-surface text-ringo-text shadow-sm" : "text-ringo-muted"
-                    }`}
-                  >
-                    Already paid (cash/transfer)
-                  </button>
-                </div>
+                {canCharge ? (
+                  <div className="flex gap-1 bg-ringo-muted/10 rounded-full p-1 w-fit">
+                    <button
+                      onClick={() => setPaymentMethod("charge")}
+                      className={`text-xs font-medium px-3.5 py-1.5 rounded-full transition ${
+                        paymentMethod === "charge" ? "bg-ringo-surface text-ringo-text shadow-sm" : "text-ringo-muted"
+                      }`}
+                    >
+                      Charge now
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod("manual")}
+                      className={`text-xs font-medium px-3.5 py-1.5 rounded-full transition ${
+                        paymentMethod === "manual" ? "bg-ringo-surface text-ringo-text shadow-sm" : "text-ringo-muted"
+                      }`}
+                    >
+                      Already paid (cash/transfer)
+                    </button>
+                  </div>
+                ) : request.customer_paid ? (
+                  <p className="text-sm text-ringo-teal flex items-center gap-2">
+                    <Check size={14} /> Paid online at signup — nothing left to charge.
+                  </p>
+                ) : (
+                  <p className="text-sm text-red-500 flex items-center gap-2">
+                    <AlertTriangle size={14} /> No confirmed online payment on this request yet — the customer may
+                    not have completed checkout. Approving now creates the account without a recorded payment.
+                  </p>
+                )}
 
-                {paymentMethod === "charge" && (
+                {canCharge && paymentMethod === "charge" && (
                   <div className="flex flex-col gap-3 rounded-card border border-ringo-border p-4">
                     <div className="grid sm:grid-cols-2 gap-3">
                       <label className="flex flex-col gap-1">
