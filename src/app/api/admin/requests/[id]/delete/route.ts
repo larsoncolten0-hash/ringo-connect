@@ -1,4 +1,4 @@
-import { assertAdmin } from "@/lib/assertAdmin";
+import { assertCanApproveRequests } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -18,7 +18,7 @@ function storagePathFromUrl(url: string | null | undefined): string | null {
 }
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const admin = await assertAdmin();
+  const admin = await assertCanApproveRequests();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const adminClient = createAdminClient();

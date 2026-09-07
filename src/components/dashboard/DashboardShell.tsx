@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, BarChart3, CreditCard, Handshake } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
@@ -16,6 +16,7 @@ export default function DashboardShell({
   avatarUrl,
   planName,
   isFreePlan,
+  canApproveRequests = false,
   children,
 }: {
   email: string;
@@ -23,6 +24,10 @@ export default function DashboardShell({
   avatarUrl?: string | null;
   planName: string;
   isFreePlan: boolean;
+  // "Super creator" permission — an admin-granted, narrower-than-admin
+  // ability to review signup requests. See src/lib/assertAdmin.ts
+  // (assertCanApproveRequests) and src/app/dashboard/requests/.
+  canApproveRequests?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -33,6 +38,9 @@ export default function DashboardShell({
     { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3 },
     { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake },
     { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard },
+    ...(canApproveRequests
+      ? [{ href: "/dashboard/requests", label: t.nav.requests, icon: ClipboardCheck }]
+      : []),
   ];
 
   const isActive = (href: string, exact?: boolean) =>

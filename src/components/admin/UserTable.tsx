@@ -73,6 +73,7 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
                   <th className="py-3 px-4 font-normal">Creator</th>
                   <th className="font-normal">Plan</th>
                   <th className="font-normal">Status</th>
+                  <th className="font-normal">Requests access</th>
                   <th className="font-normal">Joined</th>
                   <th className="font-normal text-right px-4">Actions</th>
                 </tr>
@@ -119,6 +120,23 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
                         >
                           {active ? "Active" : "Suspended"}
                         </span>
+                      </td>
+                      <td>
+                        {u.role === "admin" ? (
+                          <span className="text-xs text-ringo-muted">Admin</span>
+                        ) : (
+                          <button
+                            onClick={() => patch(u.id, { can_approve_requests: !u.can_approve_requests })}
+                            title="Lets this creator review, approve, reject, and charge signup requests — without giving them the rest of the admin panel."
+                            className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-colors ${
+                              u.can_approve_requests
+                                ? "border-ringo-indigo/40 bg-ringo-indigo/10 text-ringo-indigo"
+                                : "border-ringo-border text-ringo-muted hover:text-ringo-text"
+                            }`}
+                          >
+                            {u.can_approve_requests ? "Super creator" : "Grant access"}
+                          </button>
+                        )}
                       </td>
                       <td className="text-ringo-muted">{new Date(u.created_at).toLocaleDateString("en-US")}</td>
                       <td className="text-right px-4">

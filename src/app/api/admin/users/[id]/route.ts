@@ -12,9 +12,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const { error } = await adminClient.from("users").update(body).eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
+  const bodyKey = Object.keys(body)[0];
+  const action =
+    bodyKey === "status" ? "suspend" : bodyKey === "can_approve_requests" ? "set_super_creator" : "change_plan";
+
   await adminClient.from("admin_audit_log").insert({
     admin_id: admin.id,
-    action: Object.keys(body)[0] === "status" ? "suspend" : "change_plan",
+    action,
     target_user_id: params.id,
     details: body,
   });

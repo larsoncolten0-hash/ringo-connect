@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 export default async function AdminUsersPage() {
   const supabase = createAdminClient();
 
+  // "*" already includes can_approve_requests — UserTable's super-creator
+  // toggle reads it straight off each row.
   const { data: users } = await supabase
     .from("users")
     .select("*, plans(name), profiles(username)")

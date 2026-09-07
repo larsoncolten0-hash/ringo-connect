@@ -14,7 +14,20 @@ import {
 type UsernameStatus = "idle" | "checking" | "available" | "taken";
 type ChargeStatus = "idle" | "sending" | "pending" | "success" | "failed";
 
-export default function RequestReview({ request, plans, addons }: { request: any; plans: any[]; addons: any[] }) {
+export default function RequestReview({
+  request,
+  plans,
+  addons,
+  basePath = "/admin/requests",
+}: {
+  request: any;
+  plans: any[];
+  addons: any[];
+  // Same reasoning as RequestsTable's basePath — this renders unchanged
+  // under /admin/requests for full admins and /dashboard/requests for
+  // super creators.
+  basePath?: string;
+}) {
   const supabase = createClient();
 
   // Editable, pre-filled from what the customer submitted — admin can
@@ -182,7 +195,7 @@ export default function RequestReview({ request, plans, addons }: { request: any
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reason: rejectReason }),
     });
-    window.location.href = "/admin/requests";
+    window.location.href = basePath;
   };
 
   const deleteRequest = async () => {
@@ -196,13 +209,13 @@ export default function RequestReview({ request, plans, addons }: { request: any
       setDeleting(false);
       return;
     }
-    window.location.href = "/admin/requests";
+    window.location.href = basePath;
   };
 
   return (
     <div className="max-w-2xl flex flex-col gap-5">
       <div className="flex items-center justify-between">
-        <Link href="/admin/requests" className="flex items-center gap-1.5 text-sm text-ringo-muted w-fit">
+        <Link href={basePath} className="flex items-center gap-1.5 text-sm text-ringo-muted w-fit">
           <ArrowLeft size={15} />
           Back to requests
         </Link>
@@ -626,7 +639,7 @@ export default function RequestReview({ request, plans, addons }: { request: any
               Password: <strong>{password}</strong>
             </p>
           </div>
-          <Link href="/admin/requests" className="text-sm text-ringo-indigo font-medium w-fit">
+          <Link href={basePath} className="text-sm text-ringo-indigo font-medium w-fit">
             Back to requests
           </Link>
         </div>

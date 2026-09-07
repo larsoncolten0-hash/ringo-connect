@@ -122,7 +122,13 @@ export const translations = {
       footerTagline: "One page for your links, your catalog, and a direct line to WhatsApp.",
       footerRights: "All rights reserved.",
     },
-    nav: { editor: "Editor", analytics: "Analytics", affiliate: "Affiliate", subscription: "Subscription" },
+    nav: {
+      editor: "Editor",
+      analytics: "Analytics",
+      affiliate: "Affiliate",
+      subscription: "Subscription",
+      requests: "Requests",
+    },
     account: {
       viewPage: "View your page",
       logout: "Log out",
@@ -555,7 +561,13 @@ export const translations = {
       footerTagline: "Une page pour vos liens, votre catalogue, et une ligne directe vers WhatsApp.",
       footerRights: "Tous droits réservés.",
     },
-    nav: { editor: "Éditeur", analytics: "Analytique", affiliate: "Affiliation", subscription: "Abonnement" },
+    nav: {
+      editor: "Éditeur",
+      analytics: "Analytique",
+      affiliate: "Affiliation",
+      subscription: "Abonnement",
+      requests: "Demandes",
+    },
     account: {
       viewPage: "Voir votre page",
       logout: "Déconnexion",

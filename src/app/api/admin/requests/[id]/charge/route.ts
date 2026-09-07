@@ -1,11 +1,11 @@
-import { assertAdmin } from "@/lib/assertAdmin";
+import { assertCanApproveRequests } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiDirectPay } from "@/lib/fapshi";
 import { getPlatformSettings } from "@/lib/platformSettings";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const admin = await assertAdmin();
+  const admin = await assertCanApproveRequests();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { phone, medium, planId, billingInterval } = await request.json().catch(() => ({}));

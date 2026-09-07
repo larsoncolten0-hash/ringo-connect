@@ -7,7 +7,16 @@ import { Inbox } from "lucide-react";
 
 const STATUS_ORDER: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
 
-export default function RequestsTable({ requests }: { requests: any[] }) {
+export default function RequestsTable({
+  requests,
+  basePath = "/admin/requests",
+}: {
+  requests: any[];
+  // Lets the same table render inside /admin (full admins) or
+  // /dashboard/requests (super creators — see src/lib/assertAdmin.ts)
+  // without duplicating this component.
+  basePath?: string;
+}) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -102,7 +111,7 @@ export default function RequestsTable({ requests }: { requests: any[] }) {
                       <td className="px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Link
-                            href={`/admin/requests/${r.id}`}
+                            href={`${basePath}/${r.id}`}
                             className="text-xs px-3 py-1.5 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors"
                           >
                             Review

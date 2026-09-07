@@ -21,7 +21,7 @@ export default async function DashboardLayout({
 
   const { data: userRow } = await supabase
     .from("users")
-    .select("email, plans(name)")
+    .select("email, role, can_approve_requests, plans(name)")
     .eq("id", user.id)
     .single();
 
@@ -40,6 +40,7 @@ export default async function DashboardLayout({
       avatarUrl={profile?.avatar_url}
       planName={planName}
       isFreePlan={planName === "free"}
+      canApproveRequests={userRow?.role === "admin" || !!userRow?.can_approve_requests}
     >
       {children}
     </DashboardShell>
