@@ -120,6 +120,7 @@ export const translations = {
       ctaSubtitle: "Set up your page in minutes. No credit card required to start.",
       ctaButton: "Create your free page",
       footerTagline: "One page for your links, your catalog, and a direct line to WhatsApp.",
+      footerAffiliate: "Become an affiliate",
       footerRights: "All rights reserved.",
     },
     nav: {
@@ -559,6 +560,7 @@ export const translations = {
       ctaSubtitle: "Configurez votre page en quelques minutes. Aucune carte bancaire requise pour commencer.",
       ctaButton: "Créer ma page gratuite",
       footerTagline: "Une page pour vos liens, votre catalogue, et une ligne directe vers WhatsApp.",
+      footerAffiliate: "Devenir affilié",
       footerRights: "Tous droits réservés.",
     },
     nav: {

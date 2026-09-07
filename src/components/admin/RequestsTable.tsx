@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Inbox } from "lucide-react";
+import { Inbox, ChevronLeft, ChevronRight } from "lucide-react";
 
 const STATUS_ORDER: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
 
@@ -11,7 +11,13 @@ export default function RequestsTable({
   requests,
   basePath = "/admin/requests",
   canDelete = true,
+  page = 1,
+  pageSize = 20,
+  totalCount,
+  pendingCount,
 }: {
+  // Just the current page's rows — pagination happens server-side (see
+  // the two page.tsx callers), not by slicing a full list here.
   requests: any[];
   // Lets the same table render inside /admin (full admins) or
   // /dashboard/requests (super creators — see src/lib/assertAdmin.ts)
@@ -21,12 +27,23 @@ export default function RequestsTable({
   // action (see delete/route.ts, which enforces this server-side too;
   // this only hides the button).
   canDelete?: boolean;
+  page?: number;
+  pageSize?: number;
+  // Counts across ALL of this viewer's requests, not just this page —
+  // undefined falls back to requests.length (only correct pre-pagination
+  // behavior, kept as a safety default rather than a hard requirement).
+  totalCount?: number;
+  pendingCount?: number;
 }) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Only reorders WITHIN this page (pending-first) — the actual paging
+  // itself is by created_at, done server-side.
   const sorted = [...requests].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
+  const total = totalCount ?? requests.length;
+  const pending = pendingCount ?? requests.filter((r) => r.status === "pending").length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const deleteRequest = async (id: string) => {
     if (!window.confirm("Delete this request and everything submitted with it? This can't be undone.")) return;
@@ -46,7 +63,7 @@ export default function RequestsTable({
       <div>
         <h1 className="font-display text-xl font-medium text-ringo-text tracking-[-0.01em]">Signup requests</h1>
         <p className="text-sm text-ringo-muted mt-0.5">
-          {pendingCount} pending{requests.length > pendingCount && ` · ${requests.length} total`}
+          {pending} pending{total > pending && ` · ${total} total`}
         </p>
       </div>
 
@@ -137,6 +154,44 @@ export default function RequestsTable({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-ringo-border/70 text-sm">
+            <span className="text-ringo-muted">
+              Page {page} of {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              {page > 1 ? (
+                <Link
+                  href={`${basePath}?page=${page - 1}`}
+                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors"
+                >
+                  <ChevronLeft size={13} />
+                  Previous
+                </Link>
+              ) : (
+                <span className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-card border border-ringo-border/50 text-ringo-muted/50">
+                  <ChevronLeft size={13} />
+                  Previous
+                </span>
+              )}
+              {page < totalPages ? (
+                <Link
+                  href={`${basePath}?page=${page + 1}`}
+                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors"
+                >
+                  Next
+                  <ChevronRight size={13} />
+                </Link>
+              ) : (
+                <span className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-card border border-ringo-border/50 text-ringo-muted/50">
+                  Next
+                  <ChevronRight size={13} />
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>

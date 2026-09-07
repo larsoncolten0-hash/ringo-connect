@@ -179,9 +179,14 @@ export default function LandingView({
             <Image src="/logo.png" alt="" width={20} height={20} className="rounded-md" />
             <span className="text-sm text-ringo-muted">{t.landing.footerTagline}</span>
           </div>
-          <p className="text-xs text-ringo-muted/70">
-            © {new Date().getFullYear()} Ringo Connect. {t.landing.footerRights}
-          </p>
+          <div className="flex flex-col sm:items-end gap-1.5">
+            <Link href="/get-started-affiliate" className="text-sm text-ringo-indigo font-medium hover:underline">
+              {t.landing.footerAffiliate}
+            </Link>
+            <p className="text-xs text-ringo-muted/70">
+              © {new Date().getFullYear()} Ringo Connect. {t.landing.footerRights}
+            </p>
+          </div>
         </div>
       </footer>
     </div>
