@@ -1,4 +1,4 @@
-import { assertCanApproveRequests } from "@/lib/assertAdmin";
+import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus } from "@/lib/fapshi";
 import { NextResponse } from "next/server";
@@ -26,6 +26,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
     .single();
 
   if (!signupRequest || signupRequest.status !== "pending") {
+    return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
+  }
+  // A super creator only ever approves requests that came in through
+  // their own affiliate link — 404, not 403, so this doesn't confirm to
+  // them that some other affiliate's request exists at this id.
+  if (!canReviewerAccessRequest(admin, signupRequest.referral_code)) {
     return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
   }
 

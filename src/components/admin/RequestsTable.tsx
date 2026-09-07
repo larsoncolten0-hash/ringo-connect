@@ -10,12 +10,17 @@ const STATUS_ORDER: Record<string, number> = { pending: 0, approved: 1, rejected
 export default function RequestsTable({
   requests,
   basePath = "/admin/requests",
+  canDelete = true,
 }: {
   requests: any[];
   // Lets the same table render inside /admin (full admins) or
   // /dashboard/requests (super creators — see src/lib/assertAdmin.ts)
   // without duplicating this component.
   basePath?: string;
+  // False for a super creator — deleting a request stays a full-admin
+  // action (see delete/route.ts, which enforces this server-side too;
+  // this only hides the button).
+  canDelete?: boolean;
 }) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -116,7 +121,7 @@ export default function RequestsTable({
                           >
                             Review
                           </Link>
-                          {r.status !== "approved" && (
+                          {canDelete && r.status !== "approved" && (
                             <button
                               onClick={() => deleteRequest(r.id)}
                               disabled={deletingId === r.id}

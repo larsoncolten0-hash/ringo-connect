@@ -1,9 +1,17 @@
 -- "Super creators" — a regular creator (role stays 'creator') that an
--- admin has separately granted permission to review signup requests:
--- approve them into real accounts, reject them, charge the customer, and
--- delete pending/rejected ones. This is deliberately NOT the same as
--- role = 'admin' — it grants exactly one capability, not access to
--- settings, plans, add-ons, affiliate payouts, analytics, or the
--- creators list. See src/lib/assertAdmin.ts (assertCanApproveRequests)
--- and src/app/dashboard/requests/ for where this is enforced/used.
+-- admin has separately granted permission to APPROVE signup requests.
+-- Deliberately narrow, not the same as role = 'admin':
+--   - Scoped to their own referrals only — they only ever see/act on
+--     signup_requests whose referral_code matches their own
+--     affiliate_code (see canReviewerAccessRequest in
+--     src/lib/assertAdmin.ts). Someone else's requests are a 404 to them,
+--     not just hidden in the UI.
+--   - Can approve (and charge, as part of approving) — cannot reject and
+--     cannot delete a request. Those stay full-admin-only
+--     (reject/route.ts, delete/route.ts).
+--   - No access to the rest of /admin — settings, plans, add-ons,
+--     affiliate payouts, analytics, or the creators list.
+-- See src/lib/assertAdmin.ts (assertCanApproveRequests,
+-- canReviewerAccessRequest) and src/app/dashboard/requests/ for where
+-- this is enforced/used.
 alter table users add column if not exists can_approve_requests boolean not null default false;

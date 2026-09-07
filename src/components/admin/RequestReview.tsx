@@ -19,6 +19,8 @@ export default function RequestReview({
   plans,
   addons,
   basePath = "/admin/requests",
+  canDelete = true,
+  canReject = true,
 }: {
   request: any;
   plans: any[];
@@ -27,6 +29,12 @@ export default function RequestReview({
   // under /admin/requests for full admins and /dashboard/requests for
   // super creators.
   basePath?: string;
+  // Both false for a super creator — they can approve requests tied to
+  // their own affiliate link, but rejecting/deleting stays a full-admin
+  // action. Both are enforced server-side too (see delete/route.ts and
+  // reject/route.ts); these props only hide the buttons.
+  canDelete?: boolean;
+  canReject?: boolean;
 }) {
   const supabase = createClient();
 
@@ -219,7 +227,7 @@ export default function RequestReview({
           <ArrowLeft size={15} />
           Back to requests
         </Link>
-        {request.status !== "approved" && (
+        {canDelete && request.status !== "approved" && (
           <button
             onClick={deleteRequest}
             disabled={deleting}
@@ -583,7 +591,7 @@ export default function RequestReview({
               {creating ? "Creating…" : "Create account"}
             </button>
 
-            {!showReject ? (
+            {canReject && !showReject ? (
               <button
                 onClick={() => setShowReject(true)}
                 className="text-sm text-ringo-muted hover:text-red-500 transition-colors"
@@ -593,7 +601,7 @@ export default function RequestReview({
             ) : null}
           </div>
 
-          {showReject && (
+          {canReject && showReject && (
             <div className="rounded-card border border-red-500/30 bg-red-500/5 p-4 flex flex-col gap-3">
               <textarea
                 value={rejectReason}

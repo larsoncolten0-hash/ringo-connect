@@ -1,9 +1,13 @@
-import { assertCanApproveRequests } from "@/lib/assertAdmin";
+import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+// Admin-only, deliberately not assertCanApproveRequests — a super
+// creator (see src/lib/assertAdmin.ts) is scoped to APPROVING requests
+// tied to their own affiliate code only; rejecting/declining someone
+// stays a full-admin call.
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const admin = await assertCanApproveRequests();
+  const admin = await assertAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { reason } = await request.json().catch(() => ({}));

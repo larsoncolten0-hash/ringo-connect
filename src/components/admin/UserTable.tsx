@@ -127,7 +127,7 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
                         ) : (
                           <button
                             onClick={() => patch(u.id, { can_approve_requests: !u.can_approve_requests })}
-                            title="Lets this creator review, approve, reject, and charge signup requests — without giving them the rest of the admin panel."
+                            title="Lets this creator approve (and charge) signup requests made through their own affiliate link only — not reject, not delete, and no access to the rest of the admin panel."
                             className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-colors ${
                               u.can_approve_requests
                                 ? "border-ringo-indigo/40 bg-ringo-indigo/10 text-ringo-indigo"

@@ -13,14 +13,27 @@ export const dynamic = "force-dynamic";
 // layout, on purpose — dashboard/layout.tsx is not a security boundary
 // for anything else it wraps, so this page must gate itself.
 export default async function DashboardRequestsPage() {
-  const user = await assertCanApproveRequests();
-  if (!user) redirect("/dashboard");
+  const reviewer = await assertCanApproveRequests();
+  if (!reviewer) redirect("/dashboard");
 
   const admin = createAdminClient();
-  const { data: requests } = await admin
+  let query = admin
     .from("signup_requests")
     .select("*, plans(display_name, name)")
     .order("created_at", { ascending: false });
 
-  return <RequestsTable requests={requests || []} basePath="/dashboard/requests" />;
+  // A super creator only ever sees requests that came in through their
+  // own affiliate link (referral_code === their own affiliate_code) —
+  // never anyone else's. A full admin is unscoped, same as /admin/requests.
+  if (!reviewer.isAdmin) {
+    query = reviewer.affiliateCode
+      ? query.eq("referral_code", reviewer.affiliateCode)
+      : query.eq("id", "00000000-0000-0000-0000-000000000000"); // no affiliate_code yet — show nothing rather than everything
+  }
+
+  const { data: requests } = await query;
+
+  return (
+    <RequestsTable requests={requests || []} basePath="/dashboard/requests" canDelete={reviewer.isAdmin} />
+  );
 }

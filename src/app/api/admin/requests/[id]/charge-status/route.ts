@@ -1,4 +1,4 @@
-import { assertCanApproveRequests } from "@/lib/assertAdmin";
+import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus } from "@/lib/fapshi";
 import { NextResponse } from "next/server";
@@ -24,11 +24,14 @@ export async function GET(request: Request, { params }: { params: { id: string }
   const adminClient = createAdminClient();
   const { data: signupRequest } = await adminClient
     .from("signup_requests")
-    .select("pending_fapshi_trans_id")
+    .select("pending_fapshi_trans_id, referral_code")
     .eq("id", params.id)
     .single();
 
   if (!signupRequest?.pending_fapshi_trans_id) {
+    return NextResponse.json({ error: "No charge has been started for this request." }, { status: 404 });
+  }
+  if (!canReviewerAccessRequest(admin, signupRequest.referral_code)) {
     return NextResponse.json({ error: "No charge has been started for this request." }, { status: 404 });
   }
 

@@ -1,4 +1,4 @@
-import { assertCanApproveRequests } from "@/lib/assertAdmin";
+import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -8,6 +8,11 @@ import { NextResponse } from "next/server";
 // customer account is a much bigger, separate decision than cleaning up
 // a form submission. This route never touches auth.users, public.users,
 // or profiles at all.
+//
+// Admin-only, deliberately not assertCanApproveRequests — a super
+// creator (see src/lib/assertAdmin.ts) can approve requests tied to
+// their own affiliate code, but permanently deleting one — including
+// someone else's uploaded photos — stays a full-admin call.
 const UPLOADS_MARKER = "/object/public/uploads/";
 
 function storagePathFromUrl(url: string | null | undefined): string | null {
@@ -18,7 +23,7 @@ function storagePathFromUrl(url: string | null | undefined): string | null {
 }
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const admin = await assertCanApproveRequests();
+  const admin = await assertAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const adminClient = createAdminClient();

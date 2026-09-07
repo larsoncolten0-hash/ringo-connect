@@ -1,4 +1,4 @@
-import { assertCanApproveRequests } from "@/lib/assertAdmin";
+import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiDirectPay } from "@/lib/fapshi";
 import { getPlatformSettings } from "@/lib/platformSettings";
@@ -22,11 +22,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const { data: signupRequest } = await adminClient
     .from("signup_requests")
-    .select("id, status, full_name, requested_addon_ids")
+    .select("id, status, full_name, requested_addon_ids, referral_code")
     .eq("id", params.id)
     .single();
 
   if (!signupRequest || signupRequest.status !== "pending") {
+    return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
+  }
+  // Same affiliate-scoping as approve/route.ts — a super creator can only
+  // charge/approve requests that came in through their own link.
+  if (!canReviewerAccessRequest(admin, signupRequest.referral_code)) {
     return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
   }
 
