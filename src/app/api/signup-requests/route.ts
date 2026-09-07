@@ -44,7 +44,12 @@ export async function POST(request: Request) {
 
   if (error || !data) {
     console.error("signup_requests insert failed:", error?.message);
-    return NextResponse.json({ error: "Could not submit — try again." }, { status: 500 });
+    // Surface the real reason (not just a generic message) so the client
+    // can show what actually went wrong instead of a dead end.
+    return NextResponse.json(
+      { error: error?.message ? `Could not submit — ${error.message}` : "Could not submit — try again." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ ok: true, id: data.id });

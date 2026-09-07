@@ -191,7 +191,10 @@ export default function GetStartedFlow({
     });
     const data = await res.json();
     if (!res.ok) {
-      setError(t.getStarted.submitError);
+      // Show whatever the backend actually said went wrong, not just a
+      // generic "try again" — that's the only way to tell a validation
+      // problem apart from a real server/DB failure.
+      setError(data.error || t.getStarted.submitError);
       return null;
     }
     return data.id;
@@ -270,11 +273,29 @@ export default function GetStartedFlow({
 
       setPayStatus("waiting");
       let attempts = 0;
+      let consecutiveErrors = 0;
       const poll = setInterval(async () => {
         attempts++;
         try {
           const statusRes = await fetch(`/api/signup-requests/${requestId}/pay-status`);
           const statusData = await statusRes.json();
+
+          // The route can 404/502 (bad transId, Fapshi unreachable, IP not
+          // whitelisted, etc.) and still return valid JSON — that JSON just
+          // won't have a `status` field. Previously this fell through to
+          // the generic attempts>=40 timeout with no explanation, so a real
+          // backend error looked identical to "still waiting" for up to two
+          // minutes. Surface it immediately instead.
+          if (!statusRes.ok) {
+            consecutiveErrors++;
+            if (consecutiveErrors >= 3) {
+              clearInterval(poll);
+              setPayStatus("failed");
+              setPayError(statusData.error || t.getStarted.payFailed);
+            }
+            return;
+          }
+          consecutiveErrors = 0;
 
           if (statusData.status === "SUCCESSFUL") {
             clearInterval(poll);
@@ -284,15 +305,22 @@ export default function GetStartedFlow({
           } else if (statusData.status === "FAILED" || statusData.status === "EXPIRED") {
             clearInterval(poll);
             setPayStatus("failed");
-            setPayError(t.getStarted.payFailed);
+            setPayError(statusData.reason || t.getStarted.payFailed);
           } else if (attempts >= 40) {
             clearInterval(poll);
             setPayStatus("failed");
             setPayError(t.getStarted.payFailed);
           }
-        } catch {
-          // Transient network error while polling — if it keeps failing,
-          // the attempts>=40 cutoff above still ends the poll eventually.
+        } catch (err: any) {
+          // Transient network error (offline, DNS blip) — if it keeps
+          // failing, treat it the same as a backend error above rather
+          // than silently spinning until the 2-minute cutoff.
+          consecutiveErrors++;
+          if (consecutiveErrors >= 3) {
+            clearInterval(poll);
+            setPayStatus("failed");
+            setPayError(err?.message || t.getStarted.payFailed);
+          }
         }
       }, 3000);
     } catch (err: any) {

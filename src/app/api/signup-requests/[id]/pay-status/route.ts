@@ -27,7 +27,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
       // never actually had anything setting the flag they read.
       await admin.from("signup_requests").update({ customer_paid: true }).eq("id", params.id);
     }
-    return NextResponse.json({ status: tx.status, transId: tx.transId });
+    // Include `reason` — Fapshi sets it on FAILED/EXPIRED transactions
+    // (e.g. "insufficient funds", "user cancelled") — so the client can
+    // show the customer why it failed instead of a generic message.
+    return NextResponse.json({ status: tx.status, transId: tx.transId, reason: tx.reason || null });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Could not check payment status." }, { status: 502 });
   }
