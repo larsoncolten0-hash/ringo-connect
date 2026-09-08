@@ -873,6 +873,48 @@ export default function GetStartedFlow({
                 ? t.getStarted.successBody
                 : t.getStarted.successBodyManualPayment(manualPaymentMtnNumber, manualPaymentOrangeNumber, manualPaymentName)}
             </p>
+
+            {/* Receipt: plan + any add-ons + total, so the customer walks
+                away with a clear record of what they're being charged for,
+                not just a "thanks" message. Only shown when a plan was
+                actually selected (skipped on plans.length===1 flows that
+                never touched the plan step... but selectedPlan is always
+                set there too, so this effectively always renders). */}
+            {selectedPlan && (
+              <div className="w-full rounded-card border border-ringo-border bg-ringo-surface p-4 text-left">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-medium">{t.getStarted.receiptHeading}</p>
+                  <span
+                    className={`text-[10px] font-medium uppercase tracking-wide px-2 py-1 rounded-full ${
+                      paidOnline ? "bg-ringo-teal/10 text-ringo-teal" : "bg-ringo-muted/10 text-ringo-muted"
+                    }`}
+                  >
+                    {paidOnline ? t.getStarted.receiptPaid : t.getStarted.receiptPending}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-ringo-muted">
+                      {t.getStarted.totalPlan} ({selectedPlan.display_name || selectedPlan.name})
+                    </span>
+                    <span suppressHydrationWarning>{formatPrice(planPrice, isCameroon ? "XAF" : "USD", locale)}</span>
+                  </div>
+                  {selectedAddons.map((a) => (
+                    <div key={a.id} className="flex justify-between text-ringo-muted">
+                      <span>
+                        {t.getStarted.totalAddon}: {a.name}
+                      </span>
+                      <span suppressHydrationWarning>{formatPrice(getPrice(a), isCameroon ? "XAF" : "USD", locale)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between font-bold text-ringo-text pt-1.5 mt-1 border-t border-ringo-border">
+                    <span>{t.getStarted.totalDue}</span>
+                    <span suppressHydrationWarning>{formatPrice(grandTotal, isCameroon ? "XAF" : "USD", locale)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <Link href="/" className="text-sm text-ringo-indigo font-medium mt-2">
               {t.getStarted.backHome}
             </Link>

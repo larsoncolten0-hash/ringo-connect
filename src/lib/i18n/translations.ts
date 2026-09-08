@@ -82,6 +82,9 @@ export const translations = {
       couponCodeLabel: "Coupon / partner code (optional)",
       couponCodePlaceholder: "Enter your partner's code",
       couponCodeApplied: "Applied from your partner's link.",
+      receiptHeading: "Order summary",
+      receiptPaid: "Paid",
+      receiptPending: "Payment pending",
     },
     installPrompt: {
       title: "Install Ringo Connect",
@@ -522,6 +525,9 @@ export const translations = {
       couponCodeLabel: "Code coupon / partenaire (optionnel)",
       couponCodePlaceholder: "Entrez le code de votre partenaire",
       couponCodeApplied: "Appliqué depuis le lien de votre partenaire.",
+      receiptHeading: "Récapitulatif de la commande",
+      receiptPaid: "Payé",
+      receiptPending: "Paiement en attente",
     },
     installPrompt: {
       title: "Installer Ringo Connect",
