@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getPlatformSettings } from "@/lib/platformSettings";
+import { notifyPaymentSucceeded } from "@/lib/applyPayment";
 import { NextResponse } from "next/server";
 
 // Configure this URL in the Stripe dashboard (Developers → Webhooks),
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
       const interval = session.metadata?.interval === "yearly" ? "yearly" : "monthly";
       if (!userId || !planName) break;
 
-      const { data: plan } = await admin.from("plans").select("id").eq("name", planName).single();
+      const { data: plan } = await admin.from("plans").select("id, display_name, name").eq("name", planName).single();
       if (!plan) break;
 
       await admin
@@ -95,6 +96,13 @@ export async function POST(request: Request) {
         amount: (session.amount_total || 0) / 100,
         currency: (session.currency || "usd").toUpperCase(),
         status: "success",
+      });
+
+      await notifyPaymentSucceeded({
+        userId,
+        planDisplayName: plan.display_name || plan.name,
+        amount: (session.amount_total || 0) / 100,
+        currency: (session.currency || "usd").toUpperCase(),
       });
       break;
     }

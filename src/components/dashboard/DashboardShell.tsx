@@ -6,11 +6,13 @@ import { usePathname } from "next/navigation";
 import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
+import NotificationBell from "@/components/NotificationBell";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import InstallPrompt from "@/components/InstallPrompt";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export default function DashboardShell({
+  userId,
   email,
   username,
   avatarUrl,
@@ -19,6 +21,10 @@ export default function DashboardShell({
   canApproveRequests = false,
   children,
 }: {
+  // Used only to scope the notification bell to this account's own rows
+  // (see src/components/NotificationBell.tsx) — optional so nothing
+  // breaks if a caller doesn't have it handy, the bell just stays hidden.
+  userId?: string;
   email: string;
   username: string;
   avatarUrl?: string | null;
@@ -104,6 +110,7 @@ export default function DashboardShell({
           </Link>
           <div className="flex items-center gap-1">
             <LanguageToggle />
+            {userId && <NotificationBell mode="user" userId={userId} />}
             <ThemeToggle iconOnly />
             <AvatarMenu email={email} username={username} avatarUrl={avatarUrl} planName={planName} />
           </div>

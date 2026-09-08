@@ -66,6 +66,15 @@ Typography uses two Google Fonts loaded via `next/font/google` (Space Grotesk fo
 - Auth (signup/login), creator editor (links, socials, catalog, WhatsApp, pixels),
   plan-based feature gating, click-event tracking, analytics dashboard
 - Admin dashboard: user list, plan changes, suspend/reactivate, audit log
+- Signup-request notifications: submitting `/get-started` (or the affiliate
+  page) alerts every admin — plus the specific super creator, if it came
+  through their referral link — with an in-app bell (see
+  `src/components/NotificationBell.tsx`) and an email via Resend; the
+  submitter gets a confirmation email too, if they gave one, and another
+  once an admin or super creator approves the request. Requires the
+  `supabase/migrations/2026-09-12_notifications.sql` migration and
+  `RESEND_API_KEY` (see `.env.example`) — without the key, email sending is
+  skipped but everything else still works.
 
 **Not yet built — natural next steps:**
 - Image upload UI wired to Supabase Storage (buckets aren't created yet)
