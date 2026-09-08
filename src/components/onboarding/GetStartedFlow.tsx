@@ -755,14 +755,6 @@ export default function GetStartedFlow({
               >
                 {t.getStarted.payChooseNow}
               </button>
-              <button
-                onClick={submitWithoutPaying}
-                disabled={submitting}
-                className="flex items-center justify-center gap-2 py-3 rounded-card border border-ringo-border text-ringo-text text-sm font-medium disabled:opacity-60"
-              >
-                {submitting && <Loader2 size={15} className="animate-spin" />}
-                {submitting ? t.getStarted.submitting : t.getStarted.payChooseLater}
-              </button>
             </div>
           </>
         )}
@@ -845,17 +837,6 @@ export default function GetStartedFlow({
                   >
                     {t.getStarted.payTryAgain}
                   </button>
-                  {/* Affiliate mode has no pay-later fallback — payment
-                      is the whole point of this page, not one option
-                      among others. */}
-                  {variant !== "affiliate" && (
-                    <button
-                      onClick={() => setStep("success")}
-                      className="py-2.5 rounded-card border border-ringo-border text-ringo-text text-sm font-medium"
-                    >
-                      {t.getStarted.payContinueWithoutPaying}
-                    </button>
-                  )}
                 </div>
               </div>
             )}
