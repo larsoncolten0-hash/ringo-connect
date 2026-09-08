@@ -12,6 +12,7 @@ import { ensureVisitorId, captureTtclid, newEventId } from "@/lib/pixelClient";
 import { metaEventName, tiktokEventName, isValidFacebookPixelId, isValidTiktokPixelId } from "@/lib/pixelEvents";
 import WhatsAppButton from "./WhatsAppButton";
 import CallButton from "./CallButton";
+import SaveContactButton from "./SaveContactButton";
 import SocialIcon from "./SocialIcon";
 
 export default function ProfileView({
@@ -313,19 +314,28 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
 
         {profile.whatsapp_number && (
           <div className="flex gap-3 mt-5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
-            <WhatsAppButton
-              number={profile.whatsapp_number}
-              message={profile.default_whatsapp_message}
-              radiusClass={radiusClass}
-              buttonStyle={linkButtonStyle}
-              onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
-            />
+            {/* All three share flex-1 so the row stays balanced now that
+                it holds three CTAs instead of two — WhatsApp previously
+                sized to its own (wider) content, which would crowd out
+                Save/Call on a narrow phone screen. */}
+            <div className="flex-1">
+              <WhatsAppButton
+                number={profile.whatsapp_number}
+                message={profile.default_whatsapp_message}
+                radiusClass={radiusClass}
+                buttonStyle={linkButtonStyle}
+                onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
+              />
+            </div>
             <div className="flex-1">
               <CallButton
                 number={profile.whatsapp_number}
                 radiusClass={radiusClass}
                 buttonStyle={linkButtonStyle}
               />
+            </div>
+            <div className="flex-1">
+              <SaveContactButton profile={profile} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
             </div>
           </div>
         )}
