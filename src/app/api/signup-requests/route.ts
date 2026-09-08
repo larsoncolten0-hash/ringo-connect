@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { notifyAdmins, notifyUser } from "@/lib/notifications";
+import { notifyAdmins, notifyUser, getSignupRequestReviewers } from "@/lib/notifications";
 import { emailShell, sendEmail } from "@/lib/email";
 import { NextResponse } from "next/server";
 
@@ -67,22 +67,7 @@ export async function POST(request: Request) {
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com").replace(/\/$/, "");
   const reviewNote = body.source === "affiliate" ? "Submitted via the affiliate get-started page." : null;
 
-  // A request submitted through a super creator's own affiliate link is
-  // also THEIRS to review (see canReviewerAccessRequest) — alert them
-  // directly, in addition to the broadcast every full admin gets below.
-  const superCreator = referralCode
-    ? (
-        await admin
-          .from("users")
-          .select("id, email")
-          .eq("affiliate_code", referralCode)
-          .eq("can_approve_requests", true)
-          .maybeSingle()
-      ).data
-    : null;
-
-  const { data: admins } = await admin.from("users").select("email").eq("role", "admin");
-  const adminEmails = (admins || []).map((a) => a.email).filter(Boolean);
+  const { adminEmails, superCreator } = await getSignupRequestReviewers(referralCode);
 
   await Promise.allSettled([
     notifyAdmins({

@@ -39,3 +39,32 @@ export async function notifyUser(userId: string, input: NotificationInput) {
   });
   if (error) console.error("notifyUser failed:", error.message);
 }
+
+/**
+ * Who should hear about a given signup_requests row — every full admin,
+ * plus (when the request carries a referral_code matching a super
+ * creator) that one specific super creator, since a request referred
+ * through their own link is theirs to review (see canReviewerAccessRequest
+ * in src/lib/assertAdmin.ts). Shared by every signup_requests lifecycle
+ * event that needs to alert reviewers — submitted, paid, or anything
+ * added later — so the "who" logic lives in exactly one place.
+ */
+export async function getSignupRequestReviewers(referralCode: string | null) {
+  const admin = createAdminClient();
+  const [{ data: admins }, superCreatorResult] = await Promise.all([
+    admin.from("users").select("email").eq("role", "admin"),
+    referralCode
+      ? admin
+          .from("users")
+          .select("id, email")
+          .eq("affiliate_code", referralCode)
+          .eq("can_approve_requests", true)
+          .maybeSingle()
+      : Promise.resolve({ data: null as { id: string; email: string } | null }),
+  ]);
+
+  return {
+    adminEmails: (admins || []).map((a) => a.email).filter(Boolean) as string[],
+    superCreator: superCreatorResult.data,
+  };
+}
