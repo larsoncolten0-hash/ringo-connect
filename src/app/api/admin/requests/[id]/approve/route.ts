@@ -1,6 +1,8 @@
 import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus } from "@/lib/fapshi";
+import { notifyUser } from "@/lib/notifications";
+import { emailShell, sendEmail } from "@/lib/email";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -238,6 +240,35 @@ export async function POST(request: Request, { params }: { params: { id: string 
     target_user_id: newUserId,
     details: { requestId: signupRequest.id, planName: plan.name, paymentMethod },
   });
+
+  // Best-effort, same reasoning as the notify/email fan-out in
+  // /api/signup-requests — the account is already created and fully
+  // usable at this point, so nothing here should turn that success into
+  // an error response for the admin.
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com").replace(/\/$/, "");
+  const profileUrl = `${siteUrl}/${username.toLowerCase()}`;
+
+  await Promise.allSettled([
+    notifyUser(newUserId, {
+      type: "request_approved",
+      title: "Your page is live!",
+      body: `ringoconnectltd.com/${username.toLowerCase()} is ready.`,
+      link: "/dashboard",
+    }),
+    email
+      ? sendEmail({
+          to: email,
+          subject: "You're approved — your Ringo Connect page is live!",
+          html: emailShell(`
+            <p style="font-size:14px; margin:0 0 12px;">Hi ${fullName},</p>
+            <p style="font-size:14px; margin:0 0 12px;">Great news — your request was approved and your page is live at:</p>
+            <p style="margin:0 0 16px;"><a href="${profileUrl}" style="color:#4F46E5; font-weight:500;">${profileUrl.replace(/^https?:\/\//, "")}</a></p>
+            <p style="font-size:14px; margin:0 0 16px;">Log in any time to edit your links, catalog, and profile — use the username and password shared with you.</p>
+            <a href="${siteUrl}/auth/login" style="display:inline-block; background:#4F46E5; color:#fff; text-decoration:none; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:500;">Log in to your dashboard</a>
+          `),
+        })
+      : Promise.resolve(),
+  ]);
 
   return NextResponse.json({ ok: true, userId: newUserId, username: username.toLowerCase() });
 }

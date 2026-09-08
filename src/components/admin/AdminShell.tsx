@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationBell from "@/components/NotificationBell";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Users", icon: Users, exact: true },
@@ -60,6 +61,7 @@ export default function AdminShell({ email, children }: { email: string; childre
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
+          <NotificationBell mode="admin" variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
         </div>
         <div className="border-t border-white/10 pt-3 flex items-center justify-between px-1">
@@ -96,6 +98,7 @@ export default function AdminShell({ email, children }: { email: string; childre
           <span className="font-display font-medium text-white text-sm">Admin</span>
         </Link>
         <div className="flex items-center gap-1">
+          <NotificationBell mode="admin" variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
           <Link
             href="/auth/logout"
