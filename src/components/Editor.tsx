@@ -4,15 +4,19 @@ import { ExternalLink } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ProfileHeaderCard from "@/components/editor/ProfileHeaderCard";
 import CategoryCard from "@/components/editor/CategoryCard";
+import MusicSettingsCard from "@/components/editor/MusicSettingsCard";
 import ThemeCard from "@/components/editor/ThemeCard";
 import WhatsAppCard from "@/components/editor/WhatsAppCard";
 import SocialLinksCard from "@/components/editor/SocialLinksCard";
 import LinksCard from "@/components/editor/LinksCard";
+import TracksCard from "@/components/editor/TracksCard";
 import CatalogCard from "@/components/editor/CatalogCard";
+import EventsCard from "@/components/editor/EventsCard";
 import AboutCard from "@/components/editor/AboutCard";
 import PixelsCard from "@/components/editor/PixelsCard";
 import { EditorPreviewProvider } from "@/components/editor/EditorPreviewContext";
 import LivePreviewPanel from "@/components/editor/LivePreviewPanel";
+import { profileHasCategory } from "@/lib/categories";
 
 export default function Editor({
   profile,
@@ -25,6 +29,7 @@ export default function Editor({
 }) {
   const { t } = useLanguage();
   const catalogLocked = plan?.max_products === 0;
+  const isMusic = profileHasCategory(profile, "music_entertainment");
 
   return (
     // initialProfile seeds the live preview with exactly what's already

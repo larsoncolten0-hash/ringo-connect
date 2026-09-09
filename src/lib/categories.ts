@@ -33,6 +33,26 @@ export type CategoryId =
 
 type Bilingual = { en: string; fr: string };
 
+// A full set of ThemeCard fields (see src/lib/theme.ts for the value
+// types) — applied wholesale as "what a brand-new profile in this category
+// starts with," the same way DB column defaults seed every other profile.
+// Never forced on an existing profile: only used (a) once, automatically,
+// the moment a brand-new profile first gets this category (self-serve
+// confirm, or admin approval — same "safe because nothing to clobber yet"
+// reasoning as whatsappMessage below), or (b) later, from CategoryCard, as
+// an explicit "Apply recommended theme" button the creator has to press —
+// ThemeCard remains the one real theme system, this is just a starting
+// point for it.
+export interface RecommendedTheme {
+  themeColor: string;
+  backgroundStyle: "solid" | "gradient";
+  backgroundColor: string;
+  backgroundGradientEnd: string | null;
+  textColor: string;
+  buttonStyle: "fill" | "outline" | "soft";
+  buttonRadius: "square" | "rounded" | "pill";
+}
+
 export interface CategoryDefaults {
   // Overrides t.editor.catalog / t.profilePage.catalogHeading / t.getStarted.catalogHeading
   // wherever the profile (or a pending signup request) has a category set.
@@ -45,6 +65,9 @@ export interface CategoryDefaults {
   // Placeholder for the "about your business" field on /auth/signup and
   // /get-started, and for AboutCard's long-bio field in the dashboard.
   notePlaceholder: Bilingual;
+  // Only set for categories that ship a curated look — currently just
+  // music_entertainment. See RecommendedTheme above for when it's applied.
+  recommendedTheme?: RecommendedTheme;
 }
 
 export interface Category {
@@ -66,12 +89,29 @@ export const CATEGORIES: Category[] = [
       fr: "Artistes, groupes, DJ, producteurs, labels, humoristes…",
     },
     defaults: {
-      catalogLabel: { en: "Music store", fr: "Boutique musicale" },
+      // Catalog/products is used for physical merch here — tracks get
+      // their own dedicated "Latest Music"/"Latest Beats" section instead
+      // (see MUSIC_ROLES and TracksCard), so this no longer says "Music
+      // store" the way it did before that section existed.
+      catalogLabel: { en: "Merch", fr: "Merch" },
       whatsappMessage: {
         en: "Hi! I'd like to book you or ask about your music.",
         fr: "Salut ! Je voudrais vous booker ou en savoir plus sur votre musique.",
       },
       notePlaceholder: { en: "e.g. Afrobeat singer based in Douala", fr: "ex. Chanteur afrobeat basé à Douala" },
+      // Warm gold on near-black, gradient background, pill-shaped filled
+      // buttons — a premium "creator page" look distinct from the app's
+      // default (outline buttons on a flat background) without inventing
+      // a second theme system: every field here is a real ThemeCard field.
+      recommendedTheme: {
+        themeColor: "#F2B705",
+        backgroundStyle: "gradient",
+        backgroundColor: "#0B0B12",
+        backgroundGradientEnd: "#1A1220",
+        textColor: "#FAFAFA",
+        buttonStyle: "fill",
+        buttonRadius: "pill",
+      },
     },
   },
   {
@@ -382,4 +422,50 @@ export function isCategoryId(id: unknown): id is CategoryId {
 export function sanitizeCategoryIds(input: unknown): CategoryId[] {
   if (!Array.isArray(input)) return [];
   return Array.from(new Set(input.filter(isCategoryId)));
+}
+
+// True whenever `id` is the profile's primary category OR one of its extra
+// ones — the check every music-only feature (MusicSettingsCard, TracksCard,
+// EventsCard, the public page's music sections) gates on, so a page tagged
+// music_entertainment only as a secondary category still gets the tools.
+export function profileHasCategory(
+  profile: { category?: string | null; categories?: string[] | null } | null | undefined,
+  id: CategoryId
+): boolean {
+  if (!profile) return false;
+  return profile.category === id || !!profile.categories?.includes(id);
+}
+
+// Sub-type within Music & Entertainment — purely cosmetic (no gating
+// anywhere), it just retitles the "Latest Music" section and its Artist
+// Hub card so a beatmaker sees "Beats" instead of "Music". Stored in
+// profiles.music_role; unset (null) falls back to the generic "artist"
+// wording everywhere it's read.
+export type MusicRole = "artist" | "dj" | "producer" | "band" | "comedian" | "actor" | "other";
+
+export interface MusicRoleOption {
+  id: MusicRole;
+  emoji: string;
+  label: Bilingual;
+  // "Latest Music" vs "Latest Beats" — what MusicSection titles itself,
+  // and what the Artist Hub's music card is labeled.
+  sectionLabel: Bilingual;
+}
+
+export const MUSIC_ROLES: MusicRoleOption[] = [
+  { id: "artist", emoji: "🎤", label: { en: "Artist / Singer", fr: "Artiste / Chanteur" }, sectionLabel: { en: "Latest Music", fr: "Dernières sorties" } },
+  { id: "dj", emoji: "🎧", label: { en: "DJ", fr: "DJ" }, sectionLabel: { en: "Latest Mixes", fr: "Derniers mix" } },
+  { id: "producer", emoji: "🎹", label: { en: "Producer / Beatmaker", fr: "Producteur / Beatmaker" }, sectionLabel: { en: "Latest Beats", fr: "Derniers beats" } },
+  { id: "band", emoji: "🥁", label: { en: "Band", fr: "Groupe" }, sectionLabel: { en: "Latest Music", fr: "Dernières sorties" } },
+  { id: "comedian", emoji: "🎭", label: { en: "Comedian", fr: "Humoriste" }, sectionLabel: { en: "Latest Clips", fr: "Derniers extraits" } },
+  { id: "actor", emoji: "🎬", label: { en: "Actor", fr: "Acteur" }, sectionLabel: { en: "Latest Clips", fr: "Derniers extraits" } },
+  { id: "other", emoji: "✨", label: { en: "Other entertainer", fr: "Autre artiste" }, sectionLabel: { en: "Latest Music", fr: "Dernières sorties" } },
+];
+
+export function getMusicRole(id?: string | null): MusicRoleOption | undefined {
+  return MUSIC_ROLES.find((r) => r.id === id);
+}
+
+export function isMusicRole(id: unknown): id is MusicRole {
+  return typeof id === "string" && MUSIC_ROLES.some((r) => r.id === id);
 }
