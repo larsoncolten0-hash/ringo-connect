@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
-import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
+import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, profileHasCategory } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
@@ -46,7 +46,7 @@ export default function ProfileView({
   const musicEvents: any[] = profile.events || [];
   const musicSectionTitle = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.tracksTitleFallback;
   const supportEnabled = isMusic && profile.hub_support_enabled !== false && !!profile.whatsapp_number;
-  const { playingId, togglePlay } = useTrackPlayback();
+  const { playingId, progress, togglePlay } = useTrackPlayback();
 
   // Resolved from whichever list actually matches pinned_type — never
   // trusts pinned_id blindly, so a deleted item (or one that predates
@@ -165,6 +165,19 @@ export default function ProfileView({
   const radiusClass = getRadiusClass(profile.button_radius || "rounded");
   const linkButtonStyle = getButtonStyle(profile.button_style || "outline", accent);
   const borderTint = hexToRgba(textColor, 0.12);
+
+  // Music & Entertainment's specific look (see the reference design this
+  // was built from): a warm, light content area below the dark photo
+  // hero, rather than the same dark theme continuing all the way down.
+  // Fixed, not theme-driven — ThemeCard's background/text color fields
+  // still fully control the hero zone above; this is a structural choice
+  // that's part of what makes this "the Music & Entertainment theme"
+  // specifically, the same way the about-card's accent stripe is a fixed
+  // structural choice for every category.
+  const MUSIC_CREAM = "#FBF3E7";
+  const MUSIC_CREAM_TEXT = "#1C140C";
+  const contentTextColor = isMusic ? MUSIC_CREAM_TEXT : textColor;
+  const contentBorderTint = isMusic ? "rgba(28,20,12,0.12)" : borderTint;
 
   // The public page is the creator's brand, not app chrome — it renders
   // with exactly the colors they chose, independent of the visitor's own
@@ -304,6 +317,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           style={{ animationDelay: "80ms" }}
         >
           {firstName} {restName && <span style={{ color: accent }}>{restName}</span>}
+          {isMusic && <span className="text-lg">🎵</span>}
           {isVerified && (
             <BadgeCheck
               size={20}
@@ -345,30 +359,58 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         )}
 
         {profile.whatsapp_number && (
-          <div className="flex gap-3 mt-5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
-            {/* All three share flex-1 so the row stays balanced now that
-                it holds three CTAs instead of two — WhatsApp previously
-                sized to its own (wider) content, which would crowd out
-                Save/Call on a narrow phone screen. */}
-            <div className="flex-1">
-              <WhatsAppButton
-                number={profile.whatsapp_number}
-                message={profile.default_whatsapp_message}
-                radiusClass={radiusClass}
-                buttonStyle={linkButtonStyle}
-                onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
-              />
-            </div>
-            <div className="flex-1">
-              <CallButton
-                number={profile.whatsapp_number}
-                radiusClass={radiusClass}
-                buttonStyle={linkButtonStyle}
-              />
-            </div>
-            <div className="flex-1">
-              <SaveContactButton profile={profile} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
-            </div>
+          <div
+            className={
+              isMusic
+                ? "flex flex-wrap justify-center gap-2.5 mt-5 animate-fade-up"
+                : "flex gap-3 mt-5 w-full max-w-sm animate-fade-up"
+            }
+            style={{ animationDelay: "260ms" }}
+          >
+            {/* Music gets its own fixed, differentiated palette per
+                button (WhatsApp green / Call gold / Save outlined) sized
+                to their own content, matching the reference design —
+                every other category keeps the original theme-driven,
+                evenly-stretched three-button row unchanged. */}
+            {isMusic ? (
+              <>
+                <WhatsAppButton
+                  number={profile.whatsapp_number}
+                  message={profile.default_whatsapp_message}
+                  radiusClass="rounded-full"
+                  buttonStyle={{ backgroundColor: "#25D366", color: "#fff", border: "2px solid transparent" }}
+                  onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
+                />
+                <CallButton
+                  number={profile.whatsapp_number}
+                  radiusClass="rounded-full"
+                  buttonStyle={{ backgroundColor: accent, color: "#171009", border: "2px solid transparent" }}
+                />
+                <SaveContactButton
+                  profile={profile}
+                  radiusClass="rounded-full"
+                  buttonStyle={{ backgroundColor: "transparent", color: textColor, border: `2px solid ${hexToRgba(textColor, 0.35)}` }}
+                />
+              </>
+            ) : (
+              <>
+                <div className="flex-1">
+                  <WhatsAppButton
+                    number={profile.whatsapp_number}
+                    message={profile.default_whatsapp_message}
+                    radiusClass={radiusClass}
+                    buttonStyle={linkButtonStyle}
+                    onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
+                  />
+                </div>
+                <div className="flex-1">
+                  <CallButton number={profile.whatsapp_number} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
+                </div>
+                <div className="flex-1">
+                  <SaveContactButton profile={profile} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -383,7 +425,15 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           </div>
         )}
 
-        <div className="w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up" style={{ animationDelay: "340ms" }}>
+        <div
+          className={`w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up ${
+            isMusic ? "rounded-[28px] p-4 sm:p-5 shadow-[0_10px_36px_rgba(0,0,0,0.3)]" : ""
+          }`}
+          style={{
+            animationDelay: "340ms",
+            ...(isMusic ? { backgroundColor: MUSIC_CREAM, color: MUSIC_CREAM_TEXT } : {}),
+          }}
+        >
           {pinnedItem && (
             <PinnedSpotlight
               t={t}
@@ -451,7 +501,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             return (
               <div
                 className={`relative overflow-hidden ${radiusClass}`}
-                style={{ border: `1px solid ${borderTint}`, backgroundColor: hexToRgba(textColor, 0.03) }}
+                style={{ border: `1px solid ${contentBorderTint}`, backgroundColor: hexToRgba(contentTextColor, 0.03) }}
               >
                 {/* Top accent stripe — the "card edge" a real business card has */}
                 <div className="h-1.5 w-full" style={{ backgroundColor: accent }} />
@@ -487,7 +537,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                   )}
 
                   {hasRoleCard && contactRows.length > 0 && (
-                    <div className="h-px w-full mb-4" style={{ backgroundColor: borderTint }} />
+                    <div className="h-px w-full mb-4" style={{ backgroundColor: contentBorderTint }} />
                   )}
 
                   {contactRows.length > 0 && (
@@ -532,18 +582,21 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               tracks={musicTracks}
               artistName={profile.name || ""}
               accent={accent}
-              radiusClass={radiusClass}
-              borderTint={borderTint}
               currency={profile.currency || "USD"}
               whatsappNumber={profile.whatsapp_number}
               playingId={playingId}
+              progress={progress}
               onTogglePlay={togglePlay}
             />
           )}
 
           {profile.links?.length > 0 && (
             <div className="flex flex-col gap-3">
-              <p className="text-[11px] uppercase tracking-wider" style={{ opacity: 0.5 }}>
+              <p
+                className={isMusic ? "text-base font-bold flex items-center gap-2" : "text-[11px] uppercase tracking-wider"}
+                style={isMusic ? undefined : { opacity: 0.5 }}
+              >
+                {isMusic && <ExternalLink size={16} style={{ color: accent }} />}
                 {t.profilePage.linksHeading}
               </p>
               {profile.links
@@ -581,12 +634,12 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                 onClick={() => setShowCatalog((v) => !v)}
                 className={`flex items-center justify-between p-3.5 transition active:scale-[0.98] ${radiusClass}`}
                 style={{
-                  border: `1px solid ${borderTint}`,
+                  border: `1px solid ${contentBorderTint}`,
                   backgroundColor: showCatalog ? hexToRgba(accent, 0.08) : "transparent",
                 }}
               >
-                <span className="flex items-center gap-2 text-sm font-semibold">
-                  <ShoppingBag size={16} style={{ color: accent }} />
+                <span className={`flex items-center gap-2 ${isMusic ? "text-base font-bold" : "text-sm font-semibold"}`}>
+                  <ShoppingBag size={isMusic ? 17 : 16} style={{ color: accent }} />
                   {catalogLabel}
                   <span style={{ opacity: 0.5 }}>({profile.products.length})</span>
                 </span>
@@ -613,7 +666,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                           <div
                             key={product.id}
                             className={`overflow-hidden transition hover:-translate-y-0.5 ${radiusClass}`}
-                            style={{ border: `1px solid ${borderTint}` }}
+                            style={{ border: `1px solid ${contentBorderTint}` }}
                           >
                             {product.image_url && (
                               <img
@@ -633,38 +686,75 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                                   {formatPrice(product.price, profile.currency)}
                                 </p>
                               )}
-                              {/* Full-width, stacked CTAs — the old side-by-side
-                                  tiny icon buttons were cramped on a phone-width
-                                  half-grid card; a real tap target beats a
-                                  compact one here. */}
-                              <div className="flex flex-col gap-1.5 mt-2.5">
-                                {product.landing_url && (
-                                  <a
-                                    href={product.landing_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={() =>
-                                      logClick("product", product.id, {
-                                        name: product.name,
-                                        price: product.price ? Number(product.price) : null,
-                                        currency: profile.currency,
-                                      })
-                                    }
-                                    className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 transition hover:brightness-95 active:scale-[0.97] ${radiusClass}`}
-                                    style={{ border: `1px solid ${borderTint}` }}
-                                  >
-                                    <ExternalLink size={12} />
-                                    {t.profilePage.viewDetails}
-                                  </a>
-                                )}
-                                <WhatsAppButton
-                                  number={profile.whatsapp_number}
-                                  message={product.whatsapp_message || `Hi, I'm interested in ${product.name}`}
-                                  radiusClass={radiusClass}
-                                  buttonStyle={linkButtonStyle}
-                                  onClick={() => logClick("whatsapp", product.id, { name: product.name })}
-                                />
-                              </div>
+                              {isMusic ? (
+                                // One consolidated CTA, matching the reference
+                                // design — buys straight through the landing
+                                // link when there is one, otherwise falls back
+                                // to the same WhatsApp hand-off every other
+                                // "Buy" action on Ringo Connect already uses.
+                                (() => {
+                                  const cleanNumber = (profile.whatsapp_number || "").replace(/[^0-9]/g, "");
+                                  const waHref = cleanNumber
+                                    ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(
+                                        product.whatsapp_message || `Hi, I'm interested in ${product.name}`
+                                      )}`
+                                    : undefined;
+                                  const href = product.landing_url || waHref;
+                                  if (!href) return null;
+                                  return (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() =>
+                                        logClick(product.landing_url ? "product" : "whatsapp", product.id, {
+                                          name: product.name,
+                                          price: product.price ? Number(product.price) : null,
+                                          currency: profile.currency,
+                                        })
+                                      }
+                                      className="flex items-center justify-center gap-1.5 text-xs font-semibold py-2 mt-2.5 rounded-full transition hover:brightness-95 active:scale-[0.97]"
+                                      style={{ backgroundColor: accent, color: "#171009" }}
+                                    >
+                                      <ShoppingCart size={13} />
+                                      {t.music.buyNowLabel}
+                                    </a>
+                                  );
+                                })()
+                              ) : (
+                                // Full-width, stacked CTAs — the old side-by-side
+                                // tiny icon buttons were cramped on a phone-width
+                                // half-grid card; a real tap target beats a
+                                // compact one here.
+                                <div className="flex flex-col gap-1.5 mt-2.5">
+                                  {product.landing_url && (
+                                    <a
+                                      href={product.landing_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() =>
+                                        logClick("product", product.id, {
+                                          name: product.name,
+                                          price: product.price ? Number(product.price) : null,
+                                          currency: profile.currency,
+                                        })
+                                      }
+                                      className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 transition hover:brightness-95 active:scale-[0.97] ${radiusClass}`}
+                                      style={{ border: `1px solid ${borderTint}` }}
+                                    >
+                                      <ExternalLink size={12} />
+                                      {t.profilePage.viewDetails}
+                                    </a>
+                                  )}
+                                  <WhatsAppButton
+                                    number={profile.whatsapp_number}
+                                    message={product.whatsapp_message || `Hi, I'm interested in ${product.name}`}
+                                    radiusClass={radiusClass}
+                                    buttonStyle={linkButtonStyle}
+                                    onClick={() => logClick("whatsapp", product.id, { name: product.name })}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -681,8 +771,6 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               events={musicEvents}
               accent={accent}
               buttonStyle={linkButtonStyle}
-              radiusClass={radiusClass}
-              borderTint={borderTint}
               whatsappNumber={profile.whatsapp_number}
             />
           )}
@@ -693,10 +781,10 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               locale={locale}
               whatsappNumber={profile.whatsapp_number}
               accent={accent}
-              textColor={textColor}
+              textColor={contentTextColor}
               buttonStyle={linkButtonStyle}
               radiusClass={radiusClass}
-              borderTint={borderTint}
+              borderTint={contentBorderTint}
             />
           )}
         </div>

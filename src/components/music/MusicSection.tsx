@@ -1,30 +1,38 @@
 "use client";
 
-import { Play, Pause, ExternalLink } from "lucide-react";
+import { Music, Play, Pause, ExternalLink } from "lucide-react";
 import { hexToRgba } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import EqualizerBars from "./EqualizerBars";
 
+// Fixed near-black "player card" — deliberately not theme-driven (unlike
+// the rest of the page, which respects the creator's own colors): this is
+// what gives Latest Music its own visual identity sitting inside the
+// lighter content area, matching the reference design's dark
+// "now playing" treatment regardless of which accent color is chosen.
+const CARD_BG = "#171009";
+const CARD_TEXT = "#F5EFE4";
+
 // "Latest Music" / "Latest Beats" — a handful of featured tracks, not a
 // streaming player. Play either toggles the creator's own uploaded audio
 // file or, when there's no upload, opens wherever the track actually
-// lives (Spotify, YouTube, Audiomack…) in a new tab. playingId/onTogglePlay
-// come from useTrackPlayback, owned by ProfileView and shared with
-// PinnedSpotlight — one real <audio> element for the whole page, so a
-// pinned track and its entry here never play on top of each other.
+// lives (Spotify, YouTube, Audiomack…) in a new tab. playingId/progress/
+// onTogglePlay come from useTrackPlayback, owned by ProfileView and shared
+// with PinnedSpotlight — one real <audio> element for the whole page, so
+// a pinned track and its entry here never play on top of each other, and
+// the progress bar reflects real playback position, not a static prop.
 export default function MusicSection({
   t,
   title,
   tracks,
   artistName,
   accent,
-  radiusClass,
-  borderTint,
   currency,
   whatsappNumber,
   playingId,
+  progress,
   onTogglePlay,
 }: {
   t: Translations;
@@ -32,22 +40,22 @@ export default function MusicSection({
   tracks: any[];
   artistName: string;
   accent: string;
-  radiusClass: string;
-  borderTint: string;
   currency: string;
   whatsappNumber?: string | null;
   playingId: string | null;
+  progress: number;
   onTogglePlay: (track: any) => void;
 }) {
   if (tracks.length === 0) return null;
 
   return (
     <div id="music" className="flex flex-col gap-3 scroll-mt-6">
-      <p className="text-[11px] uppercase tracking-wider" style={{ opacity: 0.5 }}>
+      <p className="text-base font-bold flex items-center gap-2">
+        <Music size={17} style={{ color: accent }} />
         {title}
       </p>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-3">
         {tracks
           .sort((a, b) => a.sort_order - b.sort_order)
           .map((track) => {
@@ -56,20 +64,17 @@ export default function MusicSection({
             return (
               <div
                 key={track.id}
-                className={`flex items-center gap-3 p-3 transition ${radiusClass}`}
-                style={{
-                  border: `1px solid ${isPlaying ? accent : borderTint}`,
-                  backgroundColor: isPlaying ? hexToRgba(accent, 0.06) : "transparent",
-                }}
+                className="relative overflow-hidden rounded-2xl p-3 flex items-center gap-3"
+                style={{ backgroundColor: CARD_BG, color: CARD_TEXT }}
               >
                 {track.cover_image_url ? (
-                  <img src={track.cover_image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                  <img src={track.cover_image_url} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
                 ) : (
                   <div
-                    className="w-14 h-14 rounded-lg shrink-0 flex items-center justify-center"
-                    style={{ backgroundColor: hexToRgba(accent, 0.12) }}
+                    className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center"
+                    style={{ backgroundColor: hexToRgba(accent, 0.18) }}
                   >
-                    <Play size={18} style={{ color: accent }} />
+                    <Music size={20} style={{ color: accent }} />
                   </div>
                 )}
 
@@ -78,23 +83,31 @@ export default function MusicSection({
                     {track.title}
                     {isPlaying && <EqualizerBars color={accent} />}
                   </p>
-                  <p className="text-xs truncate" style={{ opacity: 0.65 }}>
+                  <p className="text-xs truncate" style={{ opacity: 0.6 }}>
                     {track.artist_name || artistName}
                     {track.duration ? ` · ${track.duration}` : ""}
                   </p>
+                  {/* Real playback position when this is the playing track — not
+                      a decorative static bar. Sits empty (0%) otherwise. */}
+                  <div className="h-1 rounded-full mt-2 overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.15)" }}>
+                    <div
+                      className="h-full rounded-full transition-[width]"
+                      style={{ width: `${isPlaying ? Math.round(progress * 100) : 0}%`, backgroundColor: accent }}
+                    />
+                  </div>
                 </div>
 
                 {(track.audio_url || track.external_url) && (
                   <button
                     onClick={() => onTogglePlay(track)}
                     aria-label={isPlaying ? "Pause" : "Play"}
-                    className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition active:scale-90"
-                    style={{ backgroundColor: accent, color: "#fff" }}
+                    className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition active:scale-90 shadow-md"
+                    style={{ backgroundColor: accent, color: "#171009" }}
                   >
                     {track.audio_url ? (
-                      isPlaying ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />
+                      isPlaying ? <Pause size={17} /> : <Play size={17} className="ml-0.5" />
                     ) : (
-                      <ExternalLink size={14} />
+                      <ExternalLink size={15} />
                     )}
                   </button>
                 )}
@@ -105,8 +118,8 @@ export default function MusicSection({
                       href={track.buy_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="shrink-0 text-xs font-medium px-3 py-2 rounded-full"
-                      style={{ border: `1.5px solid ${accent}`, color: accent }}
+                      className="shrink-0 text-xs font-semibold px-3 py-2 rounded-full"
+                      style={{ backgroundColor: accent, color: "#171009" }}
                     >
                       {track.price ? formatPrice(track.price, currency) : t.music.buyLabel}
                     </a>
