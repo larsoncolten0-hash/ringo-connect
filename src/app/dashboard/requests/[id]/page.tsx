@@ -27,6 +27,8 @@ export default async function DashboardRequestDetailPage({ params }: { params: {
   const { data: plans } = await admin.from("plans").select("*").order("price_usd", { ascending: true });
   const { data: addons } = await admin.from("addons").select("*").order("sort_order", { ascending: true });
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com";
+
   return (
     <RequestReview
       request={signupRequest}
@@ -36,6 +38,7 @@ export default async function DashboardRequestDetailPage({ params }: { params: {
       canDelete={reviewer.isAdmin}
       canReject={reviewer.isAdmin}
       canCharge={reviewer.isAdmin}
+      siteUrl={siteUrl}
     />
   );
 }

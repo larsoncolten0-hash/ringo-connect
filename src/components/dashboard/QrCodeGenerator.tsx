@@ -1,16 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
 import { Download, ImageOff, Link as LinkIcon, QrCode as QrCodeIcon } from "lucide-react";
+import { drawQrCodeWithLogo, downloadCanvas } from "@/lib/qrCode";
 
 type Customer = { username: string; name: string | null };
-
-// Ringo Connect's own mark, drawn centered over the finished code. The QR
-// is generated at error-correction level "H" (recovers ~30% of the
-// symbol) specifically so this overlay — well under that budget — doesn't
-// break scannability.
-const LOGO_SRC = "/logo.png";
 
 const SIZE_OPTIONS = [
   { label: "Small — 256 × 256", value: 256 },
@@ -55,46 +49,7 @@ export default function QrCodeGenerator({
     // plain QR render.
     const timer = setTimeout(async () => {
       try {
-        await QRCode.toCanvas(canvas, target, {
-          width: size,
-          margin: 2,
-          errorCorrectionLevel: "H",
-          color: { dark: "#1c1c28ff", light: "#ffffffff" },
-        });
-        if (cancelled) return;
-
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const logo = new Image();
-          await new Promise<void>((resolve, reject) => {
-            logo.onload = () => resolve();
-            logo.onerror = () => reject(new Error("Logo failed to load"));
-            logo.src = LOGO_SRC;
-          });
-          if (cancelled) return;
-
-          // Plate covers ~7% of the code's area (26% of a side) — well
-          // inside the ~30% level-H can recover, so the logo never makes
-          // the code unscannable.
-          const plate = size * 0.26;
-          const plateX = (size - plate) / 2;
-          const plateY = (size - plate) / 2;
-          const r = plate * 0.18;
-
-          ctx.fillStyle = "#ffffff";
-          ctx.beginPath();
-          ctx.moveTo(plateX + r, plateY);
-          ctx.arcTo(plateX + plate, plateY, plateX + plate, plateY + plate, r);
-          ctx.arcTo(plateX + plate, plateY + plate, plateX, plateY + plate, r);
-          ctx.arcTo(plateX, plateY + plate, plateX, plateY, r);
-          ctx.arcTo(plateX, plateY, plateX + plate, plateY, r);
-          ctx.closePath();
-          ctx.fill();
-
-          const logoSize = plate * 0.78;
-          ctx.drawImage(logo, (size - logoSize) / 2, (size - logoSize) / 2, logoSize, logoSize);
-        }
-
+        await drawQrCodeWithLogo(canvas, target, size);
         if (!cancelled) setStatus("ready");
       } catch {
         if (!cancelled) setStatus("error");
@@ -110,21 +65,7 @@ export default function QrCodeGenerator({
   const download = (format: "png" | "jpeg") => {
     const canvas = canvasRef.current;
     if (!canvas || status !== "ready") return;
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return;
-        const a = document.createElement("a");
-        const base = selectedUsername || "ringo-connect";
-        a.href = URL.createObjectURL(blob);
-        a.download = `${base}-qr.${format === "jpeg" ? "jpg" : "png"}`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      },
-      format === "png" ? "image/png" : "image/jpeg",
-      0.95
-    );
+    downloadCanvas(canvas, `${selectedUsername || "ringo-connect"}-qr`, format);
   };
 
   return (
