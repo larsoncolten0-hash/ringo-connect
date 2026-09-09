@@ -118,6 +118,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
       ...(requestCategoryDefaults?.defaults.whatsappMessage
         ? { default_whatsapp_message: requestCategoryDefaults.defaults.whatsappMessage.en }
         : {}),
+      // Same reasoning as /auth/confirm: Music & Entertainment's curated
+      // theme is only auto-applied here because this profile was created
+      // moments ago and has no theme of its own to overwrite yet.
+      ...(requestCategoryDefaults?.defaults.recommendedTheme
+        ? {
+            theme_color: requestCategoryDefaults.defaults.recommendedTheme.themeColor,
+            background_style: requestCategoryDefaults.defaults.recommendedTheme.backgroundStyle,
+            background_color: requestCategoryDefaults.defaults.recommendedTheme.backgroundColor,
+            background_gradient_end: requestCategoryDefaults.defaults.recommendedTheme.backgroundGradientEnd,
+            text_color: requestCategoryDefaults.defaults.recommendedTheme.textColor,
+            button_style: requestCategoryDefaults.defaults.recommendedTheme.buttonStyle,
+            button_radius: requestCategoryDefaults.defaults.recommendedTheme.buttonRadius,
+          }
+        : {}),
     })
     .eq("user_id", newUserId);
 

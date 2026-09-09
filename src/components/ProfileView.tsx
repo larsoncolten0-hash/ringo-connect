@@ -5,7 +5,7 @@ import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
 import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, Mail, Phone, Clock } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
-import { getCategory } from "@/lib/categories";
+import { getCategory, getMusicRole, profileHasCategory } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { getButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
@@ -15,6 +15,10 @@ import WhatsAppButton from "./WhatsAppButton";
 import CallButton from "./CallButton";
 import SaveContactButton from "./SaveContactButton";
 import SocialIcon from "./SocialIcon";
+import ArtistHubNav from "./music/ArtistHubNav";
+import MusicSection from "./music/MusicSection";
+import EventsSection from "./music/EventsSection";
+import SupportArtistSection from "./music/SupportArtistSection";
 
 export default function ProfileView({
   profile,
@@ -36,6 +40,11 @@ export default function ProfileView({
   const [copied, setCopied] = useState(false);
   const [showCatalog, setShowCatalog] = useState(true);
   const catalogLabel = getCategory(profile.category)?.defaults.catalogLabel?.[locale] || t.profilePage.catalogHeading;
+  const isMusic = profileHasCategory(profile, "music_entertainment");
+  const musicTracks: any[] = profile.tracks || [];
+  const musicEvents: any[] = profile.events || [];
+  const musicSectionTitle = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.tracksTitleFallback;
+  const supportEnabled = isMusic && profile.hub_support_enabled !== false && !!profile.whatsapp_number;
 
   // Populated client-side only (cookies aren't readable during SSR) —
   // the Meta/TikTok Pixel scripts below stay unrendered until this is
@@ -480,6 +489,36 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             );
           })()}
 
+          {isMusic && (
+            <ArtistHubNav
+              t={t}
+              accent={accent}
+              borderTint={borderTint}
+              radiusClass={radiusClass}
+              musicLabel={musicSectionTitle}
+              merchLabel={catalogLabel}
+              showMusic={musicTracks.length > 0}
+              showMerch={(profile.products?.length || 0) > 0}
+              showTickets={musicEvents.length > 0}
+              showSupport={supportEnabled}
+            />
+          )}
+
+          {isMusic && (
+            <MusicSection
+              t={t}
+              title={musicSectionTitle}
+              tracks={musicTracks}
+              artistName={profile.name || ""}
+              accent={accent}
+              textColor={textColor}
+              radiusClass={radiusClass}
+              borderTint={borderTint}
+              currency={profile.currency || "USD"}
+              whatsappNumber={profile.whatsapp_number}
+            />
+          )}
+
           {profile.links?.length > 0 && (
             <div className="flex flex-col gap-3">
               <p className="text-[11px] uppercase tracking-wider" style={{ opacity: 0.5 }}>
@@ -515,7 +554,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           )}
 
           {profile.products?.length > 0 && (
-            <div className="flex flex-col gap-3">
+            <div id="merch" className="flex flex-col gap-3 scroll-mt-6">
               <button
                 onClick={() => setShowCatalog((v) => !v)}
                 className={`flex items-center justify-between p-3.5 transition active:scale-[0.98] ${radiusClass}`}
@@ -612,6 +651,31 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                 )}
               </AnimatePresence>
             </div>
+          )}
+
+          {isMusic && (
+            <EventsSection
+              t={t}
+              events={musicEvents}
+              accent={accent}
+              buttonStyle={linkButtonStyle}
+              radiusClass={radiusClass}
+              borderTint={borderTint}
+              whatsappNumber={profile.whatsapp_number}
+            />
+          )}
+
+          {supportEnabled && (
+            <SupportArtistSection
+              t={t}
+              locale={locale}
+              whatsappNumber={profile.whatsapp_number}
+              accent={accent}
+              textColor={textColor}
+              buttonStyle={linkButtonStyle}
+              radiusClass={radiusClass}
+              borderTint={borderTint}
+            />
           )}
         </div>
 

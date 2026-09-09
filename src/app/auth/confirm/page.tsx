@@ -50,6 +50,7 @@ function ConfirmInner() {
         if (data.user && meta?.category && isCategoryId(meta.category)) {
           const category = getCategory(meta.category);
           const categories = sanitizeCategoryIds(meta.categories);
+          const theme = category?.defaults.recommendedTheme;
           await supabase
             .from("profiles")
             .update({
@@ -57,6 +58,23 @@ function ConfirmInner() {
               categories: categories.length ? categories : [meta.category],
               ...(category?.defaults.whatsappMessage
                 ? { default_whatsapp_message: category.defaults.whatsappMessage.en }
+                : {}),
+              // Music & Entertainment ships a curated look (warm gold on
+              // near-black, pill buttons) — applied automatically here for
+              // the same reason as the WhatsApp message above: a
+              // brand-new profile has nothing of its own to overwrite yet.
+              // Anywhere else this category gets picked from (CategoryCard,
+              // after signup), it's an explicit button press instead.
+              ...(theme
+                ? {
+                    theme_color: theme.themeColor,
+                    background_style: theme.backgroundStyle,
+                    background_color: theme.backgroundColor,
+                    background_gradient_end: theme.backgroundGradientEnd,
+                    text_color: theme.textColor,
+                    button_style: theme.buttonStyle,
+                    button_radius: theme.buttonRadius,
+                  }
                 : {}),
             })
             .eq("user_id", data.user.id);

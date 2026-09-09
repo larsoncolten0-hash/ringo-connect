@@ -12,19 +12,29 @@ export function createClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
+
         set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch {
+            // Server Components cannot modify cookies.
+          }
         },
+
         remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: "", ...options });
+          try {
+            cookieStore.set({ name, value: "", ...options });
+          } catch {
+            // Server Components cannot modify cookies.
+          }
         },
       },
     }
   );
 }
 
-// Admin-only client — bypasses RLS. Only ever import this in server code
-// that has already verified the caller is an admin (see /admin routes).
+// Admin-only client — bypasses RLS.
+// Only use this in server-side code that has already verified the caller is an admin.
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export function createAdminClient() {

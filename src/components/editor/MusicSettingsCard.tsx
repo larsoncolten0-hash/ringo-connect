@@ -29,7 +29,7 @@ export default function MusicSettingsCard({
   const { t, locale } = useLanguage();
   const [role, setRole] = useState<MusicRole | null>((initialRole as MusicRole) || null);
   const [supportEnabled, setSupportEnabled] = useState(initialSupportEnabled);
-  const [themeJustApplied, setThemeJustApplied] = useState(false);
+  const [applyingTheme, setApplyingTheme] = useState(false);
   const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
 
@@ -51,6 +51,7 @@ export default function MusicSettingsCard({
   const applyRecommendedTheme = async () => {
     const theme = getCategory("music_entertainment")?.defaults.recommendedTheme;
     if (!theme) return;
+    setApplyingTheme(true);
     const patch = {
       theme_color: theme.themeColor,
       background_style: theme.backgroundStyle,
@@ -60,10 +61,17 @@ export default function MusicSettingsCard({
       button_style: theme.buttonStyle,
       button_radius: theme.buttonRadius,
     };
-    updateDraft(patch);
     await supabase.from("profiles").update(patch).eq("id", profileId);
-    setThemeJustApplied(true);
-    pulse.show();
+    // ThemeCard seeds its own color/style state once at mount from the
+    // server-rendered profile, not from this shared draft — so without a
+    // reload it would keep showing the old selection even though the DB
+    // (and the live preview, via updateDraft) already reflect the new
+    // theme. A full reload is the simplest way to get ThemeCard's own
+    // controls to actually show what was just applied, and this is a
+    // deliberate, infrequent action rather than something worth building
+    // cross-card state sync for.
+    updateDraft(patch);
+    window.location.reload();
   };
 
   return (
@@ -112,11 +120,11 @@ export default function MusicSettingsCard({
           <p className="text-xs text-ringo-muted mt-1">{t.music.applyThemeHint}</p>
           <button
             onClick={applyRecommendedTheme}
-            className="text-xs font-medium text-ringo-indigo mt-2.5"
+            disabled={applyingTheme}
+            className="text-xs font-medium text-ringo-indigo mt-2.5 disabled:opacity-50"
           >
-            {t.music.applyTheme}
+            {applyingTheme ? t.music.applyingTheme : t.music.applyTheme}
           </button>
-          {themeJustApplied && <p className="text-xs text-ringo-teal mt-1.5">{t.music.themeApplied}</p>}
         </div>
       </div>
     </EditorCard>
