@@ -11,6 +11,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import QrCodeResult from "@/components/admin/QrCodeResult";
+import { getCategory } from "@/lib/categories";
 
 type UsernameStatus = "idle" | "checking" | "available" | "taken";
 type ChargeStatus = "idle" | "sending" | "pending" | "success" | "failed";
@@ -292,6 +293,12 @@ export default function RequestReview({
             {request.status}
           </span>
         </div>
+        {request.category && (
+          <p className="text-xs text-ringo-muted mb-1">
+            Category: {getCategory(request.category)?.emoji} {getCategory(request.category)?.label.en || request.category}
+            {(request.categories || []).length > 1 && ` (+${request.categories.length - 1} more)`}
+          </p>
+        )}
         {request.business_note && <p className="text-sm text-ringo-muted mb-1">"{request.business_note}"</p>}
         {request.delivery_location && (
           <p className="text-xs text-ringo-muted">Delivery location: {request.delivery_location}</p>

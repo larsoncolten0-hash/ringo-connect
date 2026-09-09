@@ -14,6 +14,11 @@ export const translations = {
       viewDetails: "View details",
     },
     getStarted: {
+      categoryTitle: "What's your page for?",
+      categorySubtitle: "Pick what best describes you — this personalizes your page's defaults. You can change it any time, and add more later.",
+      categoryMorePrompt: "+ Add more categories (optional)",
+      categoryMoreHint: "Your page fits more than one? Select as many as apply.",
+      categorySkip: "Skip — I'll choose later",
       pickPlanTitle: "Choose your plan",
       pickPlanSubtitle: "Tap the plan you want.",
       selectButton: "Choose this plan",
@@ -188,6 +193,14 @@ export const translations = {
       productWhatsappMessage: "Custom WhatsApp message (optional)",
       noProductsYet: "No products yet — add your first one.",
       untitledProduct: "Untitled product",
+      category: {
+        title: "Category",
+        hint: "Personalizes labels and defaults across your page — like renaming Catalog to Menu for a restaurant. Doesn't hide or lock anything.",
+        primaryLabel: "Primary category",
+        morePrompt: "+ Add more categories (optional)",
+        moreHint: "Your page fits more than one? Select as many as apply.",
+        noneSet: "No category set yet.",
+      },
       about: {
         title: "About",
         longBio: "Full description",
@@ -460,6 +473,11 @@ export const translations = {
       viewDetails: "Voir les détails",
     },
     getStarted: {
+      categoryTitle: "C'est pour quel genre d'activité ?",
+      categorySubtitle: "Choisissez ce qui vous correspond le mieux — cela personnalise les réglages par défaut de votre page. Vous pourrez changer d'avis à tout moment, et en ajouter d'autres plus tard.",
+      categoryMorePrompt: "+ Ajouter d'autres catégories (optionnel)",
+      categoryMoreHint: "Votre page correspond à plusieurs catégories ? Sélectionnez-en autant que nécessaire.",
+      categorySkip: "Passer — je choisirai plus tard",
       pickPlanTitle: "Choisissez votre offre",
       pickPlanSubtitle: "Appuyez sur l'offre que vous voulez.",
       selectButton: "Choisir cette offre",
@@ -634,6 +652,14 @@ export const translations = {
       productWhatsappMessage: "Message WhatsApp personnalisé (optionnel)",
       noProductsYet: "Aucun produit pour l'instant — ajoutez le premier.",
       untitledProduct: "Produit sans nom",
+      category: {
+        title: "Catégorie",
+        hint: "Personnalise les intitulés et réglages par défaut de votre page — par exemple, renommer Catalogue en Menu pour un restaurant. Ne masque ni ne verrouille rien.",
+        primaryLabel: "Catégorie principale",
+        morePrompt: "+ Ajouter d'autres catégories (optionnel)",
+        moreHint: "Votre page correspond à plusieurs catégories ? Sélectionnez-en autant que nécessaire.",
+        noneSet: "Aucune catégorie définie pour l'instant.",
+      },
       about: {
         title: "À propos",
         longBio: "Description complète",

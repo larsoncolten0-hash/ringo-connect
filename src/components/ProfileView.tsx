@@ -5,6 +5,7 @@ import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
 import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, Mail, Phone, Clock } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { getCategory } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { getButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
@@ -31,9 +32,10 @@ export default function ProfileView({
   // the dashboard's own URL, not the profile's).
   preview?: boolean;
 }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [copied, setCopied] = useState(false);
   const [showCatalog, setShowCatalog] = useState(true);
+  const catalogLabel = getCategory(profile.category)?.defaults.catalogLabel?.[locale] || t.profilePage.catalogHeading;
 
   // Populated client-side only (cookies aren't readable during SSR) —
   // the Meta/TikTok Pixel scripts below stay unrendered until this is
@@ -524,7 +526,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               >
                 <span className="flex items-center gap-2 text-sm font-semibold">
                   <ShoppingBag size={16} style={{ color: accent }} />
-                  {t.profilePage.catalogHeading}
+                  {catalogLabel}
                   <span style={{ opacity: 0.5 }}>({profile.products.length})</span>
                 </span>
                 <ChevronDown

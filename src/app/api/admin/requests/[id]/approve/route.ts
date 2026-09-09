@@ -1,6 +1,7 @@
 import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus } from "@/lib/fapshi";
+import { getCategory, isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -93,6 +94,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // The signup trigger already created users + profiles rows (free plan,
   // username from metadata) — now fill in the rest from what was
   // submitted, and grant the actual chosen plan.
+  //
+  // The category picked on the /get-started form (see signupRequest.category)
+  // never made it into that trigger either — same reason as the self-serve
+  // /auth/signup path (see /auth/confirm) — so it's applied here instead,
+  // on a profile that was only just created, which is why overwriting
+  // default_whatsapp_message unconditionally is safe.
+  const requestCategory = isCategoryId(signupRequest.category) ? signupRequest.category : null;
+  const requestCategoryDefaults = requestCategory ? getCategory(requestCategory) : undefined;
   await adminClient
     .from("profiles")
     .update({
@@ -100,6 +109,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
       avatar_url: avatarUrl || null,
       whatsapp_number: whatsappNumber,
       about_long_bio: note || null,
+      ...(requestCategory
+        ? {
+            category: requestCategory,
+            categories: [requestCategory, ...sanitizeCategoryIds(signupRequest.categories).filter((c) => c !== requestCategory)],
+          }
+        : {}),
+      ...(requestCategoryDefaults?.defaults.whatsappMessage
+        ? { default_whatsapp_message: requestCategoryDefaults.defaults.whatsappMessage.en }
+        : {}),
     })
     .eq("user_id", newUserId);
 

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — this is the whole point of the
@@ -24,6 +25,8 @@ export async function POST(request: Request) {
       suggested_username: body.suggested_username || null,
       avatar_url: body.avatar_url || null,
       business_note: body.business_note || null,
+      category: isCategoryId(body.category) ? body.category : null,
+      categories: sanitizeCategoryIds(body.categories),
       // 40 chars, not shorter — see the matching comment in src/lib/referral.ts.
       referral_code: typeof body.referral_code === "string" ? body.referral_code.trim().toUpperCase().slice(0, 40) || null : null,
       delivery_location: body.delivery_location || null,

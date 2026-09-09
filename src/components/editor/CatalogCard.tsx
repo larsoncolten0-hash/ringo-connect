@@ -6,6 +6,7 @@ import { Reorder } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { getCategory } from "@/lib/categories";
 import EditorCard from "./EditorCard";
 import ProductRow from "./ProductRow";
 import CurrencySelect from "./CurrencySelect";
@@ -27,14 +28,18 @@ export default function CatalogCard({
   initialCurrency: string;
 }) {
   const supabase = createClient();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [products, setProducts] = useState(
     [...initialProducts].sort((a, b) => a.sort_order - b.sort_order)
   );
   const [currency, setCurrency] = useState(initialCurrency || "USD");
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout>>();
-  const { updateDraft } = useEditorPreview();
+  const { draft, updateDraft } = useEditorPreview();
+  // Reads off the live draft (not a prop from the server-rendered profile)
+  // so picking a category in CategoryCard retitles this card immediately,
+  // the same way every other field here updates live before it's saved.
+  const title = getCategory(draft.category)?.defaults.catalogLabel?.[locale] || t.editor.catalog;
 
   const limitReached = maxProducts != null && products.length >= maxProducts;
 
@@ -95,7 +100,7 @@ export default function CatalogCard({
 
   if (catalogLocked) {
     return (
-      <EditorCard icon={ShoppingBag} title={t.editor.catalog}>
+      <EditorCard icon={ShoppingBag} title={title}>
         <div className="border border-dashed border-ringo-border rounded-card p-6 text-center text-sm text-ringo-muted flex flex-col items-center gap-3">
           {t.editor.catalogLocked}
           <Link href="/dashboard/subscription" className="text-xs font-medium text-ringo-indigo">
@@ -109,7 +114,7 @@ export default function CatalogCard({
   return (
     <EditorCard
       icon={ShoppingBag}
-      title={t.editor.catalog}
+      title={title}
       action={
         <>
           <CurrencySelect value={currency} onChange={changeCurrency} />

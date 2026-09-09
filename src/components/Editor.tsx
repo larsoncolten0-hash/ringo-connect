@@ -3,6 +3,7 @@
 import { ExternalLink } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ProfileHeaderCard from "@/components/editor/ProfileHeaderCard";
+import CategoryCard from "@/components/editor/CategoryCard";
 import ThemeCard from "@/components/editor/ThemeCard";
 import WhatsAppCard from "@/components/editor/WhatsAppCard";
 import SocialLinksCard from "@/components/editor/SocialLinksCard";
@@ -49,6 +50,12 @@ export default function Editor({
             initialCoverUrl={profile.cover_image_url}
             initialName={profile.name}
             initialBio={profile.bio}
+          />
+
+          <CategoryCard
+            profileId={profile.id}
+            initialCategory={profile.category}
+            initialCategories={profile.categories}
           />
 
           <ThemeCard
