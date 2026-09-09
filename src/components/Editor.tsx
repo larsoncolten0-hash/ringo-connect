@@ -6,6 +6,9 @@ import ProfileHeaderCard from "@/components/editor/ProfileHeaderCard";
 import CategoryCard from "@/components/editor/CategoryCard";
 import MusicSettingsCard from "@/components/editor/MusicSettingsCard";
 import PinnedSpotlightCard from "@/components/editor/PinnedSpotlightCard";
+import RestaurantSettingsCard from "@/components/editor/RestaurantSettingsCard";
+import MenuCard from "@/components/editor/MenuCard";
+import TablesCard from "@/components/editor/TablesCard";
 import ThemeCard from "@/components/editor/ThemeCard";
 import WhatsAppCard from "@/components/editor/WhatsAppCard";
 import SocialLinksCard from "@/components/editor/SocialLinksCard";
@@ -23,10 +26,12 @@ export default function Editor({
   profile,
   plan,
   userId,
+  siteUrl,
 }: {
   profile: any;
   plan: any;
   userId: string;
+  siteUrl: string;
 }) {
   return (
     // initialProfile seeds the live preview with exactly what's already
@@ -34,7 +39,7 @@ export default function Editor({
     // draft the moment they happen, so LivePreviewPanel always reflects
     // the current on-screen state, saved or not.
     <EditorPreviewProvider initialProfile={profile}>
-      <EditorCards profile={profile} plan={plan} userId={userId} />
+      <EditorCards profile={profile} plan={plan} userId={userId} siteUrl={siteUrl} />
     </EditorPreviewProvider>
   );
 }
@@ -45,11 +50,22 @@ export default function Editor({
 // Entertainment in CategoryCard needs the music-only cards below
 // (MusicSettingsCard, TracksCard, EventsCard) to appear immediately, not
 // only after a full page reload.
-function EditorCards({ profile, plan, userId }: { profile: any; plan: any; userId: string }) {
+function EditorCards({
+  profile,
+  plan,
+  userId,
+  siteUrl,
+}: {
+  profile: any;
+  plan: any;
+  userId: string;
+  siteUrl: string;
+}) {
   const { t } = useLanguage();
   const { draft } = useEditorPreview();
   const catalogLocked = plan?.max_products === 0;
   const isMusic = profileHasCategory(draft, "music_entertainment");
+  const isRestaurant = profileHasCategory(draft, "restaurant_food");
 
   return (
     <div className="max-w-6xl mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
@@ -83,6 +99,38 @@ function EditorCards({ profile, plan, userId }: { profile: any; plan: any; userI
             profileId={profile.id}
             initialRole={profile.music_role}
             initialSupportEnabled={profile.hub_support_enabled !== false}
+          />
+        )}
+
+        {isRestaurant && (
+          <RestaurantSettingsCard
+            profileId={profile.id}
+            initialSubcategory={profile.restaurant_subcategory}
+            initialOrderingEnabled={profile.ordering_enabled !== false}
+            initialDineIn={profile.dine_in_enabled !== false}
+            initialTakeaway={profile.takeaway_enabled !== false}
+            initialDelivery={!!profile.delivery_enabled}
+            initialDeliveryFee={profile.delivery_fee}
+            initialOpeningHours={profile.opening_hours}
+          />
+        )}
+
+        {isRestaurant && (
+          <MenuCard
+            profileId={profile.id}
+            userId={userId}
+            initialCategories={profile.menu_categories || []}
+            initialItems={profile.menu_items || []}
+            currency={profile.currency || "USD"}
+          />
+        )}
+
+        {isRestaurant && (
+          <TablesCard
+            profileId={profile.id}
+            username={profile.username}
+            siteUrl={siteUrl}
+            initialTables={profile.restaurant_tables || []}
           />
         )}
 

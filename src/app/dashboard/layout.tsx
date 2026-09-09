@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
+import { profileHasCategory } from "@/lib/categories";
 
 // See src/app/admin/settings/page.tsx for why this matters — this layout
 // is what feeds the sidebar's plan badge, so a stale cache here could
@@ -27,7 +28,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, avatar_url")
+    .select("username, avatar_url, category, categories")
     .eq("user_id", user.id)
     .single();
 
@@ -41,6 +42,7 @@ export default async function DashboardLayout({
       planName={planName}
       isFreePlan={planName === "free"}
       canApproveRequests={userRow?.role === "admin" || !!userRow?.can_approve_requests}
+      isRestaurant={profileHasCategory(profile, "restaurant_food")}
     >
       {children}
     </DashboardShell>

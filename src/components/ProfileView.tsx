@@ -20,6 +20,9 @@ import EventsSection from "./music/EventsSection";
 import SupportArtistSection from "./music/SupportArtistSection";
 import PinnedSpotlight from "./music/PinnedSpotlight";
 import { useTrackPlayback } from "./music/useTrackPlayback";
+import RestaurantHeroButtons from "./restaurant/RestaurantHeroButtons";
+import FeaturedMenuSection from "./restaurant/FeaturedMenuSection";
+import OpeningHoursRow from "./restaurant/OpeningHoursRow";
 
 export default function ProfileView({
   profile,
@@ -42,6 +45,8 @@ export default function ProfileView({
   const [showCatalog, setShowCatalog] = useState(true);
   const catalogLabel = getCategory(profile.category)?.defaults.catalogLabel?.[locale] || t.profilePage.catalogHeading;
   const isMusic = profileHasCategory(profile, "music_entertainment");
+  const isRestaurant = profileHasCategory(profile, "restaurant_food");
+  const menuItems: any[] = profile.menu_items || [];
   const musicTracks: any[] = profile.tracks || [];
   const musicEvents: any[] = profile.events || [];
   const musicSectionTitle = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.tracksTitleFallback;
@@ -358,7 +363,16 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           </p>
         )}
 
-        {profile.whatsapp_number && (
+        {isRestaurant ? (
+          <RestaurantHeroButtons
+            t={t}
+            username={profile.username}
+            whatsappNumber={profile.whatsapp_number}
+            aboutLocation={profile.about_location}
+            accent={accent}
+          />
+        ) : (
+          profile.whatsapp_number && (
           <div
             className={
               isMusic
@@ -412,6 +426,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               </>
             )}
           </div>
+          )
         )}
 
         {profile.social_links?.length > 0 && (
@@ -446,6 +461,29 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               whatsappNumber={profile.whatsapp_number}
               playingId={playingId}
               onTogglePlay={togglePlay}
+            />
+          )}
+
+          {isRestaurant && (
+            <FeaturedMenuSection
+              t={t}
+              username={profile.username}
+              items={menuItems}
+              currency={profile.currency || "USD"}
+              accent={accent}
+              radiusClass={radiusClass}
+              borderTint={contentBorderTint}
+            />
+          )}
+
+          {isRestaurant && (
+            <OpeningHoursRow
+              t={t}
+              locale={locale}
+              hours={profile.opening_hours}
+              accent={accent}
+              radiusClass={radiusClass}
+              borderTint={contentBorderTint}
             />
           )}
 

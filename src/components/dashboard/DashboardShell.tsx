@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
@@ -17,6 +17,7 @@ export default function DashboardShell({
   planName,
   isFreePlan,
   canApproveRequests = false,
+  isRestaurant = false,
   children,
 }: {
   email: string;
@@ -28,6 +29,11 @@ export default function DashboardShell({
   // ability to review signup requests. See src/lib/assertAdmin.ts
   // (assertCanApproveRequests) and src/app/dashboard/requests/.
   canApproveRequests?: boolean;
+  // One nav entry, not five — Orders/Kitchen/Tables/Sales/Customers live
+  // behind it as tabs in /dashboard/restaurant's own layout, so the global
+  // nav (and the space-constrained mobile tab bar) doesn't have to grow a
+  // whole category's worth of pages for every restaurant owner.
+  isRestaurant?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -35,6 +41,7 @@ export default function DashboardShell({
 
   const NAV_ITEMS = [
     { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true },
+    ...(isRestaurant ? [{ href: "/dashboard/restaurant", label: t.nav.restaurant, icon: UtensilsCrossed }] : []),
     { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3 },
     { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake },
     { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard },

@@ -140,10 +140,27 @@ export const CATEGORIES: Category[] = [
       fr: "Restaurants, fast-food, cafés, pâtisseries, traiteurs, bars…",
     },
     defaults: {
-      catalogLabel: { en: "Menu", fr: "Menu" },
+      // Catalog/products is for anything OUTSIDE the real digital menu now
+      // (restaurant_food gets its own menu_categories/menu_items system —
+      // see RestaurantMenuCard) — same reasoning as music_entertainment's
+      // catalogLabel becoming "Merch" once tracks got their own section.
+      catalogLabel: { en: "Shop", fr: "Boutique" },
       whatsappMessage: {
         en: "Hi! I'd like to place an order.",
         fr: "Salut ! Je voudrais passer une commande.",
+      },
+      // Clean white/near-white with a fresh green accent and pill buttons
+      // — matches the reference design this category's public page and
+      // ordering flow were built from. Same "applied once at signup,
+      // otherwise an explicit button in the dashboard" rule as music's.
+      recommendedTheme: {
+        themeColor: "#1F9D55",
+        backgroundStyle: "solid",
+        backgroundColor: "#FFFFFF",
+        backgroundGradientEnd: null,
+        textColor: "#14202B",
+        buttonStyle: "fill",
+        buttonRadius: "pill",
       },
       notePlaceholder: {
         en: "e.g. Home-cooked meals delivered in Douala",
@@ -468,4 +485,39 @@ export function getMusicRole(id?: string | null): MusicRoleOption | undefined {
 
 export function isMusicRole(id: unknown): id is MusicRole {
   return typeof id === "string" && MUSIC_ROLES.some((r) => r.id === id);
+}
+
+// Sub-type within Restaurant & Food — same purely-cosmetic role as
+// MusicRole (retitles the category badge on the public page); also stored
+// as-is in profiles.restaurant_subcategory, with a matching CHECK
+// constraint in 2026-09-15_restaurant_food.sql — keep the two in sync.
+export type RestaurantSubcategory =
+  | "restaurant"
+  | "fast_food"
+  | "cafe"
+  | "bakery"
+  | "catering"
+  | "food_vendor"
+  | "bar_lounge"
+  | "other";
+
+export interface RestaurantSubcategoryOption {
+  id: RestaurantSubcategory;
+  emoji: string;
+  label: Bilingual;
+}
+
+export const RESTAURANT_SUBCATEGORIES: RestaurantSubcategoryOption[] = [
+  { id: "restaurant", emoji: "🍽️", label: { en: "Restaurant", fr: "Restaurant" } },
+  { id: "fast_food", emoji: "🍔", label: { en: "Fast Food", fr: "Fast-food" } },
+  { id: "cafe", emoji: "☕", label: { en: "Café", fr: "Café" } },
+  { id: "bakery", emoji: "🥐", label: { en: "Bakery", fr: "Boulangerie" } },
+  { id: "catering", emoji: "🍱", label: { en: "Catering", fr: "Traiteur" } },
+  { id: "food_vendor", emoji: "🛒", label: { en: "Food Vendor", fr: "Vendeur alimentaire" } },
+  { id: "bar_lounge", emoji: "🍹", label: { en: "Bar / Lounge", fr: "Bar / Lounge" } },
+  { id: "other", emoji: "✨", label: { en: "Other Food Business", fr: "Autre activité alimentaire" } },
+];
+
+export function getRestaurantSubcategory(id?: string | null): RestaurantSubcategoryOption | undefined {
+  return RESTAURANT_SUBCATEGORIES.find((r) => r.id === id);
 }
