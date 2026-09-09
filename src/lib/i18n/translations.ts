@@ -130,6 +130,7 @@ export const translations = {
       affiliate: "Affiliate",
       subscription: "Subscription",
       requests: "Requests",
+      qrCode: "QR code",
     },
     account: {
       viewPage: "View your page",
@@ -575,6 +576,7 @@ export const translations = {
       affiliate: "Affiliation",
       subscription: "Abonnement",
       requests: "Demandes",
+      qrCode: "Code QR",
     },
     account: {
       viewPage: "Voir votre page",

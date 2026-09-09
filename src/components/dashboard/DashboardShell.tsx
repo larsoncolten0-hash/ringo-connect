@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
@@ -39,7 +39,10 @@ export default function DashboardShell({
     { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake },
     { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard },
     ...(canApproveRequests
-      ? [{ href: "/dashboard/requests", label: t.nav.requests, icon: ClipboardCheck }]
+      ? [
+          { href: "/dashboard/requests", label: t.nav.requests, icon: ClipboardCheck },
+          { href: "/dashboard/qr-code", label: t.nav.qrCode, icon: QrCode },
+        ]
       : []),
   ];
 
