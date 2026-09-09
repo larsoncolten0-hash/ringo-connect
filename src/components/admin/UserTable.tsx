@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Users } from "lucide-react";
+import { Search, Users, BadgeCheck } from "lucide-react";
 
 export default function UserTable({ users, plans }: { users: any[]; plans: any[] }) {
   const router = useRouter();
@@ -19,6 +19,27 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
     if (!res.ok) {
       // Revert on failure rather than leaving the UI showing a change
       // that didn't actually save.
+      setRows(users);
+    } else {
+      router.refresh();
+    }
+  };
+
+  // Separate from `patch` — verified lives on the nested profiles row, not
+  // the top-level user row, so the optimistic local update has to merge
+  // into a different place even though it hits the same PATCH endpoint
+  // (see /api/admin/users/[id], which special-cases the `verified` key).
+  const toggleVerified = async (u: any) => {
+    const current = !!u.profiles?.[0]?.verified;
+    setRows((prev) =>
+      prev.map((r) => (r.id === u.id ? { ...r, profiles: [{ ...r.profiles?.[0], verified: !current }] } : r))
+    );
+    const res = await fetch(`/api/admin/users/${u.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ verified: !current }),
+    });
+    if (!res.ok) {
       setRows(users);
     } else {
       router.refresh();
@@ -74,6 +95,7 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
                   <th className="font-normal">Plan</th>
                   <th className="font-normal">Status</th>
                   <th className="font-normal">Requests access</th>
+                  <th className="font-normal">Verified</th>
                   <th className="font-normal">Joined</th>
                   <th className="font-normal text-right px-4">Actions</th>
                 </tr>
@@ -137,6 +159,21 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
                             {u.can_approve_requests ? "Super creator" : "Grant access"}
                           </button>
                         )}
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => toggleVerified(u)}
+                          disabled={!username}
+                          title={username ? "Toggle the verified badge on this creator's public page" : "No page yet"}
+                          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium border transition-colors disabled:opacity-40 ${
+                            u.profiles?.[0]?.verified
+                              ? "border-blue-500/40 bg-blue-500/10 text-blue-500"
+                              : "border-ringo-border text-ringo-muted hover:text-ringo-text"
+                          }`}
+                        >
+                          <BadgeCheck size={12} />
+                          {u.profiles?.[0]?.verified ? "Verified" : "—"}
+                        </button>
                       </td>
                       <td className="text-ringo-muted">{new Date(u.created_at).toLocaleDateString("en-US")}</td>
                       <td className="text-right px-4">

@@ -43,6 +43,18 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(-4px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // Used throughout ProfileView.tsx (each element sets its own
+        // animation-delay inline to stagger the entrance) — added here
+        // because "animate-fade-up" had no matching keyframes/animation
+        // entry at all, so it was silently a no-op utility class.
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "eq-bar": {
+          "0%, 100%": { height: "4px" },
+          "50%": { height: "12px" },
+        },
       },
       animation: {
         "ring-pulse-1": "ring-pulse 3.2s ease-out infinite",
@@ -50,6 +62,8 @@ const config: Config = {
         "ring-pulse-3": "ring-pulse 3.2s ease-out 2.2s infinite",
         orbit: "orbit 14s linear infinite",
         "dropdown-in": "dropdown-in 150ms ease-out",
+        "fade-up": "fade-up 0.6s ease-out both",
+        "eq-bar": "eq-bar 0.9s ease-in-out infinite",
       },
     },
   },

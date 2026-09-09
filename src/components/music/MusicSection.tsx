@@ -1,67 +1,45 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { Play, Pause, ExternalLink } from "lucide-react";
 import { hexToRgba } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import EqualizerBars from "./EqualizerBars";
 
 // "Latest Music" / "Latest Beats" — a handful of featured tracks, not a
 // streaming player. Play either toggles the creator's own uploaded audio
-// file (a single shared <audio> element, so only one track plays at a
-// time) or, when there's no upload, opens wherever the track actually
-// lives (Spotify, YouTube, Audiomack…) in a new tab.
+// file or, when there's no upload, opens wherever the track actually
+// lives (Spotify, YouTube, Audiomack…) in a new tab. playingId/onTogglePlay
+// come from useTrackPlayback, owned by ProfileView and shared with
+// PinnedSpotlight — one real <audio> element for the whole page, so a
+// pinned track and its entry here never play on top of each other.
 export default function MusicSection({
   t,
   title,
   tracks,
   artistName,
   accent,
-  textColor,
   radiusClass,
   borderTint,
   currency,
   whatsappNumber,
+  playingId,
+  onTogglePlay,
 }: {
   t: Translations;
   title: string;
   tracks: any[];
   artistName: string;
   accent: string;
-  textColor: string;
   radiusClass: string;
   borderTint: string;
   currency: string;
   whatsappNumber?: string | null;
+  playingId: string | null;
+  onTogglePlay: (track: any) => void;
 }) {
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    return () => {
-      audioRef.current?.pause();
-    };
-  }, []);
-
   if (tracks.length === 0) return null;
-
-  const togglePlay = (track: any) => {
-    if (!track.audio_url) {
-      if (track.external_url) window.open(track.external_url, "_blank", "noopener,noreferrer");
-      return;
-    }
-    if (playingId === track.id) {
-      audioRef.current?.pause();
-      setPlayingId(null);
-      return;
-    }
-    if (!audioRef.current) audioRef.current = new Audio();
-    audioRef.current.src = track.audio_url;
-    audioRef.current.onended = () => setPlayingId(null);
-    audioRef.current.play().catch(() => setPlayingId(null));
-    setPlayingId(track.id);
-  };
 
   return (
     <div id="music" className="flex flex-col gap-3 scroll-mt-6">
@@ -78,8 +56,11 @@ export default function MusicSection({
             return (
               <div
                 key={track.id}
-                className={`flex items-center gap-3 p-3 ${radiusClass}`}
-                style={{ border: `1px solid ${borderTint}` }}
+                className={`flex items-center gap-3 p-3 transition ${radiusClass}`}
+                style={{
+                  border: `1px solid ${isPlaying ? accent : borderTint}`,
+                  backgroundColor: isPlaying ? hexToRgba(accent, 0.06) : "transparent",
+                }}
               >
                 {track.cover_image_url ? (
                   <img src={track.cover_image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
@@ -93,7 +74,10 @@ export default function MusicSection({
                 )}
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{track.title}</p>
+                  <p className="text-sm font-semibold truncate flex items-center gap-1.5">
+                    {track.title}
+                    {isPlaying && <EqualizerBars color={accent} />}
+                  </p>
                   <p className="text-xs truncate" style={{ opacity: 0.65 }}>
                     {track.artist_name || artistName}
                     {track.duration ? ` · ${track.duration}` : ""}
@@ -102,7 +86,7 @@ export default function MusicSection({
 
                 {(track.audio_url || track.external_url) && (
                   <button
-                    onClick={() => togglePlay(track)}
+                    onClick={() => onTogglePlay(track)}
                     aria-label={isPlaying ? "Pause" : "Play"}
                     className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition active:scale-90"
                     style={{ backgroundColor: accent, color: "#fff" }}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
-import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, Mail, Phone, Clock } from "lucide-react";
+import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, profileHasCategory } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
@@ -15,10 +15,11 @@ import WhatsAppButton from "./WhatsAppButton";
 import CallButton from "./CallButton";
 import SaveContactButton from "./SaveContactButton";
 import SocialIcon from "./SocialIcon";
-import ArtistHubNav from "./music/ArtistHubNav";
 import MusicSection from "./music/MusicSection";
 import EventsSection from "./music/EventsSection";
 import SupportArtistSection from "./music/SupportArtistSection";
+import PinnedSpotlight from "./music/PinnedSpotlight";
+import { useTrackPlayback } from "./music/useTrackPlayback";
 
 export default function ProfileView({
   profile,
@@ -45,6 +46,16 @@ export default function ProfileView({
   const musicEvents: any[] = profile.events || [];
   const musicSectionTitle = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.tracksTitleFallback;
   const supportEnabled = isMusic && profile.hub_support_enabled !== false && !!profile.whatsapp_number;
+  const { playingId, togglePlay } = useTrackPlayback();
+
+  // Resolved from whichever list actually matches pinned_type — never
+  // trusts pinned_id blindly, so a deleted item (or one that predates
+  // this feature and has stale/mismatched data) just quietly means no
+  // spotlight renders, instead of a crash.
+  const pinnedSource =
+    profile.pinned_type === "track" ? musicTracks : profile.pinned_type === "product" ? profile.products || [] : profile.pinned_type === "event" ? musicEvents : [];
+  const pinnedItem = isMusic && profile.pinned_id ? pinnedSource.find((x: any) => x.id === profile.pinned_id) : null;
+  const isVerified = !!profile.verified;
 
   // Populated client-side only (cookies aren't readable during SSR) —
   // the Meta/TikTok Pixel scripts below stay unrendered until this is
@@ -289,10 +300,20 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         </div>
 
         <h1
-          className="font-display text-2xl sm:text-3xl font-bold tracking-tight uppercase mt-3 text-center animate-fade-up"
+          className="font-display text-2xl sm:text-3xl font-bold tracking-tight uppercase mt-3 text-center animate-fade-up flex items-center gap-1.5"
           style={{ animationDelay: "80ms" }}
         >
           {firstName} {restName && <span style={{ color: accent }}>{restName}</span>}
+          {isVerified && (
+            <BadgeCheck
+              size={20}
+              className="shrink-0 -mt-0.5"
+              style={{ color: "#3B82F6", fill: "#3B82F6", stroke: bgColor }}
+              aria-label={t.profilePage.verifiedBadge}
+            >
+              <title>{t.profilePage.verifiedBadge}</title>
+            </BadgeCheck>
+          )}
         </h1>
 
         {profile.bio && (
@@ -363,6 +384,21 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         )}
 
         <div className="w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up" style={{ animationDelay: "340ms" }}>
+          {pinnedItem && (
+            <PinnedSpotlight
+              t={t}
+              type={profile.pinned_type}
+              item={pinnedItem}
+              artistName={profile.name || ""}
+              accent={accent}
+              buttonStyle={linkButtonStyle}
+              currency={profile.currency || "USD"}
+              whatsappNumber={profile.whatsapp_number}
+              playingId={playingId}
+              onTogglePlay={togglePlay}
+            />
+          )}
+
           {(() => {
             const hasRoleCard = profile.about_position || profile.about_company;
 
@@ -490,32 +526,18 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           })()}
 
           {isMusic && (
-            <ArtistHubNav
-              t={t}
-              accent={accent}
-              borderTint={borderTint}
-              radiusClass={radiusClass}
-              musicLabel={musicSectionTitle}
-              merchLabel={catalogLabel}
-              showMusic={musicTracks.length > 0}
-              showMerch={(profile.products?.length || 0) > 0}
-              showTickets={musicEvents.length > 0}
-              showSupport={supportEnabled}
-            />
-          )}
-
-          {isMusic && (
             <MusicSection
               t={t}
               title={musicSectionTitle}
               tracks={musicTracks}
               artistName={profile.name || ""}
               accent={accent}
-              textColor={textColor}
               radiusClass={radiusClass}
               borderTint={borderTint}
               currency={profile.currency || "USD"}
               whatsappNumber={profile.whatsapp_number}
+              playingId={playingId}
+              onTogglePlay={togglePlay}
             />
           )}
 

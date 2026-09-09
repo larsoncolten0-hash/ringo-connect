@@ -5,6 +5,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import ProfileHeaderCard from "@/components/editor/ProfileHeaderCard";
 import CategoryCard from "@/components/editor/CategoryCard";
 import MusicSettingsCard from "@/components/editor/MusicSettingsCard";
+import PinnedSpotlightCard from "@/components/editor/PinnedSpotlightCard";
 import ThemeCard from "@/components/editor/ThemeCard";
 import WhatsAppCard from "@/components/editor/WhatsAppCard";
 import SocialLinksCard from "@/components/editor/SocialLinksCard";
@@ -129,6 +130,14 @@ function EditorCards({ profile, plan, userId }: { profile: any; plan: any; userI
 
         {isMusic && (
           <EventsCard profileId={profile.id} userId={userId} initialEvents={profile.events || []} />
+        )}
+
+        {isMusic && (
+          <PinnedSpotlightCard
+            profileId={profile.id}
+            initialPinnedType={profile.pinned_type}
+            initialPinnedId={profile.pinned_id}
+          />
         )}
 
         <AboutCard
