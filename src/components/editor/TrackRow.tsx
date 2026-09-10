@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import ImageUploadField from "./ImageUploadField";
 import AudioUploadField from "./AudioUploadField";
 import ProtectedAudioUploadField from "./ProtectedAudioUploadField";
+import PreviewTrimField from "./PreviewTrimField";
 
 export default function TrackRow({
   track,
@@ -205,20 +206,6 @@ export default function TrackRow({
                     <p className="text-xs text-ringo-muted -mt-1">{t.music.sellAsPurchaseHint}</p>
 
                     <div>
-                      <p className="text-xs text-ringo-muted mb-1">{t.music.previewAudioLabel}</p>
-                      <AudioUploadField
-                        value={track.preview_audio_url}
-                        onChange={(url) => {
-                          onChange({ preview_audio_url: url });
-                          onPersist({ preview_audio_url: url });
-                        }}
-                        pathPrefix={`${audioPathPrefix}-preview`}
-                        maxDurationSeconds={10}
-                        label={{ upload: t.music.uploadPreview, replace: t.music.replaceAudio, remove: t.music.removeAudio }}
-                      />
-                    </div>
-
-                    <div>
                       <p className="text-xs text-ringo-muted mb-1">{t.music.protectedAudioLabel}</p>
                       <ProtectedAudioUploadField
                         value={track.protected_audio_path}
@@ -228,6 +215,33 @@ export default function TrackRow({
                         }}
                         pathPrefix={`${userId}/tracks-protected`}
                         label={{ upload: t.music.uploadProtected, remove: t.music.removeAudio, preview: t.music.previewButtonLabel, protected: t.music.protectedBadge }}
+                      />
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-ringo-muted mb-1">{t.music.previewAudioLabel}</p>
+                      <PreviewTrimField
+                        protectedPath={track.protected_audio_path}
+                        value={track.preview_audio_url}
+                        onChange={(url) => {
+                          onChange({ preview_audio_url: url });
+                          onPersist({ preview_audio_url: url });
+                        }}
+                        pathPrefix={`${audioPathPrefix}-preview`}
+                        label={{
+                          setPreview: t.music.setPreviewClip,
+                          change: t.music.changePreviewClip,
+                          remove: t.music.removeAudio,
+                          markStart: t.music.previewMarkStart,
+                          markEnd: t.music.previewMarkEnd,
+                          selection: t.music.previewSelection,
+                          noSelection: t.music.previewNoSelection,
+                          save: t.music.previewSaveClip,
+                          saving: t.music.previewSavingClip,
+                          uploadFirst: t.music.previewUploadFirst,
+                          loadFailed: t.music.previewLoadFailed,
+                          trimFailed: t.music.previewTrimFailed,
+                        }}
                       />
                     </div>
 
