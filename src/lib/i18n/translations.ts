@@ -426,6 +426,8 @@ export const translations = {
       navRestaurant: "Restaurant & Food",
       navNfc: "Ringo Card & QR",
       navPricing: "Pricing",
+      openMenu: "Open menu",
+      closeMenu: "Close menu",
 
       heroEyebrow: "Your digital identity, in one place",
       // Split in two so the hero can color "One Ringo." separately from
@@ -1337,6 +1339,8 @@ export const translations = {
       navRestaurant: "Restaurant & Alimentation",
       navNfc: "Carte Ringo & QR",
       navPricing: "Tarifs",
+      openMenu: "Ouvrir le menu",
+      closeMenu: "Fermer le menu",
 
       heroEyebrow: "Votre identité numérique, au même endroit",
       heroTitleLead: "Un seul Ringo.",

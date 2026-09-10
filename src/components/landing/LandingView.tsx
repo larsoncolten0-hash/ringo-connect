@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -23,7 +24,10 @@ import {
   Ticket,
   QrCode as QrCodeIcon,
   BarChart3,
+  Menu,
+  X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { FaWhatsapp } from "react-icons/fa6";
 import { useLanguage } from "@/components/LanguageProvider";
 import LanguageToggle from "@/components/LanguageToggle";
@@ -63,6 +67,7 @@ export default function LandingView({
   dashboardHref: string;
 }) {
   const { t } = useLanguage();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Every "get started"/"create your Ringo" CTA on this page funnels into
   // the assisted /get-started form (plan pick → info → optional payment),
@@ -99,14 +104,30 @@ export default function LandingView({
     { icon: BarChart3, title: t.landing.chipAnalytics, description: t.landing.connectionSubtitle, href: "#features", color: "#0EA5E9" },
   ];
 
+  // Flattened for the mobile menu — the rich hover dropdowns (NavDropdown)
+  // are a desktop interaction; a phone gets one simple, tappable list
+  // instead of trying to shrink those cards down.
+  const mobileNavLinks = [
+    { label: t.landing.navFeatures, href: "#features" },
+    { label: t.landing.navIndustries, href: "#industries" },
+    { label: t.landing.navRestaurant, href: "#restaurant" },
+    { label: t.landing.navNfc, href: "#nfc" },
+    { label: t.landing.navPricing, href: "/get-started" },
+  ];
+
   return (
     <div className="min-h-screen bg-ringo-bg text-ringo-text overflow-x-hidden">
       {/* ============ NAV ============ */}
-      <header className="sticky top-0 z-40 bg-ringo-bg/80 backdrop-blur-md border-b border-ringo-border">
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-5 py-4">
+      {/* Fixed rather than sticky — sticky can visually detach and appear
+          to "disappear" on scroll depending on ancestor stacking/overflow,
+          fixed pins it to the viewport unconditionally. The spacer div
+          right after (h-16) reserves the space fixed positioning takes
+          the header out of, so page content doesn't jump under it. */}
+      <header className="fixed top-0 inset-x-0 z-40 h-16 flex items-center bg-ringo-bg/80 backdrop-blur-md border-b border-ringo-border">
+        <div className="max-w-6xl mx-auto w-full flex items-center justify-between px-5">
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <Image src="/logo.png" alt="Ringo Connect" width={26} height={26} className="rounded-md" />
-            <span className="font-display font-medium text-ringo-text">Ringo Connect</span>
+            <span className="hidden sm:inline font-display font-medium text-ringo-text">Ringo Connect</span>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-7" aria-label="Main">
@@ -123,30 +144,83 @@ export default function LandingView({
             </Link>
           </nav>
 
-          <div className="flex items-center gap-1.5">
-            <LanguageToggle />
-            <ThemeToggle iconOnly />
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            {/* Language/theme toggles move into the mobile menu panel below
+                lg — keeps the phone header down to just what matters:
+                the nav toggle and the two account actions. */}
+            <div className="hidden lg:flex items-center gap-1.5">
+              <LanguageToggle />
+              <ThemeToggle iconOnly />
+            </div>
+
             {isLoggedIn ? (
               <Link
                 href={dashboardHref}
-                className="ml-1 flex items-center gap-1.5 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium"
+                className="lg:ml-1 flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium whitespace-nowrap"
               >
                 {t.landing.goToDashboard}
                 <ArrowRight size={14} />
               </Link>
             ) : (
               <>
-                <Link href="/auth/login" className="ml-1 px-3.5 py-2 rounded-card text-sm font-medium text-ringo-text hidden sm:inline-block">
+                <Link
+                  href="/auth/login"
+                  className="lg:ml-1 px-2.5 sm:px-3.5 py-2 rounded-card text-sm font-medium text-ringo-text hover:bg-ringo-muted/10 transition-colors whitespace-nowrap"
+                >
                   {t.landing.login}
                 </Link>
-                <Link href="/get-started" className="px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium">
+                <Link
+                  href="/get-started"
+                  className="px-3 sm:px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium whitespace-nowrap"
+                >
                   {t.landing.getStarted}
                 </Link>
               </>
             )}
+
+            {/* Mobile nav toggle — the dropdown panel below carries the
+                links that live in the desktop nav bar above. */}
+            <button
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label={mobileMenuOpen ? t.landing.closeMenu : t.landing.openMenu}
+              aria-expanded={mobileMenuOpen}
+              className="lg:hidden shrink-0 w-9 h-9 -mr-1 rounded-card flex items-center justify-center text-ringo-text hover:bg-ringo-muted/10 transition-colors"
+            >
+              {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
+            </button>
           </div>
         </div>
+
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.16 }}
+              className="lg:hidden absolute top-16 inset-x-0 max-h-[calc(100vh-4rem)] overflow-y-auto bg-ringo-bg border-b border-ringo-border shadow-[0_20px_40px_-16px_rgba(15,23,42,0.2)]"
+            >
+              <nav className="flex flex-col px-5 py-3" aria-label="Mobile">
+                {mobileNavLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="py-3 text-sm font-medium text-ringo-text border-b border-ringo-border/60 last:border-0"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+              <div className="flex items-center gap-1.5 px-5 pb-4">
+                <LanguageToggle />
+                <ThemeToggle iconOnly />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
+      <div className="h-16" aria-hidden />
 
       {/* ============ HERO ============ */}
       <section className="relative overflow-hidden">
