@@ -43,7 +43,7 @@ export default function IndustriesGrid() {
               <p className="text-sm text-ringo-muted leading-relaxed">{ind.body}</p>
             </div>
             <Link
-              href={ind.href || "/auth/signup"}
+              href={ind.href || "/get-started"}
               className="text-sm font-semibold flex items-center gap-1 mt-1 transition-transform group-hover:gap-2"
               style={{ color: ind.color }}
             >

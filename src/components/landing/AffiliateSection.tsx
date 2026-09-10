@@ -1,15 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowRight, Link2, Share2, Coins, Wallet } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
-// The real, existing affiliate system (/get-started-affiliate,
-// /dashboard/affiliate) — a referral link, a commission on referred
-// users' payments, and a Mobile Money payout. No commission rate is
-// quoted since it's admin-configurable and could change.
+// The real, existing affiliate system (/dashboard/affiliate) — a referral
+// link, a commission on referred users' payments, and a Mobile Money
+// payout. No commission rate is quoted since it's admin-configurable and
+// could change. The CTA goes straight to WhatsApp rather than the
+// self-serve /get-started-affiliate form — affiliate sign-ups are handled
+// personally for now.
 export default function AffiliateSection() {
   const { t } = useLanguage();
+  const whatsappHref = `https://wa.me/237694028846?text=${encodeURIComponent(
+    "Hi! I'd like to become a Ringo Connect affiliate."
+  )}`;
 
   const points = [
     { icon: Link2, text: t.landing.affiliatePointLink },
@@ -51,14 +55,16 @@ export default function AffiliateSection() {
           ))}
         </div>
 
-        <Link
-          href="/get-started-affiliate"
+        <a
+          href={whatsappHref}
+          target="_blank"
+          rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 px-6 py-3 rounded-full text-sm font-semibold transition-transform hover:-translate-y-0.5"
           style={{ backgroundColor: "#F2B705", color: "#171009" }}
         >
           {t.landing.affiliateCta}
           <ArrowRight size={14} />
-        </Link>
+        </a>
       </div>
     </div>
   );

@@ -64,7 +64,14 @@ export default function LandingView({
 }) {
   const { t } = useLanguage();
 
-  const primaryHref = isLoggedIn ? dashboardHref : "/auth/signup";
+  // Every "get started"/"create your Ringo" CTA on this page funnels into
+  // the assisted /get-started form (plan pick → info → optional payment),
+  // not straight to self-serve /auth/signup — that's still reachable from
+  // "Log in" → "sign up" for anyone who lands there directly.
+  const primaryHref = isLoggedIn ? dashboardHref : "/get-started";
+  const affiliateWhatsappHref = `https://wa.me/237694028846?text=${encodeURIComponent(
+    "Hi! I'd like to become a Ringo Connect affiliate."
+  )}`;
   const primaryLabel = isLoggedIn ? t.landing.goToDashboard : t.landing.heroCtaPrimary;
 
   // A small colored dot + tracked label — not a filled pill. The
@@ -132,7 +139,7 @@ export default function LandingView({
                 <Link href="/auth/login" className="ml-1 px-3.5 py-2 rounded-card text-sm font-medium text-ringo-text hidden sm:inline-block">
                   {t.landing.login}
                 </Link>
-                <Link href="/auth/signup" className="px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium">
+                <Link href="/get-started" className="px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium">
                   {t.landing.getStarted}
                 </Link>
               </>
@@ -243,7 +250,7 @@ export default function LandingView({
               ))}
             </ul>
             <Link
-              href="/auth/signup"
+              href="/get-started"
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-white px-6 py-3 rounded-full shadow-[0_12px_28px_-8px_rgba(31,157,85,0.45)] transition-all hover:-translate-y-0.5"
               style={{ backgroundColor: "#1F9D55" }}
             >
@@ -440,7 +447,7 @@ export default function LandingView({
               <a href="#features" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.navFeatures}</a>
               <Link href="/get-started" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.navPricing}</Link>
               <a href="#nfc" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.navNfc}</a>
-              <Link href="/get-started-affiliate" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.footerAffiliate}</Link>
+              <a href={affiliateWhatsappHref} target="_blank" rel="noopener noreferrer" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.footerAffiliate}</a>
             </div>
           </div>
 
