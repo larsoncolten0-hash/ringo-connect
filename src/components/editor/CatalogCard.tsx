@@ -11,6 +11,7 @@ import EditorCard from "./EditorCard";
 import EmptyState from "./EmptyState";
 import ProductRow from "./ProductRow";
 import CurrencySelect from "./CurrencySelect";
+import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
 
 export default function CatalogCard({
@@ -36,6 +37,7 @@ export default function CatalogCard({
   const [currency, setCurrency] = useState(initialCurrency || "USD");
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout>>();
+  const pulse = useSavedPulse();
   const { draft, updateDraft } = useEditorPreview();
   // Reads off the live draft (not a prop from the server-rendered profile)
   // so picking a category in CategoryCard retitles this card immediately,
@@ -73,8 +75,31 @@ export default function CatalogCard({
     });
   };
 
-  const persistProduct = async (id: string, patch: any) => {
-    await supabase.from("products").update(patch).eq("id", id);
+  // The one explicit save for every product's fields at once — mirrors
+  // WhatsAppCard: typing/uploading only updates local state (and the live
+  // preview) above, nothing reaches Supabase until this is clicked. Adding,
+  // deleting, and reordering products stay immediate since those are
+  // structural actions, not field edits.
+  const saveAll = async () => {
+    await Promise.all(
+      products.map((p) =>
+        supabase
+          .from("products")
+          .update({
+            name: p.name,
+            price: p.price === "" || p.price == null ? null : p.price,
+            description: p.description,
+            image_url: p.image_url,
+            image_urls: p.image_urls,
+            landing_url: p.landing_url,
+            whatsapp_message: p.whatsapp_message,
+            available: p.available !== false,
+            inventory_count: p.inventory_count === "" || p.inventory_count == null ? null : Number(p.inventory_count),
+          })
+          .eq("id", p.id)
+      )
+    );
+    pulse.show();
   };
 
   const deleteProduct = async (id: string) => {
@@ -118,6 +143,7 @@ export default function CatalogCard({
       title={title}
       action={
         <>
+          <SavedPulse visible={pulse.visible} label={t.editor.saved} />
           <CurrencySelect value={currency} onChange={changeCurrency} />
           <button
             onClick={addProduct}
@@ -140,11 +166,19 @@ export default function CatalogCard({
             currency={currency}
             startExpanded={product.id === justAddedId}
             onChange={(patch) => updateProduct(product.id, patch)}
-            onPersist={(patch) => persistProduct(product.id, patch)}
             onDelete={() => deleteProduct(product.id)}
           />
         ))}
       </Reorder.Group>
+
+      {products.length > 0 && (
+        <button
+          onClick={saveAll}
+          className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium"
+        >
+          {t.editor.save}
+        </button>
+      )}
     </EditorCard>
   );
 }

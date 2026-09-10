@@ -21,7 +21,6 @@ import AboutCard from "@/components/editor/AboutCard";
 import PixelsCard from "@/components/editor/PixelsCard";
 import { EditorPreviewProvider, useEditorPreview } from "@/components/editor/EditorPreviewContext";
 import LivePreviewPanel from "@/components/editor/LivePreviewPanel";
-import SaveChangesBar from "@/components/editor/SaveChangesBar";
 import { profileHasCategory } from "@/lib/categories";
 
 export default function Editor({
@@ -219,7 +218,6 @@ function EditorCards({
       </div>
 
       <LivePreviewPanel />
-      <SaveChangesBar />
     </div>
   );
 }

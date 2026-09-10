@@ -7,12 +7,15 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import ImageGalleryUploadField from "./ImageGalleryUploadField";
 
+// Field edits here only update local state (via onChange, which also
+// feeds the live preview) — nothing is written to Supabase until the
+// creator clicks the "Save" button at the bottom of MenuCard. Only
+// structural actions (delete, drag-reorder) still happen immediately.
 export default function MenuItemRow({
   item,
   userId,
   currency,
   onChange,
-  onPersist,
   onDelete,
   startExpanded,
 }: {
@@ -20,7 +23,6 @@ export default function MenuItemRow({
   userId: string;
   currency: string;
   onChange: (patch: any) => void;
-  onPersist: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
 }) {
@@ -106,11 +108,7 @@ export default function MenuItemRow({
                 <p className="text-xs text-ringo-muted mb-1.5">{t.editor.photosLabel}</p>
                 <ImageGalleryUploadField
                   value={item.image_urls?.length ? item.image_urls : item.image_url ? [item.image_url] : []}
-                  onChange={(urls) => {
-                    const patch = { image_urls: urls, image_url: urls[0] || null };
-                    onChange(patch);
-                    onPersist(patch);
-                  }}
+                  onChange={(urls) => onChange({ image_urls: urls, image_url: urls[0] || null })}
                   userId={userId}
                   folder="menu-items"
                   errorText={t.editor.upload}
@@ -121,14 +119,12 @@ export default function MenuItemRow({
                   ref={nameRef}
                   value={item.name}
                   onChange={(e) => onChange({ name: e.target.value })}
-                  onBlur={(e) => onPersist({ name: e.target.value })}
                   placeholder={t.restaurant.itemNamePlaceholder}
                   className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
                 />
                 <input
                   value={item.price ?? ""}
                   onChange={(e) => onChange({ price: e.target.value })}
-                  onBlur={(e) => onPersist({ price: e.target.value })}
                   placeholder={t.restaurant.itemPricePlaceholder}
                   inputMode="decimal"
                   className="w-24 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
@@ -137,7 +133,6 @@ export default function MenuItemRow({
               <textarea
                 value={item.description ?? ""}
                 onChange={(e) => onChange({ description: e.target.value })}
-                onBlur={(e) => onPersist({ description: e.target.value })}
                 placeholder={t.restaurant.itemDescriptionPlaceholder}
                 rows={2}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text resize-none"
@@ -145,7 +140,6 @@ export default function MenuItemRow({
               <input
                 value={item.prep_time_minutes ?? ""}
                 onChange={(e) => onChange({ prep_time_minutes: e.target.value.replace(/[^0-9]/g, "") })}
-                onBlur={(e) => onPersist({ prep_time_minutes: e.target.value ? Number(e.target.value) : null })}
                 placeholder={t.restaurant.prepTimePlaceholder}
                 inputMode="numeric"
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
@@ -155,10 +149,7 @@ export default function MenuItemRow({
                   <input
                     type="checkbox"
                     checked={item.available !== false}
-                    onChange={(e) => {
-                      onChange({ available: e.target.checked });
-                      onPersist({ available: e.target.checked });
-                    }}
+                    onChange={(e) => onChange({ available: e.target.checked })}
                     className="accent-ringo-indigo"
                   />
                   {t.restaurant.availableLabel}
@@ -167,10 +158,7 @@ export default function MenuItemRow({
                   <input
                     type="checkbox"
                     checked={!!item.featured}
-                    onChange={(e) => {
-                      onChange({ featured: e.target.checked });
-                      onPersist({ featured: e.target.checked });
-                    }}
+                    onChange={(e) => onChange({ featured: e.target.checked })}
                     className="accent-ringo-indigo"
                   />
                   {t.restaurant.featuredLabel}

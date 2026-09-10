@@ -7,12 +7,16 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import ImageGalleryUploadField from "./ImageGalleryUploadField";
 
+// Field edits here only update local state (via onChange, which also
+// feeds the live preview) — nothing is written to Supabase until the
+// creator clicks the "Save" button at the bottom of CatalogCard, the same
+// explicit, single action that already existed for the WhatsApp card.
+// Only structural actions (delete, drag-reorder) still happen immediately.
 export default function ProductRow({
   product,
   userId,
   currency,
   onChange,
-  onPersist,
   onDelete,
   startExpanded,
 }: {
@@ -20,7 +24,6 @@ export default function ProductRow({
   userId: string;
   currency: string;
   onChange: (patch: any) => void;
-  onPersist: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
 }) {
@@ -100,11 +103,7 @@ export default function ProductRow({
                 <p className="text-xs text-ringo-muted mb-1.5">{t.editor.photosLabel}</p>
                 <ImageGalleryUploadField
                   value={product.image_urls?.length ? product.image_urls : product.image_url ? [product.image_url] : []}
-                  onChange={(urls) => {
-                    const patch = { image_urls: urls, image_url: urls[0] || null };
-                    onChange(patch);
-                    onPersist(patch);
-                  }}
+                  onChange={(urls) => onChange({ image_urls: urls, image_url: urls[0] || null })}
                   userId={userId}
                   folder="products"
                   errorText={t.editor.upload}
@@ -115,14 +114,12 @@ export default function ProductRow({
                   ref={nameRef}
                   value={product.name}
                   onChange={(e) => onChange({ name: e.target.value })}
-                  onBlur={(e) => onPersist({ name: e.target.value })}
                   placeholder={t.editor.productName}
                   className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
                 />
                 <input
                   value={product.price ?? ""}
                   onChange={(e) => onChange({ price: e.target.value })}
-                  onBlur={(e) => onPersist({ price: e.target.value })}
                   placeholder={t.editor.price}
                   inputMode="decimal"
                   className="w-24 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
@@ -131,7 +128,6 @@ export default function ProductRow({
               <textarea
                 value={product.description ?? ""}
                 onChange={(e) => onChange({ description: e.target.value })}
-                onBlur={(e) => onPersist({ description: e.target.value })}
                 placeholder={t.editor.productDescription}
                 rows={2}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text resize-none"
@@ -139,7 +135,6 @@ export default function ProductRow({
               <input
                 value={product.landing_url ?? ""}
                 onChange={(e) => onChange({ landing_url: e.target.value })}
-                onBlur={(e) => onPersist({ landing_url: e.target.value })}
                 placeholder={t.editor.productLandingUrl}
                 inputMode="url"
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
@@ -147,7 +142,6 @@ export default function ProductRow({
               <input
                 value={product.whatsapp_message ?? ""}
                 onChange={(e) => onChange({ whatsapp_message: e.target.value })}
-                onBlur={(e) => onPersist({ whatsapp_message: e.target.value })}
                 placeholder={t.editor.productWhatsappMessage}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
               />
@@ -156,10 +150,7 @@ export default function ProductRow({
                   <input
                     type="checkbox"
                     checked={product.available !== false}
-                    onChange={(e) => {
-                      onChange({ available: e.target.checked });
-                      onPersist({ available: e.target.checked });
-                    }}
+                    onChange={(e) => onChange({ available: e.target.checked })}
                     className="accent-ringo-indigo"
                   />
                   {t.restaurant.availableLabel}
@@ -167,7 +158,6 @@ export default function ProductRow({
                 <input
                   value={product.inventory_count ?? ""}
                   onChange={(e) => onChange({ inventory_count: e.target.value.replace(/[^0-9]/g, "") })}
-                  onBlur={(e) => onPersist({ inventory_count: e.target.value ? Number(e.target.value) : null })}
                   placeholder={t.music.inventoryPlaceholder}
                   inputMode="numeric"
                   className="w-32 text-xs border border-ringo-border rounded-card px-2.5 py-1.5 bg-ringo-surface text-ringo-text"

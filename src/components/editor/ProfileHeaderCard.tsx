@@ -33,8 +33,14 @@ export default function ProfileHeaderCard({
   const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
 
-  const persist = async (patch: Record<string, string>) => {
-    await supabase.from("profiles").update(patch).eq("id", profileId);
+  // One explicit save for the whole card — mirrors WhatsAppCard: uploading
+  // a photo or typing only updates local state (and the live preview)
+  // above, nothing reaches Supabase until this is clicked.
+  const save = async () => {
+    await supabase
+      .from("profiles")
+      .update({ cover_image_url: coverUrl || null, avatar_url: avatarUrl || null, name, bio })
+      .eq("id", profileId);
     pulse.show();
   };
 
@@ -50,7 +56,6 @@ export default function ProfileHeaderCard({
           onChange={(url) => {
             setCoverUrl(url);
             updateDraft({ cover_image_url: url });
-            persist({ cover_image_url: url });
           }}
           userId={userId}
           folder="cover"
@@ -66,7 +71,6 @@ export default function ProfileHeaderCard({
           onChange={(url) => {
             setAvatarUrl(url);
             updateDraft({ avatar_url: url });
-            persist({ avatar_url: url });
           }}
           userId={userId}
           folder="avatar"
@@ -81,7 +85,6 @@ export default function ProfileHeaderCard({
               setName(e.target.value);
               updateDraft({ name: e.target.value });
             }}
-            onBlur={() => persist({ name })}
             placeholder={t.editor.profile.namePlaceholder}
             className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
@@ -93,7 +96,6 @@ export default function ProfileHeaderCard({
                 setBio(next);
                 updateDraft({ bio: next });
               }}
-              onBlur={() => persist({ bio })}
               placeholder={t.editor.profile.bioPlaceholder}
               rows={2}
               className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text resize-none"
@@ -102,6 +104,13 @@ export default function ProfileHeaderCard({
           </div>
         </div>
       </div>
+
+      <button
+        onClick={save}
+        className="self-start mt-4 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium"
+      >
+        {t.editor.save}
+      </button>
     </EditorCard>
   );
 }

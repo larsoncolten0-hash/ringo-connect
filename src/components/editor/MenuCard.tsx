@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
 import EmptyState from "./EmptyState";
 import MenuCategorySection from "./MenuCategorySection";
+import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
 
 // Only ever rendered for a profile tagged Restaurant & Food. Two-level
@@ -32,6 +33,7 @@ export default function MenuCard({
   );
   const [items, setItems] = useState(initialItems);
   const [justAddedItemId, setJustAddedItemId] = useState<string | null>(null);
+  const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
 
   const syncDraft = (nextCategories = categories, nextItems = items) => {
@@ -110,8 +112,28 @@ export default function MenuCard({
     syncDraft(categories, next);
   };
 
-  const persistItem = async (id: string, patch: any) => {
-    await supabase.from("menu_items").update(patch).eq("id", id);
+  // One explicit save for every item's fields across every category —
+  // mirrors WhatsAppCard: nothing reaches Supabase until this is clicked.
+  // Adding/deleting/reordering items or categories stay immediate.
+  const saveAllItems = async () => {
+    await Promise.all(
+      items.map((i) =>
+        supabase
+          .from("menu_items")
+          .update({
+            name: i.name,
+            price: i.price === "" || i.price == null ? 0 : i.price,
+            description: i.description,
+            image_url: i.image_url,
+            image_urls: i.image_urls,
+            prep_time_minutes: i.prep_time_minutes === "" || i.prep_time_minutes == null ? null : Number(i.prep_time_minutes),
+            available: i.available !== false,
+            featured: !!i.featured,
+          })
+          .eq("id", i.id)
+      )
+    );
+    pulse.show();
   };
 
   const deleteItem = async (id: string) => {
@@ -140,9 +162,12 @@ export default function MenuCard({
       icon={BookOpen}
       title={t.restaurant.menuTitle}
       action={
-        <button onClick={addCategory} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap">
-          {t.restaurant.addCategory}
-        </button>
+        <>
+          <SavedPulse visible={pulse.visible} label={t.editor.saved} />
+          <button onClick={addCategory} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap">
+            {t.restaurant.addCategory}
+          </button>
+        </>
       }
     >
       <p className="text-xs text-ringo-muted -mt-2 mb-3">{t.restaurant.menuHint}</p>
@@ -169,13 +194,21 @@ export default function MenuCard({
               onMoveCategory={(dir) => moveCategory(category.id, dir)}
               onAddItem={() => addItem(category.id)}
               onChangeItem={changeItem}
-              onPersistItem={persistItem}
               onDeleteItem={deleteItem}
               onReorderItems={(newOrder) => reorderItemsInCategory(category.id, newOrder)}
             />
           );
         })}
       </div>
+
+      {items.length > 0 && (
+        <button
+          onClick={saveAllItems}
+          className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium"
+        >
+          {t.editor.save}
+        </button>
+      )}
     </EditorCard>
   );
 }

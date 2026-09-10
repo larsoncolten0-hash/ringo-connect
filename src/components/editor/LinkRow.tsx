@@ -6,18 +6,20 @@ import { GripVertical, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ImageUploadField from "./ImageUploadField";
 
+// Field edits here only update local state (via onChange, which also
+// feeds the live preview) — nothing is written to Supabase until the
+// creator clicks the "Save" button at the bottom of LinksCard. Only
+// structural actions (delete, drag-reorder) still happen immediately.
 export default function LinkRow({
   link,
   userId,
   onChange,
-  onPersist,
   onDelete,
   startExpanded,
 }: {
   link: any;
   userId: string;
   onChange: (patch: any) => void;
-  onPersist: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
 }) {
@@ -45,10 +47,7 @@ export default function LinkRow({
 
         <ImageUploadField
           value={link.image_url}
-          onChange={(url) => {
-            onChange({ image_url: url });
-            onPersist({ image_url: url });
-          }}
+          onChange={(url) => onChange({ image_url: url })}
           userId={userId}
           folder="links"
           size={38}
@@ -91,14 +90,12 @@ export default function LinkRow({
                 ref={titleRef}
                 value={link.title}
                 onChange={(e) => onChange({ title: e.target.value })}
-                onBlur={(e) => onPersist({ title: e.target.value })}
                 placeholder={t.editor.linkTitlePlaceholder}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
               />
               <input
                 value={link.url}
                 onChange={(e) => onChange({ url: e.target.value })}
-                onBlur={(e) => onPersist({ url: e.target.value })}
                 placeholder={t.editor.linkUrlPlaceholder}
                 inputMode="url"
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-muted"
@@ -106,7 +103,6 @@ export default function LinkRow({
               <input
                 value={link.description ?? ""}
                 onChange={(e) => onChange({ description: e.target.value })}
-                onBlur={(e) => onPersist({ description: e.target.value })}
                 placeholder={t.editor.linkDescriptionPlaceholder}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-muted"
               />

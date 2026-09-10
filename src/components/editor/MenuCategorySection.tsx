@@ -19,7 +19,6 @@ export default function MenuCategorySection({
   onMoveCategory,
   onAddItem,
   onChangeItem,
-  onPersistItem,
   onDeleteItem,
   onReorderItems,
 }: {
@@ -35,7 +34,6 @@ export default function MenuCategorySection({
   onMoveCategory: (direction: "up" | "down") => void;
   onAddItem: () => void;
   onChangeItem: (id: string, patch: any) => void;
-  onPersistItem: (id: string, patch: any) => void;
   onDeleteItem: (id: string) => void;
   onReorderItems: (newOrder: any[]) => void;
 }) {
@@ -86,7 +84,6 @@ export default function MenuCategorySection({
                 currency={currency}
                 startExpanded={item.id === justAddedItemId}
                 onChange={(patch) => onChangeItem(item.id, patch)}
-                onPersist={(patch) => onPersistItem(item.id, patch)}
                 onDelete={() => onDeleteItem(item.id)}
               />
             ))}

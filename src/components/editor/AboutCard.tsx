@@ -42,19 +42,29 @@ export default function AboutCard({
   const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
 
+  // One explicit save for the whole card, including any extra phone
+  // numbers' current text — mirrors WhatsAppCard: typing only updates
+  // local state (and the live preview) above, nothing reaches Supabase
+  // until this is clicked. Adding/removing an extra phone row stays
+  // immediate since that's a structural action, not a field edit.
   const save = async () => {
-    await supabase
-      .from("profiles")
-      .update({
-        about_long_bio: longBio,
-        about_email: email,
-        about_phone: phone,
-        about_company: company,
-        about_position: position,
-        about_location: location,
-        about_hours: hours,
-      })
-      .eq("id", profileId);
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .update({
+          about_long_bio: longBio,
+          about_email: email,
+          about_phone: phone,
+          about_company: company,
+          about_position: position,
+          about_location: location,
+          about_hours: hours,
+        })
+        .eq("id", profileId),
+      ...extraPhones.map((p) =>
+        supabase.from("profile_phone_numbers").update({ phone_number: p.phone_number }).eq("id", p.id)
+      ),
+    ]);
     pulse.show();
   };
 
@@ -81,11 +91,6 @@ export default function AboutCard({
     });
   };
 
-  const persistExtraPhone = async (id: string, phone_number: string) => {
-    await supabase.from("profile_phone_numbers").update({ phone_number }).eq("id", id);
-    pulse.show();
-  };
-
   const removeExtraPhone = async (id: string) => {
     setExtraPhones((prev) => {
       const next = prev.filter((p) => p.id !== id);
@@ -104,7 +109,6 @@ export default function AboutCard({
             setLongBio(e.target.value);
             updateDraft({ about_long_bio: e.target.value });
           }}
-          onBlur={save}
           placeholder={t.editor.about.longBioPlaceholder}
           rows={3}
           className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text resize-none"
@@ -118,7 +122,6 @@ export default function AboutCard({
               setCompany(e.target.value);
               updateDraft({ about_company: e.target.value });
             }}
-            onBlur={save}
             placeholder={t.editor.about.company}
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
@@ -128,7 +131,6 @@ export default function AboutCard({
               setPosition(e.target.value);
               updateDraft({ about_position: e.target.value });
             }}
-            onBlur={save}
             placeholder={t.editor.about.position}
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
@@ -142,7 +144,6 @@ export default function AboutCard({
               setEmail(e.target.value);
               updateDraft({ about_email: e.target.value });
             }}
-            onBlur={save}
             placeholder={t.editor.about.email}
             inputMode="email"
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
@@ -153,7 +154,6 @@ export default function AboutCard({
               setPhone(e.target.value);
               updateDraft({ about_phone: e.target.value });
             }}
-            onBlur={save}
             placeholder={t.editor.about.phone}
             inputMode="tel"
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
@@ -172,7 +172,6 @@ export default function AboutCard({
               <input
                 value={p.phone_number}
                 onChange={(e) => updateExtraPhone(p.id, e.target.value)}
-                onBlur={(e) => persistExtraPhone(p.id, e.target.value)}
                 placeholder={t.editor.about.phonePlaceholder}
                 inputMode="tel"
                 className="flex-1 border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
@@ -197,7 +196,6 @@ export default function AboutCard({
               setLocation(e.target.value);
               updateDraft({ about_location: e.target.value });
             }}
-            onBlur={save}
             placeholder={t.editor.about.location}
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
@@ -207,11 +205,17 @@ export default function AboutCard({
               setHours(e.target.value);
               updateDraft({ about_hours: e.target.value });
             }}
-            onBlur={save}
             placeholder={t.editor.about.hours}
             className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
         </div>
+
+        <button
+          onClick={save}
+          className="self-start px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium"
+        >
+          {t.editor.save}
+        </button>
       </div>
     </EditorCard>
   );

@@ -623,9 +623,6 @@ export const translations = {
     editor: {
       viewLivePage: "View your live page →",
       saved: "Saved",
-      unsavedChanges: "You have unsaved changes",
-      saveChanges: "Save changes",
-      saving: "Saving…",
       dragHint: "Drag to reorder",
       livePreview: "Live preview",
       previewButton: "Preview",
@@ -1530,9 +1527,6 @@ export const translations = {
     editor: {
       viewLivePage: "Voir votre page en ligne →",
       saved: "Enregistré",
-      unsavedChanges: "Modifications non enregistrées",
-      saveChanges: "Enregistrer",
-      saving: "Enregistrement…",
       dragHint: "Glisser pour réorganiser",
       livePreview: "Aperçu en direct",
       previewButton: "Aperçu",
