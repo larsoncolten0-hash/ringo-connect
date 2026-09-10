@@ -7,6 +7,7 @@ import { ArrowLeft, ShoppingCart, X, Plus, Minus, Play, Pause, Download, Check, 
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { getMusicRole } from "@/lib/categories";
+import ImageGallery from "@/components/ImageGallery";
 
 type ItemType = "song" | "release" | "merch" | "ticket" | "support";
 type CartLine = { itemType: ItemType; id?: string; name: string; price: number; quantity: number; coverUrl?: string };
@@ -200,7 +201,16 @@ export default function MusicStorePage({ profile }: { profile: any }) {
                   const soldOut = p.inventory_count === 0;
                   return (
                     <div key={p.id} className="rounded-2xl overflow-hidden" style={{ border: "1px solid #E5E7EB", opacity: soldOut ? 0.5 : 1 }}>
-                      {p.image_url ? <img src={p.image_url} alt="" className="w-full aspect-square object-cover" /> : <div className="w-full aspect-square" style={{ backgroundColor: "#F3F4F6" }} />}
+                      {p.image_urls?.length || p.image_url ? (
+                        <ImageGallery
+                          images={p.image_urls?.length ? p.image_urls : [p.image_url]}
+                          alt={p.name}
+                          className="w-full aspect-square"
+                          imgClassName="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full aspect-square" style={{ backgroundColor: "#F3F4F6" }} />
+                      )}
                       <div className="p-2.5">
                         <p className="text-xs font-semibold truncate">{p.name}</p>
                         <p className="text-xs font-bold mt-0.5" style={{ color: accent }} suppressHydrationWarning>

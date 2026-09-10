@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { getRestaurantSubcategory } from "@/lib/categories";
 import { isOpenNow } from "@/lib/restaurantHours";
+import ImageGallery from "@/components/ImageGallery";
 
 type CartLine = { menuItemId: string; name: string; price: number; quantity: number; notes: string };
 type OrderType = "dine_in" | "takeaway" | "delivery";
@@ -493,8 +494,13 @@ function MenuItemCard({ item, currency, locale, accent, onAdd, t }: { item: any;
   const unavailable = item.available === false;
   return (
     <div className="flex gap-3 rounded-2xl border p-2.5" style={{ borderColor: "#E5E7EB", opacity: unavailable ? 0.55 : 1 }}>
-      {item.image_url ? (
-        <img src={item.image_url} alt="" className="w-20 h-20 rounded-xl object-cover shrink-0" />
+      {item.image_urls?.length || item.image_url ? (
+        <ImageGallery
+          images={item.image_urls?.length ? item.image_urls : [item.image_url]}
+          alt={item.name}
+          className="w-20 h-20 rounded-xl shrink-0"
+          imgClassName="object-cover"
+        />
       ) : (
         <div className="w-20 h-20 rounded-xl shrink-0" style={{ backgroundColor: "#F3F4F6" }} />
       )}

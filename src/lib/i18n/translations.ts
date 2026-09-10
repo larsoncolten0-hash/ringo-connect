@@ -650,6 +650,7 @@ export const translations = {
       productWhatsappMessage: "Custom WhatsApp message (optional)",
       noProductsYet: "No products yet — add your first one.",
       untitledProduct: "Untitled product",
+      photosLabel: "Photos (up to 3) — customers can scroll through them",
       category: {
         title: "Category",
         hint: "Personalizes labels and defaults across your page — like renaming Catalog to Menu for a restaurant. Doesn't hide or lock anything.",
@@ -1537,6 +1538,7 @@ export const translations = {
       productWhatsappMessage: "Message WhatsApp personnalisé (optionnel)",
       noProductsYet: "Aucun produit pour l'instant — ajoutez le premier.",
       untitledProduct: "Produit sans nom",
+      photosLabel: "Photos (jusqu'à 3) — les clients peuvent les faire défiler",
       category: {
         title: "Catégorie",
         hint: "Personnalise les intitulés et réglages par défaut de votre page — par exemple, renommer Catalogue en Menu pour un restaurant. Ne masque ni ne verrouille rien.",

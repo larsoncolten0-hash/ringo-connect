@@ -2,10 +2,10 @@
 
 import { useState, useRef } from "react";
 import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion";
-import { GripVertical, ChevronDown } from "lucide-react";
+import { GripVertical, ChevronDown, ImagePlus } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
-import ImageUploadField from "./ImageUploadField";
+import ImageGalleryUploadField from "./ImageGalleryUploadField";
 
 export default function ProductRow({
   product,
@@ -46,17 +46,23 @@ export default function ProductRow({
           <GripVertical size={16} />
         </div>
 
-        <ImageUploadField
-          value={product.image_url}
-          onChange={(url) => {
-            onChange({ image_url: url });
-            onPersist({ image_url: url });
+        <button
+          type="button"
+          onClick={() => {
+            const next = !expanded;
+            setExpanded(next);
+            if (next) setTimeout(() => nameRef.current?.focus(), 150);
           }}
-          userId={userId}
-          folder="products"
-          size={38}
-          errorText={t.editor.upload}
-        />
+          style={{ width: 38, height: 38 }}
+          className="relative shrink-0 overflow-hidden rounded-card border border-ringo-border bg-ringo-muted/5 flex items-center justify-center"
+        >
+          {product.image_urls?.[0] || product.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={product.image_urls?.[0] || product.image_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <ImagePlus size={16} className="text-ringo-muted" />
+          )}
+        </button>
 
         <button
           type="button"
@@ -90,6 +96,20 @@ export default function ProductRow({
             className="overflow-hidden"
           >
             <div className="px-2.5 pb-2.5 pt-1 border-t border-ringo-border flex flex-col gap-2">
+              <div>
+                <p className="text-xs text-ringo-muted mb-1.5">{t.editor.photosLabel}</p>
+                <ImageGalleryUploadField
+                  value={product.image_urls?.length ? product.image_urls : product.image_url ? [product.image_url] : []}
+                  onChange={(urls) => {
+                    const patch = { image_urls: urls, image_url: urls[0] || null };
+                    onChange(patch);
+                    onPersist(patch);
+                  }}
+                  userId={userId}
+                  folder="products"
+                  errorText={t.editor.upload}
+                />
+              </div>
               <div className="flex gap-2">
                 <input
                   ref={nameRef}

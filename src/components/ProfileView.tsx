@@ -25,6 +25,7 @@ import { useTrackPlayback } from "./music/useTrackPlayback";
 import RestaurantHeroButtons from "./restaurant/RestaurantHeroButtons";
 import FeaturedMenuSection from "./restaurant/FeaturedMenuSection";
 import OpeningHoursRow from "./restaurant/OpeningHoursRow";
+import ImageGallery from "./ImageGallery";
 
 export default function ProfileView({
   profile,
@@ -701,13 +702,12 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                             className={`overflow-hidden transition hover:-translate-y-0.5 ${radiusClass}`}
                             style={{ border: `1px solid ${contentBorderTint}` }}
                           >
-                            {product.image_url && (
-                              <img
-                                src={product.image_url}
-                                alt={product.name}
-                                className="w-full aspect-square object-cover"
-                              />
-                            )}
+                            <ImageGallery
+                              images={product.image_urls?.length ? product.image_urls : [product.image_url]}
+                              alt={product.name}
+                              className="w-full aspect-square"
+                              imgClassName="object-cover"
+                            />
                             <div className="p-3">
                               <p className="text-sm font-semibold truncate">{product.name}</p>
                               {product.price && (

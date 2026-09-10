@@ -164,6 +164,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
           name: p.name,
           price: p.price ?? null,
           image_url: p.image_url || null,
+          image_urls: p.image_url ? [p.image_url] : [],
           sort_order: i,
         }))
       );

@@ -50,8 +50,12 @@ export default function FeaturedMenuSection({
             className={`overflow-hidden transition hover:-translate-y-0.5 ${radiusClass}`}
             style={{ border: `1px solid ${borderTint}` }}
           >
-            {item.image_url ? (
-              <img src={item.image_url} alt={item.name} className="w-full aspect-square object-cover" />
+            {item.image_urls?.[0] || item.image_url ? (
+              <img
+                src={item.image_urls?.[0] || item.image_url}
+                alt={item.name}
+                className="w-full aspect-square object-cover"
+              />
             ) : (
               <div className="w-full aspect-square" style={{ backgroundColor: borderTint }} />
             )}
