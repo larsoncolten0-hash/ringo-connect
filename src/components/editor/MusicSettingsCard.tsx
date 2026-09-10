@@ -20,15 +20,18 @@ export default function MusicSettingsCard({
   profileId,
   initialRole,
   initialSupportEnabled,
+  initialSupportMessage,
 }: {
   profileId: string;
   initialRole: string | null;
   initialSupportEnabled: boolean;
+  initialSupportMessage: string | null;
 }) {
   const supabase = createClient();
   const { t, locale } = useLanguage();
   const [role, setRole] = useState<MusicRole | null>((initialRole as MusicRole) || null);
   const [supportEnabled, setSupportEnabled] = useState(initialSupportEnabled);
+  const [supportMessage, setSupportMessage] = useState(initialSupportMessage || "");
   const [applyingTheme, setApplyingTheme] = useState(false);
   const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
@@ -114,6 +117,25 @@ export default function MusicSettingsCard({
             className="accent-ringo-indigo shrink-0"
           />
         </label>
+
+        {supportEnabled && (
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-ringo-text">{t.music.supportMessageLabel}</span>
+            <textarea
+              value={supportMessage}
+              onChange={(e) => setSupportMessage(e.target.value)}
+              onBlur={async (e) => {
+                const value = e.target.value.trim() || null;
+                updateDraft({ support_message: value });
+                await supabase.from("profiles").update({ support_message: value }).eq("id", profileId);
+                pulse.show();
+              }}
+              placeholder={t.music.supportMessagePlaceholder}
+              rows={2}
+              className="text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text resize-none"
+            />
+          </label>
+        )}
 
         <div className="rounded-card border border-dashed border-ringo-border p-3.5">
           <p className="text-sm font-medium text-ringo-text">{t.music.recommendedThemeNudge}</p>

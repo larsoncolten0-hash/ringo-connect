@@ -16,17 +16,36 @@ export default function AudioUploadField({
   pathPrefix,
   label,
   errorText,
+  maxDurationSeconds,
 }: {
   value?: string | null;
   onChange: (url: string) => void;
   pathPrefix: string;
   label: { upload: string; replace: string; remove: string };
-  errorText?: { tooLarge: string; wrongType: string; failed: string };
+  errorText?: { tooLarge: string; wrongType: string; failed: string; tooLong?: string };
+  // Used for the 10-second preview-clip upload — rejects the file
+  // client-side before it ever uploads. This is a courtesy check on the
+  // ARTIST's own upload of their OWN preview, not a security boundary (the
+  // real boundary is that the full/protected file is never sent to a fan
+  // who hasn't purchased — see ProtectedAudioUploadField).
+  maxDurationSeconds?: number;
 }) {
   const supabase = createClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+
+  const checkDuration = (file: File): Promise<number> =>
+    new Promise((resolve, reject) => {
+      const audio = new Audio();
+      audio.preload = "metadata";
+      audio.onloadedmetadata = () => {
+        URL.revokeObjectURL(audio.src);
+        resolve(audio.duration);
+      };
+      audio.onerror = () => reject(new Error("Could not read audio file"));
+      audio.src = URL.createObjectURL(file);
+    });
 
   const handleFile = async (file: File) => {
     setError("");
@@ -38,6 +57,18 @@ export default function AudioUploadField({
     if (file.size > MAX_SIZE_BYTES) {
       setError(errorText?.tooLarge || "Audio files must be under 15MB.");
       return;
+    }
+    if (maxDurationSeconds) {
+      try {
+        const duration = await checkDuration(file);
+        if (duration > maxDurationSeconds + 0.5) {
+          setError(errorText?.tooLong || `This clip must be ${maxDurationSeconds} seconds or shorter.`);
+          return;
+        }
+      } catch {
+        // If duration can't be read, fall through and let the upload
+        // proceed rather than blocking on a browser quirk.
+      }
     }
 
     setUploading(true);

@@ -120,6 +120,40 @@ export default function EventRow({
                   className="w-32 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
                 />
               </div>
+              <div className="rounded-card border border-dashed border-ringo-border p-2.5 flex flex-col gap-2">
+                <p className="text-xs font-medium text-ringo-text">{t.music.sellTicketsTitle}</p>
+                <p className="text-xs text-ringo-muted -mt-1">{t.music.sellTicketsHint}</p>
+                <div className="flex gap-2">
+                  <input
+                    value={event.price ?? ""}
+                    onChange={(e) => onChange({ price: e.target.value.replace(/[^0-9.]/g, "") })}
+                    onBlur={(e) => onPersist({ price: e.target.value ? Number(e.target.value) : null })}
+                    placeholder={t.restaurant.itemPricePlaceholder}
+                    inputMode="decimal"
+                    className="w-24 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
+                  />
+                  <input
+                    value={event.ticket_type ?? ""}
+                    onChange={(e) => onChange({ ticket_type: e.target.value })}
+                    onBlur={(e) => onPersist({ ticket_type: e.target.value })}
+                    placeholder={t.music.ticketTypePlaceholder}
+                    className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
+                  />
+                  <input
+                    value={event.ticket_capacity ?? ""}
+                    onChange={(e) => onChange({ ticket_capacity: e.target.value.replace(/[^0-9]/g, "") })}
+                    onBlur={(e) => onPersist({ ticket_capacity: e.target.value ? Number(e.target.value) : null })}
+                    placeholder={t.music.ticketCapacityPlaceholder}
+                    inputMode="numeric"
+                    className="w-24 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
+                  />
+                </div>
+                {event.ticket_capacity != null && (
+                  <p className="text-xs text-ringo-muted">
+                    {t.music.ticketsSoldLabel}: {event.tickets_sold || 0} / {event.ticket_capacity}
+                  </p>
+                )}
+              </div>
               <input
                 value={event.ticket_url ?? ""}
                 onChange={(e) => onChange({ ticket_url: e.target.value })}

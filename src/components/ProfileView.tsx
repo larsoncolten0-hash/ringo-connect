@@ -19,6 +19,8 @@ import MusicSection from "./music/MusicSection";
 import EventsSection from "./music/EventsSection";
 import SupportArtistSection from "./music/SupportArtistSection";
 import PinnedSpotlight from "./music/PinnedSpotlight";
+import MusicHeroButtons from "./music/MusicHeroButtons";
+import ReleasesSection from "./music/ReleasesSection";
 import { useTrackPlayback } from "./music/useTrackPlayback";
 import RestaurantHeroButtons from "./restaurant/RestaurantHeroButtons";
 import FeaturedMenuSection from "./restaurant/FeaturedMenuSection";
@@ -47,9 +49,15 @@ export default function ProfileView({
   const isMusic = profileHasCategory(profile, "music_entertainment");
   const isRestaurant = profileHasCategory(profile, "restaurant_food");
   const menuItems: any[] = profile.menu_items || [];
-  const musicTracks: any[] = profile.tracks || [];
+  const musicTracks: any[] = (profile.tracks || []).filter((tr: any) => tr.available !== false);
   const musicEvents: any[] = profile.events || [];
   const musicSectionTitle = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.tracksTitleFallback;
+  // `available` is a generic field (added for Music's sold-out/inventory
+  // needs) that now applies to every category's Catalog — an item only
+  // hides here when a creator has explicitly marked it unavailable
+  // (`=== false`); older products with no such field keep showing, same
+  // as before this field existed.
+  const catalogProducts: any[] = (profile.products || []).filter((p: any) => p.available !== false);
   const supportEnabled = isMusic && profile.hub_support_enabled !== false && !!profile.whatsapp_number;
   const { playingId, progress, togglePlay } = useTrackPlayback();
 
@@ -59,6 +67,10 @@ export default function ProfileView({
   // spotlight renders, instead of a crash.
   const pinnedSource =
     profile.pinned_type === "track" ? musicTracks : profile.pinned_type === "product" ? profile.products || [] : profile.pinned_type === "event" ? musicEvents : [];
+  // Pinning intentionally still looks at the full, unfiltered product list
+  // above — a creator who explicitly pinned an item should keep seeing
+  // that choice reflected even if they later mark it unavailable, rather
+  // than have the spotlight silently vanish.
   const pinnedItem = isMusic && profile.pinned_id ? pinnedSource.find((x: any) => x.id === profile.pinned_id) : null;
   const isVerified = !!profile.verified;
 
@@ -371,60 +383,31 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             aboutLocation={profile.about_location}
             accent={accent}
           />
+        ) : isMusic ? (
+          // Music gets Book Now / Buy Now up top (the two commerce entry
+          // points this category now has) plus the same WhatsApp/Call/Save
+          // row as before, all bundled inside MusicHeroButtons — every
+          // other category keeps the original theme-driven, evenly-
+          // stretched three-button row unchanged below.
+          <MusicHeroButtons t={t} profile={profile} accent={accent} textColor={textColor} />
         ) : (
           profile.whatsapp_number && (
-          <div
-            className={
-              isMusic
-                ? "flex flex-wrap justify-center gap-2.5 mt-5 animate-fade-up"
-                : "flex gap-3 mt-5 w-full max-w-sm animate-fade-up"
-            }
-            style={{ animationDelay: "260ms" }}
-          >
-            {/* Music gets its own fixed, differentiated palette per
-                button (WhatsApp green / Call gold / Save outlined) sized
-                to their own content, matching the reference design —
-                every other category keeps the original theme-driven,
-                evenly-stretched three-button row unchanged. */}
-            {isMusic ? (
-              <>
-                <WhatsAppButton
-                  number={profile.whatsapp_number}
-                  message={profile.default_whatsapp_message}
-                  radiusClass="rounded-full"
-                  buttonStyle={{ backgroundColor: "#25D366", color: "#fff", border: "2px solid transparent" }}
-                  onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
-                />
-                <CallButton
-                  number={profile.whatsapp_number}
-                  radiusClass="rounded-full"
-                  buttonStyle={{ backgroundColor: accent, color: "#171009", border: "2px solid transparent" }}
-                />
-                <SaveContactButton
-                  profile={profile}
-                  radiusClass="rounded-full"
-                  buttonStyle={{ backgroundColor: "transparent", color: textColor, border: `2px solid ${hexToRgba(textColor, 0.35)}` }}
-                />
-              </>
-            ) : (
-              <>
-                <div className="flex-1">
-                  <WhatsAppButton
-                    number={profile.whatsapp_number}
-                    message={profile.default_whatsapp_message}
-                    radiusClass={radiusClass}
-                    buttonStyle={linkButtonStyle}
-                    onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
-                  />
-                </div>
-                <div className="flex-1">
-                  <CallButton number={profile.whatsapp_number} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
-                </div>
-                <div className="flex-1">
-                  <SaveContactButton profile={profile} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
-                </div>
-              </>
-            )}
+          <div className="flex gap-3 mt-5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
+            <div className="flex-1">
+              <WhatsAppButton
+                number={profile.whatsapp_number}
+                message={profile.default_whatsapp_message}
+                radiusClass={radiusClass}
+                buttonStyle={linkButtonStyle}
+                onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
+              />
+            </div>
+            <div className="flex-1">
+              <CallButton number={profile.whatsapp_number} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
+            </div>
+            <div className="flex-1">
+              <SaveContactButton profile={profile} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
+            </div>
           </div>
           )
         )}
@@ -459,6 +442,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               buttonStyle={linkButtonStyle}
               currency={profile.currency || "USD"}
               whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
               playingId={playingId}
               onTogglePlay={togglePlay}
             />
@@ -622,9 +606,20 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               accent={accent}
               currency={profile.currency || "USD"}
               whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
               playingId={playingId}
               progress={progress}
               onTogglePlay={togglePlay}
+            />
+          )}
+
+          {isMusic && (
+            <ReleasesSection
+              t={t}
+              releases={profile.music_releases || []}
+              username={profile.username}
+              accent={accent}
+              currency={profile.currency || "USD"}
             />
           )}
 
@@ -666,7 +661,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             </div>
           )}
 
-          {profile.products?.length > 0 && (
+          {catalogProducts.length > 0 && (
             <div id="merch" className="flex flex-col gap-3 scroll-mt-6">
               <button
                 onClick={() => setShowCatalog((v) => !v)}
@@ -698,7 +693,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                     className="overflow-hidden"
                   >
                     <div className="grid grid-cols-2 gap-3">
-                      {profile.products
+                      {catalogProducts
                         .sort((a: any, b: any) => a.sort_order - b.sort_order)
                         .map((product: any) => (
                           <div
@@ -817,10 +812,10 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             <SupportArtistSection
               t={t}
               locale={locale}
-              whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
               accent={accent}
               textColor={contentTextColor}
-              buttonStyle={linkButtonStyle}
+              supportMessage={profile.support_message}
               radiusClass={radiusClass}
               borderTint={contentBorderTint}
             />

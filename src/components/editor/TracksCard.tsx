@@ -101,6 +101,7 @@ export default function TracksCard({
             track={track}
             userId={userId}
             audioPathPrefix={`${userId}/tracks-audio`}
+            releases={draft.music_releases || []}
             startExpanded={track.id === justAddedId}
             onChange={(patch) => updateTrack(track.id, patch)}
             onPersist={(patch) => persistTrack(track.id, patch)}

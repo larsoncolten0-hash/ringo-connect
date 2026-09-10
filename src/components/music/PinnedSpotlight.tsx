@@ -21,6 +21,7 @@ export default function PinnedSpotlight({
   buttonStyle,
   currency,
   whatsappNumber,
+  username,
   playingId,
   onTogglePlay,
 }: {
@@ -32,12 +33,18 @@ export default function PinnedSpotlight({
   buttonStyle: CSSProperties;
   currency: string;
   whatsappNumber?: string | null;
+  username: string;
   playingId: string | null;
   onTogglePlay: (track: any) => void;
 }) {
   const cover = type === "product" ? item.image_url : item.cover_image_url;
   const title = type === "product" ? item.name : item.title;
   const isPlaying = type === "track" && playingId === item.id;
+  // A pinned protected track can't be sold through the play button (that
+  // only ever plays the short preview clip) — it gets its own small Buy
+  // pill next to the play button, routing to the real storefront exactly
+  // like the same track's entry in Latest Music does.
+  const isProtectedTrack = type === "track" && !!item.protected_audio_path;
 
   const subtitle =
     type === "track"
@@ -106,20 +113,32 @@ export default function PinnedSpotlight({
           </div>
 
           {type === "track" ? (
-            (item.audio_url || item.external_url) && (
-              <button
-                onClick={() => onTogglePlay(item)}
-                aria-label={isPlaying ? "Pause" : "Play"}
-                className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition active:scale-90 shadow-lg"
-                style={{ backgroundColor: accent, color: "#fff" }}
-              >
-                {item.audio_url ? (
-                  isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />
-                ) : (
-                  <ExternalLink size={16} />
-                )}
-              </button>
-            )
+            <div className="flex items-center gap-2 shrink-0">
+              {isProtectedTrack && item.price && (
+                <a
+                  href={`/m/${username}`}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2.5 rounded-full shadow-lg transition hover:brightness-95 active:scale-95"
+                  style={buttonStyle}
+                >
+                  <ShoppingBag size={13} />
+                  {formatPrice(item.price, currency)}
+                </a>
+              )}
+              {(isProtectedTrack ? item.preview_audio_url : item.audio_url || item.external_url) && (
+                <button
+                  onClick={() => onTogglePlay(item)}
+                  aria-label={isPlaying ? "Pause" : "Play"}
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition active:scale-90 shadow-lg"
+                  style={{ backgroundColor: accent, color: "#fff" }}
+                >
+                  {(isProtectedTrack ? item.preview_audio_url : item.audio_url) ? (
+                    isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />
+                  ) : (
+                    <ExternalLink size={16} />
+                  )}
+                </button>
+              )}
+            </div>
           ) : ctaHref ? (
             <a
               href={ctaHref}

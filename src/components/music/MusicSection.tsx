@@ -1,6 +1,6 @@
 "use client";
 
-import { Music, Play, Pause, ExternalLink } from "lucide-react";
+import { Music, Play, Pause, ExternalLink, Lock } from "lucide-react";
 import { hexToRgba } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
@@ -31,6 +31,7 @@ export default function MusicSection({
   accent,
   currency,
   whatsappNumber,
+  username,
   playingId,
   progress,
   onTogglePlay,
@@ -42,6 +43,7 @@ export default function MusicSection({
   accent: string;
   currency: string;
   whatsappNumber?: string | null;
+  username: string;
   playingId: string | null;
   progress: number;
   onTogglePlay: (track: any) => void;
@@ -60,7 +62,13 @@ export default function MusicSection({
           .sort((a, b) => a.sort_order - b.sort_order)
           .map((track) => {
             const isPlaying = playingId === track.id;
-            const canBuy = track.buy_url || track.price;
+            // A protected track (real purchase item, see TrackRow/the
+            // Buy Now storefront) always routes its Buy CTA to the real
+            // checkout instead of the old buy_url/WhatsApp hand-off —
+            // that old flow had no way to actually deliver a purchased
+            // file, this one does.
+            const isProtected = !!track.protected_audio_path;
+            const canBuy = isProtected ? !!track.price : track.buy_url || track.price;
             return (
               <div
                 key={track.id}
@@ -83,9 +91,15 @@ export default function MusicSection({
                     {track.title}
                     {isPlaying && <EqualizerBars color={accent} />}
                   </p>
-                  <p className="text-xs truncate" style={{ opacity: 0.6 }}>
+                  <p className="text-xs truncate flex items-center gap-1" style={{ opacity: 0.6 }}>
                     {track.artist_name || artistName}
                     {track.duration ? ` · ${track.duration}` : ""}
+                    {isProtected && (
+                      <span className="inline-flex items-center gap-0.5 shrink-0">
+                        <Lock size={9} />
+                        {t.music.previewButtonLabel}
+                      </span>
+                    )}
                   </p>
                   {/* Real playback position when this is the playing track — not
                       a decorative static bar. Sits empty (0%) otherwise. */}
@@ -97,14 +111,14 @@ export default function MusicSection({
                   </div>
                 </div>
 
-                {(track.audio_url || track.external_url) && (
+                {(isProtected ? track.preview_audio_url : track.audio_url || track.external_url) && (
                   <button
                     onClick={() => onTogglePlay(track)}
                     aria-label={isPlaying ? "Pause" : "Play"}
                     className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition active:scale-90 shadow-md"
                     style={{ backgroundColor: accent, color: "#171009" }}
                   >
-                    {track.audio_url ? (
+                    {(isProtected ? track.preview_audio_url : track.audio_url) ? (
                       isPlaying ? <Pause size={17} /> : <Play size={17} className="ml-0.5" />
                     ) : (
                       <ExternalLink size={15} />
@@ -113,7 +127,15 @@ export default function MusicSection({
                 )}
 
                 {canBuy &&
-                  (track.buy_url ? (
+                  (isProtected ? (
+                    <a
+                      href={`/m/${username}`}
+                      className="shrink-0 text-xs font-semibold px-3 py-2 rounded-full"
+                      style={{ backgroundColor: accent, color: "#171009" }}
+                    >
+                      {track.price ? formatPrice(track.price, currency) : t.music.buyLabel}
+                    </a>
+                  ) : track.buy_url ? (
                     <a
                       href={track.buy_url}
                       target="_blank"

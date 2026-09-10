@@ -23,8 +23,16 @@ export function useTrackPlayback() {
   }, []);
 
   const togglePlay = (track: any) => {
-    if (!track.audio_url) {
-      if (track.external_url) window.open(track.external_url, "_blank", "noopener,noreferrer");
+    // A track with a protected_audio_path is a real purchase item — the
+    // full file is never public, so playback here can only ever be the
+    // short preview clip, regardless of whatever legacy audio_url the
+    // track might also carry. This is the same rule the server route
+    // enforces; this is just the player respecting it, not the boundary
+    // itself.
+    const isProtected = !!track.protected_audio_path;
+    const src = isProtected ? track.preview_audio_url : track.audio_url;
+    if (!src) {
+      if (!isProtected && track.external_url) window.open(track.external_url, "_blank", "noopener,noreferrer");
       return;
     }
     if (playingId === track.id) {
@@ -34,7 +42,7 @@ export function useTrackPlayback() {
     }
     if (!audioRef.current) audioRef.current = new Audio();
     const audio = audioRef.current;
-    audio.src = track.audio_url;
+    audio.src = src;
     setProgress(0);
     audio.ontimeupdate = () => {
       setProgress(audio.duration ? audio.currentTime / audio.duration : 0);

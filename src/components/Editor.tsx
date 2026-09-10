@@ -5,6 +5,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import ProfileHeaderCard from "@/components/editor/ProfileHeaderCard";
 import CategoryCard from "@/components/editor/CategoryCard";
 import MusicSettingsCard from "@/components/editor/MusicSettingsCard";
+import MusicReleasesCard from "@/components/editor/MusicReleasesCard";
 import PinnedSpotlightCard from "@/components/editor/PinnedSpotlightCard";
 import RestaurantSettingsCard from "@/components/editor/RestaurantSettingsCard";
 import MenuCard from "@/components/editor/MenuCard";
@@ -99,6 +100,7 @@ function EditorCards({
             profileId={profile.id}
             initialRole={profile.music_role}
             initialSupportEnabled={profile.hub_support_enabled !== false}
+            initialSupportMessage={profile.support_message}
           />
         )}
 
@@ -162,6 +164,10 @@ function EditorCards({
           initialLinks={profile.links || []}
           maxLinks={plan?.max_links ?? null}
         />
+
+        {isMusic && (
+          <MusicReleasesCard profileId={profile.id} userId={userId} initialReleases={profile.music_releases || []} />
+        )}
 
         {isMusic && (
           <TracksCard profileId={profile.id} userId={userId} initialTracks={profile.tracks || []} />

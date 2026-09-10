@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
@@ -18,6 +18,7 @@ export default function DashboardShell({
   isFreePlan,
   canApproveRequests = false,
   isRestaurant = false,
+  isMusic = false,
   children,
 }: {
   email: string;
@@ -34,6 +35,9 @@ export default function DashboardShell({
   // nav (and the space-constrained mobile tab bar) doesn't have to grow a
   // whole category's worth of pages for every restaurant owner.
   isRestaurant?: boolean;
+  // Same pattern as isRestaurant — Orders/Sales/Customers live behind this
+  // one entry as tabs in /dashboard/music's own layout.
+  isMusic?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -42,6 +46,7 @@ export default function DashboardShell({
   const NAV_ITEMS = [
     { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true },
     ...(isRestaurant ? [{ href: "/dashboard/restaurant", label: t.nav.restaurant, icon: UtensilsCrossed }] : []),
+    ...(isMusic ? [{ href: "/dashboard/music", label: t.nav.music, icon: Music2 }] : []),
     { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3 },
     { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake },
     { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard },

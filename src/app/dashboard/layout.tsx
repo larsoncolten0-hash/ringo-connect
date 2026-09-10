@@ -43,6 +43,7 @@ export default async function DashboardLayout({
       isFreePlan={planName === "free"}
       canApproveRequests={userRow?.role === "admin" || !!userRow?.can_approve_requests}
       isRestaurant={profileHasCategory(profile, "restaurant_food")}
+      isMusic={profileHasCategory(profile, "music_entertainment")}
     >
       {children}
     </DashboardShell>

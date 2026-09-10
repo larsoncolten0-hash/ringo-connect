@@ -1,34 +1,36 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { Heart } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
 
 const PRESET_AMOUNTS = [500, 1000, 2500, 5000];
 
-// Not a payment integration — tapping an amount opens WhatsApp with a
-// ready-made message, the exact same hand-off every "Buy" button on Ringo
-// Connect already uses instead of an in-app checkout. There's no wallet or
-// disbursement wired up for tips yet, so this deliberately doesn't
-// pretend otherwise; wiring it to real Mobile Money collection later only
-// means swapping what this button does, not how the section looks.
+// Routes into the real Buy Now storefront/checkout (/m/[username]?support=
+// <amount>) rather than a WhatsApp message — a support contribution is now
+// a real music_orders row (item_type='support'), so it gets an actual
+// receipt, counts toward the artist's revenue reporting, and feeds Top
+// Supporters. Still declared-payment-method checkout, not a real charge —
+// see the migration's header comment on why there's no payment gateway
+// here yet.
 export default function SupportArtistSection({
   t,
   locale,
-  whatsappNumber,
+  username,
   accent,
   textColor,
-  buttonStyle,
+  supportMessage,
   radiusClass,
   borderTint,
 }: {
   t: Translations;
   locale: "en" | "fr";
-  whatsappNumber: string;
+  username: string;
   accent: string;
   textColor: string;
-  buttonStyle: CSSProperties;
+  supportMessage?: string | null;
   radiusClass: string;
   borderTint: string;
 }) {
@@ -37,13 +39,6 @@ export default function SupportArtistSection({
 
   const finalAmount = amount === "custom" ? Number(customAmount) || 0 : amount;
   const canSend = finalAmount > 0;
-
-  const cleanNumber = whatsappNumber.replace(/[^0-9]/g, "");
-  const href = canSend
-    ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(
-        t.music.supportWhatsappMessage(formatPrice(finalAmount, "XAF", locale))
-      )}`
-    : undefined;
 
   return (
     <div
@@ -56,7 +51,7 @@ export default function SupportArtistSection({
         <p className="text-base font-bold">{t.music.supportTitle}</p>
       </div>
       <p className="text-xs" style={{ opacity: 0.65 }}>
-        {t.music.supportHint}
+        {supportMessage || t.music.supportHint}
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -98,10 +93,8 @@ export default function SupportArtistSection({
         />
       )}
 
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        href={canSend ? `/m/${username}?support=${finalAmount}` : "#"}
         aria-disabled={!canSend}
         onClick={(e) => {
           if (!canSend) e.preventDefault();
@@ -109,10 +102,10 @@ export default function SupportArtistSection({
         className={`text-center text-sm font-medium py-2.5 rounded-full transition hover:brightness-95 active:scale-[0.98] ${
           !canSend ? "opacity-40 pointer-events-none" : ""
         }`}
-        style={buttonStyle}
+        style={{ backgroundColor: accent, color: "#fff" }}
       >
         {t.music.sendSupportButton}
-      </a>
+      </Link>
     </div>
   );
 }

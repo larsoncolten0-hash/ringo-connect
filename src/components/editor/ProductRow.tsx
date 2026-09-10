@@ -131,6 +131,28 @@ export default function ProductRow({
                 placeholder={t.editor.productWhatsappMessage}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
               />
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs text-ringo-text cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={product.available !== false}
+                    onChange={(e) => {
+                      onChange({ available: e.target.checked });
+                      onPersist({ available: e.target.checked });
+                    }}
+                    className="accent-ringo-indigo"
+                  />
+                  {t.restaurant.availableLabel}
+                </label>
+                <input
+                  value={product.inventory_count ?? ""}
+                  onChange={(e) => onChange({ inventory_count: e.target.value.replace(/[^0-9]/g, "") })}
+                  onBlur={(e) => onPersist({ inventory_count: e.target.value ? Number(e.target.value) : null })}
+                  placeholder={t.music.inventoryPlaceholder}
+                  inputMode="numeric"
+                  className="w-32 text-xs border border-ringo-border rounded-card px-2.5 py-1.5 bg-ringo-surface text-ringo-text"
+                />
+              </div>
               <button onClick={onDelete} className="self-start text-xs text-red-500 px-1 py-1">
                 {t.editor.delete}
               </button>
