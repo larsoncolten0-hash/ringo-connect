@@ -689,30 +689,32 @@ export default function GetStartedFlow({
                 </div>
               )}
 
-              {variant === "affiliate" && (
-                <div className="border-t border-ringo-border pt-4">
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium">{t.getStarted.couponCodeLabel}</span>
-                    <div className="relative">
-                      <input
-                        value={referralCode}
-                        onChange={(e) => {
-                          setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 40));
-                          setReferralPrefilled(false);
-                        }}
-                        placeholder={t.getStarted.couponCodePlaceholder}
-                        className={`w-full border rounded-card px-3.5 py-2.5 pr-9 text-sm bg-ringo-surface ${
-                          referralPrefilled ? "border-ringo-teal" : "border-ringo-border"
-                        }`}
-                      />
-                      {referralPrefilled && (
-                        <Check size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ringo-teal" />
-                      )}
-                    </div>
-                  </label>
-                  {referralPrefilled && <p className="mt-1 text-xs text-ringo-teal">{t.getStarted.couponCodeApplied}</p>}
-                </div>
-              )}
+              {/* Shown on both variants now — previously only the
+                  affiliate flow displayed this field, and the standard
+                  flow just captured a stored ?ref= code silently in the
+                  background. Now every signer can see and edit it. */}
+              <div className="border-t border-ringo-border pt-4">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-sm font-medium">{t.getStarted.couponCodeLabel}</span>
+                  <div className="relative">
+                    <input
+                      value={referralCode}
+                      onChange={(e) => {
+                        setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 40));
+                        setReferralPrefilled(false);
+                      }}
+                      placeholder={t.getStarted.couponCodePlaceholder}
+                      className={`w-full border rounded-card px-3.5 py-2.5 pr-9 text-sm bg-ringo-surface ${
+                        referralPrefilled ? "border-ringo-teal" : "border-ringo-border"
+                      }`}
+                    />
+                    {referralPrefilled && (
+                      <Check size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ringo-teal" />
+                    )}
+                  </div>
+                </label>
+                {referralPrefilled && <p className="mt-1 text-xs text-ringo-teal">{t.getStarted.couponCodeApplied}</p>}
+              </div>
 
               {selectedPlan && (
                 <div className="border-t border-ringo-border pt-4">
