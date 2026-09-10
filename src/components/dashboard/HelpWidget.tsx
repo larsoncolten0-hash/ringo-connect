@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LifeBuoy, X, Mail } from "lucide-react";
+import { MessageCircle, X, Mail } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -55,7 +55,7 @@ export default function HelpWidget({ username, email }: { username: string; emai
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-14 right-0 w-[calc(100vw-2rem)] max-w-[320px] rounded-2xl border border-ringo-border/70 bg-ringo-surface shadow-[0_20px_48px_-16px_rgba(15,23,42,0.35)] p-4 flex flex-col gap-3"
+            className="absolute bottom-[4.75rem] right-0 w-[calc(100vw-2rem)] max-w-[320px] rounded-2xl border border-ringo-border/70 bg-ringo-surface shadow-[0_20px_48px_-16px_rgba(15,23,42,0.35)] p-4 flex flex-col gap-3"
           >
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -111,9 +111,16 @@ export default function HelpWidget({ username, email }: { username: string; emai
         onClick={() => setOpen((v) => !v)}
         aria-label={t.help.button}
         aria-expanded={open}
-        className="w-12 h-12 rounded-full bg-ringo-indigo text-white flex items-center justify-center shadow-[0_10px_28px_-8px_rgba(79,70,229,0.55)] transition hover:-translate-y-0.5 active:scale-95"
+        className="w-16 h-16 rounded-2xl bg-ringo-indigo text-white flex flex-col items-center justify-center gap-0.5 shadow-[0_10px_28px_-8px_rgba(79,70,229,0.55)] transition hover:-translate-y-0.5 active:scale-95"
       >
-        {open ? <X size={19} /> : <LifeBuoy size={19} />}
+        {open ? (
+          <X size={20} />
+        ) : (
+          <>
+            <MessageCircle size={20} />
+            <span className="text-[9px] font-semibold leading-none">{t.help.button}</span>
+          </>
+        )}
       </button>
     </div>
   );

@@ -612,7 +612,7 @@ export const translations = {
       upgradePlan: "Upgrade plan →",
     },
     help: {
-      button: "Help",
+      button: "Ask help",
       title: "Need help?",
       subtitle: "Tell us what's going wrong and we'll help you fix it.",
       placeholder: "Describe the issue you're having…",

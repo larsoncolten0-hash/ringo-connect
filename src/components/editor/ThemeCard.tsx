@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Palette } from "lucide-react";
+import { Palette, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getRadiusClass, type ButtonStyle, type ButtonRadius, type BackgroundStyle } from "@/lib/theme";
@@ -122,8 +122,9 @@ export default function ThemeCard({
         <div className="flex items-center gap-3">
           <button
             onClick={resetToDefaults}
-            className="text-xs font-medium text-ringo-muted hover:text-ringo-coral transition-colors"
+            className="flex items-center gap-1.5 text-xs font-bold text-ringo-coral border border-ringo-coral/30 bg-ringo-coral/5 px-3 py-1.5 rounded-full transition hover:bg-ringo-coral/10 active:scale-95"
           >
+            <RotateCcw size={12} strokeWidth={2.5} />
             {t.editor.theme.resetToDefault}
           </button>
           <SavedPulse visible={pulse.visible} label={t.editor.saved} />
