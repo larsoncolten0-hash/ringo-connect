@@ -329,6 +329,11 @@ export const translations = {
       navPricing: "Pricing",
 
       heroEyebrow: "Your digital identity, in one place",
+      // Split in two so the hero can color "One Ringo." separately from
+      // the rest — kept as separate keys rather than splitting heroTitle
+      // with a regex, which would only ever work for English.
+      heroTitleLead: "One Ringo.",
+      heroTitleRest: "Everything connected.",
       heroTitle: "One Ringo. Everything connected.",
       heroSubtitle:
         "Create your digital identity, share your links, showcase your products and services, connect with customers, and grow your presence — all from one Ringo.",
@@ -1118,6 +1123,8 @@ export const translations = {
       navPricing: "Tarifs",
 
       heroEyebrow: "Votre identité numérique, au même endroit",
+      heroTitleLead: "Un seul Ringo.",
+      heroTitleRest: "Tout est connecté.",
       heroTitle: "Un seul Ringo. Tout est connecté.",
       heroSubtitle:
         "Créez votre identité numérique, partagez vos liens, présentez vos produits et services, connectez-vous à vos clients, et développez votre présence — le tout depuis un seul Ringo.",

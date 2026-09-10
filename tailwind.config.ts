@@ -55,6 +55,12 @@ const config: Config = {
           "0%, 100%": { height: "4px" },
           "50%": { height: "12px" },
         },
+        // The landing page's floating capability badges around the hero
+        // phone mockup (see LandingView.tsx) — a gentle bob, nothing more.
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
       },
       animation: {
         "ring-pulse-1": "ring-pulse 3.2s ease-out infinite",
@@ -64,6 +70,7 @@ const config: Config = {
         "dropdown-in": "dropdown-in 150ms ease-out",
         "fade-up": "fade-up 0.6s ease-out both",
         "eq-bar": "eq-bar 0.9s ease-in-out infinite",
+        float: "float 5s ease-in-out infinite",
       },
     },
   },
