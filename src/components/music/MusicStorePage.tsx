@@ -8,6 +8,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { getMusicRole } from "@/lib/categories";
 import ImageGallery from "@/components/ImageGallery";
+import { useTrackPlayback } from "./useTrackPlayback";
 
 type ItemType = "song" | "release" | "merch" | "ticket" | "support";
 type CartLine = { itemType: ItemType; id?: string; name: string; price: number; quantity: number; coverUrl?: string };
@@ -22,6 +23,13 @@ export default function MusicStorePage({ profile }: { profile: any }) {
   const releases: any[] = (profile.music_releases || []).filter((r: any) => r.available !== false);
   const merch: any[] = (profile.products || []).filter((p: any) => p.available !== false);
   const tickets: any[] = (profile.events || []).filter((e: any) => e.price);
+
+  // A song for sale shows a play button for its 30-second preview (or the
+  // full audio_url, for a track that isn't protected/gated) right on its
+  // store card — same rule useTrackPlayback already enforces elsewhere
+  // (Latest Music, Pinned Spotlight): a protected track can only ever
+  // play its preview clip here, never the full file.
+  const { playingId, togglePlay } = useTrackPlayback();
 
   const [cart, setCart] = useState<CartLine[]>([]);
   const [showCart, setShowCart] = useState(false);
@@ -188,6 +196,9 @@ export default function MusicStorePage({ profile }: { profile: any }) {
                   accent={accent}
                   ctaLabel={t.music.buySong}
                   onAdd={() => addToCart({ itemType: "song", id: tr.id, name: tr.title, price: Number(tr.price), quantity: 1, coverUrl: tr.cover_image_url })}
+                  hasPreview={!!(tr.preview_audio_url || tr.audio_url)}
+                  isPlaying={playingId === tr.id}
+                  onTogglePlay={() => togglePlay(tr)}
                 />
               ))}
             </div>
@@ -380,7 +391,33 @@ export default function MusicStorePage({ profile }: { profile: any }) {
   );
 }
 
-function StoreCard({ image, name, price, currency, locale, accent, ctaLabel, onAdd }: { image?: string; name: string; price: number; currency: string; locale: string; accent: string; ctaLabel: string; onAdd: () => void }) {
+function StoreCard({
+  image,
+  name,
+  price,
+  currency,
+  locale,
+  accent,
+  ctaLabel,
+  onAdd,
+  hasPreview,
+  isPlaying,
+  onTogglePlay,
+}: {
+  image?: string;
+  name: string;
+  price: number;
+  currency: string;
+  locale: string;
+  accent: string;
+  ctaLabel: string;
+  onAdd: () => void;
+  // Play button for a 30-second preview clip — only songs carry one
+  // (releases are a bundle of tracks, not a single audio file to play).
+  hasPreview?: boolean;
+  isPlaying?: boolean;
+  onTogglePlay?: () => void;
+}) {
   return (
     <div className="flex items-center gap-3 rounded-2xl p-2.5" style={{ border: "1px solid #E5E7EB" }}>
       {image ? <img src={image} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" /> : <div className="w-14 h-14 rounded-xl shrink-0" style={{ backgroundColor: "#F3F4F6" }} />}
@@ -388,6 +425,16 @@ function StoreCard({ image, name, price, currency, locale, accent, ctaLabel, onA
         <p className="text-sm font-semibold truncate">{name}</p>
         <p className="text-sm font-bold" style={{ color: accent }} suppressHydrationWarning>{formatPrice(price, currency, locale)}</p>
       </div>
+      {hasPreview && onTogglePlay && (
+        <button
+          onClick={onTogglePlay}
+          aria-label={isPlaying ? "Pause" : "Play"}
+          className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center border"
+          style={{ borderColor: "#E5E7EB", color: accent }}
+        >
+          {isPlaying ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
+        </button>
+      )}
       <button onClick={onAdd} className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full text-white" style={{ backgroundColor: accent }}>
         {ctaLabel}
       </button>
