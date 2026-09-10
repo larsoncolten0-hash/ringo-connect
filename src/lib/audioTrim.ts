@@ -23,11 +23,24 @@ function floatTo16BitPCM(input: Float32Array): Int16Array {
 // Fully decodes a local audio File/Blob into raw PCM — there's no
 // partial-decode API in the browser, so this reads the whole file even
 // though only its first MAX_PREVIEW_SECONDS end up in the final clip.
+// Pinned to 44100Hz (one of the handful of rates lamejs's MP3 encoder
+// actually supports) rather than trusting whatever native rate the
+// device's audio hardware happens to default to — decodeAudioData
+// resamples into it either way, so this costs nothing and removes an
+// otherwise device-dependent failure mode.
 export async function decodeAudioFile(file: File | Blob): Promise<AudioBuffer> {
   const arrayBuffer = await file.arrayBuffer();
   const AudioContextCtor: typeof AudioContext =
     window.AudioContext || (window as any).webkitAudioContext;
-  const ctx = new AudioContextCtor();
+  let ctx: AudioContext;
+  try {
+    ctx = new AudioContextCtor({ sampleRate: 44100 });
+  } catch {
+    // A handful of older browsers reject the options object outright —
+    // fall back to whatever the device's default rate is rather than
+    // failing the whole trim over it.
+    ctx = new AudioContextCtor();
+  }
   try {
     return await ctx.decodeAudioData(arrayBuffer);
   } finally {

@@ -161,9 +161,13 @@ export default function ProtectedAudioUploadField({
           ) : previewUrl ? (
             // eslint-disable-next-line jsx-a11y/media-has-caption
             <audio src={previewUrl} controls className="h-9 w-full" />
-          ) : previewFailed ? (
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-ringo-coral">{label.previewFailed}</p>
+          ) : (
+            // No preview yet — either the automatic step just failed, or
+            // this track was uploaded before that step existed. Either
+            // way, always offer a way to generate one rather than leaving
+            // this silently blank with no path forward.
+            <div className="flex items-center gap-2 flex-wrap">
+              {previewFailed && <p className="text-xs text-ringo-coral">{label.previewFailed}</p>}
               <button
                 type="button"
                 onClick={retryPreview}
@@ -172,7 +176,7 @@ export default function ProtectedAudioUploadField({
                 <RefreshCw size={11} /> {label.retryPreview}
               </button>
             </div>
-          ) : null}
+          )}
         </div>
       ) : (
         <button
