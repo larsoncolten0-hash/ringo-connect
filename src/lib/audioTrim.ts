@@ -1,13 +1,15 @@
 // Client-side preview-clip trimming for protected tracks (see
-// PreviewTrimField.tsx, the only caller). An artist selling a track as a
-// real purchase uploads exactly one audio file, into the private
-// protected-audio bucket (see ProtectedAudioUploadField) — the full file
-// is never made public. To give fans a short preview without ever
-// exposing that file, we decode it in the ARTIST's own browser (using a
-// short-lived signed URL they already have owner access to), slice out
-// just the window they picked, and re-encode that slice as a small public
-// MP3 — the only thing that ever becomes publicly reachable.
+// ProtectedAudioUploadField.tsx, the only caller). An artist selling a
+// track as a real purchase uploads exactly one audio file — the full file
+// goes into the private protected-audio bucket and is never made public.
+// The moment that upload finishes, we also decode that same file (still
+// sitting in the browser as a local File, no extra download needed),
+// slice out the first MAX_PREVIEW_SECONDS, and re-encode just that slice
+// as a small public MP3 — the only thing that ever becomes public. No
+// artist interaction (no manual start/end marking) is needed.
 import lamejs from "lamejs";
+
+export const MAX_PREVIEW_SECONDS = 30;
 
 function floatTo16BitPCM(input: Float32Array): Int16Array {
   const output = new Int16Array(input.length);
@@ -18,13 +20,11 @@ function floatTo16BitPCM(input: Float32Array): Int16Array {
   return output;
 }
 
-// Downloads and fully decodes `url` into raw PCM. Runs once per trim —
-// there's no partial-decode API in the browser, so this reads the whole
-// file even though only a slice of it will end up in the final clip.
-export async function fetchAndDecodeAudio(url: string): Promise<AudioBuffer> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Could not download audio for trimming.");
-  const arrayBuffer = await res.arrayBuffer();
+// Fully decodes a local audio File/Blob into raw PCM — there's no
+// partial-decode API in the browser, so this reads the whole file even
+// though only its first MAX_PREVIEW_SECONDS end up in the final clip.
+export async function decodeAudioFile(file: File | Blob): Promise<AudioBuffer> {
+  const arrayBuffer = await file.arrayBuffer();
   const AudioContextCtor: typeof AudioContext =
     window.AudioContext || (window as any).webkitAudioContext;
   const ctx = new AudioContextCtor();
@@ -35,17 +35,15 @@ export async function fetchAndDecodeAudio(url: string): Promise<AudioBuffer> {
   }
 }
 
-// Slices [startSeconds, endSeconds) out of `buffer` and re-encodes just
-// that slice as a small 128kbps MP3 Blob — the file that actually gets
-// uploaded as the public preview.
-export function trimToMp3(buffer: AudioBuffer, startSeconds: number, endSeconds: number): Blob {
+// Slices [0, MAX_PREVIEW_SECONDS) (or the whole thing, if shorter) out of
+// `buffer` and re-encodes it as a small 128kbps MP3 Blob.
+export function trimToPreviewMp3(buffer: AudioBuffer): Blob {
   const sampleRate = buffer.sampleRate;
-  const startSample = Math.max(0, Math.floor(startSeconds * sampleRate));
-  const endSample = Math.min(buffer.length, Math.floor(endSeconds * sampleRate));
+  const endSample = Math.min(buffer.length, Math.floor(MAX_PREVIEW_SECONDS * sampleRate));
   const channels = Math.min(2, buffer.numberOfChannels);
 
-  const left = floatTo16BitPCM(buffer.getChannelData(0).subarray(startSample, endSample));
-  const right = channels > 1 ? floatTo16BitPCM(buffer.getChannelData(1).subarray(startSample, endSample)) : null;
+  const left = floatTo16BitPCM(buffer.getChannelData(0).subarray(0, endSample));
+  const right = channels > 1 ? floatTo16BitPCM(buffer.getChannelData(1).subarray(0, endSample)) : null;
 
   const encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
   const blockSize = 1152;

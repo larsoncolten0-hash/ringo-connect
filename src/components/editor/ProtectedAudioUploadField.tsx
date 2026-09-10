@@ -1,119 +1,196 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, Lock, Play, Pause, X } from "lucide-react";
+import { Loader2, Lock, X, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { decodeAudioFile, trimToPreviewMp3, MAX_PREVIEW_SECONDS } from "@/lib/audioTrim";
 
 const MAX_SIZE_BYTES = 25 * 1024 * 1024; // ~25MB — a full-length track at a reasonable bitrate
 
-// Uploads to the PRIVATE `protected-audio` bucket (see the migration) and
-// stores only the storage PATH, never a public URL — there isn't one; the
-// bucket has no public-read policy. Once a track has a path here, it
-// becomes a real gated purchase (see TrackRow) — a fan only ever gets a
-// short-lived signed URL to it, minted server-side after their purchase
-// is verified (/api/music/tracks/[id]/audio). The "preview" button here
-// is for the ARTIST's own use while managing their catalog — it works
-// because the storage policy lets an owner read their own uploaded path,
-// via a signed URL generated with their own session, not a public one.
+// One upload panel for a track sold as a real purchase: the artist
+// uploads exactly one audio file. It goes into the PRIVATE `protected-
+// audio` bucket (only ever reachable by the owner, or a fan after a
+// verified purchase — see /api/music/tracks/[id]/audio) — but before that
+// upload even finishes, the same local file is also decoded right here in
+// the browser, trimmed down to its first MAX_PREVIEW_SECONDS, and
+// re-encoded as a small MP3 that's uploaded to the normal public bucket.
+// That short public clip is the only thing a fan ever gets to hear before
+// buying — nothing about the full file is ever exposed. No manual
+// start/end picking, no second upload: one file in, both fields come out.
 export default function ProtectedAudioUploadField({
-  value,
+  protectedPath,
+  previewUrl,
   onChange,
   pathPrefix,
+  previewPathPrefix,
   label,
 }: {
-  value?: string | null;
-  onChange: (path: string) => void;
+  protectedPath?: string | null;
+  previewUrl?: string | null;
+  onChange: (patch: { protected_audio_path: string; preview_audio_url: string }) => void;
   pathPrefix: string;
-  label: { upload: string; remove: string; preview: string; protected: string };
+  previewPathPrefix: string;
+  label: {
+    upload: string;
+    hint: string;
+    uploading: string;
+    generatingPreview: string;
+    protectedBadge: (seconds: number) => string;
+    remove: string;
+    previewFailed: string;
+    retryPreview: string;
+    wrongType: string;
+    tooLarge: string;
+    uploadFailed: string;
+  };
 }) {
   const supabase = createClient();
   const inputRef = useRef<HTMLInputElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const lastFile = useRef<File | null>(null);
+  const [status, setStatus] = useState<"idle" | "uploading" | "trimming">("idle");
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [error, setError] = useState("");
+
+  const buildPreviewClip = async (source: File | Blob): Promise<string> => {
+    const buffer = await decodeAudioFile(source);
+    const blob = trimToPreviewMp3(buffer);
+    const clipPath = `${previewPathPrefix}/${crypto.randomUUID()}.mp3`;
+    const { error: uploadError } = await supabase.storage.from("uploads").upload(clipPath, blob, {
+      upsert: true,
+      cacheControl: "3600",
+      contentType: "audio/mpeg",
+    });
+    if (uploadError) throw uploadError;
+    return supabase.storage.from("uploads").getPublicUrl(clipPath).data.publicUrl;
+  };
 
   const handleFile = async (file: File) => {
     setError("");
+    setPreviewFailed(false);
+
     if (!file.type.startsWith("audio/")) {
-      setError("Please choose an audio file.");
+      setError(label.wrongType);
       return;
     }
     if (file.size > MAX_SIZE_BYTES) {
-      setError("Audio files must be under 25MB.");
+      setError(label.tooLarge);
       return;
     }
 
-    setUploading(true);
+    lastFile.current = file;
+    setStatus("uploading");
     try {
       const ext = file.name.split(".").pop() || "mp3";
       const path = `${pathPrefix}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("protected-audio").upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
-      onChange(path);
+
+      setStatus("trimming");
+      try {
+        const clipUrl = await buildPreviewClip(file);
+        onChange({ protected_audio_path: path, preview_audio_url: clipUrl });
+      } catch {
+        // The full track is safely uploaded either way — only the
+        // automatic preview step failed, and that's retryable on its own
+        // without asking the artist to re-upload the whole song.
+        setPreviewFailed(true);
+        onChange({ protected_audio_path: path, preview_audio_url: "" });
+      }
     } catch {
-      setError("Upload failed. Try again.");
+      setError(label.uploadFailed);
     } finally {
-      setUploading(false);
+      setStatus("idle");
     }
   };
 
-  const togglePreview = async () => {
-    if (playing) {
-      audioRef.current?.pause();
-      setPlaying(false);
-      return;
+  const retryPreview = async () => {
+    if (!protectedPath) return;
+    setError("");
+    setStatus("trimming");
+    try {
+      let source: File | Blob | null = lastFile.current;
+      if (!source) {
+        // Page was reloaded since the upload — re-fetch the artist's own
+        // file via the same owner-only signed-URL access the manual
+        // "Preview" button used to use.
+        const { data, error: signError } = await supabase.storage.from("protected-audio").createSignedUrl(protectedPath, 300);
+        if (signError || !data) throw signError || new Error("no signed url");
+        const res = await fetch(data.signedUrl);
+        if (!res.ok) throw new Error("download failed");
+        source = await res.blob();
+      }
+      const clipUrl = await buildPreviewClip(source);
+      setPreviewFailed(false);
+      onChange({ protected_audio_path: protectedPath, preview_audio_url: clipUrl });
+    } catch {
+      setError(label.previewFailed);
+    } finally {
+      setStatus("idle");
     }
-    if (!value) return;
-    const { data, error: signError } = await supabase.storage.from("protected-audio").createSignedUrl(value, 300);
-    if (signError || !data) {
-      setError("Could not load preview.");
-      return;
-    }
-    if (!audioRef.current) audioRef.current = new Audio();
-    audioRef.current.src = data.signedUrl;
-    audioRef.current.onended = () => setPlaying(false);
-    await audioRef.current.play();
-    setPlaying(true);
+  };
+
+  const remove = () => {
+    lastFile.current = null;
+    setPreviewFailed(false);
+    onChange({ protected_audio_path: "", preview_audio_url: "" });
   };
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        {value ? (
-          <>
-            <button
-              type="button"
-              onClick={togglePreview}
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-card border border-ringo-border text-ringo-text"
-            >
-              {playing ? <Pause size={13} /> : <Play size={13} />}
-              {label.preview}
-            </button>
-            <span className="flex items-center gap-1 text-xs text-ringo-muted">
-              <Lock size={11} /> {label.protected}
+      {protectedPath ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-ringo-text">
+              <Lock size={12} className="text-ringo-indigo" />
+              {label.protectedBadge(MAX_PREVIEW_SECONDS)}
             </span>
             <button
               type="button"
-              onClick={() => onChange("")}
+              onClick={remove}
               aria-label={label.remove}
               className="ml-auto shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-ringo-muted hover:text-red-500 hover:bg-red-500/10 transition"
             >
               <X size={14} />
             </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-card border border-dashed border-ringo-border text-ringo-muted hover:border-ringo-indigo hover:text-ringo-indigo transition disabled:opacity-60"
-          >
-            {uploading ? <Loader2 size={13} className="animate-spin" /> : <Lock size={13} />}
-            {label.upload}
-          </button>
-        )}
-      </div>
+          </div>
+
+          {status === "trimming" ? (
+            <p className="flex items-center gap-1.5 text-xs text-ringo-muted">
+              <Loader2 size={12} className="animate-spin" /> {label.generatingPreview}
+            </p>
+          ) : previewUrl ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <audio src={previewUrl} controls className="h-9 w-full" />
+          ) : previewFailed ? (
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-ringo-coral">{label.previewFailed}</p>
+              <button
+                type="button"
+                onClick={retryPreview}
+                className="shrink-0 flex items-center gap-1 text-xs font-medium text-ringo-indigo"
+              >
+                <RefreshCw size={11} /> {label.retryPreview}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={status !== "idle"}
+          className="flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-card border border-dashed border-ringo-border text-ringo-muted hover:border-ringo-indigo hover:text-ringo-indigo transition disabled:opacity-60"
+        >
+          {status !== "idle" ? (
+            <Loader2 size={13} className="animate-spin" />
+          ) : (
+            <Lock size={13} />
+          )}
+          {status === "uploading" ? label.uploading : status === "trimming" ? label.generatingPreview : label.upload}
+        </button>
+      )}
+
+      {!protectedPath && <p className="text-xs text-ringo-muted">{label.hint}</p>}
       <input
         ref={inputRef}
         type="file"

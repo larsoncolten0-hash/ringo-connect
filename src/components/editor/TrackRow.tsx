@@ -7,7 +7,6 @@ import { useLanguage } from "@/components/LanguageProvider";
 import ImageUploadField from "./ImageUploadField";
 import AudioUploadField from "./AudioUploadField";
 import ProtectedAudioUploadField from "./ProtectedAudioUploadField";
-import PreviewTrimField from "./PreviewTrimField";
 
 export default function TrackRow({
   track,
@@ -199,67 +198,45 @@ export default function TrackRow({
                     />
                   </div>
 
-                  <div className="rounded-card border border-dashed border-ringo-border p-2.5 flex flex-col gap-2">
-                    <p className="text-xs font-medium text-ringo-text flex items-center gap-1.5">
-                      <Lock size={11} /> {t.music.sellAsPurchaseTitle}
-                    </p>
-                    <p className="text-xs text-ringo-muted -mt-1">{t.music.sellAsPurchaseHint}</p>
-
-                    <div>
-                      <p className="text-xs text-ringo-muted mb-1">{t.music.protectedAudioLabel}</p>
-                      <ProtectedAudioUploadField
-                        value={track.protected_audio_path}
-                        onChange={(path) => {
-                          onChange({ protected_audio_path: path });
-                          onPersist({ protected_audio_path: path });
-                        }}
-                        pathPrefix={`${userId}/tracks-protected`}
-                        label={{ upload: t.music.uploadProtected, remove: t.music.removeAudio, preview: t.music.previewButtonLabel, protected: t.music.protectedBadge }}
-                      />
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-ringo-muted mb-1">{t.music.previewAudioLabel}</p>
-                      <PreviewTrimField
-                        protectedPath={track.protected_audio_path}
-                        value={track.preview_audio_url}
-                        onChange={(url) => {
-                          onChange({ preview_audio_url: url });
-                          onPersist({ preview_audio_url: url });
-                        }}
-                        pathPrefix={`${audioPathPrefix}-preview`}
-                        label={{
-                          setPreview: t.music.setPreviewClip,
-                          change: t.music.changePreviewClip,
-                          remove: t.music.removeAudio,
-                          markStart: t.music.previewMarkStart,
-                          markEnd: t.music.previewMarkEnd,
-                          selection: t.music.previewSelection,
-                          noSelection: t.music.previewNoSelection,
-                          save: t.music.previewSaveClip,
-                          saving: t.music.previewSavingClip,
-                          uploadFirst: t.music.previewUploadFirst,
-                          loadFailed: t.music.previewLoadFailed,
-                          trimFailed: t.music.previewTrimFailed,
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-1.5 text-xs text-ringo-text cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={track.download_enabled !== false}
-                          onChange={(e) => {
-                            onChange({ download_enabled: e.target.checked });
-                            onPersist({ download_enabled: e.target.checked });
-                          }}
-                          className="accent-ringo-indigo"
-                        />
-                        {t.music.downloadEnabledLabel}
-                      </label>
-                    </div>
+                  <div>
+                    <p className="text-xs text-ringo-muted mb-1">{t.music.protectedAudioLabel}</p>
+                    <ProtectedAudioUploadField
+                      protectedPath={track.protected_audio_path}
+                      previewUrl={track.preview_audio_url}
+                      onChange={(patch) => {
+                        onChange(patch);
+                        onPersist(patch);
+                      }}
+                      pathPrefix={`${userId}/tracks-protected`}
+                      previewPathPrefix={`${audioPathPrefix}-preview`}
+                      label={{
+                        upload: t.music.uploadProtected,
+                        hint: t.music.protectedAudioHint,
+                        uploading: t.music.uploadingTrack,
+                        generatingPreview: t.music.generatingPreview,
+                        protectedBadge: t.music.protectedBadgeWithSeconds,
+                        remove: t.music.removeAudio,
+                        previewFailed: t.music.previewTrimFailed,
+                        retryPreview: t.music.previewRetry,
+                        wrongType: t.editor.upload.wrongType,
+                        tooLarge: t.music.protectedTooLarge,
+                        uploadFailed: t.editor.upload.failed,
+                      }}
+                    />
                   </div>
+
+                  <label className="flex items-center gap-1.5 text-xs text-ringo-text cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={track.download_enabled !== false}
+                      onChange={(e) => {
+                        onChange({ download_enabled: e.target.checked });
+                        onPersist({ download_enabled: e.target.checked });
+                      }}
+                      className="accent-ringo-indigo"
+                    />
+                    {t.music.downloadEnabledLabel}
+                  </label>
                 </>
               )}
 
