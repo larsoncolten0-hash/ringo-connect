@@ -145,13 +145,8 @@ export default function LandingView({
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-1.5">
-            {/* Language/theme toggles move into the mobile menu panel below
-                lg — keeps the phone header down to just what matters:
-                the nav toggle and the two account actions. */}
-            <div className="hidden lg:flex items-center gap-1.5">
-              <LanguageToggle />
-              <ThemeToggle iconOnly />
-            </div>
+            <LanguageToggle />
+            <ThemeToggle iconOnly />
 
             {isLoggedIn ? (
               <Link
@@ -212,10 +207,6 @@ export default function LandingView({
                   </Link>
                 ))}
               </nav>
-              <div className="flex items-center gap-1.5 px-5 pb-4">
-                <LanguageToggle />
-                <ThemeToggle iconOnly />
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
