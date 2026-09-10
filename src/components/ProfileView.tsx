@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
-import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
+import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, profileHasCategory } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
@@ -26,6 +26,7 @@ import RestaurantHeroButtons from "./restaurant/RestaurantHeroButtons";
 import FeaturedMenuSection from "./restaurant/FeaturedMenuSection";
 import OpeningHoursRow from "./restaurant/OpeningHoursRow";
 import ImageGallery from "./ImageGallery";
+import ShareButton from "./ShareButton";
 
 export default function ProfileView({
   profile,
@@ -44,7 +45,6 @@ export default function ProfileView({
   preview?: boolean;
 }) {
   const { t, locale } = useLanguage();
-  const [copied, setCopied] = useState(false);
   const [showCatalog, setShowCatalog] = useState(true);
   const catalogLabel = getCategory(profile.category)?.defaults.catalogLabel?.[locale] || t.profilePage.catalogHeading;
   const isMusic = profileHasCategory(profile, "music_entertainment");
@@ -166,16 +166,6 @@ export default function ProfileView({
     }
   };
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard API can fail (older browsers, non-HTTPS) — fail silently
-      // rather than showing an error for a non-critical convenience feature.
-    }
-  };
 
   const accent = profile.theme_color || "#D4A954";
   const textColor = profile.text_color || "#FAFAFA";
@@ -268,45 +258,43 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
       )}
 
       {/* Cover photo — falls back to a soft accent-tinted gradient when
-          the creator hasn't uploaded one, rather than an empty/broken area. */}
-      <div className="relative w-full h-52 sm:h-60 overflow-hidden shrink-0">
-        {profile.cover_image_url ? (
-          <img src={profile.cover_image_url} alt="" className="w-full h-full object-cover" />
-        ) : (
+          the creator hasn't uploaded one, rather than an empty/broken area.
+          The image/gradient sit in their own clipped inner layer so the
+          share button's dropdown (taller than this whole box) can still
+          extend past it instead of being cut off by overflow-hidden. */}
+      <div className="relative w-full h-52 sm:h-60 shrink-0">
+        <div className="absolute inset-0 overflow-hidden">
+          {profile.cover_image_url ? (
+            <img src={profile.cover_image_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div
+              className="w-full h-full"
+              style={{ background: `linear-gradient(135deg, ${hexToRgba(accent, 0.35)}, ${bgColor})` }}
+            />
+          )}
           <div
-            className="w-full h-full"
-            style={{ background: `linear-gradient(135deg, ${hexToRgba(accent, 0.35)}, ${bgColor})` }}
+            className="absolute inset-0"
+            style={{ background: `linear-gradient(to bottom, transparent 35%, ${bgColor} 92%)` }}
           />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{ background: `linear-gradient(to bottom, transparent 35%, ${bgColor} 92%)` }}
-        />
+        </div>
 
         {!preview && (
-          <button
-            onClick={copyLink}
-            aria-label="Copy link to this page"
-            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition z-10"
-            style={{ backgroundColor: "rgba(255,255,255,0.7)", color: accent }}
-          >
-            {copied ? <Check size={15} /> : <Copy size={15} />}
-          </button>
+          <div className="absolute top-4 right-4 z-10">
+            <ShareButton
+              accent={accent}
+              title={profile.name || profile.username}
+              strings={{
+                share: t.profilePage.share,
+                copyLink: t.profilePage.copyLink,
+                linkCopied: t.profilePage.linkCopied,
+                shareWhatsapp: t.profilePage.shareWhatsapp,
+                shareFacebook: t.profilePage.shareFacebook,
+                shareX: t.profilePage.shareX,
+                moreOptions: t.profilePage.moreOptions,
+              }}
+            />
+          </div>
         )}
-        <AnimatePresence>
-          {!preview && copied && (
-            <motion.span
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2 }}
-              className="absolute top-14 right-4 text-xs px-2.5 py-1 rounded-full z-10"
-              style={{ backgroundColor: "rgba(255,255,255,0.9)", color: accent }}
-            >
-              {t.profilePage.linkCopied}
-            </motion.span>
-          )}
-        </AnimatePresence>
       </div>
 
       <div className="relative z-10 flex flex-col items-center px-4 -mt-16 w-full">

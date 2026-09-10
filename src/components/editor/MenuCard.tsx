@@ -5,6 +5,7 @@ import { BookOpen } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
+import EmptyState from "./EmptyState";
 import MenuCategorySection from "./MenuCategorySection";
 import { useEditorPreview } from "./EditorPreviewContext";
 
@@ -146,7 +147,7 @@ export default function MenuCard({
     >
       <p className="text-xs text-ringo-muted -mt-2 mb-3">{t.restaurant.menuHint}</p>
 
-      {categories.length === 0 && <p className="text-sm text-ringo-muted">{t.restaurant.noCategoriesYet}</p>}
+      {categories.length === 0 && <EmptyState icon={BookOpen} title={t.restaurant.noCategoriesYet} />}
 
       <div className="flex flex-col gap-3">
         {categories.map((category, idx) => {

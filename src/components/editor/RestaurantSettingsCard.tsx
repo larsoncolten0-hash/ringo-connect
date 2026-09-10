@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UtensilsCrossed, Clock } from "lucide-react";
+import { UtensilsCrossed, Clock, Palette } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import { RESTAURANT_SUBCATEGORIES, getCategory, type RestaurantSubcategory } from "@/lib/categories";
@@ -223,13 +223,18 @@ export default function RestaurantSettingsCard({
           </div>
         </div>
 
-        <div className="rounded-card border border-dashed border-ringo-border p-3.5">
-          <p className="text-sm font-medium text-ringo-text">{t.restaurant.recommendedThemeNudge}</p>
-          <p className="text-xs text-ringo-muted mt-1">{t.restaurant.applyThemeHint}</p>
+        <div className="rounded-card border border-ringo-indigo/25 bg-ringo-indigo/[0.05] p-4 flex flex-col sm:flex-row sm:items-center gap-3.5">
+          <span className="w-9 h-9 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
+            <Palette size={16} className="text-ringo-indigo" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-ringo-text">{t.restaurant.recommendedThemeNudge}</p>
+            <p className="text-xs text-ringo-muted mt-0.5">{t.restaurant.applyThemeHint}</p>
+          </div>
           <button
             onClick={applyRecommendedTheme}
             disabled={applyingTheme}
-            className="text-xs font-medium text-ringo-indigo mt-2.5 disabled:opacity-50"
+            className="shrink-0 flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-ringo-indigo px-4 py-2.5 rounded-card transition hover:brightness-110 active:scale-[0.97] disabled:opacity-50 whitespace-nowrap"
           >
             {applyingTheme ? t.restaurant.applyingTheme : t.restaurant.applyTheme}
           </button>

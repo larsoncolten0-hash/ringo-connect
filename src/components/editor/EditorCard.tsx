@@ -12,13 +12,13 @@ export default function EditorCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-[0_2px_12px_rgba(15,23,42,0.06)]">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 mb-5">
-        <div className="flex items-center gap-2.5 shrink-0">
-          <span className="w-7 h-7 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
-            <Icon size={14} className="text-ringo-indigo" />
+    <section className="rounded-[20px] border border-ringo-border/60 bg-ringo-surface p-5 sm:p-6 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_10px_24px_-18px_rgba(15,23,42,0.12)] transition-shadow duration-300 hover:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_32px_-16px_rgba(15,23,42,0.16)]">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 mb-4 border-b border-ringo-border/50">
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="w-8 h-8 rounded-xl bg-ringo-indigo/10 flex items-center justify-center shrink-0">
+            <Icon size={15} className="text-ringo-indigo" strokeWidth={2.25} />
           </span>
-          <h2 className="text-sm font-medium text-ringo-text tracking-[-0.01em]">{title}</h2>
+          <h2 className="text-[15px] font-semibold text-ringo-text tracking-[-0.01em]">{title}</h2>
         </div>
         {action && <div className="flex items-center gap-2 flex-wrap">{action}</div>}
       </div>

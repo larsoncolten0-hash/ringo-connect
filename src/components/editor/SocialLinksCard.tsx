@@ -7,6 +7,7 @@ import { detectPlatform } from "@/lib/utils";
 import { useLanguage } from "@/components/LanguageProvider";
 import SocialIcon from "@/components/SocialIcon";
 import EditorCard from "./EditorCard";
+import EmptyState from "./EmptyState";
 import { useEditorPreview } from "./EditorPreviewContext";
 
 export default function SocialLinksCard({
@@ -52,7 +53,7 @@ export default function SocialLinksCard({
   return (
     <EditorCard icon={Share2} title={t.editor.socialLinks}>
       <div className="flex flex-col gap-2 mb-3">
-        {socials.length === 0 && <p className="text-sm text-ringo-muted">{t.editor.noSocialsYet}</p>}
+        {socials.length === 0 && <EmptyState icon={Share2} title={t.editor.noSocialsYet} />}
         {socials.map((s) => (
           <div
             key={s.id}

@@ -7,6 +7,7 @@ import { Link2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
+import EmptyState from "./EmptyState";
 import LinkRow from "./LinkRow";
 import { useEditorPreview } from "./EditorPreviewContext";
 
@@ -107,7 +108,11 @@ export default function LinksCard({
           </NextLink>
         </p>
       )}
-      {links.length === 0 && <p className="text-sm text-ringo-muted">{t.editor.noLinksYet}</p>}
+      {links.length === 0 && (
+        <div className="mb-2">
+          <EmptyState icon={Link2} title={t.editor.noLinksYet} />
+        </div>
+      )}
 
       <Reorder.Group axis="y" values={links} onReorder={handleReorder} className="flex flex-col gap-2">
         {links.map((link) => (

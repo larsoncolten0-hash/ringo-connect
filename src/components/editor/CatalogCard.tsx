@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory } from "@/lib/categories";
 import EditorCard from "./EditorCard";
+import EmptyState from "./EmptyState";
 import ProductRow from "./ProductRow";
 import CurrencySelect from "./CurrencySelect";
 import { useEditorPreview } from "./EditorPreviewContext";
@@ -128,7 +129,7 @@ export default function CatalogCard({
         </>
       }
     >
-      {products.length === 0 && <p className="text-sm text-ringo-muted">{t.editor.noProductsYet}</p>}
+      {products.length === 0 && <EmptyState icon={ShoppingBag} title={t.editor.noProductsYet} />}
 
       <Reorder.Group axis="y" values={products} onReorder={handleReorder} className="flex flex-col gap-2">
         {products.map((product) => (
