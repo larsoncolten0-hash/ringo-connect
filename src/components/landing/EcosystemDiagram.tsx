@@ -2,7 +2,7 @@
 
 import { Link2, Music, ShoppingBag, UtensilsCrossed, Ticket, Users, BarChart3 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
-import { QrCode as QrCodeIcon, Radio } from "lucide-react";
+import { QrCode as QrCodeIcon, CreditCard } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
 // Every chip maps to a real, shipped Ringo capability — see LandingView's
@@ -20,7 +20,7 @@ export default function EcosystemDiagram() {
     { icon: Ticket, label: t.landing.chipTickets, color: "#14B8A6" },
     { icon: FaWhatsapp, label: t.landing.chipWhatsapp, color: "#25D366" },
     { icon: QrCodeIcon, label: t.landing.chipQr, color: "#E11D48" },
-    { icon: Radio, label: t.landing.chipNfc, color: "#7C3AED" },
+    { icon: CreditCard, label: t.landing.chipNfc, color: "#7C3AED" },
     { icon: Users, label: t.landing.chipCustomers, color: "#0EA5E9" },
     { icon: BarChart3, label: t.landing.chipAnalytics, color: "#D97706" },
   ];
