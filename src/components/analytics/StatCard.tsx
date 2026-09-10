@@ -21,14 +21,14 @@ export default function StatCard({
   const colors = ACCENTS[accent];
 
   return (
-    <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-[0_2px_12px_rgba(15,23,42,0.06)]">
-      <div className="flex items-center gap-2 mb-3">
-        <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${colors.bg}`}>
-          <Icon size={12} className={colors.text} />
+    <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_10px_24px_-18px_rgba(15,23,42,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_32px_-16px_rgba(15,23,42,0.16)]">
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${colors.bg}`}>
+          <Icon size={14} className={colors.text} strokeWidth={2.25} />
         </span>
-        <p className="text-xs text-ringo-muted">{label}</p>
+        <p className="text-xs font-medium text-ringo-muted">{label}</p>
       </div>
-      <p className="text-2xl font-display font-medium text-ringo-text tabular-nums tracking-[-0.02em]">
+      <p className="text-2xl font-display font-semibold text-ringo-text tabular-nums tracking-[-0.02em]">
         {typeof value === "number" ? value.toLocaleString("en-US") : value}
       </p>
     </div>

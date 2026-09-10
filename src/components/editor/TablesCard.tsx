@@ -74,7 +74,7 @@ export default function TablesCard({
       icon={QrCodeIcon}
       title={t.restaurant.tablesTitle}
       action={
-        <button onClick={addTable} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap">
+        <button onClick={addTable} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
           {t.restaurant.addTable}
         </button>
       }

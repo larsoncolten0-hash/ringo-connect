@@ -212,7 +212,7 @@ export default function AboutCard({
 
         <button
           onClick={save}
-          className="self-start px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium"
+          className="self-start px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
         >
           {t.editor.save}
         </button>

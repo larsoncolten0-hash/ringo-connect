@@ -141,7 +141,17 @@ export default function DashboardShell({
         </div>
       </aside>
 
-      <div className="flex flex-col min-h-screen">
+      <div className="relative flex flex-col min-h-screen">
+        {/* Quiet depth cue behind every page's content — a large, very low
+            opacity brand-colored glow, fixed so it doesn't scroll or shift
+            page to page. Never above 8% opacity: a signature, not a design
+            element anyone should consciously notice. */}
+        <div
+          className="pointer-events-none fixed inset-x-0 top-0 h-[480px] -z-10 opacity-[0.06] dark:opacity-[0.1]"
+          style={{ background: "radial-gradient(640px circle at 15% -10%, #4F46E5, transparent 65%)" }}
+          aria-hidden
+        />
+
         {/* Top header — page title on the left (desktop/tablet), account
             controls on the right, everywhere. */}
         <div className="flex items-center justify-between gap-2 px-4 lg:px-10 py-3.5 sticky top-0 z-30 bg-ringo-bg/85 backdrop-blur border-b border-ringo-border/70">

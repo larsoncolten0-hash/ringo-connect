@@ -70,7 +70,7 @@ export default function MusicReleasesCard({
       title={t.music.releasesTitle}
       action={
         <div className="flex gap-1.5">
-          <button onClick={() => addRelease("ep")} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap">
+          <button onClick={() => addRelease("ep")} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
             {t.music.addEp}
           </button>
           <button onClick={() => addRelease("album")} className="text-xs px-3 py-1.5 rounded-card border border-ringo-border text-ringo-text whitespace-nowrap">

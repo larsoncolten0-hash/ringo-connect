@@ -79,7 +79,7 @@ export default function EventsCard({
       icon={Ticket}
       title={t.music.upcomingTitle}
       action={
-        <button onClick={addEvent} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap">
+        <button onClick={addEvent} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
           {t.music.addEvent}
         </button>
       }

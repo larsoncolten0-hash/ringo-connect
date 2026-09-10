@@ -164,7 +164,7 @@ export default function MenuCard({
       action={
         <>
           <SavedPulse visible={pulse.visible} label={t.editor.saved} />
-          <button onClick={addCategory} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap">
+          <button onClick={addCategory} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
             {t.restaurant.addCategory}
           </button>
         </>
@@ -204,7 +204,7 @@ export default function MenuCard({
       {items.length > 0 && (
         <button
           onClick={saveAllItems}
-          className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium"
+          className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
         >
           {t.editor.save}
         </button>

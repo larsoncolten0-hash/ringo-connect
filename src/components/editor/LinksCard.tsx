@@ -109,7 +109,7 @@ export default function LinksCard({
           <button
             onClick={addLink}
             disabled={limitReached}
-            className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white disabled:opacity-40"
+            className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white disabled:opacity-40 transition hover:brightness-110 active:scale-[0.97]"
           >
             {t.editor.addLink}
           </button>
@@ -146,7 +146,7 @@ export default function LinksCard({
       {links.length > 0 && (
         <button
           onClick={saveAll}
-          className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium"
+          className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
         >
           {t.editor.save}
         </button>
