@@ -434,15 +434,6 @@ export const translations = {
       bestSellingItems: "Best-selling items",
       ordersByType: "Orders by type",
     },
-    installPrompt: {
-      title: "Install Ringo Connect",
-      body: "Add it to your home screen for quick access, just like a real app.",
-      installButton: "Install",
-      dismiss: "Not now",
-      iosStep1: "Tap the Share icon in Safari's toolbar",
-      iosStep2: "Scroll down and tap \"Add to Home Screen\"",
-      iosStep3: "Tap \"Add\" in the top right",
-    },
     landing: {
       login: "Log in",
       getStarted: "Get started",
@@ -1446,15 +1437,6 @@ export const translations = {
       averageOrder: "Commande moyenne",
       bestSellingItems: "Articles les plus vendus",
       ordersByType: "Commandes par type",
-    },
-    installPrompt: {
-      title: "Installer Ringo Connect",
-      body: "Ajoutez-le à votre écran d'accueil pour un accès rapide, comme une vraie appli.",
-      installButton: "Installer",
-      dismiss: "Plus tard",
-      iosStep1: "Appuyez sur l'icône Partager dans la barre d'outils de Safari",
-      iosStep2: "Faites défiler et appuyez sur « Sur l'écran d'accueil »",
-      iosStep3: "Appuyez sur « Ajouter » en haut à droite",
     },
     landing: {
       login: "Se connecter",

@@ -8,7 +8,6 @@ import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import HelpWidget from "@/components/dashboard/HelpWidget";
-import InstallPrompt from "@/components/InstallPrompt";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export default function DashboardShell({
@@ -202,7 +201,6 @@ export default function DashboardShell({
       </div>
 
       <HelpWidget username={username} email={email} />
-      <InstallPrompt />
     </div>
   );
 }
