@@ -1,50 +1,68 @@
 "use client";
 
+import { useState } from "react";
 import { CalendarCheck, ShoppingBag } from "lucide-react";
 import { hexToRgba } from "@/lib/color";
+import { getBookingConfig } from "@/lib/categories";
 import type { Translations } from "@/lib/i18n/translations";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import CallButton from "@/components/CallButton";
 import SaveContactButton from "@/components/SaveContactButton";
+import BookingModal from "@/components/BookingModal";
 
 // Mirrors RestaurantHeroButtons' structure (two big primary pills + a row
-// of smaller contact icons) for the same "similar to the Restaurant
-// category" reason the brief asks for. Book Now has no real
-// booking/calendar system behind it (none exists in Ringo) — it opens
-// WhatsApp with a ready-made message, the same hand-off every other
-// not-yet-built request flow on Ringo Connect already uses. Buy Now goes
-// to the real storefront at /m/[username].
+// of smaller contact icons). Book Now opens the real booking form (see
+// BookingModal) once the artist has turned bookings on; until then it
+// falls back to the same WhatsApp hand-off every other not-yet-built
+// request flow on Ringo Connect used to use, so nothing breaks for an
+// artist who hasn't enabled it yet. Buy Now goes to the real storefront
+// at /m/[username].
 export default function MusicHeroButtons({
   t,
   profile,
   accent,
   textColor,
+  locale,
 }: {
   t: Translations;
   profile: any;
   accent: string;
   textColor: string;
+  locale: "en" | "fr";
 }) {
+  const [bookingOpen, setBookingOpen] = useState(false);
   const cleanNumber = (profile.whatsapp_number || "").replace(/[^0-9]/g, "");
-  const bookHref = cleanNumber
+  const bookingsEnabled = !!profile.bookings_enabled;
+  const bookHref = !bookingsEnabled && cleanNumber
     ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(t.music.bookNowWhatsappMessage)}`
     : undefined;
+  const bookLabel = profile.booking_button_text?.trim() || getBookingConfig(profile.category).buttonLabel[locale] || t.music.bookNowButton;
 
   return (
     <div className="flex flex-col items-center gap-2.5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
       <div className="flex gap-2.5 w-full">
-        {bookHref && (
-          <a
-            href={bookHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition hover:brightness-95 active:scale-[0.98]"
-            style={{ border: `2px solid ${accent}`, color: accent }}
-          >
-            <CalendarCheck size={16} />
-            {t.music.bookNowButton}
-          </a>
-        )}
+        {(bookingsEnabled || bookHref) &&
+          (bookingsEnabled ? (
+            <button
+              onClick={() => setBookingOpen(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition hover:brightness-95 active:scale-[0.98]"
+              style={{ border: `2px solid ${accent}`, color: accent }}
+            >
+              <CalendarCheck size={16} />
+              {bookLabel}
+            </button>
+          ) : (
+            <a
+              href={bookHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition hover:brightness-95 active:scale-[0.98]"
+              style={{ border: `2px solid ${accent}`, color: accent }}
+            >
+              <CalendarCheck size={16} />
+              {bookLabel}
+            </a>
+          ))}
         <a
           href={`/m/${profile.username}`}
           className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white transition hover:brightness-95 active:scale-[0.98]"
@@ -89,6 +107,8 @@ export default function MusicHeroButtons({
           </div>
         </div>
       )}
+
+      {bookingOpen && <BookingModal profile={profile} accent={accent} onClose={() => setBookingOpen(false)} />}
     </div>
   );
 }

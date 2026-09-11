@@ -23,7 +23,7 @@ export default async function PublicProfilePage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*), menu_items(*), music_releases(*)`
+      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*), menu_items(*), music_releases(*), booking_services(*)`
     )
     .eq("username", params.username)
     .eq("published", true)

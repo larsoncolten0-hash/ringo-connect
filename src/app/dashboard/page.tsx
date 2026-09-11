@@ -22,7 +22,7 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*), menu_categories(*), menu_items(*), restaurant_tables(*), music_releases(*)`
+      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*), menu_categories(*), menu_items(*), restaurant_tables(*), music_releases(*), booking_services(*)`
     )
     .eq("user_id", user.id)
     .single();

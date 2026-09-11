@@ -27,6 +27,7 @@ import FeaturedMenuSection from "./restaurant/FeaturedMenuSection";
 import OpeningHoursRow from "./restaurant/OpeningHoursRow";
 import ImageGallery from "./ImageGallery";
 import ShareButton from "./ShareButton";
+import BookingButton from "./BookingButton";
 
 export default function ProfileView({
   profile,
@@ -367,10 +368,12 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         {isRestaurant ? (
           <RestaurantHeroButtons
             t={t}
+            profile={profile}
             username={profile.username}
             whatsappNumber={profile.whatsapp_number}
             aboutLocation={profile.about_location}
             accent={accent}
+            locale={locale}
           />
         ) : isMusic ? (
           // Music gets Book Now / Buy Now up top (the two commerce entry
@@ -378,25 +381,39 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           // row as before, all bundled inside MusicHeroButtons — every
           // other category keeps the original theme-driven, evenly-
           // stretched three-button row unchanged below.
-          <MusicHeroButtons t={t} profile={profile} accent={accent} textColor={textColor} />
+          <MusicHeroButtons t={t} profile={profile} accent={accent} textColor={textColor} locale={locale} />
         ) : (
-          profile.whatsapp_number && (
-          <div className="flex gap-3 mt-5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
-            <div className="flex-1">
-              <WhatsAppButton
-                number={profile.whatsapp_number}
-                message={profile.default_whatsapp_message}
-                radiusClass={radiusClass}
-                buttonStyle={linkButtonStyle}
-                onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
-              />
-            </div>
-            <div className="flex-1">
-              <CallButton number={profile.whatsapp_number} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
-            </div>
-            <div className="flex-1">
-              <SaveContactButton profile={profile} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
-            </div>
+          (profile.whatsapp_number || profile.bookings_enabled) && (
+          <div className="flex flex-wrap gap-3 mt-5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
+            {profile.whatsapp_number && (
+              <>
+                <div className="flex-1 min-w-[100px]">
+                  <WhatsAppButton
+                    number={profile.whatsapp_number}
+                    message={profile.default_whatsapp_message}
+                    radiusClass={radiusClass}
+                    buttonStyle={linkButtonStyle}
+                    onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
+                  />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <CallButton number={profile.whatsapp_number} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <SaveContactButton profile={profile} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
+                </div>
+              </>
+            )}
+            {profile.bookings_enabled && (
+              <div className="flex-1 min-w-[100px]">
+                <BookingButton
+                  profile={profile}
+                  accent={accent}
+                  className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium w-full ${radiusClass}`}
+                  style={linkButtonStyle}
+                />
+              </div>
+            )}
           </div>
           )
         )}

@@ -53,6 +53,25 @@ export interface RecommendedTheme {
   buttonRadius: "square" | "rounded" | "pill";
 }
 
+// One optional field the booking form can show beyond the always-present
+// name/email/phone/message (and the service picker, which is data-driven —
+// shown whenever the profile has any booking_services defined, regardless
+// of category). `key` says which column (or `details` jsonb key, for
+// eventType/meetingType) the value is written to server-side; `label`/
+// `placeholder` are what's actually shown, so the same underlying field
+// can read "Expected audience" for a musician and "Number of guests" for a
+// restaurant without needing separate columns per category.
+export interface BookingFieldConfig {
+  key: "date" | "time" | "location" | "partySize" | "budget" | "eventType" | "meetingType";
+  label: Bilingual;
+  placeholder?: Bilingual;
+}
+
+export interface BookingConfig {
+  buttonLabel: Bilingual;
+  fields: BookingFieldConfig[];
+}
+
 export interface CategoryDefaults {
   // Overrides t.editor.catalog / t.profilePage.catalogHeading / t.getStarted.catalogHeading
   // wherever the profile (or a pending signup request) has a category set.
@@ -68,7 +87,22 @@ export interface CategoryDefaults {
   // Only set for categories that ship a curated look — currently just
   // music_entertainment. See RecommendedTheme above for when it's applied.
   recommendedTheme?: RecommendedTheme;
+  // Button wording + which optional fields the booking form shows for this
+  // category (see BookingButton/BookingModal). Categories without one fall
+  // back to GENERIC_BOOKING_CONFIG via getBookingConfig() — booking still
+  // works everywhere, just with a plain, generic form.
+  booking?: BookingConfig;
 }
+
+// The "no category-specific config" fallback — a plain date/time/message
+// form, always safe to show regardless of what the profile actually is.
+export const GENERIC_BOOKING_CONFIG: BookingConfig = {
+  buttonLabel: { en: "Book Now", fr: "Réserver" },
+  fields: [
+    { key: "date", label: { en: "Preferred date", fr: "Date souhaitée" } },
+    { key: "time", label: { en: "Preferred time", fr: "Heure souhaitée" } },
+  ],
+};
 
 export interface Category {
   id: CategoryId;
@@ -111,6 +145,24 @@ export const CATEGORIES: Category[] = [
         textColor: "#FAFAFA",
         buttonStyle: "fill",
         buttonRadius: "pill",
+      },
+      // Same fields for every music_role (artist, DJ, producer, band…) —
+      // the free-text message field covers role-specific nuance (e.g. a
+      // DJ's set duration) rather than growing a field per sub-role.
+      booking: {
+        buttonLabel: { en: "Book Artist", fr: "Réserver l'artiste" },
+        fields: [
+          { key: "date", label: { en: "Event date", fr: "Date de l'événement" } },
+          { key: "time", label: { en: "Event time", fr: "Heure de l'événement" } },
+          { key: "location", label: { en: "Event location", fr: "Lieu de l'événement" } },
+          {
+            key: "eventType",
+            label: { en: "Event type", fr: "Type d'événement" },
+            placeholder: { en: "e.g. Wedding, corporate event, birthday", fr: "ex. Mariage, événement d'entreprise, anniversaire" },
+          },
+          { key: "partySize", label: { en: "Expected audience", fr: "Public attendu" } },
+          { key: "budget", label: { en: "Budget", fr: "Budget" } },
+        ],
       },
     },
   },
@@ -166,6 +218,16 @@ export const CATEGORIES: Category[] = [
         en: "e.g. Home-cooked meals delivered in Douala",
         fr: "ex. Plats faits maison livrés à Douala",
       },
+      // Distinct from the existing menu/ordering system — this is a table
+      // reservation request, not a food order, so no budget/event-type.
+      booking: {
+        buttonLabel: { en: "Book a Table", fr: "Réserver une table" },
+        fields: [
+          { key: "date", label: { en: "Date", fr: "Date" } },
+          { key: "time", label: { en: "Time", fr: "Heure" } },
+          { key: "partySize", label: { en: "Number of guests", fr: "Nombre de convives" } },
+        ],
+      },
     },
   },
   {
@@ -185,6 +247,14 @@ export const CATEGORIES: Category[] = [
       notePlaceholder: {
         en: "e.g. Apartments and land for sale in Yaounde",
         fr: "ex. Appartements et terrains à vendre à Yaoundé",
+      },
+      booking: {
+        buttonLabel: { en: "Request Viewing", fr: "Demander une visite" },
+        fields: [
+          { key: "date", label: { en: "Preferred date", fr: "Date souhaitée" } },
+          { key: "time", label: { en: "Preferred time", fr: "Heure souhaitée" } },
+          { key: "location", label: { en: "Property / listing", fr: "Bien / annonce" } },
+        ],
       },
     },
   },
@@ -206,6 +276,14 @@ export const CATEGORIES: Category[] = [
         en: "e.g. Bus tickets from Douala to Bamenda",
         fr: "ex. Billets de bus Douala–Bamenda",
       },
+      booking: {
+        buttonLabel: { en: "Book a Trip", fr: "Réserver un trajet" },
+        fields: [
+          { key: "date", label: { en: "Date", fr: "Date" } },
+          { key: "time", label: { en: "Time", fr: "Heure" } },
+          { key: "location", label: { en: "Pickup / destination", fr: "Départ / destination" } },
+        ],
+      },
     },
   },
   {
@@ -225,6 +303,18 @@ export const CATEGORIES: Category[] = [
       notePlaceholder: {
         en: "e.g. Business consultant helping SMEs grow",
         fr: "ex. Consultant en gestion pour PME",
+      },
+      booking: {
+        buttonLabel: { en: "Book Consultation", fr: "Réserver une consultation" },
+        fields: [
+          { key: "date", label: { en: "Preferred date", fr: "Date souhaitée" } },
+          { key: "time", label: { en: "Preferred time", fr: "Heure souhaitée" } },
+          {
+            key: "meetingType",
+            label: { en: "Meeting type", fr: "Type de rendez-vous" },
+            placeholder: { en: "e.g. In-person, video call, phone call", fr: "ex. En personne, appel vidéo, appel téléphonique" },
+          },
+        ],
       },
     },
   },
@@ -246,6 +336,13 @@ export const CATEGORIES: Category[] = [
         en: "e.g. Braiding and nail salon in Bonapriso",
         fr: "ex. Salon de tresses et d'ongles à Bonapriso",
       },
+      booking: {
+        buttonLabel: { en: "Book Appointment", fr: "Prendre rendez-vous" },
+        fields: [
+          { key: "date", label: { en: "Preferred date", fr: "Date souhaitée" } },
+          { key: "time", label: { en: "Preferred time", fr: "Heure souhaitée" } },
+        ],
+      },
     },
   },
   {
@@ -263,6 +360,13 @@ export const CATEGORIES: Category[] = [
         fr: "Salut ! Je voudrais prendre un rendez-vous.",
       },
       notePlaceholder: { en: "e.g. Dental clinic in Bastos", fr: "ex. Cabinet dentaire à Bastos" },
+      booking: {
+        buttonLabel: { en: "Book Appointment", fr: "Prendre rendez-vous" },
+        fields: [
+          { key: "date", label: { en: "Preferred date", fr: "Date souhaitée" } },
+          { key: "time", label: { en: "Preferred time", fr: "Heure souhaitée" } },
+        ],
+      },
     },
   },
   {
@@ -282,6 +386,13 @@ export const CATEGORIES: Category[] = [
       notePlaceholder: {
         en: "e.g. English lessons for beginners",
         fr: "ex. Cours d'anglais pour débutants",
+      },
+      booking: {
+        buttonLabel: { en: "Book a Class", fr: "Réserver un cours" },
+        fields: [
+          { key: "date", label: { en: "Preferred date", fr: "Date souhaitée" } },
+          { key: "time", label: { en: "Preferred time", fr: "Heure souhaitée" } },
+        ],
       },
     },
   },
@@ -303,6 +414,14 @@ export const CATEGORIES: Category[] = [
         en: "e.g. Guest house near the beach in Kribi",
         fr: "ex. Auberge près de la plage à Kribi",
       },
+      booking: {
+        buttonLabel: { en: "Request Booking", fr: "Demander une réservation" },
+        fields: [
+          { key: "date", label: { en: "Check-in date", fr: "Date d'arrivée" } },
+          { key: "partySize", label: { en: "Number of guests", fr: "Nombre de personnes" } },
+          { key: "budget", label: { en: "Budget", fr: "Budget" } },
+        ],
+      },
     },
   },
   {
@@ -323,6 +442,15 @@ export const CATEGORIES: Category[] = [
         en: "e.g. Concerts and weddings in Douala",
         fr: "ex. Concerts et mariages à Douala",
       },
+      booking: {
+        buttonLabel: { en: "Book Event", fr: "Réserver un événement" },
+        fields: [
+          { key: "date", label: { en: "Event date", fr: "Date de l'événement" } },
+          { key: "location", label: { en: "Location", fr: "Lieu" } },
+          { key: "partySize", label: { en: "Number of people", fr: "Nombre de personnes" } },
+          { key: "budget", label: { en: "Budget", fr: "Budget" } },
+        ],
+      },
     },
   },
   {
@@ -342,6 +470,16 @@ export const CATEGORIES: Category[] = [
       notePlaceholder: {
         en: "e.g. Wedding photographer based in Yaounde",
         fr: "ex. Photographe de mariage basé à Yaoundé",
+      },
+      booking: {
+        buttonLabel: { en: "Book a Photoshoot", fr: "Réserver une séance photo" },
+        fields: [
+          { key: "date", label: { en: "Date", fr: "Date" } },
+          { key: "time", label: { en: "Time", fr: "Heure" } },
+          { key: "location", label: { en: "Location", fr: "Lieu" } },
+          { key: "partySize", label: { en: "Number of people", fr: "Nombre de personnes" } },
+          { key: "budget", label: { en: "Budget", fr: "Budget" } },
+        ],
       },
     },
   },
@@ -382,6 +520,14 @@ export const CATEGORIES: Category[] = [
       notePlaceholder: {
         en: "e.g. Electrician and home repairs",
         fr: "ex. Électricien et réparations à domicile",
+      },
+      booking: {
+        buttonLabel: { en: "Request a Quote", fr: "Demander un devis" },
+        fields: [
+          { key: "date", label: { en: "Preferred date", fr: "Date souhaitée" } },
+          { key: "location", label: { en: "Location", fr: "Lieu" } },
+          { key: "budget", label: { en: "Budget", fr: "Budget" } },
+        ],
       },
     },
   },
@@ -428,6 +574,13 @@ export const CATEGORY_IDS: CategoryId[] = CATEGORIES.map((c) => c.id);
 
 export function getCategory(id?: string | null): Category | undefined {
   return CATEGORIES.find((c) => c.id === id);
+}
+
+// The one lookup point BookingButton/BookingModal use — a category with no
+// specific config (see GENERIC_BOOKING_CONFIG above) still gets a working,
+// generic booking form rather than no booking at all.
+export function getBookingConfig(id?: string | null): BookingConfig {
+  return getCategory(id)?.defaults.booking ?? GENERIC_BOOKING_CONFIG;
 }
 
 export function isCategoryId(id: unknown): id is CategoryId {

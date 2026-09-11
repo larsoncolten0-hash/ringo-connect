@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, ExternalLink } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, ExternalLink } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
@@ -48,6 +48,11 @@ export default function DashboardShell({
     { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true },
     ...(isRestaurant ? [{ href: "/dashboard/restaurant", label: t.nav.restaurant, icon: UtensilsCrossed }] : []),
     ...(isMusic ? [{ href: "/dashboard/music", label: t.nav.music, icon: Music2 }] : []),
+    // Universal, unlike Restaurant/Music above — every category can turn
+    // bookings on, so this is never gated by category. Always visible (not
+    // hidden until enabled) so an owner can actually find Settings to turn
+    // it on in the first place.
+    { href: "/dashboard/bookings", label: t.nav.bookings, icon: CalendarCheck },
     { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3 },
     { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake },
     { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard },
