@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { profileHasCategory } from "@/lib/categories";
+import { profileHasTicketing } from "@/lib/categories";
 import ItemDetailPage from "@/components/music/ItemDetailPage";
 
 // See src/app/[username]/page.tsx's own comment.
@@ -40,7 +40,7 @@ export default async function ItemDetailRoute({
     .eq("published", true)
     .single();
 
-  if (!profile || !profileHasCategory(profile, "music_entertainment")) return notFound();
+  if (!profile || !profileHasTicketing(profile)) return notFound();
 
   const item =
     type === "track"

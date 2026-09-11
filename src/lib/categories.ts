@@ -606,6 +606,20 @@ export function profileHasCategory(
   return profile.category === id || !!profile.categories?.includes(id);
 }
 
+// The full event-ticketing toolkit (events, ticket types, the Buy Now/
+// checkout storefront, digital tickets, gate scanning) is shared by both
+// Music & Entertainment (where it started) and Events & Experiences —
+// every route/page that gates on "does this profile sell tickets" should
+// use this instead of checking music_entertainment alone, so the two
+// categories never drift out of sync. Does NOT cover Music's other
+// category-specific features (tracks, releases, the cream theme, Support
+// the Artist) — those stay music_entertainment-only.
+export function profileHasTicketing(
+  profile: { category?: string | null; categories?: string[] | null } | null | undefined
+): boolean {
+  return profileHasCategory(profile, "music_entertainment") || profileHasCategory(profile, "events_experiences");
+}
+
 // Sub-type within Music & Entertainment — purely cosmetic (no gating
 // anywhere), it just retitles the "Latest Music" section and its Artist
 // Hub card so a beatmaker sees "Beats" instead of "Music". Stored in

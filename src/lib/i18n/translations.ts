@@ -490,6 +490,20 @@ export const translations = {
       scanHistoryHeading: "Recent Scan History",
       logDirectionEntry: "Entry",
       logDirectionExit: "Exit",
+
+      // Tickets' own dashboard section (/dashboard/tickets) — shared by
+      // Music & Entertainment and Events & Experiences (see
+      // profileHasTicketing).
+      backToTicketsList: "Back to Events",
+      deleteEventButton: "Delete Event",
+      deletingEvent: "Deleting…",
+      deleteEventConfirm: "Delete this event? This also removes its ticket types, scanners, and check-in history. This can't be undone.",
+      ticketsPageTitle: "Tickets",
+      ticketsPageSubtitle: "Create events, manage ticket types, and control gate access and check-in.",
+      createEventButton: "+ Create Event",
+      noEventsCreatedYet: "No events yet — create one to start selling tickets.",
+      ticketsEditorPointerTitle: "Events & Tickets",
+      ticketsEditorPointerHint: "Manage events, ticket types, gate access, and check-in from their own dashboard section.",
     },
     // Restaurant & Food category — see src/lib/categories.ts. Every
     // string here only ever renders for a profile tagged with that
@@ -833,6 +847,7 @@ export const translations = {
       editor: "Editor",
       restaurant: "Restaurant",
       music: "Music",
+      tickets: "Tickets",
       bookings: "Bookings",
       community: "Community",
       analytics: "Analytics",
@@ -1811,6 +1826,17 @@ export const translations = {
       scanHistoryHeading: "Historique récent des scans",
       logDirectionEntry: "Entrée",
       logDirectionExit: "Sortie",
+
+      backToTicketsList: "Retour aux événements",
+      deleteEventButton: "Supprimer l'événement",
+      deletingEvent: "Suppression…",
+      deleteEventConfirm: "Supprimer cet événement ? Cela supprime aussi ses types de billets, scanners et historique d'entrée. Cette action est irréversible.",
+      ticketsPageTitle: "Billets",
+      ticketsPageSubtitle: "Créez des événements, gérez les types de billets, et contrôlez l'accès aux portes et l'entrée.",
+      createEventButton: "+ Créer un événement",
+      noEventsCreatedYet: "Aucun événement pour l'instant — créez-en un pour commencer à vendre des billets.",
+      ticketsEditorPointerTitle: "Événements & Billets",
+      ticketsEditorPointerHint: "Gérez les événements, types de billets, accès aux portes et entrée depuis leur propre section du tableau de bord.",
     },
     restaurant: {
       settingsTitle: "Restaurant & Alimentation",
@@ -2135,6 +2161,7 @@ export const translations = {
       editor: "Éditeur",
       restaurant: "Restaurant",
       music: "Musique",
+      tickets: "Billets",
       bookings: "Réservations",
       community: "Communauté",
       analytics: "Analytique",

@@ -2,9 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, QrCode, Plus, Copy, Check, Ban, DoorOpen, LogOut, Users, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, QrCode, Plus, Copy, Check, Ban, DoorOpen, LogOut, Users, Clock, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import ImageUploadField from "@/components/editor/ImageUploadField";
+import EventTicketTypesEditor from "@/components/editor/EventTicketTypesEditor";
 
 // Gate Access + Check-in — organizer-facing. Scanner session rows are
 // created/deactivated straight against scanner_sessions via the regular
@@ -16,6 +19,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 // produces — never this dashboard, never anything on it.
 export default function EventCheckinDashboard({
   event,
+  userId,
   ticketTypes,
   initialScannerSessions,
   digitalTickets,
@@ -23,6 +27,7 @@ export default function EventCheckinDashboard({
   currency,
 }: {
   event: any;
+  userId: string;
   ticketTypes: any[];
   initialScannerSessions: any[];
   digitalTickets: { id: string; ticket_type_id: string | null; status: string; entry_state: string }[];
@@ -30,7 +35,39 @@ export default function EventCheckinDashboard({
   currency: string;
 }) {
   const supabase = createClient();
+  const router = useRouter();
   const { t, locale } = useLanguage();
+
+  // Basics — the fields EventRow used to own before Tickets got its own
+  // dashboard section. Local state + onBlur persistence, same pattern as
+  // every other editor field in this codebase, just flattened: there's no
+  // parent list to bubble a patch up to anymore, this page IS the event.
+  const [fields, setFields] = useState({
+    title: event.title || "",
+    location: event.location || "",
+    event_date: event.event_date || "",
+    event_time: event.event_time || "",
+    cover_image_url: event.cover_image_url || "",
+    price: event.price ?? "",
+    ticket_type: event.ticket_type || "",
+    ticket_capacity: event.ticket_capacity ?? "",
+    ticket_url: event.ticket_url || "",
+    max_tickets_per_customer: event.max_tickets_per_customer ?? "",
+    status: event.status || "published",
+  });
+  const [ticketTypesState, setTicketTypesState] = useState(ticketTypes);
+  const [deleting, setDeleting] = useState(false);
+
+  const patchField = (key: keyof typeof fields, value: any) => setFields((prev) => ({ ...prev, [key]: value }));
+  const persistField = async (key: string, value: any) => {
+    await supabase.from("events").update({ [key]: value }).eq("id", event.id);
+  };
+
+  const deleteEvent = async () => {
+    setDeleting(true);
+    await supabase.from("events").delete().eq("id", event.id);
+    router.push("/dashboard/tickets");
+  };
 
   const [entryPolicy, setEntryPolicy] = useState(event.entry_policy || "single_entry");
   const [requireId, setRequireId] = useState(!!event.require_id_verification);
@@ -111,7 +148,7 @@ export default function EventCheckinDashboard({
     for (const d of digitalTickets) {
       if (d.status === "cancelled" || d.status === "refunded") continue;
       const key = d.ticket_type_id || "__legacy__";
-      const name = ticketTypes.find((tt) => tt.id === d.ticket_type_id)?.name || t.music.ticketTypeLegacyLabel;
+      const name = ticketTypesState.find((tt) => tt.id === d.ticket_type_id)?.name || t.music.ticketTypeLegacyLabel;
       const g = groups.get(key) || { name, sold: 0, checkedIn: 0, inside: 0 };
       g.sold += 1;
       if (d.entry_state !== "not_checked_in") g.checkedIn += 1;
@@ -119,7 +156,7 @@ export default function EventCheckinDashboard({
       groups.set(key, g);
     }
     return Array.from(groups.values());
-  }, [digitalTickets, ticketTypes, t]);
+  }, [digitalTickets, ticketTypesState, t]);
 
   const byGate = useMemo(() => {
     const tally = new Map<string, number>();
@@ -134,19 +171,96 @@ export default function EventCheckinDashboard({
 
   return (
     <div className="max-w-2xl flex flex-col gap-6">
-      <Link href="/dashboard" className="flex items-center gap-1.5 text-sm text-ringo-muted w-fit">
+      <Link href="/dashboard/tickets" className="flex items-center gap-1.5 text-sm text-ringo-muted w-fit">
         <ArrowLeft size={15} />
-        {t.music.backToDashboard}
+        {t.music.backToTicketsList}
       </Link>
 
       <div>
-        <h1 className="font-display text-xl font-bold text-ringo-text">{event.title || t.music.untitledEvent}</h1>
+        <h1 className="font-display text-xl font-bold text-ringo-text">{fields.title || t.music.untitledEvent}</h1>
         <p className="text-sm text-ringo-muted">{t.music.checkinPageSubtitle}</p>
+      </div>
+
+      {/* Basics — title/cover/location/date/time, same fields EventRow
+          used to own before Tickets got its own dashboard section. */}
+      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <ImageUploadField
+            value={fields.cover_image_url}
+            onChange={(url) => {
+              patchField("cover_image_url", url || "");
+              persistField("cover_image_url", url || null);
+            }}
+            userId={userId}
+            folder="events"
+            size={56}
+            errorText={t.editor.upload}
+          />
+          <input
+            value={fields.title}
+            onChange={(e) => patchField("title", e.target.value)}
+            onBlur={(e) => persistField("title", e.target.value)}
+            placeholder={t.music.eventTitlePlaceholder}
+            className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+          />
+        </div>
+        <input
+          value={fields.location}
+          onChange={(e) => patchField("location", e.target.value)}
+          onBlur={(e) => persistField("location", e.target.value)}
+          placeholder={t.music.locationPlaceholder}
+          className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+        />
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={fields.event_date}
+            onChange={(e) => patchField("event_date", e.target.value)}
+            onBlur={(e) => persistField("event_date", e.target.value || null)}
+            className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+          />
+          <input
+            value={fields.event_time}
+            onChange={(e) => patchField("event_time", e.target.value)}
+            onBlur={(e) => persistField("event_time", e.target.value)}
+            placeholder={t.music.timePlaceholder}
+            className="w-32 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+          />
+        </div>
       </div>
 
       {/* Entry policy + ID verification — event-wide settings the scanner
           and checkin_ticket() both read server-side. */}
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 flex flex-col gap-3">
+        <div className="flex gap-2">
+          <label className="flex-1 flex flex-col gap-1">
+            <span className="text-xs font-medium text-ringo-muted">{t.music.eventStatusLabel}</span>
+            <select
+              value={fields.status}
+              onChange={(e) => {
+                patchField("status", e.target.value);
+                persistField("status", e.target.value);
+              }}
+              className="text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+            >
+              <option value="draft">{t.music.eventStatusDraft}</option>
+              <option value="published">{t.music.eventStatusPublished}</option>
+              <option value="cancelled">{t.music.eventStatusCancelled}</option>
+              <option value="completed">{t.music.eventStatusCompleted}</option>
+            </select>
+          </label>
+          <label className="flex-1 flex flex-col gap-1">
+            <span className="text-xs font-medium text-ringo-muted">{t.music.maxTicketsPerCustomerLabel}</span>
+            <input
+              value={fields.max_tickets_per_customer}
+              onChange={(e) => patchField("max_tickets_per_customer", e.target.value.replace(/[^0-9]/g, ""))}
+              onBlur={(e) => persistField("max_tickets_per_customer", e.target.value ? Number(e.target.value) : null)}
+              placeholder={t.music.maxTicketsPerCustomerPlaceholder}
+              inputMode="numeric"
+              className="text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+            />
+          </label>
+        </div>
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ringo-muted">{t.music.entryPolicyLabel}</span>
           <select
@@ -173,6 +287,65 @@ export default function EventCheckinDashboard({
           />
           {t.music.requireIdVerificationLabel}
         </label>
+      </div>
+
+      {/* Ticket Types — unlimited custom tiers (Standard/VIP/etc). An
+          event with none of these keeps using the legacy single-price
+          fields below instead (see EventTicketTypesEditor's own hint). */}
+      <EventTicketTypesEditor
+        eventId={event.id}
+        ticketTypes={ticketTypesState}
+        currency={currency}
+        onChange={setTicketTypesState}
+      />
+
+      {/* Legacy single ticket price/link — superseded the moment any
+          ticket type above exists, kept for an event that doesn't use
+          tiers at all (see checkinPageSubtitle's own reasoning in
+          ItemDetailPage.tsx/MusicStorePage.tsx). */}
+      <div className="rounded-card border border-dashed border-ringo-border p-3 flex flex-col gap-2">
+        <p className="text-xs font-medium text-ringo-text">{t.music.sellTicketsTitle}</p>
+        <p className="text-xs text-ringo-muted -mt-1">
+          {ticketTypesState.length > 0 ? t.music.sellTicketsSupersededHint : t.music.sellTicketsHint}
+        </p>
+        <div className="flex gap-2">
+          <input
+            value={fields.price}
+            onChange={(e) => patchField("price", e.target.value.replace(/[^0-9.]/g, ""))}
+            onBlur={(e) => persistField("price", e.target.value ? Number(e.target.value) : null)}
+            placeholder={t.restaurant.itemPricePlaceholder}
+            inputMode="decimal"
+            className="w-24 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+          />
+          <input
+            value={fields.ticket_type}
+            onChange={(e) => patchField("ticket_type", e.target.value)}
+            onBlur={(e) => persistField("ticket_type", e.target.value)}
+            placeholder={t.music.ticketTypePlaceholder}
+            className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+          />
+          <input
+            value={fields.ticket_capacity}
+            onChange={(e) => patchField("ticket_capacity", e.target.value.replace(/[^0-9]/g, ""))}
+            onBlur={(e) => persistField("ticket_capacity", e.target.value ? Number(e.target.value) : null)}
+            placeholder={t.music.ticketCapacityPlaceholder}
+            inputMode="numeric"
+            className="w-24 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+          />
+        </div>
+        {event.ticket_capacity != null && (
+          <p className="text-xs text-ringo-muted">
+            {t.music.ticketsSoldLabel}: {event.tickets_sold || 0} / {event.ticket_capacity}
+          </p>
+        )}
+        <input
+          value={fields.ticket_url}
+          onChange={(e) => patchField("ticket_url", e.target.value)}
+          onBlur={(e) => persistField("ticket_url", e.target.value)}
+          placeholder={t.music.ticketUrlPlaceholder}
+          inputMode="url"
+          className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
+        />
       </div>
 
       {/* Live check-in stats — real digital_tickets counts only. */}
@@ -366,6 +539,17 @@ export default function EventCheckinDashboard({
           </div>
         </div>
       )}
+
+      <button
+        onClick={() => {
+          if (window.confirm(t.music.deleteEventConfirm)) deleteEvent();
+        }}
+        disabled={deleting}
+        className="self-start flex items-center gap-1.5 text-xs font-medium text-red-500 px-1 py-1 disabled:opacity-50"
+      >
+        <Trash2 size={13} />
+        {deleting ? t.music.deletingEvent : t.music.deleteEventButton}
+      </button>
     </div>
   );
 }

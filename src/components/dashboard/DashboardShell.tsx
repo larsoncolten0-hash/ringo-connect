@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
@@ -20,6 +20,7 @@ export default function DashboardShell({
   canApproveRequests = false,
   isRestaurant = false,
   isMusic = false,
+  hasTicketing = false,
   children,
 }: {
   email: string;
@@ -39,6 +40,11 @@ export default function DashboardShell({
   // Same pattern as isRestaurant — Orders/Sales/Customers live behind this
   // one entry as tabs in /dashboard/music's own layout.
   isMusic?: boolean;
+  // Music & Entertainment or Events & Experiences (see
+  // profileHasTicketing) — its own top-level section, same reasoning as
+  // Bookings' own button: events, ticket types, Gate Access, and Check-in
+  // all live at /dashboard/tickets/*, not tucked inside the main editor.
+  hasTicketing?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -48,6 +54,9 @@ export default function DashboardShell({
     { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true },
     ...(isRestaurant ? [{ href: "/dashboard/restaurant", label: t.nav.restaurant, icon: UtensilsCrossed }] : []),
     ...(isMusic ? [{ href: "/dashboard/music", label: t.nav.music, icon: Music2 }] : []),
+    // Its own section, not nested inside Music's editor — Events &
+    // Experiences profiles get this without needing Music's other tools.
+    ...(hasTicketing ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket }] : []),
     // Universal, unlike Restaurant/Music above — every category can turn
     // bookings on, so this is never gated by category. Always visible (not
     // hidden until enabled) so an owner can actually find Settings to turn

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import { profileHasCategory } from "@/lib/categories";
+import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
 
 // Per-creator PWA installability (manifest link, iOS home-screen name/
 // icon, theme color) for the whole /dashboard/** tree — see
@@ -49,6 +49,7 @@ export default async function DashboardLayout({
       canApproveRequests={userRow?.role === "admin" || !!userRow?.can_approve_requests}
       isRestaurant={profileHasCategory(profile, "restaurant_food")}
       isMusic={profileHasCategory(profile, "music_entertainment")}
+      hasTicketing={profileHasTicketing(profile)}
     >
       {children}
     </DashboardShell>

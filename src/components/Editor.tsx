@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Ticket, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { useLanguage } from "@/components/LanguageProvider";
 import ProfileHeaderCard from "@/components/editor/ProfileHeaderCard";
 import CategoryCard from "@/components/editor/CategoryCard";
@@ -16,12 +17,11 @@ import SocialLinksCard from "@/components/editor/SocialLinksCard";
 import LinksCard from "@/components/editor/LinksCard";
 import TracksCard from "@/components/editor/TracksCard";
 import CatalogCard from "@/components/editor/CatalogCard";
-import EventsCard from "@/components/editor/EventsCard";
 import AboutCard from "@/components/editor/AboutCard";
 import PixelsCard from "@/components/editor/PixelsCard";
 import { EditorPreviewProvider, useEditorPreview } from "@/components/editor/EditorPreviewContext";
 import LivePreviewPanel from "@/components/editor/LivePreviewPanel";
-import { profileHasCategory } from "@/lib/categories";
+import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
 
 export default function Editor({
   profile,
@@ -49,8 +49,8 @@ export default function Editor({
 // useEditorPreview, which only works inside EditorPreviewProvider) instead
 // of the static server-rendered `profile` prop — picking Music &
 // Entertainment in CategoryCard needs the music-only cards below
-// (MusicSettingsCard, TracksCard, EventsCard) to appear immediately, not
-// only after a full page reload.
+// (MusicSettingsCard, TracksCard) to appear immediately, not only after a
+// full page reload.
 function EditorCards({
   profile,
   plan,
@@ -66,6 +66,11 @@ function EditorCards({
   const { draft } = useEditorPreview();
   const catalogLocked = plan?.max_products === 0;
   const isMusic = profileHasCategory(draft, "music_entertainment");
+  // Events/ticket management (events, ticket types, Gate Access,
+  // Check-in) moved to its own dashboard section — see
+  // /dashboard/tickets — rather than a card here, the same way Bookings
+  // isn't a card in this editor either.
+  const hasTicketing = profileHasTicketing(draft);
   const isRestaurant = profileHasCategory(draft, "restaurant_food");
 
   return (
@@ -183,8 +188,20 @@ function EditorCards({
           communityEnabled={!!profile.community_enabled}
         />
 
-        {isMusic && (
-          <EventsCard profileId={profile.id} userId={userId} initialEvents={profile.events || []} currency={profile.currency || "USD"} />
+        {hasTicketing && (
+          <Link
+            href="/dashboard/tickets"
+            className="flex items-center justify-between gap-3 rounded-card border border-ringo-border bg-ringo-surface p-4 transition hover:border-ringo-indigo/50"
+          >
+            <span className="flex items-center gap-2.5">
+              <Ticket size={17} className="text-ringo-indigo shrink-0" />
+              <span>
+                <span className="block text-sm font-medium text-ringo-text">{t.music.ticketsEditorPointerTitle}</span>
+                <span className="block text-xs text-ringo-muted mt-0.5">{t.music.ticketsEditorPointerHint}</span>
+              </span>
+            </span>
+            <ArrowRight size={15} className="text-ringo-muted shrink-0" />
+          </Link>
         )}
 
         {isMusic && (

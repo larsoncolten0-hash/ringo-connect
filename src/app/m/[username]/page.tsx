@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import { profileHasCategory } from "@/lib/categories";
+import { profileHasTicketing } from "@/lib/categories";
 import MusicStorePage from "@/components/music/MusicStorePage";
 
 // See src/app/[username]/page.tsx's own comment.
@@ -9,7 +9,11 @@ export { generateMetadata, generateViewport } from "@/lib/profileMetadata";
 // The dedicated "Buy Now" commerce page — reachable from the public
 // profile's Buy Now button. Mirrors /r/[username]'s architecture (a
 // dedicated storefront + cart + checkout page) for the same reason: a
-// full commerce flow doesn't fit inside the single-page profile.
+// full commerce flow doesn't fit inside the single-page profile. Shared by
+// Music & Entertainment and Events & Experiences (see
+// profileHasTicketing) — an events-only profile with no tracks/releases
+// just never renders those sections, the same way a music profile with no
+// merch never renders the merch grid.
 export const dynamic = "force-dynamic";
 
 export default async function MusicStoreRoute({ params }: { params: { username: string } }) {
@@ -22,7 +26,7 @@ export default async function MusicStoreRoute({ params }: { params: { username: 
     .eq("published", true)
     .single();
 
-  if (!profile || !profileHasCategory(profile, "music_entertainment")) return notFound();
+  if (!profile || !profileHasTicketing(profile)) return notFound();
 
   return <MusicStorePage profile={profile} />;
 }

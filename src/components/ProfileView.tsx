@@ -5,7 +5,7 @@ import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
 import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck, Bell } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
-import { getCategory, getMusicRole, profileHasCategory } from "@/lib/categories";
+import { getCategory, getMusicRole, profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { getButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
@@ -52,6 +52,12 @@ export default function ProfileView({
   const catalogLabel = getCategory(profile.category)?.defaults.catalogLabel?.[locale] || t.profilePage.catalogHeading;
   const isMusic = profileHasCategory(profile, "music_entertainment");
   const isRestaurant = profileHasCategory(profile, "restaurant_food");
+  // Events & Experiences gets the same ticketing toolkit Music &
+  // Entertainment already has (events, ticket types, checkout, digital
+  // tickets, gate scanning) — see EventsSection below — without picking up
+  // any of Music's other category-specific UI (tracks, releases, the cream
+  // theme, Support the Artist), which all stay isMusic-only.
+  const hasTicketing = profileHasTicketing(profile);
   const menuItems: any[] = profile.menu_items || [];
   const musicTracks: any[] = (profile.tracks || []).filter((tr: any) => tr.available !== false);
   // A draft event is hidden entirely, same as any other unpublished item
@@ -827,7 +833,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             </div>
           )}
 
-          {isMusic && (
+          {hasTicketing && (
             <EventsSection
               t={t}
               events={musicEvents}
