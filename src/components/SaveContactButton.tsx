@@ -13,11 +13,16 @@ export default function SaveContactButton({
   profile,
   radiusClass,
   buttonStyle,
+  compact,
   onClick,
 }: {
   profile: any;
   radiusClass?: string;
   buttonStyle?: CSSProperties;
+  // Icon-only, shorter — same pattern as WhatsAppButton's own `compact`,
+  // for a row of secondary contact actions that shouldn't compete with a
+  // page's real primary buttons (e.g. Music's Book Now/Buy Now).
+  compact?: boolean;
   onClick?: () => void;
 }) {
   if (!profile?.whatsapp_number && !profile?.about_phone) return null;
@@ -36,11 +41,13 @@ export default function SaveContactButton({
       href={href}
       download={vCardFileName(profile)}
       onClick={onClick}
-      className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition hover:brightness-95 ${radius}`}
+      className={`flex items-center justify-center gap-2 transition hover:brightness-95 ${
+        compact ? "flex-1 py-1.5" : "px-4 py-2.5 text-sm font-medium"
+      } ${radius}`}
       style={style}
     >
-      <UserPlus size={16} className="shrink-0" />
-      Save
+      <UserPlus size={compact ? 15 : 16} className="shrink-0" />
+      {!compact && "Save"}
     </a>
   );
 }

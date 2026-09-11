@@ -56,12 +56,17 @@ export default function MusicHeroButtons({
       </div>
 
       {profile.whatsapp_number && (
-        <div className="flex gap-2.5 w-full">
+        // Compact/icon-only — Book Now and Buy Now above are the two
+        // buttons this page actually wants attention on; WhatsApp/Call/
+        // Save are secondary contact shortcuts and shouldn't compete with
+        // them at the same size.
+        <div className="flex gap-2 w-full max-w-[220px]">
           <div className="flex-1">
             <WhatsAppButton
               number={profile.whatsapp_number}
               message={profile.default_whatsapp_message}
               radiusClass="rounded-full"
+              compact
               buttonStyle={{ backgroundColor: "#25D366", color: "#fff", border: "2px solid transparent" }}
             />
           </div>
@@ -69,6 +74,7 @@ export default function MusicHeroButtons({
             <CallButton
               number={profile.whatsapp_number}
               radiusClass="rounded-full"
+              compact
               buttonStyle={{ backgroundColor: "transparent", color: textColor, border: `2px solid ${hexToRgba(textColor, 0.35)}` }}
             />
           </div>
@@ -76,6 +82,7 @@ export default function MusicHeroButtons({
             <SaveContactButton
               profile={profile}
               radiusClass="rounded-full"
+              compact
               buttonStyle={{ backgroundColor: "transparent", color: textColor, border: `2px solid ${hexToRgba(textColor, 0.35)}` }}
             />
           </div>
