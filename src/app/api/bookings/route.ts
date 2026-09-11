@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   // Honeypot — a field named to look legitimate to a bot but hidden from
-  // real visitors by BookingModal's own CSS. A filled value never reaches
+  // real visitors by BookingPage's own CSS. A filled value never reaches
   // the database; the caller gets an identical-looking success response so
   // a bot has no signal to adapt against.
   if (typeof body?.website === "string" && body.website.trim() !== "") {

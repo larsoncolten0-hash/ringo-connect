@@ -88,7 +88,7 @@ export interface CategoryDefaults {
   // music_entertainment. See RecommendedTheme above for when it's applied.
   recommendedTheme?: RecommendedTheme;
   // Button wording + which optional fields the booking form shows for this
-  // category (see BookingButton/BookingModal). Categories without one fall
+  // category (see BookingButton/BookingPage). Categories without one fall
   // back to GENERIC_BOOKING_CONFIG via getBookingConfig() — booking still
   // works everywhere, just with a plain, generic form.
   booking?: BookingConfig;
@@ -576,7 +576,7 @@ export function getCategory(id?: string | null): Category | undefined {
   return CATEGORIES.find((c) => c.id === id);
 }
 
-// The one lookup point BookingButton/BookingModal use — a category with no
+// The one lookup point BookingButton/BookingPage use — a category with no
 // specific config (see GENERIC_BOOKING_CONFIG above) still gets a working,
 // generic booking form rather than no booking at all.
 export function getBookingConfig(id?: string | null): BookingConfig {

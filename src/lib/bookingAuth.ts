@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 // Shared by every /dashboard/bookings/* page. Unlike requireRestaurantProfile/
 // a music equivalent, bookings has no category gate — every profile can turn
-// bookings on regardless of category (see BookingButton/BookingModal) — so
+// bookings on regardless of category (see BookingButton/BookingPage) — so
 // this only resolves the logged-in creator's own profile.
 export async function requireOwnProfile() {
   const supabase = createClient();

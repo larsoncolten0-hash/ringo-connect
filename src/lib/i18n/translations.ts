@@ -20,7 +20,7 @@ export const translations = {
       shareX: "Share on X",
       moreOptions: "More options",
     },
-    // The public booking button + form (see BookingButton.tsx/BookingModal.tsx).
+    // The public booking button + form (see BookingButton.tsx/BookingPage.tsx).
     // Category-specific field labels/button wording live in categories.ts's
     // BookingConfig instead — these are just the parts that never change.
     booking: {
@@ -707,6 +707,11 @@ export const translations = {
       settingsTitle: "Booking settings",
       enableLabel: "Bookings",
       enableHint: "Let visitors send you a booking request from your profile.",
+      yourLinkTitle: "Your booking link",
+      yourLinkHint: "Share this directly with a customer — they'll land straight on the booking form, not your full profile.",
+      copyLink: "Copy",
+      linkCopied: "Copied",
+      linkDisabledHint: "Turn bookings on and save to activate this link.",
       buttonTextLabel: "Button text",
       buttonTextPlaceholder: "e.g. Book Now",
       descriptionLabel: "Description",
@@ -1702,6 +1707,11 @@ export const translations = {
       settingsTitle: "Paramètres de réservation",
       enableLabel: "Réservations",
       enableHint: "Permettez aux visiteurs de vous envoyer une demande de réservation depuis votre profil.",
+      yourLinkTitle: "Votre lien de réservation",
+      yourLinkHint: "Partagez-le directement avec un client — il arrivera directement sur le formulaire de réservation, pas sur votre profil complet.",
+      copyLink: "Copier",
+      linkCopied: "Copié",
+      linkDisabledHint: "Activez les réservations puis enregistrez pour activer ce lien.",
       buttonTextLabel: "Texte du bouton",
       buttonTextPlaceholder: "ex. Réserver",
       descriptionLabel: "Description",

@@ -12,9 +12,13 @@ export default async function BookingSettingsPage() {
     .eq("profile_id", profile.id)
     .order("sort_order");
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com";
+
   return (
     <BookingSettingsCard
       profileId={profile.id}
+      username={profile.username}
+      siteUrl={siteUrl}
       initialEnabled={!!profile.bookings_enabled}
       initialButtonText={profile.booking_button_text}
       initialDescription={profile.booking_description}

@@ -1,19 +1,19 @@
 "use client";
 
-import { useState } from "react";
 import { UtensilsCrossed, ShoppingCart, MapPin, Phone, CalendarDays } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { hexToRgba } from "@/lib/color";
 import { getBookingConfig } from "@/lib/categories";
 import type { Translations } from "@/lib/i18n/translations";
-import BookingModal from "@/components/BookingModal";
 
 // Replaces the generic WhatsApp/Call/Save row for Restaurant & Food
 // profiles — two big primary actions (both go to the same /r/[username]
 // ordering page; "View Menu" vs "Order Now" is a framing difference, not
 // a different destination) plus the secondary contact/reserve row.
-// "Reserve Table" opens the real booking form (see BookingModal) once the
-// owner has turned bookings on; until then it falls back to the same
+// "Reserve Table" links to the dedicated /[username]/book page (see
+// BookingPage.tsx) once the owner has turned bookings on — its own full
+// screen rather than a modal stacked over this one, so it doesn't fight
+// the rest of the profile for room; until then it falls back to the same
 // WhatsApp hand-off every not-yet-built action on Ringo Connect used to
 // use, so nothing breaks for a restaurant that hasn't enabled it yet.
 export default function RestaurantHeroButtons({
@@ -33,11 +33,12 @@ export default function RestaurantHeroButtons({
   accent: string;
   locale: "en" | "fr";
 }) {
-  const [bookingOpen, setBookingOpen] = useState(false);
   const menuHref = `/r/${username}`;
   const cleanNumber = (whatsappNumber || "").replace(/[^0-9]/g, "");
   const bookingsEnabled = !!profile?.bookings_enabled;
-  const reserveHref = !bookingsEnabled && cleanNumber
+  const reserveHref = bookingsEnabled
+    ? `/${username}/book`
+    : cleanNumber
     ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(t.restaurant.reserveTableWhatsappMessage)}`
     : undefined;
   const reserveLabel = profile?.booking_button_text?.trim() || getBookingConfig(profile?.category).buttonLabel[locale] || t.restaurant.reserveTableButton;
@@ -51,13 +52,8 @@ export default function RestaurantHeroButtons({
     },
     mapsHref && { href: mapsHref, icon: MapPin, label: t.profilePage.location },
     whatsappNumber && { href: `tel:${cleanNumber}`, icon: Phone, label: "Call" },
-    (bookingsEnabled || reserveHref) && {
-      href: bookingsEnabled ? undefined : reserveHref,
-      onClick: bookingsEnabled ? () => setBookingOpen(true) : undefined,
-      icon: CalendarDays,
-      label: reserveLabel,
-    },
-  ].filter(Boolean) as { href?: string; onClick?: () => void; icon: any; label: string }[];
+    reserveHref && { href: reserveHref, icon: CalendarDays, label: reserveLabel },
+  ].filter(Boolean) as { href: string; icon: any; label: string }[];
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
@@ -96,15 +92,11 @@ export default function RestaurantHeroButtons({
                 </span>
               </>
             );
-            return btn.onClick ? (
-              <button key={btn.label} onClick={btn.onClick} className="flex flex-col items-center gap-1.5">
-                {inner}
-              </button>
-            ) : (
+            return (
               <a
                 key={btn.label}
                 href={btn.href}
-                target={btn.href!.startsWith("http") ? "_blank" : undefined}
+                target={btn.href.startsWith("http") ? "_blank" : undefined}
                 rel="noopener noreferrer"
                 className="flex flex-col items-center gap-1.5"
               >
@@ -114,8 +106,6 @@ export default function RestaurantHeroButtons({
           })}
         </div>
       )}
-
-      {bookingOpen && <BookingModal profile={profile} accent={accent} onClose={() => setBookingOpen(false)} />}
     </div>
   );
 }
