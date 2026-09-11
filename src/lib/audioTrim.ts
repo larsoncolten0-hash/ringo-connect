@@ -7,7 +7,16 @@
 // slice out the first MAX_PREVIEW_SECONDS, and re-encode just that slice
 // as a small public MP3 — the only thing that ever becomes public. No
 // artist interaction (no manual start/end marking) is needed.
-import lamejs from "lamejs";
+// NOT the original `lamejs` package — that one's npm build (src/js/index.js,
+// its package.json "main") throws `ReferenceError: MPEGMode is not defined`
+// the instant an Mp3Encoder is constructed, in any environment (confirmed
+// directly with Node) — several of its internal files use MPEGMode
+// without requiring it, which only ever worked in lamejs's own
+// browser-global concatenated bundle, not through normal module
+// resolution. @breezystack/lamejs is the maintained fork that fixes
+// exactly this, ships real TS types, and is what every "impossible to
+// generate a preview clip" failure up to now was actually caused by.
+import { Mp3Encoder } from "@breezystack/lamejs";
 
 export const MAX_PREVIEW_SECONDS = 30;
 
@@ -58,7 +67,7 @@ export function trimToPreviewMp3(buffer: AudioBuffer): Blob {
   const left = floatTo16BitPCM(buffer.getChannelData(0).subarray(0, endSample));
   const right = channels > 1 ? floatTo16BitPCM(buffer.getChannelData(1).subarray(0, endSample)) : null;
 
-  const encoder = new lamejs.Mp3Encoder(channels, sampleRate, 128);
+  const encoder = new Mp3Encoder(channels, sampleRate, 128);
   const blockSize = 1152;
   const chunks: Uint8Array[] = [];
 

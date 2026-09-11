@@ -7,6 +7,21 @@ import { decodeAudioFile, trimToPreviewMp3, MAX_PREVIEW_SECONDS } from "@/lib/au
 
 const MAX_SIZE_BYTES = 25 * 1024 * 1024; // ~25MB — a full-length track at a reasonable bitrate
 
+// Appends whatever detail the failure actually carries (a Supabase storage
+// error's .message, a DOMException from decodeAudioData, etc.) to the
+// translated, generic label — so the error shown on screen is something
+// an artist can screenshot and send in, instead of always the same
+// unhelpful sentence no matter what actually went wrong.
+function describeError(base: string, err: unknown): string {
+  const detail =
+    err && typeof err === "object" && "message" in err && typeof (err as any).message === "string"
+      ? (err as any).message
+      : typeof err === "string"
+      ? err
+      : null;
+  return detail ? `${base} (${detail})` : base;
+}
+
 // One upload panel for a track sold as a real purchase: the artist
 // uploads exactly one audio file. It goes into the PRIVATE `protected-
 // audio` bucket (only ever reachable by the owner, or a fan after a
@@ -89,15 +104,20 @@ export default function ProtectedAudioUploadField({
       try {
         const clipUrl = await buildPreviewClip(file);
         onChange({ protected_audio_path: path, preview_audio_url: clipUrl });
-      } catch {
+      } catch (err) {
         // The full track is safely uploaded either way — only the
         // automatic preview step failed, and that's retryable on its own
         // without asking the artist to re-upload the whole song.
+        // eslint-disable-next-line no-console
+        console.error("[preview trim] failed to generate preview from a fresh upload:", err);
         setPreviewFailed(true);
+        setError(describeError(label.previewFailed, err));
         onChange({ protected_audio_path: path, preview_audio_url: "" });
       }
-    } catch {
-      setError(label.uploadFailed);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[preview trim] full-track upload failed:", err);
+      setError(describeError(label.uploadFailed, err));
     } finally {
       setStatus("idle");
     }
@@ -122,8 +142,11 @@ export default function ProtectedAudioUploadField({
       const clipUrl = await buildPreviewClip(source);
       setPreviewFailed(false);
       onChange({ protected_audio_path: protectedPath, preview_audio_url: clipUrl });
-    } catch {
-      setError(label.previewFailed);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[preview trim] failed to (re)generate preview:", err);
+      setPreviewFailed(true);
+      setError(describeError(label.previewFailed, err));
     } finally {
       setStatus("idle");
     }
