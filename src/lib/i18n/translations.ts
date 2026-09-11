@@ -19,6 +19,12 @@ export const translations = {
       shareFacebook: "Share on Facebook",
       shareX: "Share on X",
       moreOptions: "More options",
+      showQrCode: "QR Code",
+      qrCodeTitle: (name: string) => `${name}'s QR Code`,
+      qrCodeSubtitle: "Scan to open this profile.",
+      qrCodeError: "Couldn't generate the QR code — try again.",
+      downloadQrCode: "Download",
+      close: "Close",
     },
     // The public booking button + form (see BookingButton.tsx/BookingPage.tsx).
     // Category-specific field labels/button wording live in categories.ts's
@@ -1252,6 +1258,12 @@ export const translations = {
       shareFacebook: "Partager sur Facebook",
       shareX: "Partager sur X",
       moreOptions: "Plus d'options",
+      showQrCode: "Code QR",
+      qrCodeTitle: (name: string) => `Code QR de ${name}`,
+      qrCodeSubtitle: "Scannez pour ouvrir ce profil.",
+      qrCodeError: "Impossible de générer le code QR — réessayez.",
+      downloadQrCode: "Télécharger",
+      close: "Fermer",
     },
     booking: {
       formTitle: (name: string) => `Réserver ${name}`,

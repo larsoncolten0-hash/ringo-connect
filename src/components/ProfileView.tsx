@@ -303,6 +303,12 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                 shareFacebook: t.profilePage.shareFacebook,
                 shareX: t.profilePage.shareX,
                 moreOptions: t.profilePage.moreOptions,
+                showQrCode: t.profilePage.showQrCode,
+                qrCodeTitle: t.profilePage.qrCodeTitle,
+                qrCodeSubtitle: t.profilePage.qrCodeSubtitle,
+                qrCodeError: t.profilePage.qrCodeError,
+                downloadQrCode: t.profilePage.downloadQrCode,
+                close: t.profilePage.close,
               }}
             />
           </div>

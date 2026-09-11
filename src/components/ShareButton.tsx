@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Share, Link2, Check, Share2 } from "lucide-react";
+import { Share, Link2, Check, Share2, QrCode, X, Download, Loader2 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaXTwitter } from "react-icons/fa6";
+import { drawQrCodeWithLogo, downloadCanvas } from "@/lib/qrCode";
 
 // The public page's own share control — replaces what used to be a plain
 // "copy link" button with the familiar share icon (an arrow out of a box,
@@ -28,12 +29,21 @@ export default function ShareButton({
     shareFacebook: string;
     shareX: string;
     moreOptions: string;
+    showQrCode: string;
+    qrCodeTitle: (name: string) => string;
+    qrCodeSubtitle: string;
+    qrCodeError: string;
+    downloadQrCode: string;
+    close: string;
   };
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const [qrStatus, setQrStatus] = useState<"idle" | "generating" | "ready" | "error">("idle");
   const menuRef = useRef<HTMLDivElement>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     setCanNativeShare(typeof navigator !== "undefined" && !!navigator.share);
@@ -71,6 +81,38 @@ export default function ShareButton({
     }
   };
 
+  // Draws once the modal opens — same shared logo-on-code renderer the
+  // dashboard's QR code builder and the admin approval screen already use
+  // (src/lib/qrCode.ts), so the look and download behavior never drift
+  // between all three.
+  useEffect(() => {
+    if (!showQr) return;
+    const canvas = qrCanvasRef.current;
+    if (!canvas) return;
+
+    let cancelled = false;
+    setQrStatus("generating");
+    drawQrCodeWithLogo(canvas, getUrl(), 512)
+      .then(() => {
+        if (!cancelled) setQrStatus("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setQrStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showQr]);
+
+  const downloadQr = () => {
+    const canvas = qrCanvasRef.current;
+    if (!canvas || qrStatus !== "ready") return;
+    const filename = title.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || "ringo-connect";
+    downloadCanvas(canvas, `${filename}-qr`, "png");
+  };
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -99,6 +141,16 @@ export default function ShareButton({
             >
               {copied ? <Check size={15} className="text-emerald-500" /> : <Link2 size={15} className="text-[#6B7280]" />}
               {copied ? strings.linkCopied : strings.copyLink}
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                setShowQr(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[#1F2937] hover:bg-black/[0.04] transition text-left"
+            >
+              <QrCode size={15} className="text-[#6B7280]" />
+              {strings.showQrCode}
             </button>
             <a
               href={`https://wa.me/?text=${encodeURIComponent(`${title} — ${getUrl()}`)}`}
@@ -139,6 +191,53 @@ export default function ShareButton({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showQr && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowQr(false)} />
+          <div
+            className="relative w-full sm:max-w-xs rounded-t-3xl sm:rounded-3xl bg-white p-5 flex flex-col items-center text-center"
+            style={{ color: "#14202B" }}
+          >
+            <button
+              onClick={() => setShowQr(false)}
+              aria-label={strings.close}
+              className="absolute right-4 top-4 w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: "#F3F4F6", color: "#14202B" }}
+            >
+              <X size={15} />
+            </button>
+
+            <p className="font-display text-base font-bold pr-8">{strings.qrCodeTitle(title)}</p>
+            <p className="text-xs mt-1 mb-4" style={{ opacity: 0.6 }}>
+              {strings.qrCodeSubtitle}
+            </p>
+
+            <div
+              className="rounded-2xl border flex items-center justify-center shrink-0"
+              style={{ width: 240, height: 240, borderColor: "#E5E7EB" }}
+            >
+              {qrStatus === "generating" && <Loader2 size={22} className="animate-spin" style={{ color: "#9CA3AF" }} />}
+              <canvas ref={qrCanvasRef} className={`max-w-full max-h-full ${qrStatus === "ready" ? "" : "hidden"}`} />
+              {qrStatus === "error" && (
+                <p className="text-xs px-4" style={{ color: "#991B1B" }}>
+                  {strings.qrCodeError}
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={downloadQr}
+              disabled={qrStatus !== "ready"}
+              className="w-full mt-5 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white disabled:opacity-60"
+              style={{ backgroundColor: accent }}
+            >
+              <Download size={15} />
+              {strings.downloadQrCode}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

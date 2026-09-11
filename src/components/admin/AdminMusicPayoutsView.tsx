@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Banknote, Zap, RefreshCw, Check } from "lucide-react";
+import { Banknote, Zap, RefreshCw, Check, SlidersHorizontal } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import type { AdminMusicPayoutOverview } from "@/lib/musicEarnings";
 import type { MusicPayoutSettings } from "@/lib/musicPayoutSettings";
@@ -41,37 +42,10 @@ export default function AdminMusicPayoutsView({
 }) {
   const router = useRouter();
   const [overview, setOverview] = useState(initialOverview);
-  const [settings, setSettings] = useState({
-    musicCommissionRatePct: Math.round(initialSettings.musicCommissionRate * 10000) / 100,
-    musicPayoutHoldDays: initialSettings.musicPayoutHoldDays,
-    musicMinPayoutXaf: initialSettings.musicMinPayoutXaf,
-  });
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [settingsSaved, setSettingsSaved] = useState(false);
-  const [settingsError, setSettingsError] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "requested" | "processing" | "paid" | "rejected">("requested");
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [checkingId, setCheckingId] = useState<string | null>(null);
-
-  const saveSettings = async () => {
-    setSavingSettings(true);
-    setSettingsError("");
-    const res = await fetch("/api/admin/music/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    });
-    const data = await res.json().catch(() => ({}));
-    setSavingSettings(false);
-    if (!res.ok) {
-      setSettingsError(data.error || "Could not save settings.");
-      return;
-    }
-    setSettingsSaved(true);
-    router.refresh();
-    setTimeout(() => setSettingsSaved(false), 2000);
-  };
 
   const resolvePayout = async (id: string, action: "paid" | "rejected") => {
     const note = window.prompt(
@@ -167,50 +141,19 @@ export default function AdminMusicPayoutsView({
         )}
       </div>
 
-      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] flex flex-col gap-4">
-        <p className="text-sm font-semibold text-ringo-text">Payout policy</p>
-        {settingsError && <p className="text-xs text-red-500">{settingsError}</p>}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ringo-text">Platform fee (%)</span>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step="0.1"
-              value={settings.musicCommissionRatePct}
-              onChange={(e) => setSettings((s) => ({ ...s, musicCommissionRatePct: Number(e.target.value) }))}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ringo-text">Hold period (days)</span>
-            <input
-              type="number"
-              min={0}
-              value={settings.musicPayoutHoldDays}
-              onChange={(e) => setSettings((s) => ({ ...s, musicPayoutHoldDays: Number(e.target.value) }))}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-ringo-text">Minimum payout (XAF)</span>
-            <input
-              type="number"
-              min={0}
-              value={settings.musicMinPayoutXaf}
-              onChange={(e) => setSettings((s) => ({ ...s, musicMinPayoutXaf: Number(e.target.value) }))}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
-            />
-          </label>
-        </div>
-        <button
-          onClick={saveSettings}
-          disabled={savingSettings}
-          className="self-start text-sm font-medium px-4 py-2 rounded-card bg-ringo-indigo text-white disabled:opacity-50 hover:brightness-110 transition"
+      {/* Settings now live centrally — see Price Controls. */}
+      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-ringo-muted">
+          {Math.round(initialSettings.musicCommissionRate * 10000) / 100}% platform fee · {initialSettings.musicPayoutHoldDays}-day hold ·{" "}
+          {formatPrice(initialSettings.musicMinPayoutXaf, "XAF")} minimum
+        </p>
+        <Link
+          href="/admin/price-controls"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-ringo-indigo hover:underline"
         >
-          {savingSettings ? "Saving…" : settingsSaved ? "Saved ✓" : "Save"}
-        </button>
+          <SlidersHorizontal size={13} />
+          Edit in Price Controls
+        </Link>
       </div>
 
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
