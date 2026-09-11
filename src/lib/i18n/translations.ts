@@ -299,6 +299,9 @@ export const translations = {
       playFullSong: "Play Full Song",
       downloadTrack: "Download",
       emailDeliveryNote: "Email delivery isn't set up on this Ringo yet — use Play or Download above to access your music.",
+      purchasePendingNote: "Your payment is being confirmed by the artist — Play and Download will unlock here as soon as it's verified. This page updates automatically.",
+      pendingConfirmation: "Pending confirmation",
+      accessFailedError: "Couldn't access this track right now — try again in a moment.",
       cartEmptyMusic: "Your cart is empty — browse music, merch or tickets below.",
       backToProfile: "Back to profile",
 
@@ -1479,6 +1482,9 @@ export const translations = {
       playFullSong: "Écouter le morceau complet",
       downloadTrack: "Télécharger",
       emailDeliveryNote: "La livraison par e-mail n'est pas encore configurée sur ce Ringo — utilisez Écouter ou Télécharger ci-dessus pour accéder à votre musique.",
+      purchasePendingNote: "Votre paiement est en cours de confirmation par l'artiste — Écouter et Télécharger se débloqueront ici dès qu'il sera vérifié. Cette page se met à jour automatiquement.",
+      pendingConfirmation: "En attente de confirmation",
+      accessFailedError: "Impossible d'accéder à ce titre pour le moment — réessayez dans un instant.",
       cartEmptyMusic: "Votre panier est vide — parcourez la musique, le merch ou les billets ci-dessous.",
       backToProfile: "Retour au profil",
 

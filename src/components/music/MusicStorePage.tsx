@@ -106,12 +106,27 @@ export default function MusicStorePage({ profile }: { profile: any }) {
     }
   };
 
+  // Polls every 4s for a live payment_status readout — the same pattern
+  // RestaurantOrderPage.tsx uses. This matters here specifically because
+  // music_orders.payment_status starts 'unpaid' and is only ever flipped
+  // by the artist marking it paid by hand (there's no real payment
+  // gateway wired into this guest-checkout flow — see the migration's
+  // header note) — without polling, a fan who paid the artist in person
+  // right after ordering would have no way to see Play/Download unlock
+  // without manually reloading the page.
   useEffect(() => {
     if (!placedOrder) return;
-    fetch(`/api/music/orders/${placedOrder.id}`)
-      .then((r) => r.json())
-      .then(setOrderDetail)
-      .catch(() => {});
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/music/orders/${placedOrder.id}`);
+        if (res.ok) setOrderDetail(await res.json());
+      } catch {
+        // transient network error — next tick tries again
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 4000);
+    return () => clearInterval(interval);
   }, [placedOrder]);
 
   const musicSectionLabel = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.storeMusicHeading;
@@ -129,12 +144,23 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           </p>
 
           {orderDetail?.items?.some((i: any) => i.item_type === "song" || i.item_type === "release") && (
-            <p className="text-xs" style={{ opacity: 0.6 }}>{t.music.emailDeliveryNote}</p>
+            <p className="text-xs" style={{ opacity: 0.6 }}>
+              {orderDetail.payment_status === "paid" ? t.music.emailDeliveryNote : t.music.purchasePendingNote}
+            </p>
           )}
 
           <div className="w-full flex flex-col gap-3 mt-2">
             {(orderDetail?.items || []).map((item: any) => (
-              <PurchasedItem key={item.id} item={item} orderId={placedOrder.id} accent={accent} currency={currency} locale={locale} t={t} />
+              <PurchasedItem
+                key={item.id}
+                item={item}
+                orderId={placedOrder.id}
+                paid={orderDetail?.payment_status === "paid"}
+                accent={accent}
+                currency={currency}
+                locale={locale}
+                t={t}
+              />
             ))}
           </div>
 
@@ -445,10 +471,37 @@ function StoreCard({
 // Post-purchase access — Play/Download call the protected-audio route,
 // which mints a short-lived signed URL only after re-verifying this exact
 // order paid for this exact track (see /api/music/tracks/[id]/audio).
-function PurchasedItem({ item, orderId, accent, currency, locale, t }: { item: any; orderId: string; accent: string; currency: string; locale: string; t: any }) {
+// `paid` (music_orders.payment_status === "paid") gates whether those
+// buttons even render as live controls: payment_status starts 'unpaid'
+// and is only ever flipped by the artist marking the order paid by hand
+// (no real payment gateway is wired into this guest-checkout flow), so
+// right after checkout the track genuinely isn't accessible yet — showing
+// a live-looking Play/Download button in that state did nothing when
+// tapped and gave no explanation why. Now it shows an honest "pending"
+// state instead, and MusicStorePage's 4s poll flips `paid` to true (and
+// this back to real buttons) the moment the artist confirms, no reload
+// needed.
+function PurchasedItem({
+  item,
+  orderId,
+  paid,
+  accent,
+  currency,
+  locale,
+  t,
+}: {
+  item: any;
+  orderId: string;
+  paid: boolean;
+  accent: string;
+  currency: string;
+  locale: string;
+  t: any;
+}) {
   const [playing, setPlaying] = useState(false);
   const [audio] = useState(() => (typeof Audio !== "undefined" ? new Audio() : null));
   const [loading, setLoading] = useState<"play" | "download" | null>(null);
+  const [error, setError] = useState("");
 
   const isMusic = item.item_type === "song" || item.item_type === "release";
 
@@ -457,8 +510,15 @@ function PurchasedItem({ item, orderId, accent, currency, locale, t }: { item: a
     const res = await fetch(`/api/music/tracks/${item.track_id}/audio?order=${orderId}`, {
       headers: download ? { "x-download": "1" } : undefined,
     });
-    const data = await res.json();
-    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    // Surfaced rather than swallowed — a stale/expired session, or a
+    // track the artist never actually uploaded protected audio for,
+    // previously failed here with zero feedback and looked identical to
+    // "the button doesn't work."
+    if (!res.ok) {
+      setError(data?.error || t.music.accessFailedError);
+      return null;
+    }
     return data.url as string;
   };
 
@@ -468,6 +528,7 @@ function PurchasedItem({ item, orderId, accent, currency, locale, t }: { item: a
       setPlaying(false);
       return;
     }
+    setError("");
     setLoading("play");
     const url = await fetchSignedUrl(false);
     setLoading(null);
@@ -479,6 +540,7 @@ function PurchasedItem({ item, orderId, accent, currency, locale, t }: { item: a
   };
 
   const download = async () => {
+    setError("");
     setLoading("download");
     const url = await fetchSignedUrl(true);
     setLoading(null);
@@ -486,28 +548,37 @@ function PurchasedItem({ item, orderId, accent, currency, locale, t }: { item: a
   };
 
   return (
-    <div className="w-full rounded-2xl p-3 flex items-center gap-3 text-left" style={{ border: "1px solid #E5E7EB" }}>
-      {item.item_type === "support" ? (
-        <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${accent}22` }}>
-          <Heart size={16} style={{ color: accent }} />
-        </span>
-      ) : null}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">{item.name}</p>
-        <p className="text-xs" style={{ opacity: 0.6 }} suppressHydrationWarning>
-          {formatPrice(item.price, currency, locale)}
-        </p>
-      </div>
-      {isMusic && item.track_id && (
-        <div className="flex gap-1.5 shrink-0">
-          <button onClick={togglePlay} disabled={loading === "play"} className="w-9 h-9 rounded-full flex items-center justify-center text-white disabled:opacity-60" style={{ backgroundColor: accent }}>
-            {loading === "play" ? <Loader2 size={14} className="animate-spin" /> : playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
-          </button>
-          <button onClick={download} disabled={loading === "download"} className="w-9 h-9 rounded-full flex items-center justify-center border" style={{ borderColor: "#E5E7EB" }}>
-            {loading === "download" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-          </button>
+    <div className="w-full rounded-2xl p-3 flex flex-col gap-1.5 text-left" style={{ border: "1px solid #E5E7EB" }}>
+      <div className="flex items-center gap-3">
+        {item.item_type === "support" ? (
+          <span className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${accent}22` }}>
+            <Heart size={16} style={{ color: accent }} />
+          </span>
+        ) : null}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">{item.name}</p>
+          <p className="text-xs" style={{ opacity: 0.6 }} suppressHydrationWarning>
+            {formatPrice(item.price, currency, locale)}
+          </p>
         </div>
-      )}
+        {isMusic && item.track_id && (
+          paid ? (
+            <div className="flex gap-1.5 shrink-0">
+              <button onClick={togglePlay} disabled={loading === "play"} className="w-9 h-9 rounded-full flex items-center justify-center text-white disabled:opacity-60" style={{ backgroundColor: accent }}>
+                {loading === "play" ? <Loader2 size={14} className="animate-spin" /> : playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5" />}
+              </button>
+              <button onClick={download} disabled={loading === "download"} className="w-9 h-9 rounded-full flex items-center justify-center border" style={{ borderColor: "#E5E7EB" }}>
+                {loading === "download" ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              </button>
+            </div>
+          ) : (
+            <span className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: "#F3F4F6", color: "#6B7280" }}>
+              {t.music.pendingConfirmation}
+            </span>
+          )
+        )}
+      </div>
+      {error && <p className="text-xs" style={{ color: "#DC2626" }}>{error}</p>}
     </div>
   );
 }
