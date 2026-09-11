@@ -8,6 +8,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import HelpWidget from "@/components/dashboard/HelpWidget";
+import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export default function DashboardShell({
@@ -73,6 +74,11 @@ export default function DashboardShell({
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[264px_1fr]">
+      {/* Registers the "Add to Home Screen" service worker for the whole
+          dashboard — see RegisterServiceWorker.tsx and
+          AddToHomeScreenMenuItem.tsx (surfaced from AvatarMenu below). */}
+      <RegisterServiceWorker />
+
       {/* Desktop sidebar — the persistent nav. Every dashboard page renders
           inside this layout, so this never re-mounts between pages. */}
       <aside className="hidden lg:flex flex-col justify-between border-r border-ringo-border/70 bg-ringo-surface/40 p-5 h-screen sticky top-0">

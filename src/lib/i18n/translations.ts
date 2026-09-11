@@ -76,6 +76,15 @@ export const translations = {
       gotIt: "Got it",
       close: "Close",
     },
+    // The dashboard's own "Add to Home Screen" entry (see
+    // AddToHomeScreenMenuItem.tsx, surfaced from AvatarMenu) — installs
+    // the creator's management app, not their public profile. Reuses
+    // addToHomeScreen's iosStep1-3/gotIt/close above, which are already
+    // generic Safari instructions.
+    dashboardInstall: {
+      menuItem: "Add to Home Screen",
+      iosTitle: "Add Ringo Connect to Your Home Screen",
+    },
     // The public "Join Community" form (see CommunityJoinPage.tsx) and its
     // own confirmation step. Dashboard-side copy (Overview/Subscribers/
     // Announcements/Settings) lives under `community` instead.
@@ -1305,6 +1314,10 @@ export const translations = {
       iosStep3: "Appuyez sur « Ajouter »",
       gotIt: "Compris",
       close: "Fermer",
+    },
+    dashboardInstall: {
+      menuItem: "Ajouter à l'écran d'accueil",
+      iosTitle: "Ajouter Ringo Connect à votre écran d'accueil",
     },
     communityJoin: {
       formTitle: (name: string) => `Rejoindre la communauté de ${name}`,

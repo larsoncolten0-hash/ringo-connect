@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, LogOut } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import AddToHomeScreenMenuItem from "@/components/dashboard/AddToHomeScreenMenuItem";
 
 export default function AvatarMenu({
   email,
@@ -65,6 +66,7 @@ export default function AvatarMenu({
             <ExternalLink size={14} />
             {t.account.viewPage}
           </Link>
+          <AddToHomeScreenMenuItem onNavigate={() => setOpen(false)} />
           <Link
             href="/auth/logout"
             className="flex items-center gap-2 px-3.5 py-2.5 text-sm text-ringo-coral hover:bg-ringo-coral/10 transition-colors"

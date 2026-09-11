@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { profileHasCategory } from "@/lib/categories";
 
+// Per-creator PWA installability (manifest link, iOS home-screen name/
+// icon, theme color) for the whole /dashboard/** tree — see
+// src/lib/dashboardMetadata.ts.
+export { generateMetadata, generateViewport } from "@/lib/dashboardMetadata";
+
 // See src/app/admin/settings/page.tsx for why this matters — this layout
 // is what feeds the sidebar's plan badge, so a stale cache here could
 // keep showing "Free" right after an upgrade.
