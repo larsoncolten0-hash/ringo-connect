@@ -28,6 +28,8 @@ import OpeningHoursRow from "./restaurant/OpeningHoursRow";
 import ImageGallery from "./ImageGallery";
 import ShareButton from "./ShareButton";
 import BookingButton from "./BookingButton";
+import AddToHomeScreen from "./AddToHomeScreen";
+import RegisterServiceWorker from "./RegisterServiceWorker";
 
 export default function ProfileView({
   profile,
@@ -209,6 +211,8 @@ export default function ProfileView({
       className={`relative flex flex-col items-center pb-10 ${preview ? "min-h-full" : "min-h-screen"}`}
       style={pageStyle}
     >
+      {!preview && <RegisterServiceWorker />}
+
       {/* Pixel base code — deliberately held back until `visitorId` is
           set (client-only, see the effect above) so the very first
           PageView already carries external_id, rather than firing once
@@ -851,6 +855,23 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                 {profile.community_label?.trim() || t.communitySection.defaultButtonLabel}
               </a>
             </div>
+          )}
+
+          {/* "Add to Home Screen" — entirely separate feature from Stay
+              Connected above (no shared state, no consent implied). Never
+              rendered in the dashboard's live preview (see `preview`
+              above) — a real visitor's install prompt has no business
+              firing while the owner is just editing their page. */}
+          {!preview && (
+            <AddToHomeScreen
+              displayName={profile.name || profile.username}
+              username={profile.username}
+              accent={accent}
+              radiusClass={radiusClass}
+              buttonStyle={linkButtonStyle}
+              borderTint={contentBorderTint}
+              textColor={contentTextColor}
+            />
           )}
         </div>
 

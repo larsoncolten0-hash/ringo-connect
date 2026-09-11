@@ -3,6 +3,11 @@ import { notFound } from "next/navigation";
 import { profileHasCategory } from "@/lib/categories";
 import RestaurantOrderPage from "@/components/restaurant/RestaurantOrderPage";
 
+// See src/app/[username]/page.tsx's own comment — same shared metadata
+// (the manifest always points back at the general /username profile URL,
+// not this ordering page, regardless of which page a visitor arrived on).
+export { generateMetadata, generateViewport } from "@/lib/profileMetadata";
+
 // The actual ordering surface — reachable from the public profile's
 // "View Menu"/"Order Now" buttons, or directly via a table's QR code
 // (?table=<public_code>, baked into the QR by TablesCard so the customer

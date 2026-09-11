@@ -56,6 +56,20 @@ export const translations = {
       subtitle: (name: string) => `Follow updates from ${name} — new products, events and announcements.`,
       defaultButtonLabel: "Join Community",
     },
+    // The public "Add to Home Screen" card + iOS instructions modal (see
+    // AddToHomeScreen.tsx) — entirely separate feature from Community
+    // above: installing a profile never subscribes anyone to anything.
+    addToHomeScreen: {
+      title: (name: string) => `Keep ${name} With You`,
+      subtitle: "Add this profile to your home screen for quick access.",
+      button: "Add to Home Screen",
+      iosTitle: (name: string) => `Add ${name} to Your Home Screen`,
+      iosStep1: "Tap the Share button in Safari's toolbar.",
+      iosStep2: 'Select "Add to Home Screen."',
+      iosStep3: 'Tap "Add."',
+      gotIt: "Got it",
+      close: "Close",
+    },
     // The public "Join Community" form (see CommunityJoinPage.tsx) and its
     // own confirmation step. Dashboard-side copy (Overview/Subscribers/
     // Announcements/Settings) lives under `community` instead.
@@ -1236,6 +1250,17 @@ export const translations = {
       title: "Restez connecté",
       subtitle: (name: string) => `Suivez les actualités de ${name} — nouveaux produits, événements et annonces.`,
       defaultButtonLabel: "Rejoindre la communauté",
+    },
+    addToHomeScreen: {
+      title: (name: string) => `Gardez ${name} avec vous`,
+      subtitle: "Ajoutez ce profil à votre écran d'accueil pour un accès rapide.",
+      button: "Ajouter à l'écran d'accueil",
+      iosTitle: (name: string) => `Ajouter ${name} à votre écran d'accueil`,
+      iosStep1: "Appuyez sur le bouton Partager dans la barre d'outils de Safari.",
+      iosStep2: "Sélectionnez « Sur l'écran d'accueil »",
+      iosStep3: "Appuyez sur « Ajouter »",
+      gotIt: "Compris",
+      close: "Fermer",
     },
     communityJoin: {
       formTitle: (name: string) => `Rejoindre la communauté de ${name}`,

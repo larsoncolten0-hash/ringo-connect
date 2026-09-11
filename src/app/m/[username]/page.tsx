@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { profileHasCategory } from "@/lib/categories";
 import MusicStorePage from "@/components/music/MusicStorePage";
 
+// See src/app/[username]/page.tsx's own comment.
+export { generateMetadata, generateViewport } from "@/lib/profileMetadata";
+
 // The dedicated "Buy Now" commerce page — reachable from the public
 // profile's Buy Now button. Mirrors /r/[username]'s architecture (a
 // dedicated storefront + cart + checkout page) for the same reason: a
