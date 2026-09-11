@@ -6,11 +6,12 @@ import { hexToRgba } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
 
 // Same fixed near-black "player card" treatment as MusicSection — see the
-// comment there. "Upcoming" — there's no in-house ticket purchasing
-// system, so "Get Ticket" either opens the creator's own ticket link
-// (whatever platform they already sell through) or, when they haven't set
-// one, falls back to a WhatsApp message — the same pattern products
-// already use when they have no landing_url.
+// comment there. "Get Ticket" opens the event's own detail page
+// (/m/[username]/ticket/[id]) instead of buying immediately — that page
+// resolves the actual CTA (the creator's own ticket link, real in-house
+// checkout when they've set a price, or a WhatsApp hand-off), same
+// priority this card used to apply directly. Only rendered when there's
+// genuinely a way to get a ticket at all.
 const CARD_BG = "#171009";
 const CARD_TEXT = "#F5EFE4";
 
@@ -20,12 +21,14 @@ export default function EventsSection({
   accent,
   buttonStyle,
   whatsappNumber,
+  username,
 }: {
   t: Translations;
   events: any[];
   accent: string;
   buttonStyle: CSSProperties;
   whatsappNumber?: string | null;
+  username: string;
 }) {
   if (events.length === 0) return null;
 
@@ -49,13 +52,11 @@ export default function EventsSection({
           .map((event) => {
             const parts = dateParts(event.event_date);
             const cleanNumber = (whatsappNumber || "").replace(/[^0-9]/g, "");
-            const href =
-              event.ticket_url ||
-              (cleanNumber
-                ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(
-                    event.whatsapp_message || t.music.getTicketWhatsappMessage(event.title)
-                  )}`
-                : null);
+            // Same "is there any way to get a ticket at all" check the old
+            // direct href used — just now routes to the detail page
+            // instead of straight to the ticket_url/WhatsApp itself.
+            const canGetTicket = !!(event.ticket_url || event.price || cleanNumber);
+            const href = canGetTicket ? `/m/${username}/ticket/${event.id}` : null;
 
             return (
               <div
@@ -105,8 +106,6 @@ export default function EventsSection({
                 {href && (
                   <a
                     href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full transition hover:brightness-95 active:scale-95"
                     style={{ backgroundColor: accent, color: "#171009" }}
                   >

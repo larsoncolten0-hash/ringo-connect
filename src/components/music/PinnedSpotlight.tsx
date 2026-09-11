@@ -56,15 +56,17 @@ export default function PinnedSpotlight({
       : [item.location, item.event_time].filter(Boolean).join(" · ");
 
   const cleanNumber = (whatsappNumber || "").replace(/[^0-9]/g, "");
+  // Same "opens the detail page instead of buying immediately" treatment
+  // every other product/event card on the profile now gets — see
+  // MusicSection/ReleasesSection/EventsSection/ProfileView's own comments.
+  // Only rendered at all when there's genuinely something to get there.
   const ctaHref =
     type === "product"
-      ? item.landing_url ||
-        (cleanNumber ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(`Hi, I'm interested in ${item.name}`)}` : undefined)
+      ? `/m/${username}/merch/${item.id}`
       : type === "event"
-      ? item.ticket_url ||
-        (cleanNumber
-          ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(item.whatsapp_message || t.music.getTicketWhatsappMessage(item.title))}`
-          : undefined)
+      ? item.ticket_url || item.price || cleanNumber
+        ? `/m/${username}/ticket/${item.id}`
+        : undefined
       : undefined; // track's CTA is the play button, handled separately
 
   const ctaLabel = type === "product" ? t.music.buyLabel : type === "event" ? t.music.getTicket : null;
@@ -116,7 +118,7 @@ export default function PinnedSpotlight({
             <div className="flex items-center gap-2 shrink-0">
               {isProtectedTrack && item.price && (
                 <a
-                  href={`/m/${username}`}
+                  href={`/m/${username}/track/${item.id}`}
                   className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2.5 rounded-full shadow-lg transition hover:brightness-95 active:scale-95"
                   style={buttonStyle}
                 >
@@ -142,8 +144,6 @@ export default function PinnedSpotlight({
           ) : ctaHref ? (
             <a
               href={ctaHref}
-              target="_blank"
-              rel="noopener noreferrer"
               className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg transition hover:brightness-95 active:scale-95"
               style={buttonStyle}
             >

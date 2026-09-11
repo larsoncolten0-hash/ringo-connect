@@ -376,6 +376,19 @@ export const translations = {
       recentOrdersMusic: "Recent Orders",
       markPaidLabel: "Mark Paid",
       receiptThankYou: "Thank you for your purchase!",
+
+      // /m/[username]/[type]/[id] — detail pages a fan lands on after
+      // tapping a song, EP/album, merch item, or ticket from the public
+      // profile, before actually buying (see ItemDetailPage.tsx).
+      detailAboutHeading: "About",
+      detailTracklistHeading: "Tracklist",
+      detailEventDetailsHeading: "Event details",
+      detailGenreLabel: "Genre",
+      detailTicketTypeLabel: "Ticket type",
+      detailTicketsRemaining: (n: number) => `${n} ticket${n === 1 ? "" : "s"} remaining`,
+      detailNotForSale: "Not currently for sale",
+      releaseTypeAlbum: "Album",
+      releaseTypeEp: "EP",
     },
     // Restaurant & Food category — see src/lib/categories.ts. Every
     // string here only ever renders for a profile tagged with that
@@ -1597,6 +1610,16 @@ export const translations = {
       recentOrdersMusic: "Commandes récentes",
       markPaidLabel: "Marquer payé",
       receiptThankYou: "Merci pour votre achat !",
+
+      detailAboutHeading: "À propos",
+      detailTracklistHeading: "Liste des titres",
+      detailEventDetailsHeading: "Détails de l'événement",
+      detailGenreLabel: "Genre",
+      detailTicketTypeLabel: "Type de billet",
+      detailTicketsRemaining: (n: number) => `${n} billet${n === 1 ? "" : "s"} restant${n === 1 ? "" : "s"}`,
+      detailNotForSale: "Pas encore en vente",
+      releaseTypeAlbum: "Album",
+      releaseTypeEp: "EP",
     },
     restaurant: {
       settingsTitle: "Restaurant & Alimentation",

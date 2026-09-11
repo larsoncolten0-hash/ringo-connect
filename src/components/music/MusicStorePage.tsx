@@ -66,6 +66,37 @@ export default function MusicStorePage({ profile }: { profile: any }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A song, EP/Album, merch item, or ticket arrives as ?add=<type>:<id>
+  // from that item's own detail page (see ItemDetailPage.tsx's "Buy Now"/
+  // "Get Ticket" CTAs) — pre-loads the cart with that one line and opens
+  // it, the same hand-off pattern as ?support= above, so a fan who read
+  // more about an item lands straight in checkout for it instead of
+  // having to find and add it again here.
+  useEffect(() => {
+    const add = searchParams.get("add");
+    if (!add) return;
+    const [itemType, id] = add.split(":");
+    let line: CartLine | null = null;
+    if (itemType === "song") {
+      const tr = standaloneTracks.find((t) => t.id === id);
+      if (tr && tr.price) line = { itemType: "song", id: tr.id, name: tr.title, price: Number(tr.price), quantity: 1, coverUrl: tr.cover_image_url };
+    } else if (itemType === "release") {
+      const r = releases.find((x) => x.id === id);
+      if (r && r.price) line = { itemType: "release", id: r.id, name: r.title, price: Number(r.price), quantity: 1, coverUrl: r.cover_image_url };
+    } else if (itemType === "merch") {
+      const p = merch.find((x) => x.id === id);
+      if (p && p.inventory_count !== 0) line = { itemType: "merch", id: p.id, name: p.name, price: Number(p.price) || 0, quantity: 1, coverUrl: p.image_url };
+    } else if (itemType === "ticket") {
+      const e = tickets.find((x) => x.id === id);
+      if (e && e.price) line = { itemType: "ticket", id: e.id, name: e.title, price: Number(e.price), quantity: 1, coverUrl: e.cover_image_url };
+    }
+    if (line) {
+      setCart((prev) => [...prev, line as CartLine]);
+      setShowCart(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const addToCart = (line: CartLine) => setCart((prev) => [...prev, line]);
   const changeQty = (idx: number, delta: number) => {
     setCart((prev) => {

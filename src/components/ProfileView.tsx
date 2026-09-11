@@ -742,40 +742,29 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                                 </p>
                               )}
                               {isMusic ? (
-                                // One consolidated CTA, matching the reference
-                                // design — buys straight through the landing
-                                // link when there is one, otherwise falls back
-                                // to the same WhatsApp hand-off every other
-                                // "Buy" action on Ringo Connect already uses.
-                                (() => {
-                                  const cleanNumber = (profile.whatsapp_number || "").replace(/[^0-9]/g, "");
-                                  const waHref = cleanNumber
-                                    ? `https://wa.me/${cleanNumber}?text=${encodeURIComponent(
-                                        product.whatsapp_message || `Hi, I'm interested in ${product.name}`
-                                      )}`
-                                    : undefined;
-                                  const href = product.landing_url || waHref;
-                                  if (!href) return null;
-                                  return (
-                                    <a
-                                      href={href}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={() =>
-                                        logClick(product.landing_url ? "product" : "whatsapp", product.id, {
-                                          name: product.name,
-                                          price: product.price ? Number(product.price) : null,
-                                          currency: profile.currency,
-                                        })
-                                      }
-                                      className="flex items-center justify-center gap-1.5 text-xs font-semibold py-2 mt-2.5 rounded-full transition hover:brightness-95 active:scale-[0.97]"
-                                      style={{ backgroundColor: accent, color: "#171009" }}
-                                    >
-                                      <ShoppingCart size={13} />
-                                      {t.music.buyNowLabel}
-                                    </a>
-                                  );
-                                })()
+                                // Opens the merch item's own detail page
+                                // (/m/[username]/merch/[id]) instead of
+                                // buying immediately — that page shows the
+                                // full gallery/description and resolves the
+                                // actual CTA (the creator's landing link, or
+                                // real in-house checkout when there isn't
+                                // one), same priority this card used to
+                                // apply directly.
+                                <a
+                                  href={`/m/${profile.username}/merch/${product.id}`}
+                                  onClick={() =>
+                                    logClick("product", product.id, {
+                                      name: product.name,
+                                      price: product.price ? Number(product.price) : null,
+                                      currency: profile.currency,
+                                    })
+                                  }
+                                  className="flex items-center justify-center gap-1.5 text-xs font-semibold py-2 mt-2.5 rounded-full transition hover:brightness-95 active:scale-[0.97]"
+                                  style={{ backgroundColor: accent, color: "#171009" }}
+                                >
+                                  <ShoppingCart size={13} />
+                                  {t.music.buyNowLabel}
+                                </a>
                               ) : (
                                 // Full-width, stacked CTAs — the old side-by-side
                                 // tiny icon buttons were cramped on a phone-width
@@ -827,6 +816,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               accent={accent}
               buttonStyle={linkButtonStyle}
               whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
             />
           )}
 

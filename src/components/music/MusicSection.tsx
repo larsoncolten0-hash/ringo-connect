@@ -69,6 +69,14 @@ export default function MusicSection({
             // file, this one does.
             const isProtected = !!track.protected_audio_path;
             const canBuy = isProtected ? !!track.price : track.buy_url || track.price;
+            // Any priced track (protected or not — the editor only ever
+            // lets a track carry both a release assignment or a price,
+            // never both, see TrackRow.tsx) is a real in-house sale, so it
+            // gets its own detail page instead of buying immediately —
+            // the actual purchase happens there. A buy_url-only track has
+            // no such detail to show (it's just the creator's own outbound
+            // link), so it keeps opening directly.
+            const detailHref = track.price ? `/m/${username}/track/${track.id}` : null;
             return (
               <div
                 key={track.id}
@@ -127,15 +135,17 @@ export default function MusicSection({
                 )}
 
                 {canBuy &&
-                  (isProtected ? (
+                  (detailHref ? (
                     <a
-                      href={`/m/${username}`}
+                      href={detailHref}
                       className="shrink-0 text-xs font-semibold px-3 py-2 rounded-full"
                       style={{ backgroundColor: accent, color: "#171009" }}
                     >
-                      {track.price ? formatPrice(track.price, currency) : t.music.buyLabel}
+                      {formatPrice(track.price, currency)}
                     </a>
                   ) : track.buy_url ? (
+                    // No price set (detailHref above already handles every
+                    // priced track) — just the creator's own outbound link.
                     <a
                       href={track.buy_url}
                       target="_blank"
@@ -143,7 +153,7 @@ export default function MusicSection({
                       className="shrink-0 text-xs font-semibold px-3 py-2 rounded-full"
                       style={{ backgroundColor: accent, color: "#171009" }}
                     >
-                      {track.price ? formatPrice(track.price, currency) : t.music.buyLabel}
+                      {t.music.buyLabel}
                     </a>
                   ) : (
                     whatsappNumber && (

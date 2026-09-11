@@ -5,11 +5,13 @@ import { hexToRgba } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
 
-// A compact teaser grid for EPs/Albums on the public profile — the actual
-// purchase (cart, checkout, receipt) only happens on the dedicated Buy Now
-// storefront (/m/[username]), same as songs/merch/tickets; this section
-// exists so a release is actually discoverable from the profile itself,
-// not only reachable by someone who already clicked into the storefront.
+// A compact teaser grid for EPs/Albums on the public profile — tapping a
+// release opens its own detail page (tracklist, track count, description)
+// at /m/[username]/release/[id]; the actual purchase (cart, checkout,
+// receipt) still only happens from there, same as songs/merch/tickets.
+// This section exists so a release is actually discoverable from the
+// profile itself, not only reachable by someone who already clicked into
+// the storefront.
 export default function ReleasesSection({
   t,
   releases,
@@ -37,7 +39,7 @@ export default function ReleasesSection({
         {available.map((release) => (
           <a
             key={release.id}
-            href={`/m/${username}`}
+            href={`/m/${username}/release/${release.id}`}
             className="overflow-hidden rounded-2xl transition hover:-translate-y-0.5"
             style={{ border: `1px solid ${hexToRgba(accent, 0.15)}` }}
           >
