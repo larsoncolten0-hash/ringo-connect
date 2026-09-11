@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
-import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
+import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck, Bell } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, profileHasCategory } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
@@ -824,6 +824,33 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               radiusClass={radiusClass}
               borderTint={contentBorderTint}
             />
+          )}
+
+          {/* "Stay Connected" — the community/audience opt-in teaser. Only
+              rendered once the owner has turned it on (Dashboard →
+              Community → Settings); links to the dedicated join page
+              rather than opening a modal here, the same reasoning
+              BookingButton uses for /[username]/book. */}
+          {profile.community_enabled && (
+            <div
+              className={`text-center p-5 ${radiusClass}`}
+              style={{ border: `1px solid ${contentBorderTint}`, backgroundColor: hexToRgba(contentTextColor, 0.03) }}
+            >
+              <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ opacity: 0.5 }}>
+                {t.communitySection.title}
+              </p>
+              <p className="text-sm mt-1.5 mb-4" style={{ opacity: 0.75 }}>
+                {t.communitySection.subtitle(profile.name || profile.username)}
+              </p>
+              <a
+                href={`/${profile.username}/community`}
+                className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium transition hover:brightness-95 active:scale-[0.98] ${radiusClass}`}
+                style={linkButtonStyle}
+              >
+                <Bell size={15} />
+                {profile.community_label?.trim() || t.communitySection.defaultButtonLabel}
+              </a>
+            </div>
           )}
         </div>
 

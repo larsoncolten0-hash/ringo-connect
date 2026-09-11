@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion";
-import { GripVertical, ChevronDown, ImagePlus } from "lucide-react";
+import { GripVertical, ChevronDown, ImagePlus, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import ImageGalleryUploadField from "./ImageGalleryUploadField";
@@ -16,6 +16,7 @@ export default function ProductRow({
   product,
   userId,
   currency,
+  communityEnabled,
   onChange,
   onDelete,
   startExpanded,
@@ -23,6 +24,10 @@ export default function ProductRow({
   product: any;
   userId: string;
   currency: string;
+  // Gates the one-shot "📣 Notify community" action below — see
+  // CatalogCard.tsx for why this is a distinct button rather than folded
+  // into the bulk Save.
+  communityEnabled?: boolean;
   onChange: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
@@ -31,6 +36,30 @@ export default function ProductRow({
   const controls = useDragControls();
   const [expanded, setExpanded] = useState(!!startExpanded);
   const nameRef = useRef<HTMLInputElement>(null);
+  const [notifying, setNotifying] = useState(false);
+  const [notifyError, setNotifyError] = useState("");
+
+  const notifyCommunity = async () => {
+    setNotifyError("");
+    setNotifying(true);
+    try {
+      const res = await fetch("/api/community/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_id: product.id }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed");
+      // Local-only — never sent back in saveAll's payload, just reflects
+      // the server's community_notified_at so the button disappears
+      // without a full page reload.
+      onChange({ community_notified_at: new Date().toISOString() });
+    } catch (err: any) {
+      setNotifyError(err?.message || "Failed");
+    } finally {
+      setNotifying(false);
+    }
+  };
 
   return (
     <Reorder.Item
@@ -163,9 +192,25 @@ export default function ProductRow({
                   className="w-32 text-xs border border-ringo-border rounded-card px-2.5 py-1.5 bg-ringo-surface text-ringo-text"
                 />
               </div>
-              <button onClick={onDelete} className="self-start text-xs text-red-500 px-1 py-1">
-                {t.editor.delete}
-              </button>
+              {notifyError && <p className="text-xs text-red-500">{notifyError}</p>}
+              <div className="flex items-center justify-between gap-2">
+                <button onClick={onDelete} className="text-xs text-red-500 px-1 py-1">
+                  {t.editor.delete}
+                </button>
+                {communityEnabled && product.name?.trim() && !product.community_notified_at && (
+                  <button
+                    onClick={notifyCommunity}
+                    disabled={notifying}
+                    className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors disabled:opacity-50"
+                  >
+                    {notifying && <Loader2 size={12} className="animate-spin" />}
+                    {notifying ? t.community.notifyProductSending : t.community.notifyProductButton}
+                  </button>
+                )}
+                {communityEnabled && product.community_notified_at && (
+                  <span className="text-xs text-ringo-teal">{t.community.notifyProductSent}</span>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

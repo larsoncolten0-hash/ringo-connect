@@ -21,6 +21,7 @@ export default function CatalogCard({
   catalogLocked,
   maxProducts,
   initialCurrency,
+  communityEnabled,
 }: {
   profileId: string;
   userId: string;
@@ -28,6 +29,8 @@ export default function CatalogCard({
   catalogLocked: boolean;
   maxProducts: number | null;
   initialCurrency: string;
+  // Gates ProductRow's per-product "📣 Notify community" action.
+  communityEnabled?: boolean;
 }) {
   const supabase = createClient();
   const { t, locale } = useLanguage();
@@ -164,6 +167,7 @@ export default function CatalogCard({
             product={product}
             userId={userId}
             currency={currency}
+            communityEnabled={communityEnabled}
             startExpanded={product.id === justAddedId}
             onChange={(patch) => updateProduct(product.id, patch)}
             onDelete={() => deleteProduct(product.id)}

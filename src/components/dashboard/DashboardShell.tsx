@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, ExternalLink } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
@@ -52,6 +52,9 @@ export default function DashboardShell({
     // hidden until enabled) so an owner can actually find Settings to turn
     // it on in the first place.
     { href: "/dashboard/bookings", label: t.nav.bookings, icon: CalendarCheck },
+    // Same "always visible" reasoning as Bookings above — every category
+    // can build a community, so this isn't gated either.
+    { href: "/dashboard/community", label: t.nav.community, icon: Users },
     { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3 },
     { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake },
     { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard },

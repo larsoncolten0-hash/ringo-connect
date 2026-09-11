@@ -180,6 +180,7 @@ function EditorCards({
           catalogLocked={catalogLocked}
           maxProducts={plan?.max_products ?? null}
           initialCurrency={profile.currency || "USD"}
+          communityEnabled={!!profile.community_enabled}
         />
 
         {isMusic && (
