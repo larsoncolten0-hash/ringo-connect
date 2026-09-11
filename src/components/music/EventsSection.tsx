@@ -3,14 +3,17 @@
 import type { CSSProperties } from "react";
 import { Ticket, MapPin, Clock } from "lucide-react";
 import { hexToRgba } from "@/lib/color";
+import { formatPrice } from "@/lib/currency";
+import { primaryTicketType } from "@/lib/ticketTypes";
 import type { Translations } from "@/lib/i18n/translations";
 
 // Same fixed near-black "player card" treatment as MusicSection — see the
-// comment there. "Get Ticket" opens the event's own detail page
-// (/m/[username]/ticket/[id]) instead of buying immediately — that page
-// resolves the actual CTA (the creator's own ticket link, real in-house
-// checkout when they've set a price, or a WhatsApp hand-off), same
-// priority this card used to apply directly. Only rendered when there's
+// comment there. "Get Ticket"/"View Tickets" opens the event's own detail
+// page (/m/[username]/ticket/[id]) instead of buying immediately — for an
+// event with multiple ticket types (event_ticket_types), that page is the
+// full "Choose your ticket" selector; for a legacy single-price event it
+// resolves the same CTA priority (ticket_url, in-house checkout, or
+// WhatsApp) this card used to apply directly. Only rendered when there's
 // genuinely a way to get a ticket at all.
 const CARD_BG = "#171009";
 const CARD_TEXT = "#F5EFE4";
@@ -22,6 +25,7 @@ export default function EventsSection({
   buttonStyle,
   whatsappNumber,
   username,
+  currency,
 }: {
   t: Translations;
   events: any[];
@@ -29,6 +33,7 @@ export default function EventsSection({
   buttonStyle: CSSProperties;
   whatsappNumber?: string | null;
   username: string;
+  currency: string;
 }) {
   if (events.length === 0) return null;
 
@@ -52,10 +57,14 @@ export default function EventsSection({
           .map((event) => {
             const parts = dateParts(event.event_date);
             const cleanNumber = (whatsappNumber || "").replace(/[^0-9]/g, "");
+            const primary = primaryTicketType(event.event_ticket_types);
             // Same "is there any way to get a ticket at all" check the old
             // direct href used — just now routes to the detail page
-            // instead of straight to the ticket_url/WhatsApp itself.
-            const canGetTicket = !!(event.ticket_url || event.price || cleanNumber);
+            // instead of straight to the ticket_url/WhatsApp itself. A
+            // multi-tier event always qualifies (the selector shows real
+            // sold-out/not-yet-open state per tier rather than hiding the
+            // whole card).
+            const canGetTicket = !!primary || !!(event.ticket_url || event.price || cleanNumber);
             const href = canGetTicket ? `/m/${username}/ticket/${event.id}` : null;
 
             return (
@@ -109,6 +118,15 @@ export default function EventsSection({
                       </span>
                     )}
                   </div>
+                  {/* The artist's chosen Primary ticket type — see
+                      EventTicketTypesEditor.tsx. Never assumes "cheapest";
+                      whichever tier the artist picked is what shows here,
+                      by name, so it updates the instant they change it. */}
+                  {primary && (
+                    <p className="text-xs font-semibold mt-1" style={{ color: accent }} suppressHydrationWarning>
+                      {primary.name} — {formatPrice(primary.price, currency)}
+                    </p>
+                  )}
                 </div>
 
                 {href && (
@@ -117,7 +135,7 @@ export default function EventsSection({
                     className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full transition hover:brightness-95 active:scale-95"
                     style={{ backgroundColor: accent, color: "#171009" }}
                   >
-                    {t.music.getTicket}
+                    {primary ? t.music.viewTicketsButton : t.music.getTicket}
                   </a>
                 )}
               </div>

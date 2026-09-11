@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Play, Pause, ShoppingBag, ShoppingCart, Ticket, MapPin, Clock, Lock, ExternalLink } from "lucide-react";
+import { ArrowLeft, Play, Pause, ShoppingBag, ShoppingCart, Ticket, MapPin, Clock, Lock, ExternalLink, Check, Sparkles } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import ImageGallery from "@/components/ImageGallery";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import ShareButton from "@/components/ShareButton";
+import { sortedTicketTypes, isTicketTypeOnSale, isSoldOut, remainingForTicketType, LOW_INVENTORY_THRESHOLD } from "@/lib/ticketTypes";
 import { useTrackPlayback } from "./useTrackPlayback";
 
 // The "more about it before you buy" page a fan lands on from the public
@@ -318,11 +319,10 @@ function MerchDetail({ item, accent, currency, locale, username, t, whatsappNumb
 }
 
 function TicketDetail({ item, accent, currency, locale, username, t, whatsappNumber }: any) {
-  const remaining = item.ticket_capacity != null ? item.ticket_capacity - (item.tickets_sold || 0) : null;
-  const inHouseSoldOut = remaining !== null && remaining <= 0;
-  const waHref = whatsappNumber
-    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(item.whatsapp_message || t.music.getTicketWhatsappMessage(item.title))}`
-    : undefined;
+  const ticketTypes = sortedTicketTypes(item.event_ticket_types);
+  const hasTicketTypes = ticketTypes.length > 0;
+
+  const eventClosed = item.status === "cancelled" || item.status === "completed";
 
   return (
     <div className="flex flex-col gap-4">
@@ -343,23 +343,166 @@ function TicketDetail({ item, accent, currency, locale, username, t, whatsappNum
         </div>
       </div>
 
-      {(item.ticket_type || remaining !== null) && (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ opacity: 0.5 }}>
-            {t.music.detailEventDetailsHeading}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {item.ticket_type && (
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: "#F3F4F6" }}>
-                {t.music.detailTicketTypeLabel}: {item.ticket_type}
+      {item.status === "cancelled" && (
+        <p className="text-sm text-center py-2.5 rounded-full font-semibold" style={{ backgroundColor: "#FEE2E2", color: "#991B1B" }}>
+          {t.music.eventCancelledNotice}
+        </p>
+      )}
+      {item.status === "completed" && (
+        <p className="text-sm text-center py-2.5 rounded-full font-semibold" style={{ backgroundColor: "#F3F4F6", opacity: 0.7 }}>
+          {t.music.eventCompletedNotice}
+        </p>
+      )}
+
+      {hasTicketTypes ? (
+        <TicketTypeSelector
+          eventId={item.id}
+          ticketTypes={ticketTypes}
+          accent={accent}
+          currency={currency}
+          locale={locale}
+          username={username}
+          t={t}
+          disabled={eventClosed}
+        />
+      ) : (
+        <LegacyTicketCta item={item} accent={accent} currency={currency} locale={locale} username={username} t={t} whatsappNumber={whatsappNumber} disabled={eventClosed} />
+      )}
+    </div>
+  );
+}
+
+// The "Choose your ticket" list — every active tier the artist has
+// configured, each independently on-sale/sold-out/not-yet-open, in the
+// artist's own chosen order (never auto-sorted by price). "Select" hands
+// off to the real storefront (?add=ticket:<eventId>:<ticketTypeId>),
+// which is what actually adds it to the cart and opens checkout — this
+// page never touches the cart itself.
+function TicketTypeSelector({ eventId, ticketTypes, accent, currency, locale, username, t, disabled }: any) {
+  const active = ticketTypes.filter((tt: any) => tt.is_active !== false);
+
+  if (active.length === 0) {
+    return (
+      <p className="text-sm text-center py-2" style={{ opacity: 0.5 }}>
+        {t.music.detailNotForSale}
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm font-bold">{t.music.chooseYourTicket}</p>
+      {active.map((tt: any) => {
+        const remaining = remainingForTicketType(tt);
+        const soldOut = isSoldOut(tt);
+        const notYetOpen = tt.sales_start_at && new Date(tt.sales_start_at) > new Date();
+        const closed = tt.sales_end_at && new Date(tt.sales_end_at) < new Date();
+        const onSale = isTicketTypeOnSale(tt) && !disabled;
+        const lowStock = !soldOut && remaining !== null && remaining <= LOW_INVENTORY_THRESHOLD;
+
+        return (
+          <div
+            key={tt.id}
+            className="rounded-2xl p-4 flex flex-col gap-2"
+            style={{ border: tt.is_primary ? `2px solid ${accent}` : "1px solid #E5E7EB", opacity: soldOut || notYetOpen || closed || disabled ? 0.7 : 1 }}
+          >
+            {tt.is_primary && (
+              <span
+                className="self-start flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: `${accent}22`, color: accent }}
+              >
+                <Sparkles size={10} />
+                {t.music.mostPopularBadge}
               </span>
             )}
-            {remaining !== null && (
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: "#F3F4F6" }}>
-                {t.music.detailTicketsRemaining(Math.max(remaining, 0))}
+
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-bold">{tt.name}</p>
+                {tt.description && (
+                  <p className="text-xs mt-0.5" style={{ opacity: 0.6 }}>
+                    {tt.description}
+                  </p>
+                )}
+              </div>
+              <p className="text-base font-bold shrink-0" style={{ color: accent }} suppressHydrationWarning>
+                {formatPrice(tt.price, currency, locale)}
+              </p>
+            </div>
+
+            {tt.benefits?.length > 0 && (
+              <ul className="flex flex-col gap-1 text-xs" style={{ opacity: 0.8 }}>
+                {tt.benefits.map((b: string, i: number) => (
+                  <li key={i} className="flex items-center gap-1.5">
+                    <Check size={12} style={{ color: accent }} className="shrink-0" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {lowStock && (
+              <p className="text-[11px] font-medium" style={{ color: "#D97706" }}>
+                {t.music.detailTicketsRemaining(remaining as number)}
+              </p>
+            )}
+
+            {soldOut ? (
+              <span className="text-center text-xs font-semibold py-2.5 rounded-full" style={{ backgroundColor: "#F3F4F6", opacity: 0.6 }}>
+                {t.music.soldOut}
+              </span>
+            ) : notYetOpen ? (
+              <span className="text-center text-xs font-semibold py-2.5 rounded-full" style={{ backgroundColor: "#F3F4F6", opacity: 0.6 }}>
+                {t.music.notYetOnSale}
+              </span>
+            ) : closed ? (
+              <span className="text-center text-xs font-semibold py-2.5 rounded-full" style={{ backgroundColor: "#F3F4F6", opacity: 0.6 }}>
+                {t.music.salesEnded}
+              </span>
+            ) : onSale ? (
+              <Link
+                href={`/m/${username}?add=ticket:${eventId}:${tt.id}`}
+                className="text-center text-xs font-semibold py-2.5 rounded-full text-white"
+                style={{ backgroundColor: accent }}
+              >
+                {t.music.selectTicketButton}
+              </Link>
+            ) : (
+              <span className="text-center text-xs font-semibold py-2.5 rounded-full" style={{ backgroundColor: "#F3F4F6", opacity: 0.6 }}>
+                {t.music.detailNotForSale}
               </span>
             )}
           </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// The original single-price ticket CTA — unchanged behavior for an event
+// that has no ticket types at all (see EventTicketTypesEditor.tsx; an
+// event stays on this path until an artist actually adds a tier).
+function LegacyTicketCta({ item, accent, currency, locale, username, t, whatsappNumber, disabled }: any) {
+  const remaining = item.ticket_capacity != null ? item.ticket_capacity - (item.tickets_sold || 0) : null;
+  const inHouseSoldOut = remaining !== null && remaining <= 0;
+  const waHref = whatsappNumber
+    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(item.whatsapp_message || t.music.getTicketWhatsappMessage(item.title))}`
+    : undefined;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {(item.ticket_type || remaining !== null) && (
+        <div className="flex flex-wrap gap-2">
+          {item.ticket_type && (
+            <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: "#F3F4F6" }}>
+              {t.music.detailTicketTypeLabel}: {item.ticket_type}
+            </span>
+          )}
+          {remaining !== null && (
+            <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: "#F3F4F6" }}>
+              {t.music.detailTicketsRemaining(Math.max(remaining, 0))}
+            </span>
+          )}
         </div>
       )}
 
@@ -369,7 +512,11 @@ function TicketDetail({ item, accent, currency, locale, username, t, whatsappNum
         </p>
       )}
 
-      {item.ticket_url ? (
+      {disabled ? (
+        <p className="text-sm text-center py-2" style={{ opacity: 0.5 }}>
+          {t.music.detailNotForSale}
+        </p>
+      ) : item.ticket_url ? (
         <a
           href={item.ticket_url}
           target="_blank"

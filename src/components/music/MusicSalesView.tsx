@@ -19,7 +19,7 @@ export default function MusicSalesView({
   currency,
 }: {
   orders: { id: string; total: number; created_at: string }[];
-  items: { item_type: string; name_snapshot: string; quantity: number; line_total: number }[];
+  items: { item_type: string; name_snapshot: string; quantity: number; line_total: number; event_id?: string | null }[];
   currency: string;
 }) {
   const { t, locale } = useLanguage();
@@ -94,6 +94,26 @@ export default function MusicSalesView({
     bestOf("merch") && { label: t.music.bestSellingMerch, value: bestOf("merch")! },
   ].filter(Boolean) as { label: string; value: string }[];
 
+  // Real revenue per ticket tier — grouped straight from the same paid,
+  // non-cancelled/refunded order_items every other total on this page
+  // already reads, using each line's own price_snapshot-derived
+  // line_total. Never the ticket type's current live price: an artist who
+  // later changes VIP from 5,000 to 7,000 must not silently rewrite what
+  // past buyers actually paid (see the migration's own header note).
+  const ticketBreakdown = useMemo(() => {
+    const tally = new Map<string, { quantity: number; revenue: number }>();
+    for (const i of items) {
+      if (i.item_type !== "ticket") continue;
+      const entry = tally.get(i.name_snapshot) || { quantity: 0, revenue: 0 };
+      entry.quantity += i.quantity;
+      entry.revenue += Number(i.line_total);
+      tally.set(i.name_snapshot, entry);
+    }
+    return Array.from(tally.entries())
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [items]);
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex gap-1.5">
@@ -151,6 +171,24 @@ export default function MusicSalesView({
               <div key={b.label} className="flex items-center justify-between text-sm">
                 <span className="text-ringo-muted">{b.label}</span>
                 <span className="text-ringo-text font-medium">{b.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {ticketBreakdown.length > 0 && (
+        <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5">
+          <h2 className="text-sm font-medium text-ringo-text mb-3">{t.music.ticketBreakdownHeading}</h2>
+          <div className="flex flex-col gap-2">
+            {ticketBreakdown.map((tt) => (
+              <div key={tt.name} className="flex items-center justify-between text-sm">
+                <span className="text-ringo-text">
+                  {tt.name} <span className="text-ringo-muted">· {tt.quantity} {t.music.ticketTypeSoldLabel}</span>
+                </span>
+                <span className="text-ringo-text font-medium" suppressHydrationWarning>
+                  {formatPrice(tt.revenue, currency, locale)}
+                </span>
               </div>
             ))}
           </div>

@@ -21,11 +21,11 @@ export default async function MusicSalesPage() {
     .order("created_at", { ascending: false });
 
   const orderIds = (orders || []).map((o) => o.id);
-  let items: { item_type: string; name_snapshot: string; quantity: number; line_total: number }[] = [];
+  let items: { item_type: string; name_snapshot: string; quantity: number; line_total: number; event_id: string | null }[] = [];
   if (orderIds.length > 0) {
     const { data } = await supabase
       .from("music_order_items")
-      .select("item_type, name_snapshot, quantity, line_total")
+      .select("item_type, name_snapshot, quantity, line_total, event_id")
       .in("order_id", orderIds);
     items = data || [];
   }

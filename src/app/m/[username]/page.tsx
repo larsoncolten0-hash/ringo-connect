@@ -17,7 +17,7 @@ export default async function MusicStoreRoute({ params }: { params: { username: 
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select(`*, tracks(*), music_releases(*), products(*), events(*)`)
+    .select(`*, tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*))`)
     .eq("username", params.username)
     .eq("published", true)
     .single();

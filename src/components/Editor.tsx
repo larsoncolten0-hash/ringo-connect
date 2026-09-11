@@ -184,7 +184,7 @@ function EditorCards({
         />
 
         {isMusic && (
-          <EventsCard profileId={profile.id} userId={userId} initialEvents={profile.events || []} />
+          <EventsCard profileId={profile.id} userId={userId} initialEvents={profile.events || []} currency={profile.currency || "USD"} />
         )}
 
         {isMusic && (

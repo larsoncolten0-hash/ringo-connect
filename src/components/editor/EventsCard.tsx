@@ -17,10 +17,12 @@ export default function EventsCard({
   profileId,
   userId,
   initialEvents,
+  currency,
 }: {
   profileId: string;
   userId: string;
   initialEvents: any[];
+  currency: string;
 }) {
   const supabase = createClient();
   const { t } = useLanguage();
@@ -94,6 +96,7 @@ export default function EventsCard({
             key={event.id}
             event={event}
             userId={userId}
+            currency={currency}
             startExpanded={event.id === justAddedId}
             onChange={(patch) => updateEvent(event.id, patch)}
             onPersist={(patch) => persistEvent(event.id, patch)}

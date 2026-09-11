@@ -5,10 +5,12 @@ import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion
 import { GripVertical, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ImageUploadField from "./ImageUploadField";
+import EventTicketTypesEditor from "./EventTicketTypesEditor";
 
 export default function EventRow({
   event,
   userId,
+  currency,
   onChange,
   onPersist,
   onDelete,
@@ -16,6 +18,7 @@ export default function EventRow({
 }: {
   event: any;
   userId: string;
+  currency: string;
   onChange: (patch: any) => void;
   onPersist: (patch: any) => void;
   onDelete: () => void;
@@ -120,9 +123,41 @@ export default function EventRow({
                   className="w-32 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
                 />
               </div>
+              <div className="flex gap-2">
+                <label className="flex-1 flex flex-col gap-1">
+                  <span className="text-xs text-ringo-muted">{t.music.eventStatusLabel}</span>
+                  <select
+                    value={event.status || "published"}
+                    onChange={(e) => {
+                      onChange({ status: e.target.value });
+                      onPersist({ status: e.target.value });
+                    }}
+                    className="text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
+                  >
+                    <option value="draft">{t.music.eventStatusDraft}</option>
+                    <option value="published">{t.music.eventStatusPublished}</option>
+                    <option value="cancelled">{t.music.eventStatusCancelled}</option>
+                    <option value="completed">{t.music.eventStatusCompleted}</option>
+                  </select>
+                </label>
+                <label className="flex-1 flex flex-col gap-1">
+                  <span className="text-xs text-ringo-muted">{t.music.maxTicketsPerCustomerLabel}</span>
+                  <input
+                    value={event.max_tickets_per_customer ?? ""}
+                    onChange={(e) => onChange({ max_tickets_per_customer: e.target.value.replace(/[^0-9]/g, "") })}
+                    onBlur={(e) => onPersist({ max_tickets_per_customer: e.target.value ? Number(e.target.value) : null })}
+                    placeholder={t.music.maxTicketsPerCustomerPlaceholder}
+                    inputMode="numeric"
+                    className="text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
+                  />
+                </label>
+              </div>
+
               <div className="rounded-card border border-dashed border-ringo-border p-2.5 flex flex-col gap-2">
                 <p className="text-xs font-medium text-ringo-text">{t.music.sellTicketsTitle}</p>
-                <p className="text-xs text-ringo-muted -mt-1">{t.music.sellTicketsHint}</p>
+                <p className="text-xs text-ringo-muted -mt-1">
+                  {(event.event_ticket_types || []).length > 0 ? t.music.sellTicketsSupersededHint : t.music.sellTicketsHint}
+                </p>
                 <div className="flex gap-2">
                   <input
                     value={event.price ?? ""}
@@ -154,6 +189,14 @@ export default function EventRow({
                   </p>
                 )}
               </div>
+
+              <EventTicketTypesEditor
+                eventId={event.id}
+                ticketTypes={event.event_ticket_types || []}
+                currency={currency}
+                onChange={(next) => onChange({ event_ticket_types: next })}
+              />
+
               <input
                 value={event.ticket_url ?? ""}
                 onChange={(e) => onChange({ ticket_url: e.target.value })}

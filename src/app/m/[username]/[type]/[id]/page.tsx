@@ -35,7 +35,7 @@ export default async function ItemDetailRoute({
   const supabase = createClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select(`*, tracks(*), music_releases(*), products(*), events(*)`)
+    .select(`*, tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*))`)
     .eq("username", params.username)
     .eq("published", true)
     .single();
@@ -49,7 +49,10 @@ export default async function ItemDetailRoute({
       ? (profile.music_releases || []).find((r: any) => r.id === params.id)
       : type === "merch"
       ? (profile.products || []).find((p: any) => p.id === params.id)
-      : (profile.events || []).find((e: any) => e.id === params.id);
+      : // A draft event isn't reachable here either — same as it being
+        // hidden from every other public listing (see MusicStorePage's
+        // own `tickets` filter).
+        (profile.events || []).find((e: any) => e.id === params.id && e.status !== "draft");
 
   if (!item) return notFound();
 

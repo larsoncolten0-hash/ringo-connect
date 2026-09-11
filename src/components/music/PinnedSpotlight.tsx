@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { Play, Pause, ExternalLink, ShoppingBag, Ticket, Sparkles, MapPin } from "lucide-react";
 import { hexToRgba } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
+import { primaryTicketType } from "@/lib/ticketTypes";
 import type { Translations } from "@/lib/i18n/translations";
 
 // The one thing a fan sees first — replaces the old "Artist Hub" nav grid
@@ -51,6 +52,11 @@ export default function PinnedSpotlight({
   // like the same track's entry in Latest Music does.
   const isProtectedTrack = type === "track" && !!item.protected_audio_path;
 
+  // The artist's chosen Primary ticket type for a pinned event, same as
+  // EventsSection — null for a legacy single-price event (event_ticket_types
+  // empty), which keeps its original location/time-only subtitle.
+  const eventPrimaryTicket = type === "event" ? primaryTicketType(item.event_ticket_types) : null;
+
   const subtitle =
     type === "track"
       ? [item.artist_name || artistName, item.duration].filter(Boolean).join(" · ")
@@ -58,6 +64,8 @@ export default function PinnedSpotlight({
       ? item.price
         ? formatPrice(item.price, currency)
         : ""
+      : eventPrimaryTicket
+      ? `${eventPrimaryTicket.name} — ${formatPrice(eventPrimaryTicket.price, currency)}`
       : [item.location, item.event_time].filter(Boolean).join(" · ");
 
   const cleanNumber = (whatsappNumber || "").replace(/[^0-9]/g, "");
@@ -69,12 +77,12 @@ export default function PinnedSpotlight({
     type === "product"
       ? `/m/${username}/merch/${item.id}`
       : type === "event"
-      ? item.ticket_url || item.price || cleanNumber
+      ? eventPrimaryTicket || item.ticket_url || item.price || cleanNumber
         ? `/m/${username}/ticket/${item.id}`
         : undefined
       : undefined; // track's CTA is the play button, handled separately
 
-  const ctaLabel = type === "product" ? t.music.buyLabel : type === "event" ? t.music.getTicket : null;
+  const ctaLabel = type === "product" ? t.music.buyLabel : type === "event" ? (eventPrimaryTicket ? t.music.viewTicketsButton : t.music.getTicket) : null;
   const CtaIcon = type === "product" ? ShoppingBag : Ticket;
 
   return (

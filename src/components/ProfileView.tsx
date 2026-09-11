@@ -54,7 +54,10 @@ export default function ProfileView({
   const isRestaurant = profileHasCategory(profile, "restaurant_food");
   const menuItems: any[] = profile.menu_items || [];
   const musicTracks: any[] = (profile.tracks || []).filter((tr: any) => tr.available !== false);
-  const musicEvents: any[] = profile.events || [];
+  // A draft event is hidden entirely, same as any other unpublished item
+  // — cancelled/completed still show (see EventsSection/ItemDetailPage's
+  // own comments on why) but aren't purchasable.
+  const musicEvents: any[] = (profile.events || []).filter((e: any) => e.status !== "draft");
   const musicSectionTitle = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.tracksTitleFallback;
   // `available` is a generic field (added for Music's sold-out/inventory
   // needs) that now applies to every category's Catalog — an item only
@@ -832,6 +835,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               buttonStyle={linkButtonStyle}
               whatsappNumber={profile.whatsapp_number}
               username={profile.username}
+              currency={profile.currency || "USD"}
             />
           )}
 

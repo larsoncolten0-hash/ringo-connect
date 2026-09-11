@@ -3,15 +3,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, ShoppingCart, X, Plus, Minus, Play, Pause, Download, Check, Loader2, Heart, Smartphone } from "lucide-react";
+import { ArrowLeft, ShoppingCart, X, Plus, Minus, Play, Pause, Download, Check, Loader2, Heart, Smartphone, Ticket as TicketIcon } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { getMusicRole } from "@/lib/categories";
+import { eventHasTickets } from "@/lib/ticketTypes";
 import ImageGallery from "@/components/ImageGallery";
 import { useTrackPlayback } from "./useTrackPlayback";
 
 type ItemType = "song" | "release" | "merch" | "ticket" | "support";
-type CartLine = { itemType: ItemType; id?: string; name: string; price: number; quantity: number; coverUrl?: string };
+type CartLine = {
+  itemType: ItemType;
+  id?: string;
+  // 'ticket' only — a specific tier of a multi-ticket-type event. Omitted
+  // = the event's own legacy single price.
+  ticketTypeId?: string;
+  name: string;
+  price: number;
+  quantity: number;
+  coverUrl?: string;
+};
 
 export default function MusicStorePage({ profile }: { profile: any }) {
   const { t, locale } = useLanguage();
@@ -22,7 +33,16 @@ export default function MusicStorePage({ profile }: { profile: any }) {
   const standaloneTracks: any[] = (profile.tracks || []).filter((tr: any) => tr.available !== false && !tr.release_id && tr.price);
   const releases: any[] = (profile.music_releases || []).filter((r: any) => r.available !== false);
   const merch: any[] = (profile.products || []).filter((p: any) => p.available !== false);
-  const tickets: any[] = (profile.events || []).filter((e: any) => e.price);
+  // Includes both a legacy single-price event AND one whose only path to
+  // purchase is its own ticket types (event_ticket_types) — see
+  // eventHasTickets. A draft event is hidden entirely, same as an
+  // unpublished item elsewhere; cancelled/completed still show (so a fan
+  // isn't left wondering where an event went) but purchase itself is
+  // blocked server-side (see /api/music/orders) and in the ticket
+  // selector (ItemDetailPage's TicketDetail).
+  const tickets: any[] = (profile.events || [])
+    .filter((e: any) => e.status !== "draft")
+    .filter((e: any) => eventHasTickets(e, e.event_ticket_types));
 
   // A song for sale shows a play button for its 30-second preview (or the
   // full audio_url, for a track that isn't protected/gated) right on its
@@ -75,7 +95,10 @@ export default function MusicStorePage({ profile }: { profile: any }) {
   useEffect(() => {
     const add = searchParams.get("add");
     if (!add) return;
-    const [itemType, id] = add.split(":");
+    // Ticket carries an extra segment — ticket:<eventId>:<ticketTypeId>
+    // for a specific tier (from the ticket selector's own "Select"
+    // buttons), or plain ticket:<eventId> for a legacy single-price event.
+    const [itemType, id, ticketTypeId] = add.split(":");
     let line: CartLine | null = null;
     if (itemType === "song") {
       const tr = standaloneTracks.find((t) => t.id === id);
@@ -88,7 +111,12 @@ export default function MusicStorePage({ profile }: { profile: any }) {
       if (p && p.inventory_count !== 0) line = { itemType: "merch", id: p.id, name: p.name, price: Number(p.price) || 0, quantity: 1, coverUrl: p.image_url };
     } else if (itemType === "ticket") {
       const e = tickets.find((x) => x.id === id);
-      if (e && e.price) line = { itemType: "ticket", id: e.id, name: e.title, price: Number(e.price), quantity: 1, coverUrl: e.cover_image_url };
+      if (e && ticketTypeId) {
+        const tt = (e.event_ticket_types || []).find((x: any) => x.id === ticketTypeId);
+        if (tt) line = { itemType: "ticket", id: e.id, ticketTypeId: tt.id, name: tt.name, price: Number(tt.price), quantity: 1, coverUrl: e.cover_image_url };
+      } else if (e && e.price) {
+        line = { itemType: "ticket", id: e.id, name: e.title, price: Number(e.price), quantity: 1, coverUrl: e.cover_image_url };
+      }
     }
     if (line) {
       setCart((prev) => [...prev, line as CartLine]);
@@ -129,7 +157,13 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           customer_phone: phone.trim(),
           customer_email: email.trim(),
           payment_method: paymentMethod,
-          items: cart.map((l) => ({ item_type: l.itemType, id: l.id, quantity: l.quantity, amount: l.itemType === "support" ? l.price : undefined })),
+          items: cart.map((l) => ({
+            item_type: l.itemType,
+            id: l.id,
+            ticket_type_id: l.ticketTypeId,
+            quantity: l.quantity,
+            amount: l.itemType === "support" ? l.price : undefined,
+          })),
         }),
       });
       const data = await res.json();
@@ -261,6 +295,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
                 currency={currency}
                 locale={locale}
                 t={t}
+                username={profile.username}
               />
             ))}
           </div>
@@ -374,24 +409,43 @@ export default function MusicStorePage({ profile }: { profile: any }) {
             <div className="flex flex-col gap-3">
               <p className="text-base font-bold">{t.music.storeTicketsHeading}</p>
               {tickets.map((e) => {
+                const hasTypes = (e.event_ticket_types || []).length > 0;
+                // A multi-tier event has no single price to just add —
+                // "Select" always opens the full ticket selector
+                // (ItemDetailPage's TicketDetail) so the fan picks a tier
+                // first. A legacy single-price event keeps the original
+                // one-tap add-to-cart, unchanged.
                 const remaining = e.ticket_capacity != null ? e.ticket_capacity - (e.tickets_sold || 0) : null;
-                const soldOut = remaining !== null && remaining <= 0;
+                const soldOut = !hasTypes && remaining !== null && remaining <= 0;
                 return (
                   <div key={e.id} className="flex items-center gap-3 rounded-2xl p-2.5" style={{ border: "1px solid #E5E7EB", opacity: soldOut ? 0.5 : 1 }}>
                     {e.cover_image_url ? <img src={e.cover_image_url} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" /> : <div className="w-14 h-14 rounded-xl shrink-0" style={{ backgroundColor: "#F3F4F6" }} />}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{e.title}</p>
                       <p className="text-xs" style={{ opacity: 0.6 }}>{[e.location, e.event_date].filter(Boolean).join(" · ")}</p>
-                      <p className="text-sm font-bold" style={{ color: accent }} suppressHydrationWarning>{formatPrice(e.price, currency, locale)}</p>
+                      {!hasTypes && (
+                        <p className="text-sm font-bold" style={{ color: accent }} suppressHydrationWarning>{formatPrice(e.price, currency, locale)}</p>
+                      )}
                     </div>
-                    <button
-                      disabled={soldOut}
-                      onClick={() => addToCart({ itemType: "ticket", id: e.id, name: e.title, price: Number(e.price), quantity: 1, coverUrl: e.cover_image_url })}
-                      className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full text-white disabled:opacity-50"
-                      style={{ backgroundColor: accent }}
-                    >
-                      {soldOut ? t.music.soldOut : t.music.getTicketButton}
-                    </button>
+                    {hasTypes ? (
+                      <Link
+                        href={`/m/${profile.username}/ticket/${e.id}`}
+                        className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-full text-white"
+                        style={{ backgroundColor: accent }}
+                      >
+                        <TicketIcon size={13} />
+                        {t.music.viewTicketsButton}
+                      </Link>
+                    ) : (
+                      <button
+                        disabled={soldOut}
+                        onClick={() => addToCart({ itemType: "ticket", id: e.id, name: e.title, price: Number(e.price), quantity: 1, coverUrl: e.cover_image_url })}
+                        className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full text-white disabled:opacity-50"
+                        style={{ backgroundColor: accent }}
+                      >
+                        {soldOut ? t.music.soldOut : t.music.getTicketButton}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -643,6 +697,7 @@ function PurchasedItem({
   currency,
   locale,
   t,
+  username,
 }: {
   item: any;
   orderId: string;
@@ -651,6 +706,7 @@ function PurchasedItem({
   currency: string;
   locale: string;
   t: any;
+  username: string;
 }) {
   const [playing, setPlaying] = useState(false);
   const [audio] = useState(() => (typeof Audio !== "undefined" ? new Audio() : null));
@@ -731,7 +787,35 @@ function PurchasedItem({
             </span>
           )
         )}
+        {item.item_type === "ticket" && !paid && (
+          <span className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: "#F3F4F6", color: "#6B7280" }}>
+            {t.music.pendingConfirmation}
+          </span>
+        )}
       </div>
+
+      {/* One digital ticket / QR pass per physical ticket — a quantity-3
+          line gets 3 separate "View Ticket" links (see digital_tickets in
+          the migration), each independently valid/used/cancelled. Only
+          ever populated once the order is actually paid — see
+          /api/music/orders/[id]'s own comment. */}
+      {item.item_type === "ticket" && paid && item.tickets?.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          {item.tickets.map((ticket: any, i: number) => (
+            <Link
+              key={ticket.id}
+              href={`/m/${username}/ticket-pass/${ticket.code}`}
+              className="flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-full text-white"
+              style={{ backgroundColor: accent }}
+            >
+              <TicketIcon size={13} />
+              {t.music.viewTicketButton}
+              {item.tickets.length > 1 ? ` #${i + 1}` : ""}
+            </Link>
+          ))}
+        </div>
+      )}
+
       {error && <p className="text-xs" style={{ color: "#DC2626" }}>{error}</p>}
     </div>
   );
