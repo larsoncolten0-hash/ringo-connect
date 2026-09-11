@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, ShoppingCart, X, Plus, Minus, Play, Pause, Download, Check, Loader2, Heart } from "lucide-react";
+import { ArrowLeft, ShoppingCart, X, Plus, Minus, Play, Pause, Download, Check, Loader2, Heart, Smartphone } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { getMusicRole } from "@/lib/categories";
@@ -33,15 +33,24 @@ export default function MusicStorePage({ profile }: { profile: any }) {
 
   const [cart, setCart] = useState<CartLine[]>([]);
   const [showCart, setShowCart] = useState(false);
-  const [step, setStep] = useState<"store" | "checkout" | "confirmation">("store");
+  const [step, setStep] = useState<"store" | "checkout" | "mm-processing" | "mm-error" | "confirmation">("store");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money" | "card">("mobile_money");
+  // Only meaningful for paymentMethod === "mobile_money" — which real
+  // provider to charge. Same two options UpgradeModal.tsx already offers
+  // for subscription payments.
+  const [medium, setMedium] = useState<"mobile money" | "orange money">("mobile money");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [mmError, setMmError] = useState("");
   const [placedOrder, setPlacedOrder] = useState<{ id: string; order_number: number } | null>(null);
   const [orderDetail, setOrderDetail] = useState<any>(null);
+  const pollTimer = useRef<ReturnType<typeof setInterval>>();
+  const pollAttempts = useRef(0);
+
+  useEffect(() => () => clearInterval(pollTimer.current), []);
 
   // A "Support the Artist" amount arrives as ?support=<amount> from the
   // public profile's Support widget — pre-loads the cart with that one
@@ -98,12 +107,73 @@ export default function MusicStorePage({ profile }: { profile: any }) {
         return;
       }
       setPlacedOrder({ id: data.id, order_number: data.order_number });
+
+      // Real, automatically-verified collection — only possible for XAF
+      // Mobile Money (Fapshi doesn't move any other currency). Everything
+      // else (cash, card, or mobile_money on a non-XAF profile) falls
+      // straight to the existing confirmation screen, where access stays
+      // "pending confirmation" until the artist marks it paid by hand —
+      // unchanged from before.
+      if (paymentMethod === "mobile_money" && currency === "XAF") {
+        startMobileMoneyPayment(data.id);
+        return;
+      }
       setStep("confirmation");
     } catch {
       setError(t.restaurant.orderFailedError);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const startMobileMoneyPayment = async (orderId: string) => {
+    setStep("mm-processing");
+    setMmError("");
+    try {
+      const res = await fetch(`/api/music/orders/${orderId}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim(), medium }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.transId) {
+        // Couldn't even start the charge (Fapshi disabled, bad number,
+        // etc.) — never trap the fan here. Fall back to the same
+        // "pending confirmation" path a declared cash/card order already
+        // uses, so checkout still completes.
+        setStep("confirmation");
+        return;
+      }
+      pollPayStatus(orderId);
+    } catch {
+      setStep("confirmation");
+    }
+  };
+
+  const pollPayStatus = (orderId: string) => {
+    pollAttempts.current = 0;
+    pollTimer.current = setInterval(async () => {
+      pollAttempts.current += 1;
+      try {
+        const res = await fetch(`/api/music/orders/${orderId}/pay-status`);
+        const data = await res.json();
+        if (data.status === "SUCCESSFUL") {
+          clearInterval(pollTimer.current);
+          setStep("confirmation");
+        } else if (data.status === "FAILED" || data.status === "EXPIRED") {
+          clearInterval(pollTimer.current);
+          setMmError(t.music.mobileMoneyFailed);
+          setStep("mm-error");
+        } else if (pollAttempts.current > 40) {
+          // ~2 minutes at 3s intervals — stop rather than poll forever.
+          clearInterval(pollTimer.current);
+          setMmError(t.music.mobileMoneyTimeout);
+          setStep("mm-error");
+        }
+      } catch {
+        // transient network error — keep polling, next tick may succeed
+      }
+    }, 3000);
   };
 
   // Polls every 4s for a live payment_status readout — the same pattern
@@ -299,6 +369,39 @@ export default function MusicStorePage({ profile }: { profile: any }) {
         </div>
       )}
 
+      {step === "mm-processing" && (
+        <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center gap-4">
+          <span className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: `${accent}22` }}>
+            <Smartphone size={26} style={{ color: accent }} />
+          </span>
+          <div>
+            <p className="font-display text-lg font-bold">{t.music.mobileMoneyProcessingTitle}</p>
+            <p className="text-sm mt-1.5 max-w-xs" style={{ opacity: 0.65 }}>{t.music.mobileMoneyProcessingBody}</p>
+          </div>
+          <Loader2 size={20} className="animate-spin" style={{ color: accent }} />
+        </div>
+      )}
+
+      {step === "mm-error" && (
+        <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 text-center gap-4">
+          <p className="text-sm px-3.5 py-2.5 rounded-card max-w-xs" style={{ backgroundColor: "#FEE2E2", color: "#991B1B" }}>
+            {mmError}
+          </p>
+          <div className="flex flex-col gap-2 w-full max-w-xs">
+            <button
+              onClick={() => placedOrder && startMobileMoneyPayment(placedOrder.id)}
+              className="py-3 rounded-full text-sm font-semibold text-white"
+              style={{ backgroundColor: accent }}
+            >
+              {t.music.mobileMoneyRetry}
+            </button>
+            <button onClick={() => setStep("confirmation")} className="py-2.5 text-sm font-medium" style={{ opacity: 0.6 }}>
+              {t.music.mobileMoneyContinueAnyway}
+            </button>
+          </div>
+        </div>
+      )}
+
       {step === "checkout" && (
         <div className="max-w-md mx-auto px-4 py-5 flex flex-col gap-4">
           <button onClick={() => setStep("store")} className="flex items-center gap-1.5 text-sm" style={{ opacity: 0.7 }}>
@@ -334,6 +437,26 @@ export default function MusicStorePage({ profile }: { profile: any }) {
                 </button>
               ))}
             </div>
+            {paymentMethod === "mobile_money" && currency === "XAF" && (
+              <div className="mt-2.5">
+                <p className="text-[11px] mb-1.5" style={{ opacity: 0.6 }}>{t.music.mobileMoneyInstantNote}</p>
+                <div className="flex gap-2">
+                  {([["mobile money", "MTN MoMo"], ["orange money", "Orange Money"]] as const).map(([id, label]) => (
+                    <button
+                      key={id}
+                      onClick={() => setMedium(id)}
+                      className="flex-1 text-xs font-medium py-2 rounded-full border transition"
+                      style={medium === id ? { backgroundColor: accent, color: "#fff", border: "1.5px solid transparent" } : { border: "1.5px solid #E5E7EB" }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {paymentMethod === "mobile_money" && currency !== "XAF" && (
+              <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>{t.music.mobileMoneyDeclaredNote}</p>
+            )}
           </div>
 
           <div className="rounded-card border p-3.5 flex flex-col gap-1.5 text-sm" style={{ borderColor: "#E5E7EB" }}>

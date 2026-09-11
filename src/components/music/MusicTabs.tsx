@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, ClipboardList, TrendingUp, Users } from "lucide-react";
+import { LayoutGrid, ClipboardList, TrendingUp, Users, Wallet } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export default function MusicTabs() {
@@ -14,6 +14,7 @@ export default function MusicTabs() {
     { href: "/dashboard/music/orders", label: t.restaurant.ordersLabel, icon: ClipboardList },
     { href: "/dashboard/music/sales", label: t.restaurant.salesTitle, icon: TrendingUp },
     { href: "/dashboard/music/customers", label: t.restaurant.customersTitle, icon: Users },
+    { href: "/dashboard/music/earnings", label: t.music.earningsTab, icon: Wallet },
   ];
 
   const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
