@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion";
-import { GripVertical, ChevronDown } from "lucide-react";
+import { GripVertical, ChevronDown, QrCode } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ImageUploadField from "./ImageUploadField";
 import EventTicketTypesEditor from "./EventTicketTypesEditor";
@@ -152,6 +153,20 @@ export default function EventRow({
                   />
                 </label>
               </div>
+
+              {/* Gate Access + live Check-in stats/scan history live on
+                  their own page, not inline here — security staff never
+                  reach this editor at all (see EventScannerView.tsx), and
+                  the check-in dashboard itself has enough content (stats,
+                  gates, scan history) to deserve more room than an
+                  accordion panel. */}
+              <Link
+                href={`/dashboard/music/events/${event.id}`}
+                className="flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-card border border-ringo-border text-ringo-text"
+              >
+                <QrCode size={14} />
+                {t.music.manageGateAccessButton}
+              </Link>
 
               <div className="rounded-card border border-dashed border-ringo-border p-2.5 flex flex-col gap-2">
                 <p className="text-xs font-medium text-ringo-text">{t.music.sellTicketsTitle}</p>
