@@ -17,6 +17,12 @@ export default function WhatsAppButton({
   compact,
   radiusClass,
   buttonStyle,
+  // The icon defaults to WhatsApp's own green so it stays recognizable
+  // against a container that follows the page's own theme colors — but
+  // when the container itself is filled with that same green (the
+  // "authentic WhatsApp button" look, see MusicHeroButtons), a green icon
+  // on a green fill disappears, so that call site overrides this to white.
+  iconColor = "#25D366",
   onClick,
 }: {
   number: string;
@@ -24,6 +30,7 @@ export default function WhatsAppButton({
   compact?: boolean;
   radiusClass?: string;
   buttonStyle?: CSSProperties;
+  iconColor?: string;
   onClick?: () => void;
 }) {
   if (!number) return null;
@@ -50,7 +57,7 @@ export default function WhatsAppButton({
       } ${radius}`}
       style={style}
     >
-      <FaWhatsapp size={compact ? 15 : 17} className="text-[#25D366] shrink-0" />
+      <FaWhatsapp size={compact ? 15 : 17} style={{ color: iconColor }} className="shrink-0" />
       {!compact && "WhatsApp"}
     </a>
   );

@@ -67,6 +67,7 @@ export default function MusicHeroButtons({
               message={profile.default_whatsapp_message}
               radiusClass="rounded-full"
               compact
+              iconColor="#fff"
               buttonStyle={{ backgroundColor: "#25D366", color: "#fff", border: "2px solid transparent" }}
             />
           </div>
