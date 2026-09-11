@@ -77,22 +77,29 @@ export default function MusicSection({
             // no such detail to show (it's just the creator's own outbound
             // link), so it keeps opening directly.
             const detailHref = track.price ? `/m/${username}/track/${track.id}` : null;
+            // Every track gets a detail page (see ItemDetailPage.tsx's
+            // track branch, which handles the priced, buy_url-only, and
+            // neither cases) — the cover art is always clickable there,
+            // independent of whether the Buy CTA below also links there.
+            const trackDetailHref = `/m/${username}/track/${track.id}`;
             return (
               <div
                 key={track.id}
                 className="relative overflow-hidden rounded-2xl p-3 flex items-center gap-3"
                 style={{ backgroundColor: CARD_BG, color: CARD_TEXT }}
               >
-                {track.cover_image_url ? (
-                  <img src={track.cover_image_url} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
-                ) : (
-                  <div
-                    className="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center"
-                    style={{ backgroundColor: hexToRgba(accent, 0.18) }}
-                  >
-                    <Music size={20} style={{ color: accent }} />
-                  </div>
-                )}
+                <a href={trackDetailHref} className="shrink-0" aria-label={track.title}>
+                  {track.cover_image_url ? (
+                    <img src={track.cover_image_url} alt="" className="w-16 h-16 rounded-xl object-cover" />
+                  ) : (
+                    <div
+                      className="w-16 h-16 rounded-xl flex items-center justify-center"
+                      style={{ backgroundColor: hexToRgba(accent, 0.18) }}
+                    >
+                      <Music size={20} style={{ color: accent }} />
+                    </div>
+                  )}
+                </a>
 
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate flex items-center gap-1.5">

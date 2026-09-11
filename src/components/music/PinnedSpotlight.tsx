@@ -39,6 +39,11 @@ export default function PinnedSpotlight({
 }) {
   const cover = type === "product" ? item.image_url : item.cover_image_url;
   const title = type === "product" ? item.name : item.title;
+  // The item's own detail page — every type gets one (see
+  // MusicSection/ProfileView/EventsSection's own comments), so the cover
+  // photo itself is always clickable, not just whichever CTA renders below.
+  const detailPageHref =
+    type === "product" ? `/m/${username}/merch/${item.id}` : type === "event" ? `/m/${username}/ticket/${item.id}` : `/m/${username}/track/${item.id}`;
   const isPlaying = type === "track" && playingId === item.id;
   // A pinned protected track can't be sold through the play button (that
   // only ever plays the short preview clip) — it gets its own small Buy
@@ -94,6 +99,12 @@ export default function PinnedSpotlight({
           className="absolute inset-0"
           style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 5%, rgba(0,0,0,0.15) 55%, transparent 75%)" }}
         />
+
+        {/* The photo itself is a plain link to the item's detail page —
+            sits underneath the badge and the bottom content bar below (both
+            painted later, so they stay independently clickable), covering
+            only the open artwork area a tap would otherwise do nothing on. */}
+        <a href={detailPageHref} className="absolute inset-0" aria-label={title} />
 
         <span
           className="absolute top-3.5 left-3.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-full"

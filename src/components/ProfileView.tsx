@@ -724,12 +724,27 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                             className={`overflow-hidden transition hover:-translate-y-0.5 ${radiusClass}`}
                             style={{ border: `1px solid ${contentBorderTint}` }}
                           >
-                            <ImageGallery
-                              images={product.image_urls?.length ? product.image_urls : [product.image_url]}
-                              alt={product.name}
-                              className="w-full aspect-square"
-                              imgClassName="object-cover"
-                            />
+                            {isMusic ? (
+                              // Every Music merch item gets a detail page
+                              // (see ItemDetailPage.tsx's merch branch) —
+                              // the photo itself is clickable there,
+                              // independent of the Buy Now CTA below.
+                              <a href={`/m/${profile.username}/merch/${product.id}`} aria-label={product.name}>
+                                <ImageGallery
+                                  images={product.image_urls?.length ? product.image_urls : [product.image_url]}
+                                  alt={product.name}
+                                  className="w-full aspect-square"
+                                  imgClassName="object-cover"
+                                />
+                              </a>
+                            ) : (
+                              <ImageGallery
+                                images={product.image_urls?.length ? product.image_urls : [product.image_url]}
+                                alt={product.name}
+                                className="w-full aspect-square"
+                                imgClassName="object-cover"
+                              />
+                            )}
                             <div className="p-3">
                               <p className="text-sm font-semibold truncate">{product.name}</p>
                               {product.price && (

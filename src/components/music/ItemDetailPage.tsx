@@ -6,6 +6,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import ImageGallery from "@/components/ImageGallery";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import ShareButton from "@/components/ShareButton";
 import { useTrackPlayback } from "./useTrackPlayback";
 
 // The "more about it before you buy" page a fan lands on from the public
@@ -38,6 +39,7 @@ export default function ItemDetailPage({
   const { playingId, togglePlay } = useTrackPlayback();
 
   const cleanNumber = (profile.whatsapp_number || "").replace(/[^0-9]/g, "");
+  const itemTitle = type === "merch" ? item.name : item.title;
 
   return (
     <div className="min-h-screen bg-white pb-16" style={{ color: "#14202B" }}>
@@ -46,10 +48,34 @@ export default function ItemDetailPage({
           <ArrowLeft size={19} />
         </Link>
         <p className="text-sm font-semibold flex-1 truncate">{profile.name || profile.username}</p>
+        {/* Copy link / share this exact song, EP/album, merch item, or
+            ticket — the URL is already this page's own, real, shareable
+            route (see the route file's comment), this just makes copying
+            it discoverable instead of relying on the browser's own address
+            bar. Same component the whole-profile ShareButton uses. */}
+        <ShareButton
+          accent={accent}
+          title={itemTitle}
+          strings={{
+            share: t.profilePage.share,
+            copyLink: t.profilePage.copyLink,
+            linkCopied: t.profilePage.linkCopied,
+            shareWhatsapp: t.profilePage.shareWhatsapp,
+            shareFacebook: t.profilePage.shareFacebook,
+            shareX: t.profilePage.shareX,
+            moreOptions: t.profilePage.moreOptions,
+            showQrCode: t.profilePage.showQrCode,
+            qrCodeTitle: t.profilePage.qrCodeTitle,
+            qrCodeSubtitle: t.music.detailQrSubtitle,
+            qrCodeError: t.profilePage.qrCodeError,
+            downloadQrCode: t.profilePage.downloadQrCode,
+            close: t.profilePage.close,
+          }}
+        />
       </div>
 
       <div className="max-w-md mx-auto px-4 py-5">
-        {type === "track" && <TrackDetail item={item} accent={accent} currency={currency} locale={locale} username={username} t={t} playingId={playingId} togglePlay={togglePlay} />}
+        {type === "track" && <TrackDetail item={item} accent={accent} currency={currency} locale={locale} username={username} t={t} playingId={playingId} togglePlay={togglePlay} whatsappNumber={cleanNumber} />}
         {type === "release" && <ReleaseDetail item={item} tracks={profile.tracks || []} accent={accent} currency={currency} locale={locale} username={username} t={t} playingId={playingId} togglePlay={togglePlay} />}
         {type === "merch" && <MerchDetail item={item} accent={accent} currency={currency} locale={locale} username={username} t={t} whatsappNumber={cleanNumber} />}
         {type === "ticket" && <TicketDetail item={item} accent={accent} currency={currency} locale={locale} username={username} t={t} whatsappNumber={cleanNumber} />}
@@ -68,7 +94,7 @@ function CoverImage({ src, icon: Icon, accent }: { src?: string | null; icon: an
   );
 }
 
-function TrackDetail({ item, accent, currency, locale, username, t, playingId, togglePlay }: any) {
+function TrackDetail({ item, accent, currency, locale, username, t, playingId, togglePlay, whatsappNumber }: any) {
   const isProtected = !!item.protected_audio_path;
   const isPlaying = playingId === item.id;
   const hasPlayable = isProtected ? item.preview_audio_url : item.audio_url;
@@ -125,6 +151,12 @@ function TrackDetail({ item, accent, currency, locale, username, t, playingId, t
           <ExternalLink size={15} />
           {t.music.buyNowLabel}
         </a>
+      ) : whatsappNumber ? (
+        <WhatsAppButton
+          number={whatsappNumber}
+          message={item.whatsapp_message || t.music.buyTrackWhatsappMessage(item.title)}
+          radiusClass="rounded-full"
+        />
       ) : (
         <p className="text-sm text-center py-2" style={{ opacity: 0.5 }}>
           {t.music.detailNotForSale}

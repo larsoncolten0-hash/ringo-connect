@@ -64,7 +64,15 @@ export default function EventsSection({
                 className="relative overflow-hidden rounded-2xl p-3 flex items-center gap-3"
                 style={{ backgroundColor: CARD_BG, color: CARD_TEXT }}
               >
-                <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden">
+                {/* Every event gets a detail page (see EventDetail's
+                    branch in ItemDetailPage.tsx), so its cover art is
+                    always clickable there — independent of whether the Get
+                    Ticket CTA below is even shown. */}
+                <a
+                  href={`/m/${username}/ticket/${event.id}`}
+                  aria-label={event.title}
+                  className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden block"
+                >
                   {event.cover_image_url ? (
                     <img src={event.cover_image_url} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -83,7 +91,7 @@ export default function EventsSection({
                       <span className="text-[11px] font-bold text-white">{parts.day}</span>
                     </div>
                   )}
-                </div>
+                </a>
 
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{event.title}</p>
