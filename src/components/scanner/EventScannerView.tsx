@@ -12,6 +12,8 @@ import {
   DoorOpen,
   LogOut,
 } from "lucide-react";
+import RegisterServiceWorker from "@/components/RegisterServiceWorker";
+import ScannerAddToHomeScreen from "./ScannerAddToHomeScreen";
 
 type SessionInfo = {
   eventTitle: string;
@@ -244,11 +246,22 @@ export default function EventScannerView({ token }: { token: string }) {
 
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
+      <RegisterServiceWorker />
       <video ref={videoRef} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Header — event + gate identity only, nothing else. */}
+      {/* Header — event + gate identity, plus a small "Add to Home
+          Screen" icon so a guard who closes this by mistake can reopen
+          exactly this gate's scanner (see ScannerAddToHomeScreen.tsx) —
+          the one addition to "nothing else" in this header, since it's
+          what keeps the guard from having to hunt down the link again
+          mid-event. */}
       <div className="absolute top-0 inset-x-0 p-4 pt-[calc(env(safe-area-inset-top)+1rem)] bg-gradient-to-b from-black/80 to-transparent">
+        {session && (
+          <div className="absolute top-3 right-3" style={{ marginTop: "env(safe-area-inset-top)" }}>
+            <ScannerAddToHomeScreen gateName={session.gateName} />
+          </div>
+        )}
         <p className="text-white/60 text-[11px] font-semibold uppercase tracking-wider text-center">Ringo Connect</p>
         <p className="text-white text-sm font-bold text-center truncate mt-0.5">{session?.eventTitle}</p>
         <p className="text-white/80 text-xs font-medium text-center flex items-center justify-center gap-1.5 mt-0.5">

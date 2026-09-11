@@ -1,5 +1,8 @@
-import type { Metadata } from "next";
 import EventScannerView from "@/components/scanner/EventScannerView";
+
+// Per-scanner PWA installability (manifest link, iOS home-screen name,
+// theme color) + the page title/robots — see src/lib/scannerMetadata.ts.
+export { generateMetadata, generateViewport } from "@/lib/scannerMetadata";
 
 // The entire "Ringo Event Scanner" experience — completely separate from
 // /dashboard on purpose (see the migration's own comment): security staff
@@ -10,11 +13,6 @@ import EventScannerView from "@/components/scanner/EventScannerView";
 // does no data fetching at all, so it renders instantly and the actual
 // camera can start the moment the browser grants permission, not after
 // waiting on an unrelated server round trip.
-export const metadata: Metadata = {
-  title: "Ringo Event Scanner",
-  robots: { index: false, follow: false },
-};
-
 export default function EventScannerPage({ params }: { params: { token: string } }) {
   return <EventScannerView token={params.token} />;
 }

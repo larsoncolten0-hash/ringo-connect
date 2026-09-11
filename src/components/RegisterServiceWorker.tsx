@@ -3,13 +3,14 @@
 import { useEffect } from "react";
 
 // Registers the minimal, non-caching service worker (public/pwa-sw.js) —
-// mounted from ProfileView.tsx and DashboardShell.tsx, the only two places
-// "Add to Home Screen" is offered, never on auth pages. Safe to share
-// between them: the worker deliberately caches nothing (see pwa-sw.js), so
-// mounting it on the dashboard too can't leak a stale private page across
-// sessions. See AddToHomeScreen.tsx for why this exists (some Chrome/
-// Android versions still gate the install prompt on a registered service
-// worker).
+// mounted from ProfileView.tsx, DashboardShell.tsx, and
+// EventScannerView.tsx, the only three places "Add to Home Screen" is
+// offered, never on auth pages. Safe to share between them: the worker
+// deliberately caches nothing (see pwa-sw.js), so mounting it on the
+// dashboard or the (unauthenticated, token-based) scanner too can't leak a
+// stale private page across sessions. See AddToHomeScreen.tsx for why
+// this exists (some Chrome/Android versions still gate the install prompt
+// on a registered service worker).
 export default function RegisterServiceWorker() {
   useEffect(() => {
     if ("serviceWorker" in navigator) {
