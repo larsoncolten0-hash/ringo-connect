@@ -284,7 +284,14 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         </div>
 
         {!preview && (
-          <div className="absolute top-4 right-4 z-10">
+          // z-20, not z-10 — this wrapper and the avatar section just
+          // below (also position:absolute + z-index, so each is its own
+          // stacking context) are siblings; equal z-index would mean the
+          // avatar section wins ties (it's later in the DOM) and paints
+          // over this share dropdown regardless of the dropdown's own
+          // internal z-index, since that only resolves stacking *within*
+          // this wrapper's context, not against the sibling.
+          <div className="absolute top-4 right-4 z-20">
             <ShareButton
               accent={accent}
               title={profile.name || profile.username}
