@@ -1071,6 +1071,19 @@ export const translations = {
       livePreview: "Live preview",
       previewButton: "Preview",
       closePreview: "Close preview",
+
+      // The dropdown-based editor (see EditorSection.tsx/Accordion.tsx) —
+      // one row open at a time, saved with an explicit button rather than
+      // every card staying permanently expanded.
+      saveChanges: "Save Changes",
+      saving: "Saving…",
+      savedSuccessfully: "Saved successfully",
+      saveFailed: "Couldn't save",
+      unsavedChangesTitle: "You have unsaved changes",
+      unsavedChangesBody: "Save or discard your changes before leaving this section.",
+      keepEditing: "Keep Editing",
+      discardChanges: "Discard Changes",
+
       profile: {
         title: "Profile",
         name: "Display name",
@@ -2380,6 +2393,16 @@ export const translations = {
       livePreview: "Aperçu en direct",
       previewButton: "Aperçu",
       closePreview: "Fermer l'aperçu",
+
+      saveChanges: "Enregistrer",
+      saving: "Enregistrement…",
+      savedSuccessfully: "Enregistré avec succès",
+      saveFailed: "Échec de l'enregistrement",
+      unsavedChangesTitle: "Modifications non enregistrées",
+      unsavedChangesBody: "Enregistrez ou annulez vos modifications avant de quitter cette section.",
+      keepEditing: "Continuer l'édition",
+      discardChanges: "Annuler les modifications",
+
       profile: {
         title: "Profil",
         name: "Nom affiché",
