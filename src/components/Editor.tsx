@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, User, Tag, Sparkles, UtensilsCrossed, BookOpen, QrCode, Palette, MessageCircle, Share2, Link2, Disc3, Music, ShoppingBag, Ticket, Pin, Info, Radar } from "lucide-react";
+import { ExternalLink, Tag, Sparkles, UtensilsCrossed, BookOpen, QrCode, Palette, MessageCircle, Share2, Link2, Disc3, Music, ShoppingBag, Ticket, Pin, Info, Radar } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useLanguage } from "@/components/LanguageProvider";
 import { Accordion, AccordionLinkItem } from "@/components/ui/Accordion";
@@ -54,14 +54,15 @@ export default function Editor({
 // Entertainment in CategoryCard needs the music-only rows below to appear
 // immediately, not only after a full page reload.
 //
-// Every existing card below gets its own individual dropdown — Profile,
-// Category, Music & Entertainment, Brand color, WhatsApp, Social Links,
-// Links, EPs & Albums, Latest Beats/Music, etc. — one card per dropdown,
-// deliberately not regrouped, in the exact same order this editor already
-// used. Only the sections relevant to this profile's category appear at
-// all (no restaurant tables for a musician, no merch/tracks for a
-// restaurant), matching the existing per-card `isMusic`/`isRestaurant`
-// gates this replaces.
+// Every existing card below gets its own individual dropdown — Category,
+// Music & Entertainment, Brand color, WhatsApp, Social Links, Links, EPs
+// & Albums, Latest Beats/Music, etc. — one card per dropdown, deliberately
+// not regrouped, in the exact same order this editor already used. Only
+// the sections relevant to this profile's category appear at all (no
+// restaurant tables for a musician, no merch/tracks for a restaurant),
+// matching the existing per-card `isMusic`/`isRestaurant` gates this
+// replaces. Profile is the one exception, by request — it stays
+// permanently visible above the dropdown list instead of becoming one.
 function EditorCards({
   profile,
   plan,
@@ -106,20 +107,20 @@ function EditorCards({
           <ExternalLink size={13} />
         </a>
 
-        <Accordion defaultOpenId={initialSection} className="rounded-[20px] border border-ringo-border/60 bg-ringo-surface px-4 sm:px-5">
-          <EditorSection id="profile" icon={User} title={t.editor.profile.title}>
-            <EditorCardBareGroup>
-              <ProfileHeaderCard
-                profileId={profile.id}
-                userId={userId}
-                initialAvatarUrl={profile.avatar_url}
-                initialCoverUrl={profile.cover_image_url}
-                initialName={profile.name}
-                initialBio={profile.bio}
-              />
-            </EditorCardBareGroup>
-          </EditorSection>
+        {/* Profile stays permanently visible, not a dropdown — the one
+            exception in this list, by request. Its own full card chrome
+            (not bare-mode), same as it looked before any of the other
+            sections became collapsible. */}
+        <ProfileHeaderCard
+          profileId={profile.id}
+          userId={userId}
+          initialAvatarUrl={profile.avatar_url}
+          initialCoverUrl={profile.cover_image_url}
+          initialName={profile.name}
+          initialBio={profile.bio}
+        />
 
+        <Accordion defaultOpenId={initialSection} className="rounded-[20px] border border-ringo-border/60 bg-ringo-surface px-4 sm:px-5">
           <EditorSection id="category" icon={Tag} title={t.editor.category.title}>
             <EditorCardBareGroup>
               <CategoryCard profileId={profile.id} initialCategory={profile.category} initialCategories={profile.categories} />

@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
+import PhoneCountryInput from "./PhoneCountryInput";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
 
@@ -37,14 +38,18 @@ export default function WhatsAppCard({
       <div className="flex flex-col gap-3">
         <div>
           <label className="text-xs text-ringo-muted mb-1 block">{t.editor.whatsappNumber}</label>
-          <input
+          {/* WhatsApp links only work with the full number including its
+              country code — this splits entry into a country-code
+              dropdown (defaulting to one, not left blank) + the local
+              number, and recombines them into the same plain-digits
+              format whatsapp_number/WhatsAppButton already expect. */}
+          <PhoneCountryInput
             value={number}
-            onChange={(e) => {
-              setNumber(e.target.value);
-              updateDraft({ whatsapp_number: e.target.value });
+            onChange={(full) => {
+              setNumber(full);
+              updateDraft({ whatsapp_number: full });
             }}
-            placeholder="+1 555 123 4567"
-            className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
+            placeholder="677 12 34 56"
           />
         </div>
         <div>
