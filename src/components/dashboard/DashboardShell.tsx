@@ -8,6 +8,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import HelpWidget from "@/components/dashboard/HelpWidget";
+import MobileMoreMenu from "@/components/dashboard/MobileMoreMenu";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -50,35 +51,47 @@ export default function DashboardShell({
   const pathname = usePathname();
   const { t } = useLanguage();
 
+  // `core: true` marks the small set of items the mobile bottom tab bar
+  // actually shows (Editor, Community, Ringo Card, Analytics,
+  // Subscription) — kept deliberately short so the space-constrained tab
+  // bar never has to scroll. Everything else defaults to living in the
+  // mobile header's "More" hamburger menu (see MobileMoreMenu.tsx) instead
+  // — including any category-specific item added here in the future — so
+  // a new nav entry never has to also update the tab bar's item count.
+  // The desktop sidebar is unaffected by this split: it always renders
+  // every item below, core or not, since it has the room for it.
   const NAV_ITEMS = [
-    { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true },
-    ...(isRestaurant ? [{ href: "/dashboard/restaurant", label: t.nav.restaurant, icon: UtensilsCrossed }] : []),
-    ...(isMusic ? [{ href: "/dashboard/music", label: t.nav.music, icon: Music2 }] : []),
+    { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true, core: true },
+    ...(isRestaurant ? [{ href: "/dashboard/restaurant", label: t.nav.restaurant, icon: UtensilsCrossed, core: false }] : []),
+    ...(isMusic ? [{ href: "/dashboard/music", label: t.nav.music, icon: Music2, core: false }] : []),
     // Its own section, not nested inside Music's editor — Events &
     // Experiences profiles get this without needing Music's other tools.
-    ...(hasTicketing ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket }] : []),
+    ...(hasTicketing ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket, core: false }] : []),
     // Universal, unlike Restaurant/Music above — every category can turn
     // bookings on, so this is never gated by category. Always visible (not
     // hidden until enabled) so an owner can actually find Settings to turn
     // it on in the first place.
-    { href: "/dashboard/bookings", label: t.nav.bookings, icon: CalendarCheck },
+    { href: "/dashboard/bookings", label: t.nav.bookings, icon: CalendarCheck, core: false },
     // Same "always visible" reasoning as Bookings above — every category
     // can build a community, so this isn't gated either.
-    { href: "/dashboard/community", label: t.nav.community, icon: Users },
+    { href: "/dashboard/community", label: t.nav.community, icon: Users, core: true },
     // Ringo Card Writer — every creator can own a physical Ringo Card
     // regardless of category, so (like Bookings/Community) this is never
     // gated. See src/app/dashboard/ringo-card/page.tsx.
-    { href: "/dashboard/ringo-card", label: t.nav.ringoCard, icon: Nfc },
-    { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3 },
-    { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake },
-    { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard },
+    { href: "/dashboard/ringo-card", label: t.nav.ringoCard, icon: Nfc, core: true },
+    { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3, core: true },
+    { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake, core: false },
+    { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard, core: true },
     ...(canApproveRequests
       ? [
-          { href: "/dashboard/requests", label: t.nav.requests, icon: ClipboardCheck },
-          { href: "/dashboard/qr-code", label: t.nav.qrCode, icon: QrCode },
+          { href: "/dashboard/requests", label: t.nav.requests, icon: ClipboardCheck, core: false },
+          { href: "/dashboard/qr-code", label: t.nav.qrCode, icon: QrCode, core: false },
         ]
       : []),
   ];
+
+  const mobileTabItems = NAV_ITEMS.filter((item) => item.core);
+  const moreMenuItems = NAV_ITEMS.filter((item) => !item.core);
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
@@ -182,6 +195,11 @@ export default function DashboardShell({
             controls on the right, everywhere. */}
         <div className="flex items-center justify-between gap-2 px-4 lg:px-10 py-3.5 sticky top-0 z-30 bg-ringo-bg/85 backdrop-blur border-b border-ringo-border/70">
           <div className="flex items-center gap-2 min-w-0">
+            {/* Hamburger menu — mobile only, holds every nav item that
+                isn't one of the tab bar's 5 core ones (see moreMenuItems
+                above). Sits before the logo, the conventional hamburger
+                position. */}
+            <MobileMoreMenu items={moreMenuItems} label={t.nav.more} isActive={isActive} />
             <Link href="/" className="flex items-center gap-2 lg:hidden shrink-0">
               <Image src="/logo.png" alt="Ringo Connect" width={26} height={26} className="rounded-lg" />
             </Link>
@@ -204,7 +222,7 @@ export default function DashboardShell({
           className="lg:hidden fixed bottom-3 inset-x-3 z-40 bg-ringo-surface/95 backdrop-blur border border-ringo-border/70 rounded-2xl shadow-[0_12px_32px_-12px_rgba(15,23,42,0.25)] flex justify-around gap-0.5 py-1.5 px-1 overflow-x-auto no-scrollbar"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
-          {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
+          {mobileTabItems.map(({ href, label, icon: Icon, exact }) => {
             const active = isActive(href, exact);
             return (
               <Link

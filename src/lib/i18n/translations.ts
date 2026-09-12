@@ -856,6 +856,10 @@ export const translations = {
       requests: "Requests",
       qrCode: "QR code",
       ringoCard: "Ringo Card",
+      // Label for the mobile header's hamburger menu, which holds every
+      // nav item that isn't one of the bottom tab bar's core 5 — see
+      // DashboardShell.tsx/MobileMoreMenu.tsx.
+      more: "More",
     },
     // Ringo Card Writer — the branded, customer-facing NFC card feature
     // (dashboard/ringo-card). Keep every string here in "Ringo Card"
@@ -2305,6 +2309,7 @@ export const translations = {
       requests: "Demandes",
       qrCode: "Code QR",
       ringoCard: "Carte Ringo",
+      more: "Plus",
     },
     ringoCard: {
       pageTitle: "Écriture de Carte Ringo",
