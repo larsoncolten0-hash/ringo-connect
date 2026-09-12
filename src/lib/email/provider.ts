@@ -10,9 +10,15 @@
 // pull in a new npm dependency. Nothing sends until BOTH of these are set
 // in the environment (never hardcoded, never sent to the browser):
 //
-//   RESEND_API_KEY       — from your Resend dashboard (API Keys)
-//   COMMUNITY_EMAIL_FROM — a sender address on a domain verified with
-//                          Resend, e.g. "updates@yourdomain.com"
+//   RESEND_API_KEY                                 — from your Resend
+//                                                     dashboard (API Keys)
+//   COMMUNITY_EMAIL_FROM (or RESEND_FROM_EMAIL)     — a sender address on a
+//                                                     domain verified with
+//                                                     Resend, e.g.
+//                                                     "updates@yourdomain.com"
+//                                                     (see resolveFromAddress
+//                                                     below for why either
+//                                                     name works)
 //
 // Until both are set, every call below resolves with
 // `{ ok: false, error: "provider_not_configured" }` — callers must record
@@ -39,13 +45,23 @@ export interface SendEmailResult {
   error?: string;
 }
 
+// Accepts RESEND_FROM_EMAIL as an alias for COMMUNITY_EMAIL_FROM — the two
+// names have both been used in this project's own .env at different times
+// (this adapter now sends more than just Community mail, e.g. purchase
+// receipts, so the "COMMUNITY_" name no longer really fits), and silently
+// treating a real value under either name as "not configured" wasted more
+// than one debugging session.
+function resolveFromAddress(): string | undefined {
+  return process.env.COMMUNITY_EMAIL_FROM || process.env.RESEND_FROM_EMAIL;
+}
+
 export function isEmailProviderConfigured(): boolean {
-  return !!process.env.RESEND_API_KEY && !!process.env.COMMUNITY_EMAIL_FROM;
+  return !!process.env.RESEND_API_KEY && !!resolveFromAddress();
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.COMMUNITY_EMAIL_FROM;
+  const from = resolveFromAddress();
 
   if (!apiKey || !from) {
     return { ok: false, error: "provider_not_configured" };

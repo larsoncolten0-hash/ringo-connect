@@ -57,6 +57,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     return NextResponse.json({ transId: result.transId });
   } catch (err: any) {
+    // Logged server-side — the client only ever sees a generic error and
+    // silently falls back to the declared/artist-confirms flow (see
+    // MusicStorePage's startMobileMoneyPayment), so without this line a
+    // real cause (Fapshi disabled, bad/missing credentials, IP not
+    // whitelisted, sandbox vs live mismatch) was previously invisible.
+    console.error(`fapshi direct-pay failed for order ${params.id}:`, err.message || err);
     return NextResponse.json({ error: err.message || "Could not start the payment." }, { status: 502 });
   }
 }
