@@ -57,7 +57,12 @@ export default function MusicStorePage({ profile }: { profile: any }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money" | "card">("mobile_money");
+  // Mobile Money defaults on for an XAF profile, where it's a real
+  // automatic Fapshi charge — everywhere else it's not offered at all
+  // (see the payment method list below), so default to cash instead.
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money" | "card">(
+    currency === "XAF" ? "mobile_money" : "cash"
+  );
   // Only meaningful for paymentMethod === "mobile_money" — which real
   // provider to charge. Same two options UpgradeModal.tsx already offers
   // for subscription payments.
@@ -571,7 +576,15 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           <div>
             <p className="text-xs font-medium mb-1.5" style={{ opacity: 0.7 }}>{t.restaurant.paymentMethodLabel}</p>
             <div className="flex gap-2">
-              {([["cash", t.restaurant.paymentCash], ["mobile_money", t.restaurant.paymentMobileMoney], ["card", t.restaurant.paymentCard]] as const).map(([id, label]) => (
+              {/* Mobile Money is only ever offered for an XAF profile — it's
+                  the one method that's a real, automatically-confirmed
+                  Fapshi charge (see musicOrderPayment.ts); everywhere else
+                  it would just be another declared/artist-confirms option
+                  indistinguishable from cash, so it isn't shown at all. */}
+              {(currency === "XAF"
+                ? ([["cash", t.restaurant.paymentCash], ["mobile_money", t.restaurant.paymentMobileMoney], ["card", t.restaurant.paymentCard]] as const)
+                : ([["cash", t.restaurant.paymentCash], ["card", t.restaurant.paymentCard]] as const)
+              ).map(([id, label]) => (
                 <button
                   key={id}
                   onClick={() => setPaymentMethod(id)}
@@ -582,7 +595,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
                 </button>
               ))}
             </div>
-            {paymentMethod === "mobile_money" && currency === "XAF" && (
+            {paymentMethod === "mobile_money" && (
               <div className="mt-2.5">
                 <p className="text-[11px] mb-1.5" style={{ opacity: 0.6 }}>{t.music.mobileMoneyInstantNote}</p>
                 <div className="flex gap-2">
@@ -598,9 +611,6 @@ export default function MusicStorePage({ profile }: { profile: any }) {
                   ))}
                 </div>
               </div>
-            )}
-            {paymentMethod === "mobile_money" && currency !== "XAF" && (
-              <p className="text-[11px] mt-1.5" style={{ opacity: 0.5 }}>{t.music.mobileMoneyDeclaredNote}</p>
             )}
           </div>
 

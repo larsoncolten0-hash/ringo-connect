@@ -17,6 +17,7 @@ export default function UpgradeModal({
   priceUsdYearly: priceUsdYearlyRaw,
   defaultMethod,
   defaultInterval = "monthly",
+  isCameroon = false,
   fapshiEnabled = true,
   stripeEnabled = true,
   onClose,
@@ -31,6 +32,14 @@ export default function UpgradeModal({
   priceUsdYearly: number;
   defaultMethod: Method;
   defaultInterval?: Interval;
+  // Which single method to actually offer: Mobile Money in Cameroon, card
+  // everywhere else — no picking between the two, since a card is
+  // normally unusable for a Cameroon Mobile Money line and vice versa.
+  // Only falls back to the other one if the admin has turned off the
+  // method this location would otherwise get (see `methods` below), so
+  // there's still always at least one working option rather than a dead
+  // modal.
+  isCameroon?: boolean;
   fapshiEnabled?: boolean;
   stripeEnabled?: boolean;
   onClose: () => void;
@@ -59,6 +68,15 @@ export default function UpgradeModal({
 
   const priceXaf = formatPrice(billingInterval === "yearly" ? priceXafYearlyRaw : priceXafMonthlyRaw, "XAF");
   const priceUsd = formatPrice(billingInterval === "yearly" ? priceUsdYearlyRaw : priceUsdMonthlyRaw, "USD");
+
+  // Location decides which single method is offered — Mobile Money only
+  // in Cameroon, card only abroad. If that location's own method has been
+  // switched off platform-wide, fall back to whichever one is actually
+  // enabled rather than showing a method nobody can complete.
+  const locationPreferred: Method = isCameroon ? "mobile_money" : "card";
+  const showMobileMoney =
+    locationPreferred === "mobile_money" ? fapshiEnabled : fapshiEnabled && !stripeEnabled;
+  const showCard = locationPreferred === "card" ? stripeEnabled : stripeEnabled && !fapshiEnabled;
 
   // Savings badge: how much cheaper yearly is vs. paying monthly x12.
   const yearlyMonthlyEquivalent = priceUsdYearlyRaw / 12;
@@ -187,56 +205,48 @@ export default function UpgradeModal({
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <button
-                onClick={() => {
-                  if (!fapshiEnabled) return;
-                  setMethod("mobile_money");
-                  setStep("mm-form");
-                }}
-                disabled={!fapshiEnabled}
-                className={`flex items-center gap-3 rounded-card border p-3.5 text-left transition ${
-                  !fapshiEnabled
-                    ? "border-ringo-border opacity-50 cursor-not-allowed"
-                    : method === "mobile_money"
-                    ? "border-ringo-indigo bg-ringo-indigo/5"
-                    : "border-ringo-border hover:border-ringo-indigo"
-                }`}
-              >
-                <span className="w-9 h-9 rounded-full bg-ringo-teal/10 flex items-center justify-center shrink-0">
-                  <Smartphone size={16} className="text-ringo-teal" />
-                </span>
-                <span className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-ringo-text">{t.subscription.mobileMoney}</p>
-                  <p className="text-xs text-ringo-muted">
-                    {fapshiEnabled ? t.subscription.mobileMoneyDesc : t.subscription.methodUnavailable}
-                  </p>
-                </span>
-                {fapshiEnabled && <span className="text-sm font-medium text-ringo-text shrink-0">{priceXaf}</span>}
-              </button>
+              {showMobileMoney && (
+                <button
+                  onClick={() => {
+                    setMethod("mobile_money");
+                    setStep("mm-form");
+                  }}
+                  className={`flex items-center gap-3 rounded-card border p-3.5 text-left transition ${
+                    method === "mobile_money"
+                      ? "border-ringo-indigo bg-ringo-indigo/5"
+                      : "border-ringo-border hover:border-ringo-indigo"
+                  }`}
+                >
+                  <span className="w-9 h-9 rounded-full bg-ringo-teal/10 flex items-center justify-center shrink-0">
+                    <Smartphone size={16} className="text-ringo-teal" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-ringo-text">{t.subscription.mobileMoney}</p>
+                    <p className="text-xs text-ringo-muted">{t.subscription.mobileMoneyDesc}</p>
+                  </span>
+                  <span className="text-sm font-medium text-ringo-text shrink-0">{priceXaf}</span>
+                </button>
+              )}
 
-              <button
-                onClick={() => {
-                  if (!stripeEnabled) return;
-                  startCard();
-                }}
-                disabled={!stripeEnabled}
-                className={`flex items-center gap-3 rounded-card border p-3.5 text-left transition ${
-                  !stripeEnabled
-                    ? "border-ringo-border opacity-50 cursor-not-allowed"
-                    : "border-ringo-border hover:border-ringo-indigo"
-                }`}
-              >
-                <span className="w-9 h-9 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
-                  <CreditCard size={16} className="text-ringo-indigo" />
-                </span>
-                <span className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-ringo-text">{t.subscription.card}</p>
-                  <p className="text-xs text-ringo-muted">
-                    {stripeEnabled ? t.subscription.cardDesc : t.subscription.methodUnavailable}
-                  </p>
-                </span>
-                {stripeEnabled && <span className="text-sm font-medium text-ringo-text shrink-0">{priceUsd}</span>}
-              </button>
+              {showCard && (
+                <button
+                  onClick={startCard}
+                  className="flex items-center gap-3 rounded-card border border-ringo-border p-3.5 text-left transition hover:border-ringo-indigo"
+                >
+                  <span className="w-9 h-9 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
+                    <CreditCard size={16} className="text-ringo-indigo" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-ringo-text">{t.subscription.card}</p>
+                    <p className="text-xs text-ringo-muted">{t.subscription.cardDesc}</p>
+                  </span>
+                  <span className="text-sm font-medium text-ringo-text shrink-0">{priceUsd}</span>
+                </button>
+              )}
+
+              {!showMobileMoney && !showCard && (
+                <p className="text-sm text-ringo-muted text-center py-3">{t.subscription.methodUnavailable}</p>
+              )}
             </div>
           </>
         )}

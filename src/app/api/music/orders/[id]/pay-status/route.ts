@@ -21,7 +21,9 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
   const { data: order } = await admin
     .from("music_orders")
-    .select("id, total, pending_fapshi_trans_id, payment_status, payment_method, profiles(id, user_id, currency)")
+    .select(
+      "id, total, pending_fapshi_trans_id, payment_status, payment_method, profiles(id, user_id, currency), music_order_items(item_type)"
+    )
     .eq("id", params.id)
     .single();
 

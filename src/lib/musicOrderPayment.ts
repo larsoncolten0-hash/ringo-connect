@@ -29,6 +29,7 @@ export async function checkAndConfirmFapshiOrder(
     payment_status: string;
     payment_method: string;
     profiles: { id?: string; user_id: string; currency: string | null } | null;
+    music_order_items?: { item_type: string }[];
   }
 ): Promise<FapshiStatus | null> {
   if (order.payment_method !== "mobile_money" || !order.pending_fapshi_trans_id) return null;
@@ -38,7 +39,18 @@ export async function checkAndConfirmFapshiOrder(
 
   if (tx.status === "SUCCESSFUL") {
     const profile = order.profiles;
-    await admin.from("music_orders").update({ payment_status: "paid" }).eq("id", order.id);
+    // A confirmed online payment also closes out the order itself — no
+    // artist click needed, unlike the cash/card "Mark Completed" flow — as
+    // long as there's nothing left to physically hand over. A 'merch' line
+    // still needs the artist to pack/ship it, so those orders stay
+    // 'pending' for the artist to complete by hand once that's done; a
+    // purely digital order (song/release/ticket/support) has nothing left
+    // to do once it's paid.
+    const hasPhysicalItem = (order.music_order_items || []).some((i) => i.item_type === "merch");
+    await admin
+      .from("music_orders")
+      .update({ payment_status: "paid", ...(hasPhysicalItem ? {} : { status: "completed" }) })
+      .eq("id", order.id);
 
     if (profile?.user_id) {
       // Idempotent against a race between two near-simultaneous checks:
