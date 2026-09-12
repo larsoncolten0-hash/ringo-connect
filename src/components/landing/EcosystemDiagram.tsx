@@ -1,6 +1,6 @@
 "use client";
 
-import { Link2, Music, ShoppingBag, UtensilsCrossed, Ticket, Users, BarChart3 } from "lucide-react";
+import { Link2, Music, ShoppingBag, UtensilsCrossed, Ticket, Users, BarChart3, CalendarCheck, Megaphone } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { QrCode as QrCodeIcon, CreditCard } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -23,6 +23,8 @@ export default function EcosystemDiagram() {
     { icon: CreditCard, label: t.landing.chipNfc, color: "#7C3AED" },
     { icon: Users, label: t.landing.chipCustomers, color: "#0EA5E9" },
     { icon: BarChart3, label: t.landing.chipAnalytics, color: "#D97706" },
+    { icon: CalendarCheck, label: t.landing.chipBookings, color: "#DB2777" },
+    { icon: Megaphone, label: t.landing.chipCommunity, color: "#65A30D" },
   ];
 
   const R = 40; // radius, as a % of the square container — keeps the SVG (viewBox 0 0 100 100) and the absolutely-positioned chips in exact agreement regardless of screen size

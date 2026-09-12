@@ -693,6 +693,11 @@ export const translations = {
       heroShowcaseArtist: "Artist",
       heroShowcaseRestaurant: "Restaurant",
       heroShowcaseBusiness: "Business",
+      // The hero demo's 4th tab — shows the actual Ringo Card Writer
+      // success state (see IndustryShowcase.tsx's RingoCardMockup), not a
+      // generic profile. Puts the newest shipped feature directly in the
+      // page's main visual moment.
+      heroShowcaseCard: "Ringo Card",
       heroShowcaseCaption: "One profile. Many industries.",
 
       ecosystemEyebrow: "The big picture",
@@ -710,6 +715,11 @@ export const translations = {
       chipCustomers: "Customers",
       chipOrders: "Orders",
       chipAnalytics: "Analytics",
+      // Two more real, universal, shipped features (every category can
+      // turn both on — see src/lib/bookingAuth.ts and the Community
+      // dashboard section) that weren't represented in this diagram yet.
+      chipBookings: "Bookings",
+      chipCommunity: "Community",
 
       moreEyebrow: "One profile, many identities",
       moreTitle: "Your Ringo is more than a link.",
@@ -720,6 +730,21 @@ export const translations = {
       moreCardMenu: "Your restaurant menu",
       moreCardShowcase: "Your product showcase",
       moreCardConnection: "Your customer connection point",
+      moreCardBookings: "Your appointment book",
+      moreCardCommunity: "Your community list",
+
+      // One short description per "more than a link" card, shown under
+      // the label — added for all eight cards together so the grid reads
+      // as one consistent design rather than two cards looking more
+      // explained than the rest.
+      moreCardCardDesc: "Your name, contact details and links — ready to share the moment someone scans or taps.",
+      moreCardHubDesc: "Tracks, releases, tickets and fan support, all live on your profile.",
+      moreCardStoreDesc: "Products with photos and prices, ready for people to browse and order.",
+      moreCardMenuDesc: "Categories, prices and photos, ready for dine-in, takeaway or delivery.",
+      moreCardShowcaseDesc: "Your best work, front and center the moment someone lands on your profile.",
+      moreCardConnectionDesc: "WhatsApp, calls, directions, and every way people reach you — in one place.",
+      moreCardBookingsDesc: "Let customers request an appointment, a table, or a viewing — right from your Ringo.",
+      moreCardCommunityDesc: "Build a list of the people who follow you, and reach them again whenever you have news.",
 
       industriesEyebrow: "Built for what you do",
       industriesTitle: "One Ringo. Built for what you do.",
@@ -2150,6 +2175,7 @@ export const translations = {
       heroShowcaseArtist: "Artiste",
       heroShowcaseRestaurant: "Restaurant",
       heroShowcaseBusiness: "Entreprise",
+      heroShowcaseCard: "Carte Ringo",
       heroShowcaseCaption: "Un seul profil. Plusieurs secteurs.",
 
       ecosystemEyebrow: "La vue d'ensemble",
@@ -2167,6 +2193,8 @@ export const translations = {
       chipCustomers: "Clients",
       chipOrders: "Commandes",
       chipAnalytics: "Analytique",
+      chipBookings: "Réservations",
+      chipCommunity: "Communauté",
 
       moreEyebrow: "Un profil, plusieurs identités",
       moreTitle: "Votre Ringo est bien plus qu'un lien.",
@@ -2177,6 +2205,17 @@ export const translations = {
       moreCardMenu: "Votre menu de restaurant",
       moreCardShowcase: "Votre vitrine de produits",
       moreCardConnection: "Votre point de contact client",
+      moreCardBookings: "Votre carnet de rendez-vous",
+      moreCardCommunity: "Votre liste de communauté",
+
+      moreCardCardDesc: "Votre nom, vos coordonnées et vos liens — prêts à partager dès qu'on scanne ou qu'on approche votre carte.",
+      moreCardHubDesc: "Titres, sorties, billets et soutien des fans, le tout en direct sur votre profil.",
+      moreCardStoreDesc: "Des produits avec photos et prix, prêts à être parcourus et commandés.",
+      moreCardMenuDesc: "Catégories, prix et photos, prêts pour la commande sur place, à emporter ou en livraison.",
+      moreCardShowcaseDesc: "Votre meilleur travail, mis en avant dès l'arrivée sur votre profil.",
+      moreCardConnectionDesc: "WhatsApp, appels, itinéraire — tous les moyens de vous joindre, au même endroit.",
+      moreCardBookingsDesc: "Laissez vos clients demander un rendez-vous, une table ou une visite, directement depuis votre Ringo.",
+      moreCardCommunityDesc: "Constituez une liste de vos abonnés et recontactez-les dès que vous avez une nouvelle à partager.",
 
       industriesEyebrow: "Pensé pour votre activité",
       industriesTitle: "Un seul Ringo. Pensé pour ce que vous faites.",

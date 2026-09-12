@@ -47,13 +47,14 @@ import AffiliateSection from "./AffiliateSection";
 // in the app today: links/catalog (every category), the Music &
 // Entertainment tracks/tickets/support system, the Restaurant & Food
 // menu/ordering/QR-table system, WhatsApp hand-off, click analytics, QR
-// codes, and the existing affiliate/referral program. The "Ringo Connect
-// Card" is a real NFC tag written with a profile's URL — the same
-// destination a QR code or plain link already opens, just on a different
-// physical medium, so describing it costs nothing to promise. Nothing
-// here claims payment collection, bookings, or integrations that don't
-// exist, and no commission rate is quoted for the affiliate program since
-// that's admin-configurable.
+// codes, bookings (see src/lib/bookingAuth.ts — no category gate, any
+// profile can turn it on), the Community follower/announcement system,
+// and the existing affiliate/referral program. The "Ringo Connect Card"
+// is a real NFC tag written with a profile's URL — the same destination
+// a QR code or plain link already opens, just on a different physical
+// medium, so describing it costs nothing to promise. Nothing here claims
+// payment collection or integrations that don't exist, and no commission
+// rate is quoted for the affiliate program since that's admin-configurable.
 //
 // Design direction: color is used with intent, not everywhere — a single
 // quiet gradient wash in the hero and a couple of key moments, small
@@ -269,19 +270,24 @@ export default function LandingView({
         </Reveal>
         <Reveal delay={0.1} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {[
-            { label: t.landing.moreCardCard, color: "#4F46E5" },
-            { label: t.landing.moreCardHub, color: "#F2B705" },
-            { label: t.landing.moreCardStore, color: "#FF6B4A" },
-            { label: t.landing.moreCardMenu, color: "#1F9D55" },
-            { label: t.landing.moreCardShowcase, color: "#0EA5E9" },
-            { label: t.landing.moreCardConnection, color: "#E11D48" },
+            { label: t.landing.moreCardCard, desc: t.landing.moreCardCardDesc, color: "#4F46E5" },
+            { label: t.landing.moreCardHub, desc: t.landing.moreCardHubDesc, color: "#F2B705" },
+            { label: t.landing.moreCardStore, desc: t.landing.moreCardStoreDesc, color: "#FF6B4A" },
+            { label: t.landing.moreCardMenu, desc: t.landing.moreCardMenuDesc, color: "#1F9D55" },
+            { label: t.landing.moreCardShowcase, desc: t.landing.moreCardShowcaseDesc, color: "#0EA5E9" },
+            { label: t.landing.moreCardConnection, desc: t.landing.moreCardConnectionDesc, color: "#E11D48" },
+            { label: t.landing.moreCardBookings, desc: t.landing.moreCardBookingsDesc, color: "#DB2777" },
+            { label: t.landing.moreCardCommunity, desc: t.landing.moreCardCommunityDesc, color: "#65A30D" },
           ].map((item) => (
             <div
               key={item.label}
-              className="rounded-2xl bg-ringo-surface border border-ringo-border/60 px-5 py-4 text-sm font-medium text-ringo-text transition-colors hover:border-ringo-border"
+              className="rounded-2xl bg-ringo-surface border border-ringo-border/60 px-5 py-4 transition-colors hover:border-ringo-border"
             >
-              <span className="inline-block w-1.5 h-1.5 rounded-full mr-2.5 align-middle" style={{ backgroundColor: item.color }} />
-              {item.label}
+              <p className="text-sm font-medium text-ringo-text">
+                <span className="inline-block w-1.5 h-1.5 rounded-full mr-2.5 align-middle" style={{ backgroundColor: item.color }} />
+                {item.label}
+              </p>
+              <p className="text-xs text-ringo-muted mt-1.5 leading-relaxed">{item.desc}</p>
             </div>
           ))}
         </Reveal>
