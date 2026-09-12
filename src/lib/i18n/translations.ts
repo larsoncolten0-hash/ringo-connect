@@ -693,11 +693,6 @@ export const translations = {
       heroShowcaseArtist: "Artist",
       heroShowcaseRestaurant: "Restaurant",
       heroShowcaseBusiness: "Business",
-      // The hero demo's 4th tab — shows the actual Ringo Card Writer
-      // success state (see IndustryShowcase.tsx's RingoCardMockup), not a
-      // generic profile. Puts the newest shipped feature directly in the
-      // page's main visual moment.
-      heroShowcaseCard: "Ringo Card",
       heroShowcaseCaption: "One profile. Many industries.",
 
       ecosystemEyebrow: "The big picture",
@@ -846,7 +841,7 @@ export const translations = {
       contactEyebrow: "Get in touch",
       contactTitle: "Have questions? Let's connect.",
       contactSubtitle: "We're here to help you get started with Ringo.",
-      contactCall: "Call Ringo",
+      contactWhatsapp: "WhatsApp Ringo Connect",
       contactEmail: "Email Ringo",
       contactAddressLabel: "Ringo Connect Ltd.",
       contactAddressLocation: "Yaoundé, Cameroon",
@@ -2175,7 +2170,6 @@ export const translations = {
       heroShowcaseArtist: "Artiste",
       heroShowcaseRestaurant: "Restaurant",
       heroShowcaseBusiness: "Entreprise",
-      heroShowcaseCard: "Carte Ringo",
       heroShowcaseCaption: "Un seul profil. Plusieurs secteurs.",
 
       ecosystemEyebrow: "La vue d'ensemble",
@@ -2313,7 +2307,7 @@ export const translations = {
       contactEyebrow: "Contactez-nous",
       contactTitle: "Des questions ? Parlons-en.",
       contactSubtitle: "Nous sommes là pour vous aider à démarrer avec Ringo.",
-      contactCall: "Appeler Ringo",
+      contactWhatsapp: "WhatsApp Ringo Connect",
       contactEmail: "Écrire à Ringo",
       contactAddressLabel: "Ringo Connect Ltd.",
       contactAddressLocation: "Yaoundé, Cameroun",

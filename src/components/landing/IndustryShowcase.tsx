@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Music, Play, ShoppingBag, Ticket, Heart, ShoppingCart, UtensilsCrossed, MapPin, Phone, CalendarDays, Store, Wrench, Mail, Check, Nfc } from "lucide-react";
+import { Music, Play, ShoppingBag, Ticket, Heart, ShoppingCart, UtensilsCrossed, MapPin, Phone, CalendarDays, Store, Wrench, Mail } from "lucide-react";
 import { FaWhatsapp, FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa6";
 import PhoneMockup from "./PhoneMockup";
 import { useLanguage } from "@/components/LanguageProvider";
 
-type Tab = "artist" | "restaurant" | "business" | "card";
+type Tab = "artist" | "restaurant" | "business";
 
 // The hero's product demonstration — real Ringo colors and layout
 // patterns (the Music & Entertainment and Restaurant & Food recommended
@@ -23,7 +23,6 @@ export default function IndustryShowcase() {
     { id: "artist", label: t.landing.heroShowcaseArtist },
     { id: "restaurant", label: t.landing.heroShowcaseRestaurant },
     { id: "business", label: t.landing.heroShowcaseBusiness },
-    { id: "card", label: t.landing.heroShowcaseCard },
   ];
 
   return (
@@ -41,7 +40,6 @@ export default function IndustryShowcase() {
             {tab === "artist" && <ArtistMockup />}
             {tab === "restaurant" && <RestaurantMockup />}
             {tab === "business" && <BusinessMockup />}
-            {tab === "card" && <RingoCardMockup />}
           </motion.div>
         </AnimatePresence>
       </PhoneMockup>
@@ -195,50 +193,6 @@ function BusinessMockup() {
           <FaWhatsapp size={12} />
           <span className="text-[11px] font-medium">WhatsApp</span>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// --- Ringo Card — not the physical card itself, but what actually shows
-// up on a customer's phone right after they tap it: the success moment,
-// then the profile it opened into. Same dark/gold default Ringo theme as
-// BusinessMockup, since a physical card can be paired with any account ---
-function RingoCardMockup() {
-  const gold = "#D4A954";
-  return (
-    <div className="h-full flex flex-col items-center px-4 pt-9 pb-6 text-center" style={{ backgroundColor: "#0A0A0A", color: "#FAFAFA" }}>
-      <span className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: `${gold}22`, border: `2px solid ${gold}` }}>
-        <Check size={24} style={{ color: gold }} />
-      </span>
-      <p className="font-display font-bold text-sm mt-2.5">Card Scanned</p>
-      <p className="text-[11px] mt-0.5" style={{ opacity: 0.65 }}>
-        Opening MY BUSINESS…
-      </p>
-
-      <div className="w-full mt-5 rounded-2xl p-2.5 flex items-center gap-2.5 text-left" style={{ border: `1px solid ${gold}55` }}>
-        <span className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ border: `2px solid ${gold}`, color: gold }}>
-          <Nfc size={16} />
-        </span>
-        <div className="min-w-0">
-          <p className="text-[11px] font-semibold truncate">Ringo Card</p>
-          <p className="text-[9px]" style={{ opacity: 0.6 }}>
-            One tap. Instant profile.
-          </p>
-        </div>
-      </div>
-
-      <div className="w-full mt-4 flex flex-col gap-1.5">
-        {[
-          { icon: Store, label: "Shop" },
-          { icon: Wrench, label: "Services" },
-          { icon: Mail, label: "Contact" },
-        ].map((row) => (
-          <div key={row.label} className="flex items-center gap-2 rounded-xl px-2.5 py-2" style={{ border: `2px solid ${gold}` }}>
-            <row.icon size={12} style={{ color: gold }} />
-            <span className="text-[11px] font-medium">{row.label}</span>
-          </div>
-        ))}
       </div>
     </div>
   );

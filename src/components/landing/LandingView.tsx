@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowRight,
-  Phone,
   Mail,
   MapPin,
   Eye,
@@ -460,11 +459,13 @@ export default function LandingView({
 
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <a
-                href="tel:+237694028846"
+                href="https://wa.me/237694028846"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white text-ringo-indigo text-sm font-semibold"
               >
-                <Phone size={15} />
-                {t.landing.contactCall} · +237 694 028 846
+                <FaWhatsapp size={15} />
+                {t.landing.contactWhatsapp}
               </a>
               <a
                 href="mailto:info@ringoconnectltd.com"
