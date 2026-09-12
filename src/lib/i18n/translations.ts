@@ -860,6 +860,7 @@ export const translations = {
       viewPage: "View your page",
       logout: "Log out",
       plan: "plan",
+      soundEffects: "Sound effects",
     },
     sidebar: {
       freeBadge: "You're on Free",
@@ -2187,6 +2188,7 @@ export const translations = {
       viewPage: "Voir votre page",
       logout: "Déconnexion",
       plan: "offre",
+      soundEffects: "Effets sonores",
     },
     sidebar: {
       freeBadge: "Vous êtes sur Gratuit",

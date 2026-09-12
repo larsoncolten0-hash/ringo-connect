@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronDown, Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSound } from "@/components/SoundProvider";
 import { formatPrice } from "@/lib/currency";
 import { STATUS_COLOR } from "@/lib/orderStatus";
 
@@ -36,6 +37,7 @@ export default function MusicOrdersView({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const knownIds = useRef(new Set(initialOrders.map((o) => o.id)));
   const [hasNew, setHasNew] = useState(false);
+  const { play } = useSound();
 
   useEffect(() => {
     const poll = async () => {
@@ -46,7 +48,13 @@ export default function MusicOrdersView({
         .order("created_at", { ascending: false })
         .limit(100);
       if (!data) return;
-      if (data.some((o) => !knownIds.current.has(o.id))) setHasNew(true);
+      // knownIds starts seeded from the orders the page already rendered,
+      // so this only ever fires for an order that arrived after the page
+      // was open — never on the initial load itself.
+      if (data.some((o) => !knownIds.current.has(o.id))) {
+        setHasNew(true);
+        play("notification");
+      }
       knownIds.current = new Set(data.map((o) => o.id));
       setOrders(data);
     };

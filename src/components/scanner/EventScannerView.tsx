@@ -14,6 +14,22 @@ import {
 } from "lucide-react";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import ScannerAddToHomeScreen from "./ScannerAddToHomeScreen";
+import ScannerSoundToggle from "./ScannerSoundToggle";
+import { useSound } from "@/components/SoundProvider";
+
+// Maps the scan API's outcome strings down to the three sounds the gate
+// scanner actually distinguishes by ear: a bright positive chime for a
+// valid ticket, a flat double-beep for one already used, and a single low
+// tone for everything else that isn't a valid entry (not found, wrong
+// event, unpaid, cancelled, refunded, session/network trouble). A guard is
+// watching the screen color and icon anyway — the sound just confirms it
+// without them having to read anything, including in low light or with a
+// glove-thick tap that delays looking down.
+function scanOutcomeSound(outcome: string): "scanValid" | "scanInvalid" | "scanAlreadyUsed" {
+  if (outcome === "approved") return "scanValid";
+  if (outcome === "already_used" || outcome === "already_inside") return "scanAlreadyUsed";
+  return "scanInvalid";
+}
 
 type SessionInfo = {
   eventTitle: string;
@@ -69,6 +85,7 @@ export default function EventScannerView({ token }: { token: string }) {
   const lockedRef = useRef(false);
   const lastCodeRef = useRef<{ code: string; at: number } | null>(null);
   const lastDecodeAttemptRef = useRef(0);
+  const { play } = useSound();
 
   // Session info — fetched once on mount, not on every scan (the scan
   // route itself re-validates the token every single time, so a session
@@ -120,9 +137,11 @@ export default function EventScannerView({ token }: { token: string }) {
         const data: ScanResult = await res.json();
         outcome = data.outcome;
         setResult(data);
+        play(scanOutcomeSound(data.outcome));
         if (data.outcome === "approved") setCheckedInCount((c) => c + 1);
       } catch {
         setResult({ outcome: "network_error", ticketTypeName: null, holderName: null, ticketCode: null });
+        play("scanInvalid");
       }
 
       const holdMs = outcome === "approved" ? RESULT_HOLD_MS.approved : RESULT_HOLD_MS.other;
@@ -131,7 +150,7 @@ export default function EventScannerView({ token }: { token: string }) {
         lockedRef.current = false;
       }, holdMs);
     },
-    [token]
+    [token, play]
   );
 
   // The scan loop — one requestAnimationFrame chain for the page's whole
@@ -205,6 +224,15 @@ export default function EventScannerView({ token }: { token: string }) {
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
+  // A blocked scanner (session revoked/expired, camera denied) stops the
+  // guard's whole job cold, unlike an individual invalid ticket — an
+  // "important error" by the sound spec's own definition, so it gets the
+  // distinct error tone once, the moment the screen actually blocks them.
+  useEffect(() => {
+    if (phase === "session-error" || phase === "camera-error") play("error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   if (phase === "loading") {
     return (
       <FullScreen>
@@ -250,15 +278,18 @@ export default function EventScannerView({ token }: { token: string }) {
       <video ref={videoRef} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Header — event + gate identity, plus a small "Add to Home
-          Screen" icon so a guard who closes this by mistake can reopen
-          exactly this gate's scanner (see ScannerAddToHomeScreen.tsx) —
-          the one addition to "nothing else" in this header, since it's
-          what keeps the guard from having to hunt down the link again
-          mid-event. */}
+      {/* Header — event + gate identity, plus two small icons: a sound
+          mute toggle (ScannerSoundToggle.tsx — a guard has no access to
+          the dashboard's own sound preference) and "Add to Home Screen"
+          (ScannerAddToHomeScreen.tsx) so a guard who closes this by
+          mistake can reopen exactly this gate's scanner — the only
+          additions to "nothing else" in this header, since both keep the
+          guard from having to hunt down the link again or fumble for a
+          system volume control mid-event. */}
       <div className="absolute top-0 inset-x-0 p-4 pt-[calc(env(safe-area-inset-top)+1rem)] bg-gradient-to-b from-black/80 to-transparent">
         {session && (
-          <div className="absolute top-3 right-3" style={{ marginTop: "env(safe-area-inset-top)" }}>
+          <div className="absolute top-3 right-3 flex items-center gap-2" style={{ marginTop: "env(safe-area-inset-top)" }}>
+            <ScannerSoundToggle />
             <ScannerAddToHomeScreen gateName={session.gateName} />
           </div>
         )}

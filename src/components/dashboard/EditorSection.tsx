@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { AccordionItem, useAccordion } from "@/components/ui/Accordion";
 import SaveButton, { type SaveState } from "@/components/dashboard/SaveButton";
 import UnsavedChangesDialog from "@/components/dashboard/UnsavedChangesDialog";
+import { useSound } from "@/components/SoundProvider";
 
 // The Editor-specific dropdown row — each existing editor card (Profile,
 // Category, Music & Entertainment, Brand color, WhatsApp, Social Links,
@@ -53,6 +54,7 @@ export default function EditorSection({
 }) {
   const router = useRouter();
   const { requestClose } = useAccordion();
+  const { play } = useSound();
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
@@ -78,6 +80,7 @@ export default function EditorSection({
     window.setTimeout(() => {
       setSaveState("success");
       setDirty(false);
+      play("success");
       window.setTimeout(() => {
         setSaveState("idle");
         requestClose(id);
