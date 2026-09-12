@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { sendBookingReceivedEmail } from "@/lib/email/sendBookingReceivedEmail";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — a visitor booking a profile has no
@@ -121,6 +122,16 @@ export async function POST(request: Request) {
   }
 
   await admin.from("booking_status_history").insert({ booking_id: booking.id, status: "pending" });
+
+  if (customerEmail) {
+    try {
+      await sendBookingReceivedEmail(admin, booking.id);
+    } catch (err) {
+      // Never fail the booking submission itself over a notification
+      // email — the request itself already succeeded above.
+      console.error(`booking request email threw for booking ${booking.id}:`, err);
+    }
+  }
 
   return NextResponse.json({ id: booking.id });
 }
