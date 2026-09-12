@@ -855,6 +855,125 @@ export const translations = {
       subscription: "Subscription",
       requests: "Requests",
       qrCode: "QR code",
+      ringoCard: "Ringo Card",
+    },
+    // Ringo Card Writer — the branded, customer-facing NFC card feature
+    // (dashboard/ringo-card). Keep every string here in "Ringo Card"
+    // language, never generic NFC/tag-writer terminology — see
+    // src/components/dashboard/RingoCardWriter.tsx for where these are
+    // used and src/lib/ringoCardWriter.ts for the technical layer this
+    // copy deliberately never surfaces to the creator.
+    ringoCard: {
+      pageTitle: "Ringo Card Writer",
+      pageSubtitle: "Connect your physical Ringo Card to your digital Ringo.",
+      tagline: "Your physical connection to your digital Ringo.",
+      yourRingoProfile: "Ringo profile",
+      writeCta: "Write Your Ringo Card",
+      writeNewCta: "Write a New Ringo Card",
+      writeAnotherCta: "Write Another Card",
+      continueCta: "Continue",
+      tryAgainCta: "Try Again",
+      howItWorksCta: "How It Works",
+      confirmAndWriteCta: "Confirm & Write",
+      rewriteCta: "Rewrite Your Ringo Card",
+      testCta: "Test My Ringo Card",
+      readCardCta: "Read Card",
+      assignAction: "Assign this Ringo Card to my profile",
+
+      selectTitle: "Ready to connect?",
+      selectSubtitle: "Choose the Ringo profile you want to connect to your card.",
+
+      readyTitle: "Bring your Ringo Card close to your phone",
+      readySubtitle: "Hold your Ringo Card near the NFC area of your phone.",
+
+      statusPreparing: "Preparing…",
+      statusWaiting: "Waiting for your Ringo Card…",
+      statusWriting: "Writing your Ringo…",
+      statusVerifying: "Checking your Ringo Card…",
+
+      successTitle: "Ringo Card Ready",
+      successSubtitle: "Your Ringo Card is now connected to your Ringo profile.",
+      successHint: "Your card now opens your Ringo profile with a tap.",
+
+      verifyTitle: "Ringo Card",
+      verifyConnected: "Connected",
+      verifyDestination: "Destination",
+      verifyStatus: "Status",
+      verifyProfile: "Profile",
+      verifyReady: "Ready",
+      verifyNotYetRead: "Not yet read",
+
+      rewriteCurrentLabel: "Current",
+      rewriteNewLabel: "New",
+      rewriteHint: "This replaces what your Ringo Card currently opens.",
+      staleUrlHint: "Your Ringo profile link has changed since this card was last written — rewrite it to keep the card working.",
+
+      myCardsTitle: "My Ringo Cards",
+      myCardsEmpty: "You haven't connected a Ringo Card yet.",
+      finishWritingAction: "Finish Writing",
+      rewriteAction: "Rewrite",
+      cardDetailsToggle: "Card Details",
+
+      statusLabels: {
+        available: "Available",
+        assigned: "Assigned",
+        active: "Active",
+        lost: "Lost",
+        disabled: "Disabled",
+        replaced: "Replaced",
+      },
+
+      diagnostics: {
+        cardStatus: "Card status",
+        writable: "Writable",
+        readOnly: "Read-only",
+        ndef: "NDEF",
+        supported: "Supported",
+        notDetected: "Not detected",
+        destination: "Ringo destination",
+        memory: "Memory",
+        memoryUnknown: "Not available in this browser",
+        technology: "Card technology",
+        technologyValue: "NTAG216 (NFC Forum Type 2)",
+        cardReference: "Ringo Card",
+        cardUid: "Card serial",
+        cardUidHint: "Device metadata only — never used to sign you in.",
+      },
+
+      troubleTitle: "Having trouble writing your Ringo Card?",
+      troubleReasons: [
+        "NFC may be turned off",
+        "Your browser may not support Ringo Card Writer",
+        "Your phone may not support NFC writing",
+        "The Ringo Card may already be locked",
+        "The card may not be close enough to the NFC area",
+      ],
+
+      lockedTitle: "This Ringo Card is locked.",
+      lockedSubtitle: "Your Ringo Card cannot be rewritten because it has been made read-only.",
+
+      desktopNotice: "Writing a Ringo Card needs a compatible NFC-enabled phone. You can still review and manage your Ringo Cards from here.",
+
+      howItWorksSteps: [
+        "Tap the Ringo Card on an NFC-enabled phone.",
+        "The phone detects the card automatically.",
+        "The Ringo profile opens instantly — no app, no login.",
+      ],
+
+      errors: {
+        unsupported: "Ringo Card Writer isn't supported on this device or browser.",
+        unsupportedHint: "For the best experience, open Ringo Card Writer on a compatible Android phone with NFC enabled.",
+        insecure_context: "Ringo Card Writer needs a secure connection to work.",
+        permission_denied: "NFC permission is required to write your Ringo Card.",
+        not_detected: "We couldn't detect your Ringo Card. Hold it closer to the NFC area of your phone.",
+        invalid_state: "Ringo Card Writer ran into a problem starting NFC. Please try again.",
+        network_error: "Your Ringo Card moved away before we finished. Hold it steady and try again.",
+        aborted: "The write was cancelled.",
+        timeout: "We didn't detect a Ringo Card in time. Try again and hold it closer.",
+        profile_missing: "This Ringo profile is unavailable.",
+        generic: "We couldn't connect your Ringo Card. Please try again.",
+        network: "Ringo couldn't complete the setup. Check your connection and try again.",
+      },
     },
     account: {
       viewPage: "View your page",
@@ -2183,6 +2302,119 @@ export const translations = {
       subscription: "Abonnement",
       requests: "Demandes",
       qrCode: "Code QR",
+      ringoCard: "Carte Ringo",
+    },
+    ringoCard: {
+      pageTitle: "Écriture de Carte Ringo",
+      pageSubtitle: "Connectez votre Carte Ringo physique à votre Ringo numérique.",
+      tagline: "Votre lien physique vers votre Ringo numérique.",
+      yourRingoProfile: "Profil Ringo",
+      writeCta: "Écrire votre Carte Ringo",
+      writeNewCta: "Écrire une nouvelle Carte Ringo",
+      writeAnotherCta: "Écrire une autre carte",
+      continueCta: "Continuer",
+      tryAgainCta: "Réessayer",
+      howItWorksCta: "Comment ça marche",
+      confirmAndWriteCta: "Confirmer et écrire",
+      rewriteCta: "Réécrire votre Carte Ringo",
+      testCta: "Tester ma Carte Ringo",
+      readCardCta: "Lire la carte",
+      assignAction: "Associer cette Carte Ringo à mon profil",
+
+      selectTitle: "Prêt à connecter ?",
+      selectSubtitle: "Choisissez le profil Ringo à connecter à votre carte.",
+
+      readyTitle: "Approchez votre Carte Ringo de votre téléphone",
+      readySubtitle: "Tenez votre Carte Ringo près de la zone NFC de votre téléphone.",
+
+      statusPreparing: "Préparation…",
+      statusWaiting: "En attente de votre Carte Ringo…",
+      statusWriting: "Écriture de votre Ringo…",
+      statusVerifying: "Vérification de votre Carte Ringo…",
+
+      successTitle: "Carte Ringo prête",
+      successSubtitle: "Votre Carte Ringo est maintenant connectée à votre profil Ringo.",
+      successHint: "Votre carte ouvre désormais votre profil Ringo d'un simple contact.",
+
+      verifyTitle: "Carte Ringo",
+      verifyConnected: "Connectée",
+      verifyDestination: "Destination",
+      verifyStatus: "Statut",
+      verifyProfile: "Profil",
+      verifyReady: "Prête",
+      verifyNotYetRead: "Pas encore lue",
+
+      rewriteCurrentLabel: "Actuel",
+      rewriteNewLabel: "Nouveau",
+      rewriteHint: "Ceci remplace ce que votre Carte Ringo ouvre actuellement.",
+      staleUrlHint: "Le lien de votre profil Ringo a changé depuis la dernière écriture de cette carte — réécrivez-la pour qu'elle continue de fonctionner.",
+
+      myCardsTitle: "Mes Cartes Ringo",
+      myCardsEmpty: "Vous n'avez pas encore connecté de Carte Ringo.",
+      finishWritingAction: "Terminer l'écriture",
+      rewriteAction: "Réécrire",
+      cardDetailsToggle: "Détails de la carte",
+
+      statusLabels: {
+        available: "Disponible",
+        assigned: "Associée",
+        active: "Active",
+        lost: "Perdue",
+        disabled: "Désactivée",
+        replaced: "Remplacée",
+      },
+
+      diagnostics: {
+        cardStatus: "État de la carte",
+        writable: "Inscriptible",
+        readOnly: "Lecture seule",
+        ndef: "NDEF",
+        supported: "Pris en charge",
+        notDetected: "Non détecté",
+        destination: "Destination Ringo",
+        memory: "Mémoire",
+        memoryUnknown: "Non disponible dans ce navigateur",
+        technology: "Technologie de la carte",
+        technologyValue: "NTAG216 (NFC Forum Type 2)",
+        cardReference: "Carte Ringo",
+        cardUid: "Numéro de série de la carte",
+        cardUidHint: "Métadonnée de l'appareil uniquement — jamais utilisée pour vous connecter.",
+      },
+
+      troubleTitle: "Des difficultés à écrire votre Carte Ringo ?",
+      troubleReasons: [
+        "Le NFC est peut-être désactivé",
+        "Votre navigateur ne prend peut-être pas en charge l'écriture de Carte Ringo",
+        "Votre téléphone ne prend peut-être pas en charge l'écriture NFC",
+        "La Carte Ringo est peut-être déjà verrouillée",
+        "La carte n'est peut-être pas assez proche de la zone NFC",
+      ],
+
+      lockedTitle: "Cette Carte Ringo est verrouillée.",
+      lockedSubtitle: "Votre Carte Ringo ne peut pas être réécrite car elle a été rendue en lecture seule.",
+
+      desktopNotice: "L'écriture d'une Carte Ringo nécessite un téléphone compatible NFC. Vous pouvez tout de même consulter et gérer vos Cartes Ringo ici.",
+
+      howItWorksSteps: [
+        "L'utilisateur approche la Carte Ringo d'un téléphone compatible NFC.",
+        "Le téléphone détecte la carte automatiquement.",
+        "Le profil Ringo s'ouvre instantanément — sans application, sans connexion.",
+      ],
+
+      errors: {
+        unsupported: "L'écriture de Carte Ringo n'est pas prise en charge sur cet appareil ou ce navigateur.",
+        unsupportedHint: "Pour une meilleure expérience, ouvrez l'écriture de Carte Ringo sur un téléphone Android compatible avec le NFC activé.",
+        insecure_context: "L'écriture de Carte Ringo nécessite une connexion sécurisée.",
+        permission_denied: "L'autorisation NFC est requise pour écrire votre Carte Ringo.",
+        not_detected: "Nous n'avons pas détecté votre Carte Ringo. Rapprochez-la de la zone NFC de votre téléphone.",
+        invalid_state: "Un problème est survenu au démarrage du NFC. Veuillez réessayer.",
+        network_error: "Votre Carte Ringo s'est éloignée avant la fin. Maintenez-la immobile et réessayez.",
+        aborted: "L'écriture a été annulée.",
+        timeout: "Aucune Carte Ringo détectée à temps. Réessayez en la rapprochant.",
+        profile_missing: "Ce profil Ringo n'est pas disponible.",
+        generic: "Nous n'avons pas pu connecter votre Carte Ringo. Veuillez réessayer.",
+        network: "Ringo n'a pas pu terminer la configuration. Vérifiez votre connexion et réessayez.",
+      },
     },
     account: {
       viewPage: "Voir votre page",

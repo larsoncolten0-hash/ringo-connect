@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
@@ -65,6 +65,10 @@ export default function DashboardShell({
     // Same "always visible" reasoning as Bookings above — every category
     // can build a community, so this isn't gated either.
     { href: "/dashboard/community", label: t.nav.community, icon: Users },
+    // Ringo Card Writer — every creator can own a physical Ringo Card
+    // regardless of category, so (like Bookings/Community) this is never
+    // gated. See src/app/dashboard/ringo-card/page.tsx.
+    { href: "/dashboard/ringo-card", label: t.nav.ringoCard, icon: Nfc },
     { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3 },
     { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake },
     { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard },
