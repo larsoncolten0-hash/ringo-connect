@@ -23,8 +23,15 @@ export default function BookingDetail({ booking, whatsappNumber }: { booking: an
 
   const changeStatus = async (next: BookingStatus) => {
     setUpdating(next);
-    await supabase.from("bookings").update({ status: next, updated_at: new Date().toISOString() }).eq("id", booking.id);
-    await supabase.from("booking_status_history").insert({ booking_id: booking.id, status: next });
+    if (next === "confirmed") {
+      // Goes through an API route instead of the direct update below —
+      // this is also the moment a confirmation email fires, and sendEmail
+      // is server-only. See that route for the RLS ownership check.
+      await fetch(`/api/bookings/${booking.id}/confirm`, { method: "POST" });
+    } else {
+      await supabase.from("bookings").update({ status: next, updated_at: new Date().toISOString() }).eq("id", booking.id);
+      await supabase.from("booking_status_history").insert({ booking_id: booking.id, status: next });
+    }
     setUpdating(null);
     router.refresh();
   };

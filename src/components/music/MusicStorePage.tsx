@@ -65,6 +65,14 @@ export default function MusicStorePage({ profile }: { profile: any }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [mmError, setMmError] = useState("");
+  // True only for a Fapshi-confirmed FAILED/EXPIRED transaction — as
+  // opposed to a mere timeout, where the payment may still be genuinely
+  // in flight. Distinguishes "this specific attempt can never succeed, an
+  // artist would have to confirm a separate payment by hand" from "still
+  // real automatic Mobile Money, just slow" so the confirmation screen
+  // doesn't wrongly promise automatic unlocking for a transaction that
+  // has already permanently failed.
+  const [mmTerminalFailure, setMmTerminalFailure] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<{ id: string; order_number: number } | null>(null);
   const [orderDetail, setOrderDetail] = useState<any>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval>>();
@@ -122,6 +130,22 @@ export default function MusicStorePage({ profile }: { profile: any }) {
       setCart((prev) => [...prev, line as CartLine]);
       setShowCart(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ?order=<id> reopens an already-placed order's own confirmation screen
+  // — the link a fan's receipt email points at (see
+  // sendMusicOrderReceiptEmail) so Play/Download (or a ticket's QR pass)
+  // is still reachable after they've closed the original checkout tab, not
+  // just in that one session. The order id is a random UUID never listed
+  // anywhere, same access-control reasoning as every other public
+  // order/ticket lookup in this app (see /api/music/orders/[id]'s own
+  // comment) — no extra auth needed to view it.
+  useEffect(() => {
+    const orderId = searchParams.get("order");
+    if (!orderId) return;
+    setPlacedOrder({ id: orderId, order_number: 0 });
+    setStep("confirmation");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -194,6 +218,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
   const startMobileMoneyPayment = async (orderId: string) => {
     setStep("mm-processing");
     setMmError("");
+    setMmTerminalFailure(false);
     try {
       const res = await fetch(`/api/music/orders/${orderId}/pay`, {
         method: "POST",
@@ -227,10 +252,18 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           setStep("confirmation");
         } else if (data.status === "FAILED" || data.status === "EXPIRED") {
           clearInterval(pollTimer.current);
+          setMmTerminalFailure(true);
           setMmError(t.music.mobileMoneyFailed);
           setStep("mm-error");
         } else if (pollAttempts.current > 40) {
-          // ~2 minutes at 3s intervals — stop rather than poll forever.
+          // ~2 minutes at 3s intervals — stop the fast poll rather than
+          // keep hitting Fapshi every 3s forever. The payment may still be
+          // genuinely in flight (a slow USSD confirmation), so this is NOT
+          // a terminal failure: once the fan continues past this screen,
+          // /api/music/orders/[id]'s own poll (see the confirmation screen
+          // below) keeps re-checking Fapshi on its own, slower cadence for
+          // as long as that screen is open — no artist confirmation ever
+          // required for a Mobile Money order that eventually does clear.
           clearInterval(pollTimer.current);
           setMmError(t.music.mobileMoneyTimeout);
           setStep("mm-error");
@@ -243,11 +276,13 @@ export default function MusicStorePage({ profile }: { profile: any }) {
 
   // Polls every 4s for a live payment_status readout — the same pattern
   // RestaurantOrderPage.tsx uses. This matters here specifically because
-  // music_orders.payment_status starts 'unpaid' and is only ever flipped
-  // by the artist marking it paid by hand (there's no real payment
-  // gateway wired into this guest-checkout flow — see the migration's
-  // header note) — without polling, a fan who paid the artist in person
-  // right after ordering would have no way to see Play/Download unlock
+  // music_orders.payment_status starts 'unpaid': for cash/card it's only
+  // ever flipped by the artist marking it paid by hand (there's no real
+  // payment gateway behind those), while for a real Mobile Money order
+  // this same GET route re-checks Fapshi on every poll and flips it on its
+  // own once the charge clears (see src/lib/musicOrderPayment.ts) — no
+  // artist confirmation involved either way this resolves. Without
+  // polling, a fan wouldn't have any way to see Play/Download unlock
   // without manually reloading the page.
   useEffect(() => {
     if (!placedOrder) return;
@@ -264,7 +299,28 @@ export default function MusicStorePage({ profile }: { profile: any }) {
     return () => clearInterval(interval);
   }, [placedOrder]);
 
+  // The order-detail poll above keeps re-checking Fapshi in the background
+  // (server-side, in the /api/music/orders/[id] route) even after the fast
+  // pay-status loop above has given up and shown mm-error/mobileMoneyTimeout
+  // — so if the fan's payment actually clears a bit later, jump straight to
+  // the confirmation screen the moment that shows up, rather than leaving
+  // them stranded on an error screen for a payment that in fact succeeded.
+  useEffect(() => {
+    if ((step === "mm-processing" || step === "mm-error") && orderDetail?.payment_status === "paid") {
+      clearInterval(pollTimer.current);
+      setStep("confirmation");
+    }
+  }, [orderDetail, step]);
+
   const musicSectionLabel = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.storeMusicHeading;
+
+  // Whether this order still has a real, not-yet-resolved automatic Mobile
+  // Money attempt behind it — as opposed to a cash/card (or non-XAF
+  // mobile_money) order, which has never had one and genuinely does need
+  // the artist to confirm it by hand, or a Mobile Money attempt that has
+  // already permanently FAILED/EXPIRED (mmTerminalFailure), for which no
+  // further automatic confirmation will ever arrive either.
+  const autoConfirmPending = !!orderDetail?.pending_fapshi_trans_id && orderDetail?.payment_status !== "paid" && !mmTerminalFailure;
 
   if (step === "confirmation" && placedOrder) {
     return (
@@ -275,12 +331,16 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           </span>
           <h1 className="font-display text-xl font-bold">{t.music.purchaseSuccessfulTitle}</h1>
           <p className="text-sm" style={{ opacity: 0.6 }}>
-            {t.restaurant.orderNumberLabel} #{placedOrder.order_number}
+            {t.restaurant.orderNumberLabel} #{orderDetail?.order_number || placedOrder.order_number || "…"}
           </p>
 
           {orderDetail?.items?.some((i: any) => i.item_type === "song" || i.item_type === "release") && (
             <p className="text-xs" style={{ opacity: 0.6 }}>
-              {orderDetail.payment_status === "paid" ? t.music.emailDeliveryNote : t.music.purchasePendingNote}
+              {orderDetail.payment_status === "paid"
+                ? t.music.emailDeliveryNote
+                : autoConfirmPending
+                ? t.music.purchasePendingAutoNote
+                : t.music.purchasePendingNote}
             </p>
           )}
 
@@ -481,7 +541,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
               {t.music.mobileMoneyRetry}
             </button>
             <button onClick={() => setStep("confirmation")} className="py-2.5 text-sm font-medium" style={{ opacity: 0.6 }}>
-              {t.music.mobileMoneyContinueAnyway}
+              {mmTerminalFailure ? t.music.mobileMoneyContinueAnyway : t.music.mobileMoneyContinueChecking}
             </button>
           </div>
         </div>
@@ -680,15 +740,17 @@ function StoreCard({
 // which mints a short-lived signed URL only after re-verifying this exact
 // order paid for this exact track (see /api/music/tracks/[id]/audio).
 // `paid` (music_orders.payment_status === "paid") gates whether those
-// buttons even render as live controls: payment_status starts 'unpaid'
-// and is only ever flipped by the artist marking the order paid by hand
-// (no real payment gateway is wired into this guest-checkout flow), so
-// right after checkout the track genuinely isn't accessible yet — showing
-// a live-looking Play/Download button in that state did nothing when
-// tapped and gave no explanation why. Now it shows an honest "pending"
-// state instead, and MusicStorePage's 4s poll flips `paid` to true (and
-// this back to real buttons) the moment the artist confirms, no reload
-// needed.
+// buttons even render as live controls: payment_status starts 'unpaid' and
+// only flips once the order is actually paid for — automatically, the
+// moment Fapshi confirms a real Mobile Money charge (see
+// src/lib/musicOrderPayment.ts, no artist involved), or by the artist
+// marking a cash/card order paid by hand (there's no payment gateway
+// behind those). Either way, right after checkout the track genuinely
+// isn't accessible yet — showing a live-looking Play/Download button in
+// that state did nothing when tapped and gave no explanation why. Now it
+// shows an honest "pending" state instead, and MusicStorePage's poll flips
+// `paid` to true (and this back to real buttons) the moment it clears, no
+// reload needed.
 function PurchasedItem({
   item,
   orderId,

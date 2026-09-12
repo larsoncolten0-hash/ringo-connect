@@ -38,6 +38,7 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
   );
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [marketingOptIn, setMarketingOptIn] = useState(false); // never default true
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money" | "card">("cash");
@@ -100,6 +101,7 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
           order_type: orderType,
           customer_name: name.trim(),
           customer_phone: phone.trim(),
+          customer_email: email.trim(),
           delivery_address: deliveryAddress.trim(),
           marketing_opt_in: marketingOptIn,
           payment_method: paymentMethod,
@@ -164,6 +166,7 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
               {statusMessage(orderStatus.status)}
             </p>
           )}
+          {email.trim() && <p className="text-xs" style={{ opacity: 0.6 }}>{t.restaurant.receiptEmailedNote}</p>}
 
           <div id="receipt" className="w-full rounded-2xl border p-4 text-left mt-2" style={{ borderColor: "#E5E7EB" }}>
             <div className="flex items-center justify-between mb-1">
@@ -332,6 +335,17 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
               onChange={(e) => setPhone(e.target.value)}
               placeholder={t.restaurant.phonePlaceholder}
               inputMode="tel"
+              className="border rounded-card px-3.5 py-2.5 text-sm"
+              style={{ borderColor: "#E5E7EB" }}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium" style={{ opacity: 0.7 }}>{t.restaurant.emailLabel}</span>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={t.restaurant.emailPlaceholder}
+              type="email"
               className="border rounded-card px-3.5 py-2.5 text-sm"
               style={{ borderColor: "#E5E7EB" }}
             />
