@@ -873,6 +873,7 @@ export const translations = {
       writeAnotherCta: "Write Another Card",
       continueCta: "Continue",
       tryAgainCta: "Try Again",
+      backCta: "Back",
       howItWorksCta: "How It Works",
       confirmAndWriteCta: "Confirm & Write",
       rewriteCta: "Rewrite Your Ringo Card",
@@ -963,6 +964,7 @@ export const translations = {
       errors: {
         unsupported: "Ringo Card Writer isn't supported on this device or browser.",
         unsupportedHint: "For the best experience, open Ringo Card Writer on a compatible Android phone with NFC enabled.",
+        unsupportedIosHint: "iPhone can't write a Ringo Card — Apple doesn't allow any iPhone browser to do this. Borrow an Android phone (or visit a Ringo location) to write your card. Once it's written, anyone can tap it — including on iPhone — to open your Ringo profile instantly.",
         insecure_context: "Ringo Card Writer needs a secure connection to work.",
         permission_denied: "NFC permission is required to write your Ringo Card.",
         not_detected: "We couldn't detect your Ringo Card. Hold it closer to the NFC area of your phone.",
@@ -2314,6 +2316,7 @@ export const translations = {
       writeAnotherCta: "Écrire une autre carte",
       continueCta: "Continuer",
       tryAgainCta: "Réessayer",
+      backCta: "Retour",
       howItWorksCta: "Comment ça marche",
       confirmAndWriteCta: "Confirmer et écrire",
       rewriteCta: "Réécrire votre Carte Ringo",
@@ -2404,6 +2407,7 @@ export const translations = {
       errors: {
         unsupported: "L'écriture de Carte Ringo n'est pas prise en charge sur cet appareil ou ce navigateur.",
         unsupportedHint: "Pour une meilleure expérience, ouvrez l'écriture de Carte Ringo sur un téléphone Android compatible avec le NFC activé.",
+        unsupportedIosHint: "L'iPhone ne peut pas écrire de Carte Ringo — Apple ne l'autorise sur aucun navigateur iPhone. Empruntez un téléphone Android (ou rendez-vous dans un point Ringo) pour écrire votre carte. Une fois écrite, n'importe qui peut la tapoter — même depuis un iPhone — pour ouvrir votre profil Ringo instantanément.",
         insecure_context: "L'écriture de Carte Ringo nécessite une connexion sécurisée.",
         permission_denied: "L'autorisation NFC est requise pour écrire votre Carte Ringo.",
         not_detected: "Nous n'avons pas détecté votre Carte Ringo. Rapprochez-la de la zone NFC de votre téléphone.",

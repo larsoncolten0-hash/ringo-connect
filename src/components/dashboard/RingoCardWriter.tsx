@@ -20,6 +20,7 @@ import {
   isWebNfcSupported,
   isSecureContextAvailable,
   isLikelyAndroid,
+  isLikelyIOS,
   writeRingoCardUrl,
   readRingoCard,
   RingoCardError,
@@ -412,7 +413,8 @@ export default function RingoCardWriter({
         {unsupported ? (
           <UnsupportedPanel
             c={c}
-            isDesktop={!isLikelyAndroid()}
+            isIos={isLikelyIOS()}
+            isDesktop={!isLikelyAndroid() && !isLikelyIOS()}
             onHowItWorks={() => setShowHowItWorks(true)}
             showHowItWorks={showHowItWorks}
             onHide={() => setShowHowItWorks(false)}
@@ -580,6 +582,7 @@ function BackBar({ onBack }: { onBack: () => void }) {
 
 function UnsupportedPanel({
   c,
+  isIos,
   isDesktop,
   showHowItWorks,
   onHowItWorks,
@@ -587,6 +590,7 @@ function UnsupportedPanel({
   onBack,
 }: {
   c: any;
+  isIos: boolean;
   isDesktop: boolean;
   showHowItWorks: boolean;
   onHowItWorks: () => void;
@@ -599,12 +603,19 @@ function UnsupportedPanel({
         <ShieldAlert size={24} className="text-ringo-coral" strokeWidth={2.25} />
       </span>
       <h1 className="font-display text-lg font-semibold text-ringo-text mb-1">{c.errors.unsupported}</h1>
-      <p className="text-xs text-ringo-muted mb-2 max-w-xs">{c.errors.unsupportedHint}</p>
+      {/* iPhone gets its own honest explanation (a real, permanent Apple
+          platform limitation, not a bug to retry around) instead of the
+          generic "try a compatible device" hint. */}
+      <p className="text-xs text-ringo-muted mb-2 max-w-xs">{isIos ? c.errors.unsupportedIosHint : c.errors.unsupportedHint}</p>
       {isDesktop && <p className="text-xs text-ringo-muted mb-3 max-w-xs">{c.desktopNotice}</p>}
 
       <div className="w-full flex flex-col sm:flex-row gap-2 mt-3">
+        {/* On iPhone this is a permanent platform limitation, not a
+            transient failure — "Try Again" would imply retrying could
+            help, which it never will, so it's relabeled "Back" there
+            instead (same action either way: return to the main screen). */}
         <button onClick={onBack} className="flex-1 px-4 py-3 rounded-card bg-ringo-indigo text-white text-sm font-semibold hover:brightness-110 transition">
-          {c.tryAgainCta}
+          {isIos ? c.backCta : c.tryAgainCta}
         </button>
         <button
           onClick={showHowItWorks ? onHide : onHowItWorks}

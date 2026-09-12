@@ -92,6 +92,20 @@ export function isLikelyAndroid(): boolean {
   return typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
 }
 
+// True on iPhone/iPad in any browser (Safari, or Chrome/Edge-on-iOS,
+// which are required by Apple to run on WebKit under the hood). Used only
+// to tailor the "not supported" copy — no iOS browser implements Web
+// NFC's write API at all, so this is a real, permanent platform gap
+// rather than a bug to retry around. Reading a finished Ringo Card still
+// works fine on iPhone via iOS's own background NFC tag reading — this
+// only affects a creator trying to WRITE a card from their iPhone.
+export function isLikelyIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  // Modern iPadOS reports as "MacIntel" with touch support, hence the
+  // extra maxTouchPoints check alongside the classic UA sniff.
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 // ---------------------------------------------------------------------------
 // Error taxonomy — every failure the UI needs to tell apart, mapped from
 // whatever DOMException/error the browser actually throws. The UI never
