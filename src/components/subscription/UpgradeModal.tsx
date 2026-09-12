@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Smartphone, CreditCard, Loader2, CheckCircle2, X, ArrowLeft } from "lucide-react";
+import { Smartphone, CreditCard, Loader2, CheckCircle2, X, ArrowLeft, Hash, CalendarDays, Copy, Check } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 
@@ -17,10 +17,13 @@ export default function UpgradeModal({
   priceUsdYearly: priceUsdYearlyRaw,
   defaultMethod,
   defaultInterval = "monthly",
+  isCameroon = false,
   fapshiEnabled = true,
   stripeEnabled = true,
   onClose,
   onSuccess,
+  __previewStep,
+  __previewReceipt,
 }: {
   planName: "basic" | "pro" | "business";
   priceXaf: number;
@@ -29,18 +32,35 @@ export default function UpgradeModal({
   priceUsdYearly: number;
   defaultMethod: Method;
   defaultInterval?: Interval;
+  // Which single method to actually offer: Mobile Money in Cameroon, card
+  // everywhere else — no picking between the two, since a card is
+  // normally unusable for a Cameroon Mobile Money line and vice versa.
+  // Only falls back to the other one if the admin has turned off the
+  // method this location would otherwise get (see `methods` below), so
+  // there's still always at least one working option rather than a dead
+  // modal.
+  isCameroon?: boolean;
   fapshiEnabled?: boolean;
   stripeEnabled?: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  // TEMP — visual QA only, lets a throwaway preview page force this modal
+  // straight to the receipt step without a real payment. Not wired up
+  // from anywhere in the real app. Remove once the redesign is verified.
+  __previewStep?: Step;
+  __previewReceipt?: { transId: string; amount: number; medium: string; date: string };
 }) {
-  const { t } = useLanguage();
-  const [step, setStep] = useState<Step>("choose");
+  const { t, locale } = useLanguage();
+  const [step, setStep] = useState<Step>(__previewStep ?? "choose");
   const [method, setMethod] = useState<Method>(defaultMethod);
   const [billingInterval, setBillingInterval] = useState<Interval>(defaultInterval);
   const [phone, setPhone] = useState("");
   const [medium, setMedium] = useState<"mobile money" | "orange money">("mobile money");
   const [error, setError] = useState("");
+  const [receipt, setReceipt] = useState<{ transId: string; amount: number; medium: string; date: string } | null>(
+    __previewReceipt ?? null
+  );
+  const [copied, setCopied] = useState(false);
   const pollTimer = useRef<ReturnType<typeof setInterval>>();
   const pollAttempts = useRef(0);
 
@@ -48,6 +68,15 @@ export default function UpgradeModal({
 
   const priceXaf = formatPrice(billingInterval === "yearly" ? priceXafYearlyRaw : priceXafMonthlyRaw, "XAF");
   const priceUsd = formatPrice(billingInterval === "yearly" ? priceUsdYearlyRaw : priceUsdMonthlyRaw, "USD");
+
+  // Location decides which single method is offered — Mobile Money only
+  // in Cameroon, card only abroad. If that location's own method has been
+  // switched off platform-wide, fall back to whichever one is actually
+  // enabled rather than showing a method nobody can complete.
+  const locationPreferred: Method = isCameroon ? "mobile_money" : "card";
+  const showMobileMoney =
+    locationPreferred === "mobile_money" ? fapshiEnabled : fapshiEnabled && !stripeEnabled;
+  const showCard = locationPreferred === "card" ? stripeEnabled : stripeEnabled && !fapshiEnabled;
 
   // Savings badge: how much cheaper yearly is vs. paying monthly x12.
   const yearlyMonthlyEquivalent = priceUsdYearlyRaw / 12;
@@ -79,6 +108,12 @@ export default function UpgradeModal({
         const data = await res.json();
         if (data.status === "SUCCESSFUL") {
           clearInterval(pollTimer.current);
+          setReceipt({
+            transId,
+            amount: data.amount,
+            medium: data.medium,
+            date: data.dateConfirmed || new Date().toISOString(),
+          });
           setStep("mm-success");
         } else if (data.status === "FAILED" || data.status === "EXPIRED") {
           clearInterval(pollTimer.current);
@@ -118,10 +153,22 @@ export default function UpgradeModal({
 
   const closable = step !== "mm-processing" && step !== "card-redirecting";
 
+  const copyReference = () => {
+    if (!receipt) return;
+    navigator.clipboard?.writeText(receipt.transId).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40" onClick={closable ? onClose : undefined} />
-      <div className="relative w-full max-w-sm rounded-card bg-ringo-surface border border-ringo-border p-6">
+      <div
+        className={`relative w-full rounded-card bg-ringo-surface border border-ringo-border p-6 ${
+          step === "mm-success" ? "max-w-md" : "max-w-sm"
+        }`}
+      >
         {closable && (
           <button
             onClick={onClose}
@@ -158,56 +205,48 @@ export default function UpgradeModal({
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <button
-                onClick={() => {
-                  if (!fapshiEnabled) return;
-                  setMethod("mobile_money");
-                  setStep("mm-form");
-                }}
-                disabled={!fapshiEnabled}
-                className={`flex items-center gap-3 rounded-card border p-3.5 text-left transition ${
-                  !fapshiEnabled
-                    ? "border-ringo-border opacity-50 cursor-not-allowed"
-                    : method === "mobile_money"
-                    ? "border-ringo-indigo bg-ringo-indigo/5"
-                    : "border-ringo-border hover:border-ringo-indigo"
-                }`}
-              >
-                <span className="w-9 h-9 rounded-full bg-ringo-teal/10 flex items-center justify-center shrink-0">
-                  <Smartphone size={16} className="text-ringo-teal" />
-                </span>
-                <span className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-ringo-text">{t.subscription.mobileMoney}</p>
-                  <p className="text-xs text-ringo-muted">
-                    {fapshiEnabled ? t.subscription.mobileMoneyDesc : t.subscription.methodUnavailable}
-                  </p>
-                </span>
-                {fapshiEnabled && <span className="text-sm font-medium text-ringo-text shrink-0">{priceXaf}</span>}
-              </button>
+              {showMobileMoney && (
+                <button
+                  onClick={() => {
+                    setMethod("mobile_money");
+                    setStep("mm-form");
+                  }}
+                  className={`flex items-center gap-3 rounded-card border p-3.5 text-left transition ${
+                    method === "mobile_money"
+                      ? "border-ringo-indigo bg-ringo-indigo/5"
+                      : "border-ringo-border hover:border-ringo-indigo"
+                  }`}
+                >
+                  <span className="w-9 h-9 rounded-full bg-ringo-teal/10 flex items-center justify-center shrink-0">
+                    <Smartphone size={16} className="text-ringo-teal" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-ringo-text">{t.subscription.mobileMoney}</p>
+                    <p className="text-xs text-ringo-muted">{t.subscription.mobileMoneyDesc}</p>
+                  </span>
+                  <span className="text-sm font-medium text-ringo-text shrink-0">{priceXaf}</span>
+                </button>
+              )}
 
-              <button
-                onClick={() => {
-                  if (!stripeEnabled) return;
-                  startCard();
-                }}
-                disabled={!stripeEnabled}
-                className={`flex items-center gap-3 rounded-card border p-3.5 text-left transition ${
-                  !stripeEnabled
-                    ? "border-ringo-border opacity-50 cursor-not-allowed"
-                    : "border-ringo-border hover:border-ringo-indigo"
-                }`}
-              >
-                <span className="w-9 h-9 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
-                  <CreditCard size={16} className="text-ringo-indigo" />
-                </span>
-                <span className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-ringo-text">{t.subscription.card}</p>
-                  <p className="text-xs text-ringo-muted">
-                    {stripeEnabled ? t.subscription.cardDesc : t.subscription.methodUnavailable}
-                  </p>
-                </span>
-                {stripeEnabled && <span className="text-sm font-medium text-ringo-text shrink-0">{priceUsd}</span>}
-              </button>
+              {showCard && (
+                <button
+                  onClick={startCard}
+                  className="flex items-center gap-3 rounded-card border border-ringo-border p-3.5 text-left transition hover:border-ringo-indigo"
+                >
+                  <span className="w-9 h-9 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
+                    <CreditCard size={16} className="text-ringo-indigo" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-ringo-text">{t.subscription.card}</p>
+                    <p className="text-xs text-ringo-muted">{t.subscription.cardDesc}</p>
+                  </span>
+                  <span className="text-sm font-medium text-ringo-text shrink-0">{priceUsd}</span>
+                </button>
+              )}
+
+              {!showMobileMoney && !showCard && (
+                <p className="text-sm text-ringo-muted text-center py-3">{t.subscription.methodUnavailable}</p>
+              )}
             </div>
           </>
         )}
@@ -279,18 +318,86 @@ export default function UpgradeModal({
           </div>
         )}
 
-        {step === "mm-success" && (
-          <div className="flex flex-col items-center text-center py-4 gap-3">
-            <CheckCircle2 size={32} className="text-ringo-teal" />
+        {step === "mm-success" && receipt && (
+          <div className="flex flex-col items-center text-center gap-1 py-2">
+            <span className="w-14 h-14 rounded-full bg-ringo-teal/10 flex items-center justify-center mb-2">
+              <CheckCircle2 size={30} className="text-ringo-teal" />
+            </span>
             <p className="font-display text-lg font-medium text-ringo-text capitalize">
               {t.subscription.paymentSuccess}
             </p>
-            <p className="text-sm text-ringo-muted capitalize">
+            <p className="text-sm text-ringo-muted capitalize mb-4">
               {planName} {t.subscription.paymentSuccessDesc}
             </p>
+
+            {/* Itemized receipt — mirrors what a customer expects from a
+                real payment confirmation: what was bought, how, and a
+                reference they can quote if they ever need support. */}
+            <div className="w-full rounded-card border border-ringo-border bg-ringo-bg text-left overflow-hidden">
+              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-ringo-border">
+                <img src="/logo.png" alt="" className="w-6 h-6 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ringo-text truncate">Ringo Connect</p>
+                  <p className="text-[11px] text-ringo-muted">{t.subscription.receiptTitle}</p>
+                </div>
+              </div>
+
+              <div className="px-4 py-3 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-ringo-muted">{t.subscription.receiptPlan}</span>
+                  <span className="text-sm font-medium text-ringo-text capitalize">
+                    {planName} · {billingInterval === "yearly" ? t.subscription.billingYearly : t.subscription.billingMonthly}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-ringo-muted">{t.subscription.receiptMethod}</span>
+                  <span className="text-sm font-medium text-ringo-text">
+                    {receipt.medium === "orange money" ? t.subscription.orangeMoney : t.subscription.mtnMomo}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-ringo-muted flex items-center gap-1">
+                    <CalendarDays size={12} />
+                    {t.subscription.receiptDate}
+                  </span>
+                  <span className="text-sm font-medium text-ringo-text">
+                    {new Date(receipt.date).toLocaleString(locale, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-t border-dashed border-ringo-border px-4 py-3 flex items-center justify-between">
+                <span className="text-sm font-medium text-ringo-text">{t.subscription.receiptAmountPaid}</span>
+                <span className="font-display text-base font-medium text-ringo-teal tabular-nums">
+                  {formatPrice(receipt.amount, "XAF", locale)}
+                </span>
+              </div>
+
+              <button
+                onClick={copyReference}
+                className="w-full flex items-center justify-between gap-3 px-4 py-2.5 border-t border-ringo-border bg-ringo-surface hover:bg-ringo-border/20 transition text-left"
+              >
+                <span className="text-xs text-ringo-muted flex items-center gap-1">
+                  <Hash size={12} />
+                  {t.subscription.receiptReference}
+                </span>
+                <span className="text-xs font-mono text-ringo-text flex items-center gap-1.5 shrink-0">
+                  {receipt.transId}
+                  {copied ? (
+                    <Check size={12} className="text-ringo-teal" />
+                  ) : (
+                    <Copy size={12} className="text-ringo-muted" />
+                  )}
+                </span>
+              </button>
+            </div>
+
             <button
               onClick={onSuccess}
-              className="w-full rounded-card bg-ringo-indigo text-white text-sm font-medium py-2.5 mt-2"
+              className="w-full rounded-card bg-ringo-indigo text-white text-sm font-medium py-2.5 mt-4"
             >
               {t.subscription.done}
             </button>

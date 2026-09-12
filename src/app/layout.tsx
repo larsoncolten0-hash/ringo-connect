@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import { LanguageProvider } from "@/components/LanguageProvider";
+import { SoundProvider } from "@/components/SoundProvider";
 import ReferralCapture from "@/components/ReferralCapture";
 import "./globals.css";
 
@@ -47,7 +48,9 @@ export default function RootLayout({
       </head>
       <body>
         <ReferralCapture />
-        <LanguageProvider>{children}</LanguageProvider>
+        <LanguageProvider>
+          <SoundProvider>{children}</SoundProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

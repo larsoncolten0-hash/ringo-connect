@@ -1,7 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { notifyAdmins, notifyUser, getSignupRequestReviewers } from "@/lib/notifications";
-import { emailShell, sendEmail } from "@/lib/email";
+import { isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
 import { NextResponse } from "next/server";
+import { getSignupRequestReviewers, notifyAdmins, notifyUser } from "@/lib/notifications";
+import { emailShell, sendEmail } from "@/lib/email";
 
 // Public, unauthenticated by design — this is the whole point of the
 // assisted-onboarding form. There's no session to scope a regular client
@@ -31,7 +32,10 @@ export async function POST(request: Request) {
       suggested_username: body.suggested_username || null,
       avatar_url: body.avatar_url || null,
       business_note: body.business_note || null,
-      referral_code: referralCode,
+      category: isCategoryId(body.category) ? body.category : null,
+      categories: sanitizeCategoryIds(body.categories),
+      // 40 chars, not shorter — see the matching comment in src/lib/referral.ts.
+      referral_code: typeof body.referral_code === "string" ? body.referral_code.trim().toUpperCase().slice(0, 40) || null : null,
       delivery_location: body.delivery_location || null,
       requested_plan_id: body.requested_plan_id || null,
       requested_interval: body.requested_interval === "yearly" ? "yearly" : "monthly",

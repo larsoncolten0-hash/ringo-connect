@@ -7,7 +7,9 @@ import { Link2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
+import EmptyState from "./EmptyState";
 import LinkRow from "./LinkRow";
+import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
 
 export default function LinksCard({
@@ -28,6 +30,7 @@ export default function LinksCard({
   );
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const persistTimer = useRef<ReturnType<typeof setTimeout>>();
+  const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
 
   const limitReached = maxLinks != null && links.length >= maxLinks;
@@ -55,8 +58,19 @@ export default function LinksCard({
     });
   };
 
-  const persistLink = async (id: string, patch: any) => {
-    await supabase.from("links").update(patch).eq("id", id);
+  // One explicit save for every link's fields at once — mirrors
+  // WhatsAppCard: nothing reaches Supabase until this is clicked. Adding,
+  // deleting, and reordering links stay immediate (structural, not edits).
+  const saveAll = async () => {
+    await Promise.all(
+      links.map((l) =>
+        supabase
+          .from("links")
+          .update({ title: l.title, url: l.url, description: l.description, image_url: l.image_url })
+          .eq("id", l.id)
+      )
+    );
+    pulse.show();
   };
 
   const deleteLink = async (id: string) => {
@@ -90,13 +104,16 @@ export default function LinksCard({
       icon={Link2}
       title={t.editor.links}
       action={
-        <button
-          onClick={addLink}
-          disabled={limitReached}
-          className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white disabled:opacity-40"
-        >
-          {t.editor.addLink}
-        </button>
+        <>
+          <SavedPulse visible={pulse.visible} label={t.editor.saved} />
+          <button
+            onClick={addLink}
+            disabled={limitReached}
+            className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white disabled:opacity-40 transition hover:brightness-110 active:scale-[0.97]"
+          >
+            {t.editor.addLink}
+          </button>
+        </>
       }
     >
       {limitReached && (
@@ -107,7 +124,11 @@ export default function LinksCard({
           </NextLink>
         </p>
       )}
-      {links.length === 0 && <p className="text-sm text-ringo-muted">{t.editor.noLinksYet}</p>}
+      {links.length === 0 && (
+        <div className="mb-2">
+          <EmptyState icon={Link2} title={t.editor.noLinksYet} />
+        </div>
+      )}
 
       <Reorder.Group axis="y" values={links} onReorder={handleReorder} className="flex flex-col gap-2">
         {links.map((link) => (
@@ -117,11 +138,19 @@ export default function LinksCard({
             userId={userId}
             startExpanded={link.id === justAddedId}
             onChange={(patch) => updateLink(link.id, patch)}
-            onPersist={(patch) => persistLink(link.id, patch)}
             onDelete={() => deleteLink(link.id)}
           />
         ))}
       </Reorder.Group>
+
+      {links.length > 0 && (
+        <button
+          onClick={saveAll}
+          className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
+        >
+          {t.editor.save}
+        </button>
+      )}
     </EditorCard>
   );
 }

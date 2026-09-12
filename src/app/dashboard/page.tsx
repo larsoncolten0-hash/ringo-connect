@@ -21,7 +21,9 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select(`*, social_links(*), links(*), products(*), profile_phone_numbers(*)`)
+    .select(
+      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_categories(*), menu_items(*), restaurant_tables(*), music_releases(*), booking_services(*)`
+    )
     .eq("user_id", user.id)
     .single();
 
@@ -37,5 +39,12 @@ export default async function DashboardPage() {
   (profileForClient as any).facebookCapiConfigured = !!facebook_capi_token_encrypted;
   (profileForClient as any).tiktokEventsConfigured = !!tiktok_events_token_encrypted;
 
-  return <Editor profile={profileForClient} plan={userRow?.plans} userId={user.id} />;
+  return (
+    <Editor
+      profile={profileForClient}
+      plan={userRow?.plans}
+      userId={user.id}
+      siteUrl={process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com"}
+    />
+  );
 }

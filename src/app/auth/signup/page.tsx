@@ -4,15 +4,24 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getReferralCode } from "@/lib/referral";
-import { Check } from "lucide-react";
+import { Check, ArrowLeft } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
 import FormField from "@/components/auth/FormField";
 import SubmitButton from "@/components/auth/SubmitButton";
 import FormBanner from "@/components/auth/FormBanner";
+import CategoryPicker from "@/components/CategoryPicker";
+import type { CategoryId } from "@/lib/categories";
 
 type UsernameStatus = "idle" | "checking" | "available" | "taken" | "invalid";
 
 export default function SignupPage() {
+  // This page doesn't use the app's i18n system (it's English-only by
+  // design, unlike /get-started) — CategoryPicker still needs a locale to
+  // pick which language to render its labels in, so it's hardcoded here.
+  const [step, setStep] = useState<"category" | "form">("category");
+  const [category, setCategory] = useState<CategoryId | null>(null);
+  const [extraCategories, setExtraCategories] = useState<CategoryId[]>([]);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -86,8 +95,16 @@ export default function SignupPage() {
       options: {
         // Read by the handle_new_auth_user trigger (username) and the
         // affiliate system's attribute_referral trigger (ref) — see
-        // supabase/migrations/2026-09-06_affiliate_system.sql.
-        data: { username, ...(ref ? { ref } : {}) },
+        // supabase/migrations/2026-09-06_affiliate_system.sql. category/
+        // categories aren't read by that trigger — they're applied to the
+        // profile once a session exists, from /auth/confirm (see there for
+        // why: RLS needs auth.uid(), which isn't set until the email is
+        // confirmed).
+        data: {
+          username,
+          ...(ref ? { ref } : {}),
+          ...(category ? { category, categories: [category, ...extraCategories] } : {}),
+        },
         emailRedirectTo: `${window.location.origin}/auth/confirm`,
       },
     });
@@ -144,6 +161,53 @@ export default function SignupPage() {
     );
   }
 
+  if (step === "category") {
+    return (
+      <AuthShell
+        eyebrow="Get started"
+        title="What's your page for?"
+        subtitle="Pick what best describes you — this personalizes your page's defaults. You can change it any time, and add more later."
+      >
+        <CategoryPicker
+          locale="en"
+          primary={category}
+          onSelectPrimary={setCategory}
+          extra={extraCategories}
+          onToggleExtra={(id) =>
+            setExtraCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
+          }
+          strings={{
+            morePrompt: "+ Add more categories (optional)",
+            moreHint: "Your page fits more than one? Select as many as apply.",
+          }}
+        />
+
+        <div className="flex flex-col gap-3 mt-6">
+          <button
+            onClick={() => setStep("form")}
+            disabled={!category}
+            className="py-3 rounded-card bg-ringo-indigo text-white text-sm font-medium disabled:opacity-40"
+          >
+            Continue
+          </button>
+          <button
+            onClick={() => setStep("form")}
+            className="text-sm text-ringo-muted hover:text-ringo-text transition-colors"
+          >
+            Skip — I'll choose later
+          </button>
+        </div>
+
+        <p className="text-sm text-ringo-muted text-center mt-6">
+          Already have a page?{" "}
+          <Link href="/auth/login" className="text-ringo-indigo font-medium hover:underline">
+            Log in
+          </Link>
+        </p>
+      </AuthShell>
+    );
+  }
+
   return (
     <AuthShell
       eyebrow="Get started"
@@ -152,6 +216,15 @@ export default function SignupPage() {
     >
       <form onSubmit={handleSignup} noValidate>
         {error && <FormBanner type="error">{error}</FormBanner>}
+
+        <button
+          type="button"
+          onClick={() => setStep("category")}
+          className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4"
+        >
+          <ArrowLeft size={15} />
+          Back
+        </button>
 
         <div className="mb-4">
           <label className="block">

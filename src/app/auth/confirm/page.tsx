@@ -6,6 +6,7 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import AuthShell from "@/components/auth/AuthShell";
 import FormBanner from "@/components/auth/FormBanner";
+import { getCategory, sanitizeCategoryIds, isCategoryId } from "@/lib/categories";
 
 // Deliberately a client page, not a server Route Handler. Email link
 // scanners (Outlook Safe Links, Gmail, corporate antivirus proxies) fetch
@@ -28,7 +29,7 @@ function ConfirmInner() {
       return;
     }
 
-    supabase.auth.verifyOtp({ token_hash, type }).then(({ error }) => {
+    supabase.auth.verifyOtp({ token_hash, type }).then(async ({ data, error }) => {
       if (error) {
         setStatus("error");
       } else if (type === "recovery") {
@@ -37,6 +38,47 @@ function ConfirmInner() {
         // the session, so reset-password picks it up via getSession().
         router.replace("/auth/reset-password");
       } else {
+        // The category chosen at signup (see /auth/signup) travels as
+        // auth user_metadata rather than being written straight to the
+        // profile — the signup trigger that creates the profiles row
+        // doesn't know about it, and RLS on profiles needs auth.uid(),
+        // which isn't set until now (email confirmed, session established).
+        // This only ever touches a brand-new profile — safe to seed its
+        // default WhatsApp message unconditionally, no risk of clobbering
+        // something the creator already wrote.
+        const meta = data.user?.user_metadata as { category?: string; categories?: string[] } | undefined;
+        if (data.user && meta?.category && isCategoryId(meta.category)) {
+          const category = getCategory(meta.category);
+          const categories = sanitizeCategoryIds(meta.categories);
+          const theme = category?.defaults.recommendedTheme;
+          await supabase
+            .from("profiles")
+            .update({
+              category: meta.category,
+              categories: categories.length ? categories : [meta.category],
+              ...(category?.defaults.whatsappMessage
+                ? { default_whatsapp_message: category.defaults.whatsappMessage.en }
+                : {}),
+              // Music & Entertainment ships a curated look (warm gold on
+              // near-black, pill buttons) — applied automatically here for
+              // the same reason as the WhatsApp message above: a
+              // brand-new profile has nothing of its own to overwrite yet.
+              // Anywhere else this category gets picked from (CategoryCard,
+              // after signup), it's an explicit button press instead.
+              ...(theme
+                ? {
+                    theme_color: theme.themeColor,
+                    background_style: theme.backgroundStyle,
+                    background_color: theme.backgroundColor,
+                    background_gradient_end: theme.backgroundGradientEnd,
+                    text_color: theme.textColor,
+                    button_style: theme.buttonStyle,
+                    button_radius: theme.buttonRadius,
+                  }
+                : {}),
+            })
+            .eq("user_id", data.user.id);
+        }
         router.replace("/auth/confirmed");
       }
     });

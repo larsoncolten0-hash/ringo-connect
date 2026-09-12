@@ -10,6 +10,8 @@ import {
   RefreshCw,
   AlertTriangle,
 } from "lucide-react";
+import QrCodeResult from "@/components/admin/QrCodeResult";
+import { getCategory } from "@/lib/categories";
 
 type UsernameStatus = "idle" | "checking" | "available" | "taken";
 type ChargeStatus = "idle" | "sending" | "pending" | "success" | "failed";
@@ -22,6 +24,7 @@ export default function RequestReview({
   canDelete = true,
   canReject = true,
   canCharge = true,
+  siteUrl = "https://ringoconnectltd.com",
 }: {
   request: any;
   plans: any[];
@@ -30,6 +33,11 @@ export default function RequestReview({
   // under /admin/requests for full admins and /dashboard/requests for
   // super creators.
   basePath?: string;
+  // Used to build the new account's page URL — shown as text and encoded
+  // into the auto-generated QR code once the account is created. Passed
+  // down from the page.tsx callers (NEXT_PUBLIC_SITE_URL); the default
+  // here only matters if a caller forgets to pass it.
+  siteUrl?: string;
   // Both false for a super creator — they can approve requests tied to
   // their own affiliate link, but rejecting/deleting stays a full-admin
   // action. Both are enforced server-side too (see delete/route.ts and
@@ -285,6 +293,12 @@ export default function RequestReview({
             {request.status}
           </span>
         </div>
+        {request.category && (
+          <p className="text-xs text-ringo-muted mb-1">
+            Category: {getCategory(request.category)?.emoji} {getCategory(request.category)?.label.en || request.category}
+            {(request.categories || []).length > 1 && ` (+${request.categories.length - 1} more)`}
+          </p>
+        )}
         {request.business_note && <p className="text-sm text-ringo-muted mb-1">"{request.business_note}"</p>}
         {request.delivery_location && (
           <p className="text-xs text-ringo-muted">Delivery location: {request.delivery_location}</p>
@@ -659,7 +673,7 @@ export default function RequestReview({
           </p>
           <div className="flex flex-col gap-1.5 font-mono text-sm bg-ringo-surface rounded-card p-3 border border-ringo-border">
             <p>
-              Page: ringoconnectltd.com/<strong>{created.username}</strong>
+              Page: {siteUrl.replace(/^https?:\/\//, "")}/<strong>{created.username}</strong>
             </p>
             <p>
               Username: <strong>{created.username}</strong>
@@ -668,6 +682,7 @@ export default function RequestReview({
               Password: <strong>{password}</strong>
             </p>
           </div>
+          <QrCodeResult url={`${siteUrl.replace(/\/$/, "")}/${created.username}`} filename={created.username} />
           <Link href={basePath} className="text-sm text-ringo-indigo font-medium w-fit">
             Back to requests
           </Link>

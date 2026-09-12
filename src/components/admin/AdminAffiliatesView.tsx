@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, AlertTriangle, Handshake, Users, Banknote, Trophy, Ban, ShieldCheck, Zap, RefreshCw, Wallet } from "lucide-react";
+import { AlertTriangle, Handshake, Users, Banknote, Trophy, Ban, ShieldCheck, Zap, RefreshCw, Wallet, SlidersHorizontal } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import type { AdminAffiliateOverview } from "@/lib/affiliate";
 import type { AffiliateSettings } from "@/lib/affiliateSettings";
@@ -39,16 +40,6 @@ export default function AdminAffiliatesView({
 }) {
   const router = useRouter();
   const [overview, setOverview] = useState(initialOverview);
-  const [settings, setSettings] = useState({
-    affiliateEnabled: initialSettings.affiliateEnabled,
-    affiliateCommissionRatePct: Math.round(initialSettings.affiliateCommissionRate * 10000) / 100,
-    affiliateHoldDays: initialSettings.affiliateHoldDays,
-    affiliateMinPayoutXaf: initialSettings.affiliateMinPayoutXaf,
-    affiliateMinPayoutUsd: initialSettings.affiliateMinPayoutUsd,
-  });
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [settingsSaved, setSettingsSaved] = useState(false);
-  const [settingsError, setSettingsError] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "requested" | "processing" | "paid" | "rejected">("requested");
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -65,27 +56,6 @@ export default function AdminAffiliatesView({
       })
       .catch(() => setFapshiBalanceError("Unavailable"));
   }, []);
-
-  const saveSettings = async () => {
-    setSavingSettings(true);
-    setSettingsError("");
-    const res = await fetch("/api/admin/affiliate/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    });
-    const data = await res.json().catch(() => ({}));
-    setSavingSettings(false);
-    if (!res.ok) {
-      setSettingsError(data.error || "Could not save settings.");
-      return;
-    }
-    setSettingsSaved(true);
-    router.refresh();
-    setTimeout(() => setSettingsSaved(false), 2000);
-  };
-
-  const toggleEnabled = () => setSettings((s) => ({ ...s, affiliateEnabled: !s.affiliateEnabled }));
 
   const resolvePayout = async (id: string, action: "paid" | "rejected") => {
     const note = window.prompt(
@@ -209,88 +179,21 @@ export default function AdminAffiliatesView({
         </p>
       )}
 
-      {/* Settings */}
-      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <h2 className="text-sm font-medium text-ringo-text mb-4">Program settings</h2>
-
-        <label className="flex items-center justify-between mb-4">
-          <p className="text-sm text-ringo-text">Program enabled</p>
-          <button
-            onClick={toggleEnabled}
-            role="switch"
-            aria-checked={settings.affiliateEnabled}
-            className={`w-10 h-6 rounded-full relative border transition-colors ${
-              settings.affiliateEnabled ? "bg-ringo-teal border-ringo-teal" : "bg-slate-700 border-slate-700"
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                settings.affiliateEnabled ? "translate-x-[18px]" : ""
-              }`}
-            />
-          </button>
-        </label>
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Commission rate (%)</span>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step={0.5}
-              value={settings.affiliateCommissionRatePct}
-              onChange={(e) => setSettings((s) => ({ ...s, affiliateCommissionRatePct: Number(e.target.value) }))}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Hold period before payable (days)</span>
-            <input
-              type="number"
-              min={0}
-              value={settings.affiliateHoldDays}
-              onChange={(e) => setSettings((s) => ({ ...s, affiliateHoldDays: Number(e.target.value) }))}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Minimum payout — XAF</span>
-            <input
-              type="number"
-              min={0}
-              value={settings.affiliateMinPayoutXaf}
-              onChange={(e) => setSettings((s) => ({ ...s, affiliateMinPayoutXaf: Number(e.target.value) }))}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-ringo-muted">Minimum payout — USD</span>
-            <input
-              type="number"
-              min={0}
-              value={settings.affiliateMinPayoutUsd}
-              onChange={(e) => setSettings((s) => ({ ...s, affiliateMinPayoutUsd: Number(e.target.value) }))}
-              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
-            />
-          </label>
-        </div>
-
-        {settingsError && (
-          <p className="text-sm text-red-500 flex items-center gap-1.5 mt-4">
-            <AlertTriangle size={14} />
-            {settingsError}
-          </p>
-        )}
-
-        <button
-          onClick={saveSettings}
-          disabled={savingSettings}
-          className="mt-4 flex items-center gap-1.5 px-4 py-2.5 rounded-card bg-ringo-indigo text-white text-sm font-medium disabled:opacity-50"
+      {/* Settings now live centrally — see Price Controls — so changing
+          them never means hunting between two edit surfaces. This is a
+          read-only glance plus a link. */}
+      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-4 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-ringo-muted">
+          {initialSettings.affiliateEnabled ? "Enabled" : "Disabled"} · {Math.round(initialSettings.affiliateCommissionRate * 10000) / 100}%
+          commission · {initialSettings.affiliateHoldDays}-day hold
+        </p>
+        <Link
+          href="/admin/price-controls"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-ringo-indigo hover:underline"
         >
-          {settingsSaved && <Check size={14} />}
-          {savingSettings ? "Saving…" : settingsSaved ? "Saved" : "Save changes"}
-        </button>
+          <SlidersHorizontal size={13} />
+          Edit in Price Controls
+        </Link>
       </div>
 
       {/* Payout requests */}

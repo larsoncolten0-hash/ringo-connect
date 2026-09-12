@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
-import { ExternalLink, Copy, Check, MapPin, ChevronRight, ChevronDown, ShoppingBag, Mail, Phone, Clock } from "lucide-react";
+import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck, Bell } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { getCategory, getMusicRole, profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { getButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
@@ -12,7 +13,23 @@ import { ensureVisitorId, captureTtclid, newEventId } from "@/lib/pixelClient";
 import { metaEventName, tiktokEventName, isValidFacebookPixelId, isValidTiktokPixelId } from "@/lib/pixelEvents";
 import WhatsAppButton from "./WhatsAppButton";
 import CallButton from "./CallButton";
+import SaveContactButton from "./SaveContactButton";
 import SocialIcon from "./SocialIcon";
+import MusicSection from "./music/MusicSection";
+import EventsSection from "./music/EventsSection";
+import SupportArtistSection from "./music/SupportArtistSection";
+import PinnedSpotlight from "./music/PinnedSpotlight";
+import MusicHeroButtons from "./music/MusicHeroButtons";
+import ReleasesSection from "./music/ReleasesSection";
+import { useTrackPlayback } from "./music/useTrackPlayback";
+import RestaurantHeroButtons from "./restaurant/RestaurantHeroButtons";
+import FeaturedMenuSection from "./restaurant/FeaturedMenuSection";
+import OpeningHoursRow from "./restaurant/OpeningHoursRow";
+import ImageGallery from "./ImageGallery";
+import ShareButton from "./ShareButton";
+import BookingButton from "./BookingButton";
+import AddToHomeScreen from "./AddToHomeScreen";
+import RegisterServiceWorker from "./RegisterServiceWorker";
 
 export default function ProfileView({
   profile,
@@ -30,9 +47,45 @@ export default function ProfileView({
   // the dashboard's own URL, not the profile's).
   preview?: boolean;
 }) {
-  const { t } = useLanguage();
-  const [copied, setCopied] = useState(false);
+  const { t, locale } = useLanguage();
   const [showCatalog, setShowCatalog] = useState(true);
+  const catalogLabel = getCategory(profile.category)?.defaults.catalogLabel?.[locale] || t.profilePage.catalogHeading;
+  const isMusic = profileHasCategory(profile, "music_entertainment");
+  const isRestaurant = profileHasCategory(profile, "restaurant_food");
+  // Events & Experiences gets the same ticketing toolkit Music &
+  // Entertainment already has (events, ticket types, checkout, digital
+  // tickets, gate scanning) — see EventsSection below — without picking up
+  // any of Music's other category-specific UI (tracks, releases, the cream
+  // theme, Support the Artist), which all stay isMusic-only.
+  const hasTicketing = profileHasTicketing(profile);
+  const menuItems: any[] = profile.menu_items || [];
+  const musicTracks: any[] = (profile.tracks || []).filter((tr: any) => tr.available !== false);
+  // A draft event is hidden entirely, same as any other unpublished item
+  // — cancelled/completed still show (see EventsSection/ItemDetailPage's
+  // own comments on why) but aren't purchasable.
+  const musicEvents: any[] = (profile.events || []).filter((e: any) => e.status !== "draft");
+  const musicSectionTitle = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.tracksTitleFallback;
+  // `available` is a generic field (added for Music's sold-out/inventory
+  // needs) that now applies to every category's Catalog — an item only
+  // hides here when a creator has explicitly marked it unavailable
+  // (`=== false`); older products with no such field keep showing, same
+  // as before this field existed.
+  const catalogProducts: any[] = (profile.products || []).filter((p: any) => p.available !== false);
+  const supportEnabled = isMusic && profile.hub_support_enabled !== false && !!profile.whatsapp_number;
+  const { playingId, progress, togglePlay } = useTrackPlayback();
+
+  // Resolved from whichever list actually matches pinned_type — never
+  // trusts pinned_id blindly, so a deleted item (or one that predates
+  // this feature and has stale/mismatched data) just quietly means no
+  // spotlight renders, instead of a crash.
+  const pinnedSource =
+    profile.pinned_type === "track" ? musicTracks : profile.pinned_type === "product" ? profile.products || [] : profile.pinned_type === "event" ? musicEvents : [];
+  // Pinning intentionally still looks at the full, unfiltered product list
+  // above — a creator who explicitly pinned an item should keep seeing
+  // that choice reflected even if they later mark it unavailable, rather
+  // than have the spotlight silently vanish.
+  const pinnedItem = isMusic && profile.pinned_id ? pinnedSource.find((x: any) => x.id === profile.pinned_id) : null;
+  const isVerified = !!profile.verified;
 
   // Populated client-side only (cookies aren't readable during SSR) —
   // the Meta/TikTok Pixel scripts below stay unrendered until this is
@@ -125,16 +178,6 @@ export default function ProfileView({
     }
   };
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard API can fail (older browsers, non-HTTPS) — fail silently
-      // rather than showing an error for a non-critical convenience feature.
-    }
-  };
 
   const accent = profile.theme_color || "#D4A954";
   const textColor = profile.text_color || "#FAFAFA";
@@ -142,6 +185,19 @@ export default function ProfileView({
   const radiusClass = getRadiusClass(profile.button_radius || "rounded");
   const linkButtonStyle = getButtonStyle(profile.button_style || "outline", accent);
   const borderTint = hexToRgba(textColor, 0.12);
+
+  // Music & Entertainment's specific look (see the reference design this
+  // was built from): a warm, light content area below the dark photo
+  // hero, rather than the same dark theme continuing all the way down.
+  // Fixed, not theme-driven — ThemeCard's background/text color fields
+  // still fully control the hero zone above; this is a structural choice
+  // that's part of what makes this "the Music & Entertainment theme"
+  // specifically, the same way the about-card's accent stripe is a fixed
+  // structural choice for every category.
+  const MUSIC_CREAM = "#FBF3E7";
+  const MUSIC_CREAM_TEXT = "#1C140C";
+  const contentTextColor = isMusic ? MUSIC_CREAM_TEXT : textColor;
+  const contentBorderTint = isMusic ? "rgba(28,20,12,0.12)" : borderTint;
 
   // The public page is the creator's brand, not app chrome — it renders
   // with exactly the colors they chose, independent of the visitor's own
@@ -164,6 +220,8 @@ export default function ProfileView({
       className={`relative flex flex-col items-center pb-10 ${preview ? "min-h-full" : "min-h-screen"}`}
       style={pageStyle}
     >
+      {!preview && <RegisterServiceWorker />}
+
       {/* Pixel base code — deliberately held back until `visitorId` is
           set (client-only, see the effect above) so the very first
           PageView already carries external_id, rather than firing once
@@ -214,45 +272,56 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
       )}
 
       {/* Cover photo — falls back to a soft accent-tinted gradient when
-          the creator hasn't uploaded one, rather than an empty/broken area. */}
-      <div className="relative w-full h-52 sm:h-60 overflow-hidden shrink-0">
-        {profile.cover_image_url ? (
-          <img src={profile.cover_image_url} alt="" className="w-full h-full object-cover" />
-        ) : (
+          the creator hasn't uploaded one, rather than an empty/broken area.
+          The image/gradient sit in their own clipped inner layer so the
+          share button's dropdown (taller than this whole box) can still
+          extend past it instead of being cut off by overflow-hidden. */}
+      <div className="relative w-full h-52 sm:h-60 shrink-0">
+        <div className="absolute inset-0 overflow-hidden">
+          {profile.cover_image_url ? (
+            <img src={profile.cover_image_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div
+              className="w-full h-full"
+              style={{ background: `linear-gradient(135deg, ${hexToRgba(accent, 0.35)}, ${bgColor})` }}
+            />
+          )}
           <div
-            className="w-full h-full"
-            style={{ background: `linear-gradient(135deg, ${hexToRgba(accent, 0.35)}, ${bgColor})` }}
+            className="absolute inset-0"
+            style={{ background: `linear-gradient(to bottom, transparent 35%, ${bgColor} 92%)` }}
           />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{ background: `linear-gradient(to bottom, transparent 35%, ${bgColor} 92%)` }}
-        />
+        </div>
 
         {!preview && (
-          <button
-            onClick={copyLink}
-            aria-label="Copy link to this page"
-            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition z-10"
-            style={{ backgroundColor: "rgba(255,255,255,0.7)", color: accent }}
-          >
-            {copied ? <Check size={15} /> : <Copy size={15} />}
-          </button>
+          // z-20, not z-10 — this wrapper and the avatar section just
+          // below (also position:absolute + z-index, so each is its own
+          // stacking context) are siblings; equal z-index would mean the
+          // avatar section wins ties (it's later in the DOM) and paints
+          // over this share dropdown regardless of the dropdown's own
+          // internal z-index, since that only resolves stacking *within*
+          // this wrapper's context, not against the sibling.
+          <div className="absolute top-4 right-4 z-20">
+            <ShareButton
+              accent={accent}
+              title={profile.name || profile.username}
+              strings={{
+                share: t.profilePage.share,
+                copyLink: t.profilePage.copyLink,
+                linkCopied: t.profilePage.linkCopied,
+                shareWhatsapp: t.profilePage.shareWhatsapp,
+                shareFacebook: t.profilePage.shareFacebook,
+                shareX: t.profilePage.shareX,
+                moreOptions: t.profilePage.moreOptions,
+                showQrCode: t.profilePage.showQrCode,
+                qrCodeTitle: t.profilePage.qrCodeTitle,
+                qrCodeSubtitle: t.profilePage.qrCodeSubtitle,
+                qrCodeError: t.profilePage.qrCodeError,
+                downloadQrCode: t.profilePage.downloadQrCode,
+                close: t.profilePage.close,
+              }}
+            />
+          </div>
         )}
-        <AnimatePresence>
-          {!preview && copied && (
-            <motion.span
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2 }}
-              className="absolute top-14 right-4 text-xs px-2.5 py-1 rounded-full z-10"
-              style={{ backgroundColor: "rgba(255,255,255,0.9)", color: accent }}
-            >
-              {t.profilePage.linkCopied}
-            </motion.span>
-          )}
-        </AnimatePresence>
       </div>
 
       <div className="relative z-10 flex flex-col items-center px-4 -mt-16 w-full">
@@ -277,10 +346,21 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         </div>
 
         <h1
-          className="font-display text-2xl sm:text-3xl font-bold tracking-tight uppercase mt-3 text-center animate-fade-up"
+          className="font-display text-2xl sm:text-3xl font-bold tracking-tight uppercase mt-3 text-center animate-fade-up flex items-center gap-1.5"
           style={{ animationDelay: "80ms" }}
         >
           {firstName} {restName && <span style={{ color: accent }}>{restName}</span>}
+          {isMusic && <span className="text-lg">🎵</span>}
+          {isVerified && (
+            <BadgeCheck
+              size={20}
+              className="shrink-0 -mt-0.5"
+              style={{ color: "#3B82F6", fill: "#3B82F6", stroke: bgColor }}
+              aria-label={t.profilePage.verifiedBadge}
+            >
+              <title>{t.profilePage.verifiedBadge}</title>
+            </BadgeCheck>
+          )}
         </h1>
 
         {profile.bio && (
@@ -311,23 +391,57 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           </p>
         )}
 
-        {profile.whatsapp_number && (
-          <div className="flex gap-3 mt-5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
-            <WhatsAppButton
-              number={profile.whatsapp_number}
-              message={profile.default_whatsapp_message}
-              radiusClass={radiusClass}
-              buttonStyle={linkButtonStyle}
-              onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
-            />
-            <div className="flex-1">
-              <CallButton
-                number={profile.whatsapp_number}
-                radiusClass={radiusClass}
-                buttonStyle={linkButtonStyle}
-              />
-            </div>
+        {isRestaurant ? (
+          <RestaurantHeroButtons
+            t={t}
+            profile={profile}
+            username={profile.username}
+            whatsappNumber={profile.whatsapp_number}
+            aboutLocation={profile.about_location}
+            accent={accent}
+            locale={locale}
+          />
+        ) : isMusic ? (
+          // Music gets Book Now / Buy Now up top (the two commerce entry
+          // points this category now has) plus the same WhatsApp/Call/Save
+          // row as before, all bundled inside MusicHeroButtons — every
+          // other category keeps the original theme-driven, evenly-
+          // stretched three-button row unchanged below.
+          <MusicHeroButtons t={t} profile={profile} accent={accent} textColor={textColor} locale={locale} />
+        ) : (
+          (profile.whatsapp_number || profile.bookings_enabled) && (
+          <div className="flex flex-wrap gap-3 mt-5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
+            {profile.whatsapp_number && (
+              <>
+                <div className="flex-1 min-w-[100px]">
+                  <WhatsAppButton
+                    number={profile.whatsapp_number}
+                    message={profile.default_whatsapp_message}
+                    radiusClass={radiusClass}
+                    buttonStyle={linkButtonStyle}
+                    onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
+                  />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <CallButton number={profile.whatsapp_number} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
+                </div>
+                <div className="flex-1 min-w-[100px]">
+                  <SaveContactButton profile={profile} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
+                </div>
+              </>
+            )}
+            {profile.bookings_enabled && (
+              <div className="flex-1 min-w-[100px]">
+                <BookingButton
+                  profile={profile}
+                  accent={accent}
+                  className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium w-full ${radiusClass}`}
+                  style={linkButtonStyle}
+                />
+              </div>
+            )}
           </div>
+          )
         )}
 
         {profile.social_links?.length > 0 && (
@@ -341,7 +455,54 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           </div>
         )}
 
-        <div className="w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up" style={{ animationDelay: "340ms" }}>
+        <div
+          className={`w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up ${
+            isMusic ? "rounded-[28px] p-4 sm:p-5 shadow-[0_10px_36px_rgba(0,0,0,0.3)]" : ""
+          }`}
+          style={{
+            animationDelay: "340ms",
+            ...(isMusic ? { backgroundColor: MUSIC_CREAM, color: MUSIC_CREAM_TEXT } : {}),
+          }}
+        >
+          {pinnedItem && (
+            <PinnedSpotlight
+              t={t}
+              type={profile.pinned_type}
+              item={pinnedItem}
+              artistName={profile.name || ""}
+              accent={accent}
+              buttonStyle={linkButtonStyle}
+              currency={profile.currency || "USD"}
+              whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
+              playingId={playingId}
+              onTogglePlay={togglePlay}
+            />
+          )}
+
+          {isRestaurant && (
+            <FeaturedMenuSection
+              t={t}
+              username={profile.username}
+              items={menuItems}
+              currency={profile.currency || "USD"}
+              accent={accent}
+              radiusClass={radiusClass}
+              borderTint={contentBorderTint}
+            />
+          )}
+
+          {isRestaurant && (
+            <OpeningHoursRow
+              t={t}
+              locale={locale}
+              hours={profile.opening_hours}
+              accent={accent}
+              radiusClass={radiusClass}
+              borderTint={contentBorderTint}
+            />
+          )}
+
           {(() => {
             const hasRoleCard = profile.about_position || profile.about_company;
 
@@ -394,7 +555,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             return (
               <div
                 className={`relative overflow-hidden ${radiusClass}`}
-                style={{ border: `1px solid ${borderTint}`, backgroundColor: hexToRgba(textColor, 0.03) }}
+                style={{ border: `1px solid ${contentBorderTint}`, backgroundColor: hexToRgba(contentTextColor, 0.03) }}
               >
                 {/* Top accent stripe — the "card edge" a real business card has */}
                 <div className="h-1.5 w-full" style={{ backgroundColor: accent }} />
@@ -430,7 +591,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                   )}
 
                   {hasRoleCard && contactRows.length > 0 && (
-                    <div className="h-px w-full mb-4" style={{ backgroundColor: borderTint }} />
+                    <div className="h-px w-full mb-4" style={{ backgroundColor: contentBorderTint }} />
                   )}
 
                   {contactRows.length > 0 && (
@@ -468,9 +629,39 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             );
           })()}
 
+          {isMusic && (
+            <MusicSection
+              t={t}
+              title={musicSectionTitle}
+              tracks={musicTracks}
+              artistName={profile.name || ""}
+              accent={accent}
+              currency={profile.currency || "USD"}
+              whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
+              playingId={playingId}
+              progress={progress}
+              onTogglePlay={togglePlay}
+            />
+          )}
+
+          {isMusic && (
+            <ReleasesSection
+              t={t}
+              releases={profile.music_releases || []}
+              username={profile.username}
+              accent={accent}
+              currency={profile.currency || "USD"}
+            />
+          )}
+
           {profile.links?.length > 0 && (
             <div className="flex flex-col gap-3">
-              <p className="text-[11px] uppercase tracking-wider" style={{ opacity: 0.5 }}>
+              <p
+                className={isMusic ? "text-base font-bold flex items-center gap-2" : "text-[11px] uppercase tracking-wider"}
+                style={isMusic ? undefined : { opacity: 0.5 }}
+              >
+                {isMusic && <ExternalLink size={16} style={{ color: accent }} />}
                 {t.profilePage.linksHeading}
               </p>
               {profile.links
@@ -502,19 +693,19 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             </div>
           )}
 
-          {profile.products?.length > 0 && (
-            <div className="flex flex-col gap-3">
+          {catalogProducts.length > 0 && (
+            <div id="merch" className="flex flex-col gap-3 scroll-mt-6">
               <button
                 onClick={() => setShowCatalog((v) => !v)}
                 className={`flex items-center justify-between p-3.5 transition active:scale-[0.98] ${radiusClass}`}
                 style={{
-                  border: `1px solid ${borderTint}`,
+                  border: `1px solid ${contentBorderTint}`,
                   backgroundColor: showCatalog ? hexToRgba(accent, 0.08) : "transparent",
                 }}
               >
-                <span className="flex items-center gap-2 text-sm font-semibold">
-                  <ShoppingBag size={16} style={{ color: accent }} />
-                  {t.profilePage.catalogHeading}
+                <span className={`flex items-center gap-2 ${isMusic ? "text-base font-bold" : "text-sm font-semibold"}`}>
+                  <ShoppingBag size={isMusic ? 17 : 16} style={{ color: accent }} />
+                  {catalogLabel}
                   <span style={{ opacity: 0.5 }}>({profile.products.length})</span>
                 </span>
                 <ChevronDown
@@ -534,19 +725,33 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                     className="overflow-hidden"
                   >
                     <div className="grid grid-cols-2 gap-3">
-                      {profile.products
+                      {catalogProducts
                         .sort((a: any, b: any) => a.sort_order - b.sort_order)
                         .map((product: any) => (
                           <div
                             key={product.id}
                             className={`overflow-hidden transition hover:-translate-y-0.5 ${radiusClass}`}
-                            style={{ border: `1px solid ${borderTint}` }}
+                            style={{ border: `1px solid ${contentBorderTint}` }}
                           >
-                            {product.image_url && (
-                              <img
-                                src={product.image_url}
+                            {isMusic ? (
+                              // Every Music merch item gets a detail page
+                              // (see ItemDetailPage.tsx's merch branch) —
+                              // the photo itself is clickable there,
+                              // independent of the Buy Now CTA below.
+                              <a href={`/m/${profile.username}/merch/${product.id}`} aria-label={product.name}>
+                                <ImageGallery
+                                  images={product.image_urls?.length ? product.image_urls : [product.image_url]}
+                                  alt={product.name}
+                                  className="w-full aspect-square"
+                                  imgClassName="object-cover"
+                                />
+                              </a>
+                            ) : (
+                              <ImageGallery
+                                images={product.image_urls?.length ? product.image_urls : [product.image_url]}
                                 alt={product.name}
-                                className="w-full aspect-square object-cover"
+                                className="w-full aspect-square"
+                                imgClassName="object-cover"
                               />
                             )}
                             <div className="p-3">
@@ -560,38 +765,64 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                                   {formatPrice(product.price, profile.currency)}
                                 </p>
                               )}
-                              {/* Full-width, stacked CTAs — the old side-by-side
-                                  tiny icon buttons were cramped on a phone-width
-                                  half-grid card; a real tap target beats a
-                                  compact one here. */}
-                              <div className="flex flex-col gap-1.5 mt-2.5">
-                                {product.landing_url && (
-                                  <a
-                                    href={product.landing_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={() =>
-                                      logClick("product", product.id, {
-                                        name: product.name,
-                                        price: product.price ? Number(product.price) : null,
-                                        currency: profile.currency,
-                                      })
-                                    }
-                                    className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 transition hover:brightness-95 active:scale-[0.97] ${radiusClass}`}
-                                    style={{ border: `1px solid ${borderTint}` }}
-                                  >
-                                    <ExternalLink size={12} />
-                                    {t.profilePage.viewDetails}
-                                  </a>
-                                )}
-                                <WhatsAppButton
-                                  number={profile.whatsapp_number}
-                                  message={product.whatsapp_message || `Hi, I'm interested in ${product.name}`}
-                                  radiusClass={radiusClass}
-                                  buttonStyle={linkButtonStyle}
-                                  onClick={() => logClick("whatsapp", product.id, { name: product.name })}
-                                />
-                              </div>
+                              {isMusic ? (
+                                // Opens the merch item's own detail page
+                                // (/m/[username]/merch/[id]) instead of
+                                // buying immediately — that page shows the
+                                // full gallery/description and resolves the
+                                // actual CTA (the creator's landing link, or
+                                // real in-house checkout when there isn't
+                                // one), same priority this card used to
+                                // apply directly.
+                                <a
+                                  href={`/m/${profile.username}/merch/${product.id}`}
+                                  onClick={() =>
+                                    logClick("product", product.id, {
+                                      name: product.name,
+                                      price: product.price ? Number(product.price) : null,
+                                      currency: profile.currency,
+                                    })
+                                  }
+                                  className="flex items-center justify-center gap-1.5 text-xs font-semibold py-2 mt-2.5 rounded-full transition hover:brightness-95 active:scale-[0.97]"
+                                  style={{ backgroundColor: accent, color: "#171009" }}
+                                >
+                                  <ShoppingCart size={13} />
+                                  {t.music.buyNowLabel}
+                                </a>
+                              ) : (
+                                // Full-width, stacked CTAs — the old side-by-side
+                                // tiny icon buttons were cramped on a phone-width
+                                // half-grid card; a real tap target beats a
+                                // compact one here.
+                                <div className="flex flex-col gap-1.5 mt-2.5">
+                                  {product.landing_url && (
+                                    <a
+                                      href={product.landing_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() =>
+                                        logClick("product", product.id, {
+                                          name: product.name,
+                                          price: product.price ? Number(product.price) : null,
+                                          currency: profile.currency,
+                                        })
+                                      }
+                                      className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 transition hover:brightness-95 active:scale-[0.97] ${radiusClass}`}
+                                      style={{ border: `1px solid ${borderTint}` }}
+                                    >
+                                      <ExternalLink size={12} />
+                                      {t.profilePage.viewDetails}
+                                    </a>
+                                  )}
+                                  <WhatsAppButton
+                                    number={profile.whatsapp_number}
+                                    message={product.whatsapp_message || `Hi, I'm interested in ${product.name}`}
+                                    radiusClass={radiusClass}
+                                    buttonStyle={linkButtonStyle}
+                                    onClick={() => logClick("whatsapp", product.id, { name: product.name })}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -600,6 +831,75 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                 )}
               </AnimatePresence>
             </div>
+          )}
+
+          {hasTicketing && (
+            <EventsSection
+              t={t}
+              events={musicEvents}
+              accent={accent}
+              buttonStyle={linkButtonStyle}
+              whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
+              currency={profile.currency || "USD"}
+            />
+          )}
+
+          {supportEnabled && (
+            <SupportArtistSection
+              t={t}
+              locale={locale}
+              username={profile.username}
+              accent={accent}
+              textColor={contentTextColor}
+              supportMessage={profile.support_message}
+              radiusClass={radiusClass}
+              borderTint={contentBorderTint}
+            />
+          )}
+
+          {/* "Stay Connected" — the community/audience opt-in teaser. Only
+              rendered once the owner has turned it on (Dashboard →
+              Community → Settings); links to the dedicated join page
+              rather than opening a modal here, the same reasoning
+              BookingButton uses for /[username]/book. */}
+          {profile.community_enabled && (
+            <div
+              className={`text-center p-5 ${radiusClass}`}
+              style={{ border: `1px solid ${contentBorderTint}`, backgroundColor: hexToRgba(contentTextColor, 0.03) }}
+            >
+              <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ opacity: 0.5 }}>
+                {t.communitySection.title}
+              </p>
+              <p className="text-sm mt-1.5 mb-4" style={{ opacity: 0.75 }}>
+                {t.communitySection.subtitle(profile.name || profile.username)}
+              </p>
+              <a
+                href={`/${profile.username}/community`}
+                className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium transition hover:brightness-95 active:scale-[0.98] ${radiusClass}`}
+                style={linkButtonStyle}
+              >
+                <Bell size={15} />
+                {profile.community_label?.trim() || t.communitySection.defaultButtonLabel}
+              </a>
+            </div>
+          )}
+
+          {/* "Add to Home Screen" — entirely separate feature from Stay
+              Connected above (no shared state, no consent implied). Never
+              rendered in the dashboard's live preview (see `preview`
+              above) — a real visitor's install prompt has no business
+              firing while the owner is just editing their page. */}
+          {!preview && (
+            <AddToHomeScreen
+              displayName={profile.name || profile.username}
+              username={profile.username}
+              accent={accent}
+              radiusClass={radiusClass}
+              buttonStyle={linkButtonStyle}
+              borderTint={contentBorderTint}
+              textColor={contentTextColor}
+            />
           )}
         </div>
 

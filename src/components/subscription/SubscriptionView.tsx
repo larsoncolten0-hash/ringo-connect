@@ -110,14 +110,14 @@ export default function SubscriptionView({
           return (
             <div
               key={plan.id}
-              className={`relative rounded-card p-5 flex flex-col transition-all hover:-translate-y-0.5 ${
+              className={`relative rounded-[20px] p-5 sm:p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 ${
                 isRecommended
-                  ? "border-2 border-ringo-indigo shadow-[0_8px_30px_-8px_rgba(79,70,229,0.35)]"
-                  : "border border-ringo-border/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:shadow-[0_4px_16px_-4px_rgba(15,23,42,0.08)]"
+                  ? "border-2 border-ringo-indigo shadow-[0_16px_40px_-12px_rgba(79,70,229,0.4)]"
+                  : "border border-ringo-border/60 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_10px_24px_-18px_rgba(15,23,42,0.12)] hover:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_32px_-16px_rgba(15,23,42,0.16)]"
               } ${isCurrent ? "ring-2 ring-ringo-teal ring-offset-2 ring-offset-ringo-bg" : ""} bg-ringo-surface`}
             >
               {isRecommended && (
-                <span className="absolute -top-3 left-5 text-[11px] font-medium bg-ringo-indigo text-white px-2.5 py-1 rounded-full">
+                <span className="absolute -top-3 left-5 text-[11px] font-semibold bg-gradient-to-r from-ringo-indigo to-ringo-indigo/80 text-white px-3 py-1 rounded-full shadow-[0_4px_12px_-2px_rgba(79,70,229,0.5)]">
                   {t.subscription.recommended}
                 </span>
               )}
@@ -189,9 +189,9 @@ export default function SubscriptionView({
               ) : (
                 <button
                   onClick={() => setModalPlan(plan)}
-                  className={`text-sm font-medium py-2.5 rounded-card transition ${
+                  className={`text-sm font-semibold py-2.5 rounded-card transition active:scale-[0.98] ${
                     isRecommended
-                      ? "bg-ringo-indigo text-white hover:bg-ringo-indigo/90"
+                      ? "bg-ringo-indigo text-white hover:brightness-110 shadow-[0_8px_20px_-8px_rgba(79,70,229,0.5)]"
                       : "border border-ringo-border text-ringo-text hover:border-ringo-indigo"
                   }`}
                 >
@@ -214,6 +214,7 @@ export default function SubscriptionView({
           priceUsdYearly={Number(modalPlan.price_usd_yearly)}
           defaultMethod={defaultMethod}
           defaultInterval={interval}
+          isCameroon={isCameroon}
           fapshiEnabled={fapshiEnabled}
           stripeEnabled={stripeEnabled}
           onClose={() => setModalPlan(null)}

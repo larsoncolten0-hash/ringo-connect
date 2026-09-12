@@ -1,0 +1,147 @@
+"use client";
+
+import type { CSSProperties } from "react";
+import { Ticket, MapPin, Clock } from "lucide-react";
+import { hexToRgba } from "@/lib/color";
+import { formatPrice } from "@/lib/currency";
+import { primaryTicketType } from "@/lib/ticketTypes";
+import type { Translations } from "@/lib/i18n/translations";
+
+// Same fixed near-black "player card" treatment as MusicSection — see the
+// comment there. "Get Ticket"/"View Tickets" opens the event's own detail
+// page (/m/[username]/ticket/[id]) instead of buying immediately — for an
+// event with multiple ticket types (event_ticket_types), that page is the
+// full "Choose your ticket" selector; for a legacy single-price event it
+// resolves the same CTA priority (ticket_url, in-house checkout, or
+// WhatsApp) this card used to apply directly. Only rendered when there's
+// genuinely a way to get a ticket at all.
+const CARD_BG = "#171009";
+const CARD_TEXT = "#F5EFE4";
+
+export default function EventsSection({
+  t,
+  events,
+  accent,
+  buttonStyle,
+  whatsappNumber,
+  username,
+  currency,
+}: {
+  t: Translations;
+  events: any[];
+  accent: string;
+  buttonStyle: CSSProperties;
+  whatsappNumber?: string | null;
+  username: string;
+  currency: string;
+}) {
+  if (events.length === 0) return null;
+
+  const dateParts = (iso?: string | null) => {
+    if (!iso) return null;
+    const d = new Date(`${iso}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return null;
+    return { day: d.getDate(), month: d.toLocaleDateString(undefined, { month: "short" }).toUpperCase() };
+  };
+
+  return (
+    <div id="events" className="flex flex-col gap-3 scroll-mt-6">
+      <p className="text-base font-bold flex items-center gap-2">
+        <Ticket size={17} style={{ color: accent }} />
+        {t.music.upcomingTitle}
+      </p>
+
+      <div className="flex flex-col gap-3">
+        {events
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((event) => {
+            const parts = dateParts(event.event_date);
+            const cleanNumber = (whatsappNumber || "").replace(/[^0-9]/g, "");
+            const primary = primaryTicketType(event.event_ticket_types);
+            // Same "is there any way to get a ticket at all" check the old
+            // direct href used — just now routes to the detail page
+            // instead of straight to the ticket_url/WhatsApp itself. A
+            // multi-tier event always qualifies (the selector shows real
+            // sold-out/not-yet-open state per tier rather than hiding the
+            // whole card).
+            const canGetTicket = !!primary || !!(event.ticket_url || event.price || cleanNumber);
+            const href = canGetTicket ? `/m/${username}/ticket/${event.id}` : null;
+
+            return (
+              <div
+                key={event.id}
+                className="relative overflow-hidden rounded-2xl p-3 flex items-center gap-3"
+                style={{ backgroundColor: CARD_BG, color: CARD_TEXT }}
+              >
+                {/* Every event gets a detail page (see EventDetail's
+                    branch in ItemDetailPage.tsx), so its cover art is
+                    always clickable there — independent of whether the Get
+                    Ticket CTA below is even shown. */}
+                <a
+                  href={`/m/${username}/ticket/${event.id}`}
+                  aria-label={event.title}
+                  className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden block"
+                >
+                  {event.cover_image_url ? (
+                    <img src={event.cover_image_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: hexToRgba(accent, 0.18) }}>
+                      <Ticket size={20} style={{ color: accent }} />
+                    </div>
+                  )}
+                  {parts && (
+                    <div
+                      className="absolute top-0.5 left-0.5 rounded-md px-1 py-0.5 flex flex-col items-center leading-none"
+                      style={{ backgroundColor: "rgba(0,0,0,0.75)" }}
+                    >
+                      <span className="text-[8px] font-semibold" style={{ color: accent }}>
+                        {parts.month}
+                      </span>
+                      <span className="text-[11px] font-bold text-white">{parts.day}</span>
+                    </div>
+                  )}
+                </a>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{event.title}</p>
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5 text-xs" style={{ opacity: 0.65 }}>
+                    {event.location && (
+                      <span className="flex items-center gap-1">
+                        <MapPin size={11} />
+                        {event.location}
+                      </span>
+                    )}
+                    {event.event_time && (
+                      <span className="flex items-center gap-1">
+                        <Clock size={11} />
+                        {event.event_time}
+                      </span>
+                    )}
+                  </div>
+                  {/* The artist's chosen Primary ticket type — see
+                      EventTicketTypesEditor.tsx. Never assumes "cheapest";
+                      whichever tier the artist picked is what shows here,
+                      by name, so it updates the instant they change it. */}
+                  {primary && (
+                    <p className="text-xs font-semibold mt-1" style={{ color: accent }} suppressHydrationWarning>
+                      {primary.name} — {formatPrice(primary.price, currency)}
+                    </p>
+                  )}
+                </div>
+
+                {href && (
+                  <a
+                    href={href}
+                    className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full transition hover:brightness-95 active:scale-95"
+                    style={{ backgroundColor: accent, color: "#171009" }}
+                  >
+                    {primary ? t.music.viewTicketsButton : t.music.getTicket}
+                  </a>
+                )}
+              </div>
+            );
+          })}
+      </div>
+    </div>
+  );
+}

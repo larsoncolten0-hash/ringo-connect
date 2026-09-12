@@ -11,8 +11,10 @@ import { formatPrice } from "@/lib/currency";
 import { detectPlatform } from "@/lib/utils";
 import ImageUploadField from "@/components/editor/ImageUploadField";
 import SocialIcon from "@/components/SocialIcon";
+import CategoryPicker from "@/components/CategoryPicker";
+import { getCategory, type CategoryId } from "@/lib/categories";
 
-type Step = "plan" | "info" | "payChoice" | "paying" | "success";
+type Step = "category" | "plan" | "info" | "payChoice" | "paying" | "success";
 type LinkItem = { title: string; url: string };
 type ProductItem = { name: string; price: string; image_url: string };
 type SocialItem = { platform: string; url: string };
@@ -48,7 +50,9 @@ export default function GetStartedFlow({
   // info step. The picker UI below stays intact rather than being
   // ripped out, so re-enabling it later (if more plans come back) is
   // just reverting these two lines.
-  const [step, setStep] = useState<Step>(plans.length === 1 ? "info" : "plan");
+  const [step, setStep] = useState<Step>("category");
+  const [category, setCategory] = useState<CategoryId | null>(null);
+  const [extraCategories, setExtraCategories] = useState<CategoryId[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<any | null>(plans.length === 1 ? plans[0] : null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(() =>
@@ -173,6 +177,8 @@ export default function GetStartedFlow({
         full_name: fullName.trim(),
         whatsapp_number: whatsapp.trim(),
         email: email.trim() || null,
+        category: category || null,
+        categories: category ? [category, ...extraCategories] : [],
         referral_code: referralCode.trim() || null,
         source: variant === "affiliate" ? "affiliate" : "get_started",
         suggested_username: username.trim() || null,
@@ -342,8 +348,47 @@ export default function GetStartedFlow({
       </div>
 
       <div className="w-full max-w-md">
+        {step === "category" && (
+          <>
+            <h1 className="font-display text-xl font-bold text-center mb-1">{t.getStarted.categoryTitle}</h1>
+            <p className="text-sm text-ringo-muted text-center mb-6">{t.getStarted.categorySubtitle}</p>
+
+            <CategoryPicker
+              locale={locale}
+              primary={category}
+              onSelectPrimary={setCategory}
+              extra={extraCategories}
+              onToggleExtra={(id) =>
+                setExtraCategories((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]))
+              }
+              strings={{ morePrompt: t.getStarted.categoryMorePrompt, moreHint: t.getStarted.categoryMoreHint }}
+            />
+
+            <div className="flex flex-col gap-3 mt-6">
+              <button
+                onClick={() => setStep(plans.length === 1 ? "info" : "plan")}
+                disabled={!category}
+                className="py-3 rounded-card bg-ringo-indigo text-white text-sm font-medium disabled:opacity-40"
+              >
+                {t.getStarted.continueButton}
+              </button>
+              <button
+                onClick={() => setStep(plans.length === 1 ? "info" : "plan")}
+                className="text-sm text-ringo-muted hover:text-ringo-text transition-colors"
+              >
+                {t.getStarted.categorySkip}
+              </button>
+            </div>
+          </>
+        )}
+
         {step === "plan" && (
           <>
+            <button onClick={() => setStep("category")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+              <ArrowLeft size={15} />
+              {t.getStarted.backButton}
+            </button>
+
             <h1 className="font-display text-xl font-bold text-center mb-1">{t.getStarted.pickPlanTitle}</h1>
             <p className="text-sm text-ringo-muted text-center mb-6">{t.getStarted.pickPlanSubtitle}</p>
 
@@ -470,7 +515,7 @@ export default function GetStartedFlow({
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder={t.getStarted.notePlaceholder}
+                  placeholder={getCategory(category)?.defaults.notePlaceholder[locale] || t.getStarted.notePlaceholder}
                   rows={3}
                   className="border border-ringo-border rounded-card px-3.5 py-2.5 text-sm bg-ringo-surface resize-none"
                 />
@@ -644,30 +689,32 @@ export default function GetStartedFlow({
                 </div>
               )}
 
-              {variant === "affiliate" && (
-                <div className="border-t border-ringo-border pt-4">
-                  <label className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium">{t.getStarted.couponCodeLabel}</span>
-                    <div className="relative">
-                      <input
-                        value={referralCode}
-                        onChange={(e) => {
-                          setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 40));
-                          setReferralPrefilled(false);
-                        }}
-                        placeholder={t.getStarted.couponCodePlaceholder}
-                        className={`w-full border rounded-card px-3.5 py-2.5 pr-9 text-sm bg-ringo-surface ${
-                          referralPrefilled ? "border-ringo-teal" : "border-ringo-border"
-                        }`}
-                      />
-                      {referralPrefilled && (
-                        <Check size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ringo-teal" />
-                      )}
-                    </div>
-                  </label>
-                  {referralPrefilled && <p className="mt-1 text-xs text-ringo-teal">{t.getStarted.couponCodeApplied}</p>}
-                </div>
-              )}
+              {/* Shown on both variants now — previously only the
+                  affiliate flow displayed this field, and the standard
+                  flow just captured a stored ?ref= code silently in the
+                  background. Now every signer can see and edit it. */}
+              <div className="border-t border-ringo-border pt-4">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-sm font-medium">{t.getStarted.couponCodeLabel}</span>
+                  <div className="relative">
+                    <input
+                      value={referralCode}
+                      onChange={(e) => {
+                        setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 40));
+                        setReferralPrefilled(false);
+                      }}
+                      placeholder={t.getStarted.couponCodePlaceholder}
+                      className={`w-full border rounded-card px-3.5 py-2.5 pr-9 text-sm bg-ringo-surface ${
+                        referralPrefilled ? "border-ringo-teal" : "border-ringo-border"
+                      }`}
+                    />
+                    {referralPrefilled && (
+                      <Check size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-ringo-teal" />
+                    )}
+                  </div>
+                </label>
+                {referralPrefilled && <p className="mt-1 text-xs text-ringo-teal">{t.getStarted.couponCodeApplied}</p>}
+              </div>
 
               {selectedPlan && (
                 <div className="border-t border-ringo-border pt-4">
@@ -755,14 +802,6 @@ export default function GetStartedFlow({
               >
                 {t.getStarted.payChooseNow}
               </button>
-              <button
-                onClick={submitWithoutPaying}
-                disabled={submitting}
-                className="flex items-center justify-center gap-2 py-3 rounded-card border border-ringo-border text-ringo-text text-sm font-medium disabled:opacity-60"
-              >
-                {submitting && <Loader2 size={15} className="animate-spin" />}
-                {submitting ? t.getStarted.submitting : t.getStarted.payChooseLater}
-              </button>
             </div>
           </>
         )}
@@ -845,17 +884,6 @@ export default function GetStartedFlow({
                   >
                     {t.getStarted.payTryAgain}
                   </button>
-                  {/* Affiliate mode has no pay-later fallback — payment
-                      is the whole point of this page, not one option
-                      among others. */}
-                  {variant !== "affiliate" && (
-                    <button
-                      onClick={() => setStep("success")}
-                      className="py-2.5 rounded-card border border-ringo-border text-ringo-text text-sm font-medium"
-                    >
-                      {t.getStarted.payContinueWithoutPaying}
-                    </button>
-                  )}
                 </div>
               </div>
             )}

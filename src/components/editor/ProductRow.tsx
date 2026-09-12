@@ -2,25 +2,33 @@
 
 import { useState, useRef } from "react";
 import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion";
-import { GripVertical, ChevronDown } from "lucide-react";
+import { GripVertical, ChevronDown, ImagePlus, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
-import ImageUploadField from "./ImageUploadField";
+import ImageGalleryUploadField from "./ImageGalleryUploadField";
 
+// Field edits here only update local state (via onChange, which also
+// feeds the live preview) — nothing is written to Supabase until the
+// creator clicks the "Save" button at the bottom of CatalogCard, the same
+// explicit, single action that already existed for the WhatsApp card.
+// Only structural actions (delete, drag-reorder) still happen immediately.
 export default function ProductRow({
   product,
   userId,
   currency,
+  communityEnabled,
   onChange,
-  onPersist,
   onDelete,
   startExpanded,
 }: {
   product: any;
   userId: string;
   currency: string;
+  // Gates the one-shot "📣 Notify community" action below — see
+  // CatalogCard.tsx for why this is a distinct button rather than folded
+  // into the bulk Save.
+  communityEnabled?: boolean;
   onChange: (patch: any) => void;
-  onPersist: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
 }) {
@@ -28,6 +36,30 @@ export default function ProductRow({
   const controls = useDragControls();
   const [expanded, setExpanded] = useState(!!startExpanded);
   const nameRef = useRef<HTMLInputElement>(null);
+  const [notifying, setNotifying] = useState(false);
+  const [notifyError, setNotifyError] = useState("");
+
+  const notifyCommunity = async () => {
+    setNotifyError("");
+    setNotifying(true);
+    try {
+      const res = await fetch("/api/community/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_id: product.id }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed");
+      // Local-only — never sent back in saveAll's payload, just reflects
+      // the server's community_notified_at so the button disappears
+      // without a full page reload.
+      onChange({ community_notified_at: new Date().toISOString() });
+    } catch (err: any) {
+      setNotifyError(err?.message || "Failed");
+    } finally {
+      setNotifying(false);
+    }
+  };
 
   return (
     <Reorder.Item
@@ -46,17 +78,23 @@ export default function ProductRow({
           <GripVertical size={16} />
         </div>
 
-        <ImageUploadField
-          value={product.image_url}
-          onChange={(url) => {
-            onChange({ image_url: url });
-            onPersist({ image_url: url });
+        <button
+          type="button"
+          onClick={() => {
+            const next = !expanded;
+            setExpanded(next);
+            if (next) setTimeout(() => nameRef.current?.focus(), 150);
           }}
-          userId={userId}
-          folder="products"
-          size={38}
-          errorText={t.editor.upload}
-        />
+          style={{ width: 38, height: 38 }}
+          className="relative shrink-0 overflow-hidden rounded-card border border-ringo-border bg-ringo-muted/5 flex items-center justify-center"
+        >
+          {product.image_urls?.[0] || product.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={product.image_urls?.[0] || product.image_url} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <ImagePlus size={16} className="text-ringo-muted" />
+          )}
+        </button>
 
         <button
           type="button"
@@ -90,19 +128,27 @@ export default function ProductRow({
             className="overflow-hidden"
           >
             <div className="px-2.5 pb-2.5 pt-1 border-t border-ringo-border flex flex-col gap-2">
+              <div>
+                <p className="text-xs text-ringo-muted mb-1.5">{t.editor.photosLabel}</p>
+                <ImageGalleryUploadField
+                  value={product.image_urls?.length ? product.image_urls : product.image_url ? [product.image_url] : []}
+                  onChange={(urls) => onChange({ image_urls: urls, image_url: urls[0] || null })}
+                  userId={userId}
+                  folder="products"
+                  errorText={t.editor.upload}
+                />
+              </div>
               <div className="flex gap-2">
                 <input
                   ref={nameRef}
                   value={product.name}
                   onChange={(e) => onChange({ name: e.target.value })}
-                  onBlur={(e) => onPersist({ name: e.target.value })}
                   placeholder={t.editor.productName}
                   className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
                 />
                 <input
                   value={product.price ?? ""}
                   onChange={(e) => onChange({ price: e.target.value })}
-                  onBlur={(e) => onPersist({ price: e.target.value })}
                   placeholder={t.editor.price}
                   inputMode="decimal"
                   className="w-24 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
@@ -111,7 +157,6 @@ export default function ProductRow({
               <textarea
                 value={product.description ?? ""}
                 onChange={(e) => onChange({ description: e.target.value })}
-                onBlur={(e) => onPersist({ description: e.target.value })}
                 placeholder={t.editor.productDescription}
                 rows={2}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text resize-none"
@@ -119,7 +164,6 @@ export default function ProductRow({
               <input
                 value={product.landing_url ?? ""}
                 onChange={(e) => onChange({ landing_url: e.target.value })}
-                onBlur={(e) => onPersist({ landing_url: e.target.value })}
                 placeholder={t.editor.productLandingUrl}
                 inputMode="url"
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
@@ -127,13 +171,46 @@ export default function ProductRow({
               <input
                 value={product.whatsapp_message ?? ""}
                 onChange={(e) => onChange({ whatsapp_message: e.target.value })}
-                onBlur={(e) => onPersist({ whatsapp_message: e.target.value })}
                 placeholder={t.editor.productWhatsappMessage}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
               />
-              <button onClick={onDelete} className="self-start text-xs text-red-500 px-1 py-1">
-                {t.editor.delete}
-              </button>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs text-ringo-text cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={product.available !== false}
+                    onChange={(e) => onChange({ available: e.target.checked })}
+                    className="accent-ringo-indigo"
+                  />
+                  {t.restaurant.availableLabel}
+                </label>
+                <input
+                  value={product.inventory_count ?? ""}
+                  onChange={(e) => onChange({ inventory_count: e.target.value.replace(/[^0-9]/g, "") })}
+                  placeholder={t.music.inventoryPlaceholder}
+                  inputMode="numeric"
+                  className="w-32 text-xs border border-ringo-border rounded-card px-2.5 py-1.5 bg-ringo-surface text-ringo-text"
+                />
+              </div>
+              {notifyError && <p className="text-xs text-red-500">{notifyError}</p>}
+              <div className="flex items-center justify-between gap-2">
+                <button onClick={onDelete} className="text-xs text-red-500 px-1 py-1">
+                  {t.editor.delete}
+                </button>
+                {communityEnabled && product.name?.trim() && !product.community_notified_at && (
+                  <button
+                    onClick={notifyCommunity}
+                    disabled={notifying}
+                    className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors disabled:opacity-50"
+                  >
+                    {notifying && <Loader2 size={12} className="animate-spin" />}
+                    {notifying ? t.community.notifyProductSending : t.community.notifyProductButton}
+                  </button>
+                )}
+                {communityEnabled && product.community_notified_at && (
+                  <span className="text-xs text-ringo-teal">{t.community.notifyProductSent}</span>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

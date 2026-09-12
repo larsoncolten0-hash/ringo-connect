@@ -6,6 +6,12 @@ import { extractRequestContext } from "@/lib/requestContext";
 import { buildPixelConfigFromRow, isPixelsEnabledForUser, sendMetaPageView, extractClientIp } from "@/lib/pixelTracking";
 import ProfileView from "@/components/ProfileView";
 
+// Per-profile PWA installability (manifest link, iOS home-screen name/
+// icon, theme color) + page title/description — see
+// src/lib/profileMetadata.ts. Same export re-used by r/[username] and
+// m/[username] below.
+export { generateMetadata, generateViewport } from "@/lib/profileMetadata";
+
 // The highest-traffic page in the app, and the one that changes the most
 // often (every Editor save touches it) — without this, Next's Data Cache
 // can keep serving a stale read of the profile/links/products query
@@ -23,7 +29,7 @@ export default async function PublicProfilePage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      `*, social_links(*), links(*), products(*), profile_phone_numbers(*)`
+      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_items(*), music_releases(*), booking_services(*)`
     )
     .eq("username", params.username)
     .eq("published", true)

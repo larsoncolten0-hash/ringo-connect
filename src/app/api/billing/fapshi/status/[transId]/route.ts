@@ -19,7 +19,17 @@ export async function GET(request: Request, { params }: { params: { transId: str
       await markFailedPayment("fapshi", params.transId);
     }
 
-    return NextResponse.json({ status: tx.status });
+    // Receipt fields are only meaningful once the payment has actually
+    // gone through — the client uses these to render an itemized receipt
+    // instead of just a bare "success" message.
+    return NextResponse.json({
+      status: tx.status,
+      ...(tx.status === "SUCCESSFUL" && {
+        amount: tx.amount,
+        medium: tx.medium,
+        dateConfirmed: tx.dateConfirmed,
+      }),
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Could not check payment status" }, { status: 502 });
   }

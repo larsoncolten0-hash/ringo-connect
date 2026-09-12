@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 
@@ -12,7 +12,10 @@ const NAV_ITEMS = [
   { href: "/admin/requests", label: "Requests", icon: Inbox },
   { href: "/admin/plans", label: "Plans", icon: Layers },
   { href: "/admin/addons", label: "Add-ons", icon: Package },
+  { href: "/admin/price-controls", label: "Price Controls", icon: DollarSign },
   { href: "/admin/affiliates", label: "Affiliates", icon: Handshake },
+  { href: "/admin/music-payouts", label: "Music payouts", icon: Banknote },
+  { href: "/admin/qr-code", label: "QR code", icon: QrCode },
   { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];

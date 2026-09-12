@@ -10,10 +10,11 @@ export default async function AdminUsersPage() {
   const supabase = createAdminClient();
 
   // "*" already includes can_approve_requests — UserTable's super-creator
-  // toggle reads it straight off each row.
+  // toggle reads it straight off each row. profiles(username, verified) —
+  // verified lives on profiles, not users, see the migration's comment.
   const { data: users } = await supabase
     .from("users")
-    .select("*, plans(name), profiles(username)")
+    .select("*, plans(name), profiles(username, verified)")
     .order("created_at", { ascending: false });
 
   const { data: plans } = await supabase.from("plans").select("*");

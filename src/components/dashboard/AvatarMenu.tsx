@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, LogOut } from "lucide-react";
+import { ExternalLink, LogOut, Volume2, VolumeX } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSound } from "@/components/SoundProvider";
+import AddToHomeScreenMenuItem from "@/components/dashboard/AddToHomeScreenMenuItem";
 
 export default function AvatarMenu({
   email,
@@ -17,6 +19,7 @@ export default function AvatarMenu({
   planName: string;
 }) {
   const { t } = useLanguage();
+  const { enabled: soundEnabled, setEnabled: setSoundEnabled } = useSound();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -65,6 +68,33 @@ export default function AvatarMenu({
             <ExternalLink size={14} />
             {t.account.viewPage}
           </Link>
+          {/* Global sound preference — the closest thing this dashboard has
+              to a dedicated Settings page, so it lives here. Toggling it
+              doesn't close the menu (unlike the links above it) since it's
+              a switch someone might flip and immediately want to see
+              reflected, not a navigation action. */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            aria-pressed={soundEnabled}
+            className="flex items-center justify-between gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left"
+          >
+            <span className="flex items-center gap-2">
+              {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+              {t.account.soundEffects}
+            </span>
+            <span
+              className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
+                soundEnabled ? "bg-ringo-indigo" : "bg-ringo-muted/30"
+              }`}
+            >
+              <span
+                className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+                  soundEnabled ? "translate-x-[16px]" : "translate-x-[2px]"
+                }`}
+              />
+            </span>
+          </button>
+          <AddToHomeScreenMenuItem onNavigate={() => setOpen(false)} />
           <Link
             href="/auth/logout"
             className="flex items-center gap-2 px-3.5 py-2.5 text-sm text-ringo-coral hover:bg-ringo-coral/10 transition-colors"
