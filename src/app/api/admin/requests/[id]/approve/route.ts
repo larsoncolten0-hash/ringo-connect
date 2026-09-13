@@ -6,7 +6,8 @@ import { sendPushToAdmins } from "@/lib/push/send";
 import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
 import { NextResponse } from "next/server";
 import { notifyUser } from "@/lib/notifications";
-import { emailShell, sendEmail } from "@/lib/email";
+import { emailShell } from "@/lib/email/emailShell";
+import { sendEmail } from "@/lib/email/provider";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const admin = await assertCanApproveRequests();
@@ -338,6 +339,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
             <p style="font-size:12px; margin:0 0 16px; color:#64748b;">For your security, we recommend changing this password after you log in.</p>
             <a href="${siteUrl}/auth/login" style="display:inline-block; background:#4F46E5; color:#fff; text-decoration:none; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:500;">Log in to your dashboard</a>
           `),
+          log: { emailType: "signup_approved", resourceType: "user", resourceId: newUserId },
         })
       : Promise.resolve(),
   ]);

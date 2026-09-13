@@ -30,7 +30,7 @@ export async function sendMusicOrderReceiptEmail(client: any, orderId: string): 
     .eq("id", orderId)
     .is("receipt_email_sent_at", null)
     .not("customer_email", "is", null)
-    .select("order_number, customer_email, customer_name, total, music_order_items(*), profiles(name, username, currency)")
+    .select("order_number, customer_email, customer_name, total, music_order_items(*), profiles(name, username, currency, about_email)")
     .maybeSingle();
 
   // Either already sent, no order found, or no email was ever collected
@@ -70,6 +70,8 @@ export async function sendMusicOrderReceiptEmail(client: any, orderId: string): 
     to: order.customer_email,
     subject: `Your receipt from ${artistName}`,
     html,
+    replyTo: profile?.about_email || null,
+    log: { emailType: hasTickets ? "music_ticket_receipt" : "music_order_receipt", resourceType: "music_order", resourceId: orderId },
   });
 
   if (!result.ok) {

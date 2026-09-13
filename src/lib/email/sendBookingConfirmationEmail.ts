@@ -17,7 +17,7 @@ export async function sendBookingConfirmationEmail(client: any, bookingId: strin
     .eq("id", bookingId)
     .is("confirmation_email_sent_at", null)
     .not("customer_email", "is", null)
-    .select("customer_email, service_name_snapshot, booking_date, booking_time, party_size, location, profiles(name, username)")
+    .select("customer_email, service_name_snapshot, booking_date, booking_time, party_size, location, profiles(name, username, about_email)")
     .maybeSingle();
 
   if (!booking || !booking.customer_email) return;
@@ -43,6 +43,8 @@ export async function sendBookingConfirmationEmail(client: any, bookingId: strin
     to: booking.customer_email,
     subject: `Your booking with ${businessName} is confirmed`,
     html,
+    replyTo: profile?.about_email || null,
+    log: { emailType: "booking_confirmed", resourceType: "booking", resourceId: bookingId },
   });
 
   if (!result.ok) {

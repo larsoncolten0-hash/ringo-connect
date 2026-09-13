@@ -20,7 +20,7 @@ export async function sendRestaurantOrderReceiptEmail(client: any, orderId: stri
     .eq("id", orderId)
     .is("receipt_email_sent_at", null)
     .not("customer_email", "is", null)
-    .select("order_number, customer_email, customer_name, total, delivery_fee, order_items(*), profiles(name, username, currency)")
+    .select("order_number, customer_email, customer_name, total, delivery_fee, order_items(*), profiles(name, username, currency, about_email)")
     .maybeSingle();
 
   if (!order || !order.customer_email) return;
@@ -50,6 +50,12 @@ export async function sendRestaurantOrderReceiptEmail(client: any, orderId: stri
     to: order.customer_email,
     subject: `Your order from ${restaurantName}`,
     html,
+    // Lets a reply reach the restaurant directly — same reuse of the
+    // creator's own public contact address community/send.ts already
+    // relies on for the same reason. Omitted entirely (not sent at all,
+    // never a Ringo-operated fallback) when the business hasn't set one.
+    replyTo: profile?.about_email || null,
+    log: { emailType: "restaurant_order_receipt", resourceType: "order", resourceId: orderId },
   });
 
   if (!result.ok) {

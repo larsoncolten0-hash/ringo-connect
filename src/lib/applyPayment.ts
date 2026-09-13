@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { notifyAdmins, notifyUser } from "@/lib/notifications";
-import { emailShell, sendEmail } from "@/lib/email";
+import { emailShell } from "@/lib/email/emailShell";
+import { sendEmail } from "@/lib/email/provider";
 import { sendPushToAdmins } from "@/lib/push/send";
 import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
 
@@ -130,6 +131,7 @@ export async function notifyPaymentSucceeded({
           html: emailShell(`
             <p style="font-size:14px; margin:0;">${user?.email || "A creator"} just paid for the <strong>${planDisplayName}</strong> plan (${amount} ${currency}).</p>
           `),
+          log: { emailType: "subscription_payment_admin", resourceType: "user", resourceId: userId },
         })
       : Promise.resolve(),
     user?.email
@@ -140,6 +142,7 @@ export async function notifyPaymentSucceeded({
             <p style="font-size:14px; margin:0 0 12px;">Your payment for the <strong>${planDisplayName}</strong> plan was received — it's live on your account now.</p>
             <a href="${siteUrl}/dashboard/subscription" style="display:inline-block; background:#4F46E5; color:#fff; text-decoration:none; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:500;">View your subscription</a>
           `),
+          log: { emailType: "subscription_payment_confirmed", resourceType: "user", resourceId: userId },
         })
       : Promise.resolve(),
   ]);
