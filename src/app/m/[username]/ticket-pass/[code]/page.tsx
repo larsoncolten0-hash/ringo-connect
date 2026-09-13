@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
+import { checkAndConfirmFapshiOrder } from "@/lib/musicOrderPayment";
 import TicketPassView from "@/components/music/TicketPassView";
 
 // See src/app/[username]/page.tsx's own comment.
@@ -26,7 +27,7 @@ export default async function TicketPassPage({ params }: { params: { username: s
     .select(
       `id, ticket_code, status, attendee_name, used_at, created_at,
        events(title, location, event_date, event_time, cover_image_url),
-       music_orders(id, order_number, payment_status, created_at, profiles(name, username, theme_color, currency)),
+       music_orders(id, order_number, payment_status, payment_method, pending_fapshi_trans_id, total, created_at, profiles(id, user_id, name, username, theme_color, currency)),
        music_order_items(name_snapshot, price_snapshot)`
     )
     .eq("ticket_code", params.code)
@@ -39,6 +40,26 @@ export default async function TicketPassPage({ params }: { params: { username: s
   // copy-pasted onto the wrong artist's URL 404s instead of quietly
   // rendering.
   if (!ticket || !order || !profile || profile.username !== params.username) return notFound();
+
+  // A ticket bought with real automatic Mobile Money never needs the
+  // artist to confirm anything by hand (see src/lib/musicOrderPayment.ts,
+  // also used by /api/music/orders/[id] for the same reason) — a fan can
+  // land straight on this saved/shared pass link, well after closing the
+  // checkout tab, before Fapshi has actually confirmed the charge. Without
+  // this, "check back soon" above would be a dead end: reloading only
+  // ever re-read the same stale 'unpaid' column, with no artist involved
+  // to ever flip it. This route is force-dynamic, so every reload
+  // (including TicketPassView's own client-side polling) re-runs this
+  // check and picks up the real status the moment it clears.
+  if (order.payment_status !== "paid" && order.pending_fapshi_trans_id) {
+    try {
+      const status = await checkAndConfirmFapshiOrder(admin, order);
+      if (status === "SUCCESSFUL") order.payment_status = "paid";
+    } catch {
+      // Fapshi unreachable this request — fall through with the
+      // last-known status; the next reload/poll tries again.
+    }
+  }
 
   const event = (ticket as any).events;
   const orderItem = (ticket as any).music_order_items;

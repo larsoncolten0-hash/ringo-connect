@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
+import { sendPushToAdmins } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — this is the whole point of the
@@ -15,20 +16,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Name and WhatsApp number are required." }, { status: 400 });
   }
 
+  const email = typeof body.email === "string" ? body.email.trim() || null : null;
+  // 40 chars, not shorter — see the matching comment in src/lib/referral.ts.
+  const referralCode =
+    typeof body.referral_code === "string" ? body.referral_code.trim().toUpperCase().slice(0, 40) || null : null;
+
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("signup_requests")
     .insert({
       full_name: body.full_name.trim(),
       whatsapp_number: body.whatsapp_number.trim(),
-      email: body.email || null,
+      email,
       suggested_username: body.suggested_username || null,
       avatar_url: body.avatar_url || null,
       business_note: body.business_note || null,
       category: isCategoryId(body.category) ? body.category : null,
       categories: sanitizeCategoryIds(body.categories),
-      // 40 chars, not shorter — see the matching comment in src/lib/referral.ts.
-      referral_code: typeof body.referral_code === "string" ? body.referral_code.trim().toUpperCase().slice(0, 40) || null : null,
+      referral_code: referralCode,
       delivery_location: body.delivery_location || null,
       requested_plan_id: body.requested_plan_id || null,
       requested_interval: body.requested_interval === "yearly" ? "yearly" : "monthly",
@@ -54,6 +59,13 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+
+  await sendPushToAdmins(admin, {
+    category: "signup_request_new",
+    title: "New signup request",
+    body: `${body.full_name.trim()} submitted a request to join Ringo Connect.`,
+    url: "/admin/requests",
+  });
 
   return NextResponse.json({ ok: true, id: data.id });
 }

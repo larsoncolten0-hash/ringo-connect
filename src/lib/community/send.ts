@@ -1,5 +1,6 @@
 import { sendEmail } from "@/lib/email/provider";
 import { renderAnnouncementEmail } from "@/lib/email/renderAnnouncementEmail";
+import { sendPushToSubscriber } from "@/lib/push/send";
 
 // Shared by both send paths — the owner's manual "Send Announcement" and
 // the one-shot /api/community/notify product action — so there is exactly
@@ -113,6 +114,52 @@ export async function sendAnnouncementToSubscribers(
 
     if (result.ok) sentCount++;
     else failedCount++;
+  }
+
+  // --- Push channel — independent consent from email/whatsapp above:
+  // having a push_subscriptions row IS the opt-in (the browser permission
+  // grant already required it), so eligibility here is just "active" +
+  // the content-type preference, not `email_updates`. Doesn't affect the
+  // recipientCount/sentCount/failedCount returned above — those describe
+  // the email send this function's callers already surface in their own
+  // UI; push is a bonus channel layered on top, not a replacement.
+  const { data: pushCandidates } = await admin
+    .from("community_subscribers")
+    .select("id, community_subscription_preferences!inner(*)")
+    .eq("profile_id", profile.id)
+    .eq("status", "active")
+    .eq(`community_subscription_preferences.${notifyColumn}`, true);
+
+  if (pushCandidates && pushCandidates.length > 0) {
+    const { data: existingPushLogs } = await admin
+      .from("community_delivery_logs")
+      .select("subscriber_id, status")
+      .eq("announcement_id", announcement.id)
+      .eq("channel", "push");
+    const alreadyPushed = new Set(
+      (existingPushLogs || []).filter((l: any) => l.status === "sent").map((l: any) => l.subscriber_id)
+    );
+
+    const pushBody = String(announcement.message || "").slice(0, 160);
+    for (const subscriber of pushCandidates as any[]) {
+      if (alreadyPushed.has(subscriber.id)) continue;
+      const delivered = await sendPushToSubscriber(admin, subscriber.id, {
+        category: `community_${announcement.notification_category}`,
+        title: announcement.title,
+        body: pushBody,
+        url: ctaUrl || `${siteUrl()}/${profile.username}`,
+      });
+      if (delivered) {
+        await admin.from("community_delivery_logs").upsert(
+          { announcement_id: announcement.id, subscriber_id: subscriber.id, channel: "push", status: "sent", sent_at: new Date().toISOString() },
+          { onConflict: "announcement_id,subscriber_id,channel" }
+        );
+      }
+      // Not delivered just means this subscriber has no push subscription
+      // (the overwhelmingly common case) — not logged as 'failed', since
+      // that column is for a real send attempt going wrong, not "nothing
+      // to attempt."
+    }
   }
 
   return { recipientCount: recipients.length, sentCount, failedCount };

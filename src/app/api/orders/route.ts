@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
+import { sendRestaurantOrderReceiptEmail } from "@/lib/email/sendRestaurantOrderReceipt";
+import { sendPushToUser } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — guest ordering, no Ringo account
@@ -17,6 +19,7 @@ export async function POST(request: Request) {
   const orderType = body?.order_type;
   const customerName = typeof body?.customer_name === "string" ? body.customer_name.trim() : "";
   const customerPhone = typeof body?.customer_phone === "string" ? body.customer_phone.trim() : "";
+  const customerEmail = typeof body?.customer_email === "string" ? body.customer_email.trim().slice(0, 200) : "";
   const items: { menu_item_id: string; quantity: number; notes?: string }[] = Array.isArray(body?.items) ? body.items : [];
 
   if (!profileId || !["dine_in", "takeaway", "delivery"].includes(orderType)) {
@@ -122,6 +125,7 @@ export async function POST(request: Request) {
       order_type: orderType,
       customer_name: customerName,
       customer_phone: customerPhone,
+      customer_email: customerEmail || null,
       delivery_address: orderType === "delivery" ? body.delivery_address.trim() : null,
       delivery_fee: deliveryFee,
       payment_method: paymentMethod,
@@ -139,6 +143,25 @@ export async function POST(request: Request) {
 
   await admin.from("order_items").insert(orderItems.map((i) => ({ ...i, order_id: order.id })));
   await admin.from("order_status_history").insert({ order_id: order.id, status: "pending" });
+
+  // The kitchen — the profile owner is the only "staff" role this schema
+  // has, so this doubles as "notify the chef" from the user's own request.
+  await sendPushToUser(admin, profile.user_id, {
+    category: "order_new",
+    title: "New order",
+    body: `${customerName} placed an order · #${order.order_number}`,
+    url: "/dashboard/restaurant/orders",
+  });
+
+  if (customerEmail) {
+    try {
+      await sendRestaurantOrderReceiptEmail(admin, order.id);
+    } catch (err) {
+      // Never fail order placement over a receipt email — the order
+      // itself already succeeded above.
+      console.error(`restaurant order receipt email threw for order ${order.id}:`, err);
+    }
+  }
 
   if (customer) {
     await admin

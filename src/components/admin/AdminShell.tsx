@@ -3,10 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationBell from "@/components/NotificationBell";
+import PushPermissionPrompt from "@/components/PushPermissionPrompt";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
-import { AdminInstallButton, AdminPushToggle } from "@/components/admin/AdminAppControls";
+import { AdminInstallButton } from "@/components/admin/AdminAppControls";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Users", icon: Users, exact: true },
@@ -16,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/admin/price-controls", label: "Price Controls", icon: DollarSign },
   { href: "/admin/affiliates", label: "Affiliates", icon: Handshake },
   { href: "/admin/music-payouts", label: "Music payouts", icon: Banknote },
+  { href: "/admin/broadcast", label: "Broadcast", icon: Radio },
   { href: "/admin/qr-code", label: "QR code", icon: QrCode },
   { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -64,12 +67,22 @@ export default function AdminShell({ email, children }: { email: string; childre
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-1 px-1">
+          {/* The in-app feed — every full admin sees the same rows (see
+              notifyAdmins() in src/lib/notifications.ts). OS-level push is
+              opted into via the proactive prompt below instead of an
+              always-visible icon here (see PushPermissionPrompt's own
+              comment); it can still be toggled manually from
+              /admin/settings once someone's dismissed that prompt. */}
+          <NotificationBell mode="admin" variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
         </div>
+        {/* "Add to Home Screen" — a separate concern from the notification
+            bell/prompt above: this is PWA installability, not push opt-in.
+            Renders nothing when installing isn't actually possible (see
+            AdminAppControls.tsx's own comment). */}
         <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3">
           <AdminInstallButton variant="row" />
-          <AdminPushToggle variant="row" />
         </div>
         <div className="border-t border-white/10 pt-3 flex items-center justify-between px-1">
           <div className="min-w-0">
@@ -90,7 +103,19 @@ export default function AdminShell({ email, children }: { email: string; childre
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[248px_1fr]">
+      {/* Registers the same non-caching service worker DashboardShell
+          uses (see RegisterServiceWorker.tsx) — needed here too now,
+          since the push prompt below depends on
+          navigator.serviceWorker.ready resolving. */}
       <RegisterServiceWorker />
+
+      {/* Proactively asks to enable push, instead of relying on someone
+          noticing a header icon — see that component's own comment. */}
+      <PushPermissionPrompt
+        subscribeUrl="/api/push/subscribe"
+        body="Get notified about new paid members, signup requests and payout requests — right on this device."
+      />
+
       {/* Fixed dark sidebar — deliberately NOT theme-toggle-aware. This is
           chrome, not content: it stays the same dark "control panel"
           regardless of the admin's light/dark preference for the main
@@ -107,7 +132,7 @@ export default function AdminShell({ email, children }: { email: string; childre
         </Link>
         <div className="flex items-center gap-1">
           <AdminInstallButton variant="icon" />
-          <AdminPushToggle variant="icon" />
+          <NotificationBell mode="admin" variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
           <Link
             href="/auth/logout"

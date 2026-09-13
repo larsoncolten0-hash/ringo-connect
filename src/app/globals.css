@@ -18,10 +18,24 @@
   --ringo-border: rgba(241, 245, 249, 0.14);
 }
 
+html {
+  /* Kills the double-tap-to-zoom gesture and its ~300ms tap response
+     delay everywhere, so buttons/links feel instant — paired with the
+     viewport's maximumScale/userScalable (see app/layout.tsx's `viewport`
+     export), this is what keeps the installed PWA from ever pinch- or
+     double-tap-zooming like a regular mobile website. */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background-color: var(--ringo-bg);
   color: var(--ringo-text);
   font-family: var(--font-body), sans-serif;
+  /* Removes the gray flash Android/iOS paint on every tap — native apps
+     have no such flash, so this is part of the same "feels installed"
+     treatment as the touch-action rule above. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1, h2, h3, .font-display {
@@ -39,12 +53,46 @@ h1, h2, h3, .font-display {
   display: none; /* Chrome, Safari, newer Edge */
 }
 
+/* Shimmering skeleton placeholders — shown by the dashboard's loading.tsx
+   (and any other route's Suspense fallback) while server-fetched data is
+   still in flight, so navigating never shows a blank/frozen screen. Built
+   as a plain CSS class rather than a Tailwind keyframe utility so the
+   moving highlight can be a pseudo-element sweep (a single flat-color
+   pulse reads as "broken", not "loading premium UI"). */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(15, 23, 42, 0.07);
+}
+.dark .skeleton {
+  background-color: rgba(241, 245, 249, 0.08);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.06), transparent);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+.dark .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgba(241, 245, 249, 0.09), transparent);
+}
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-ring-pulse-1,
   .animate-ring-pulse-2,
   .animate-ring-pulse-3,
   .animate-orbit,
   .animate-dropdown-in {
+    animation: none !important;
+  }
+  .skeleton::after {
     animation: none !important;
   }
 }

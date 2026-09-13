@@ -1,18 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Smartphone, Bell, BellOff, Share, X } from "lucide-react";
-import { enablePush, disablePush, getPushStatus, type PushStatus } from "@/lib/push/client";
+import { Smartphone, Share, X } from "lucide-react";
 
-// "Add to Home Screen" + push-notification toggle for the admin console.
-// Deliberately self-contained (hardcoded English, no useLanguage()) —
-// AdminShell is English-only chrome, unlike the creator-facing dashboard,
-// so this doesn't reuse AddToHomeScreenMenuItem.tsx/translations.ts.
+// "Add to Home Screen" install button for the admin console. Deliberately
+// self-contained (hardcoded English, no useLanguage()) — AdminShell is
+// English-only chrome, unlike the creator-facing dashboard, so this
+// doesn't reuse AddToHomeScreenMenuItem.tsx/translations.ts.
 //
-// Rendered twice from AdminShell: a compact icon-only pair in the mobile
-// top bar, and a labeled pair in the desktop sidebar — `variant` switches
-// between the two. Both variants share the same install/push state logic
-// below; only the JSX differs.
+// Push-notification opt-in used to live here too (as AdminPushToggle),
+// but is now handled by NotificationBell.tsx (in-app feed) and
+// PushPermissionPrompt.tsx (the proactive OS-push prompt) — both mounted
+// directly from AdminShell. Installability and push are separate
+// concerns; this component only ever does the former.
+//
+// Rendered twice from AdminShell: a compact icon-only button in the
+// mobile top bar, and a labeled row in the desktop sidebar — `variant`
+// switches between the two.
 
 function useInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -121,63 +125,5 @@ export function AdminInstallButton({ variant }: { variant: "icon" | "row" }) {
       )}
       {showIOSInstructions && <IOSInstructionsModal onClose={() => setShowIOSInstructions(false)} />}
     </>
-  );
-}
-
-export function AdminPushToggle({ variant }: { variant: "icon" | "row" }) {
-  const [status, setStatus] = useState<PushStatus | "loading">("loading");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    getPushStatus().then(setStatus);
-  }, []);
-
-  // No dead button on a browser that can't do Web Push at all.
-  if (status === "unsupported") return null;
-
-  const toggle = async () => {
-    if (busy) return;
-    setBusy(true);
-    if (status === "subscribed") {
-      await disablePush();
-      setStatus(await getPushStatus());
-    } else if (status === "denied") {
-      // Browsers don't let a page re-prompt after an explicit deny —
-      // nothing to do here but point at the fix.
-      alert("Notifications are blocked for this site. Enable them in your browser's site settings, then try again.");
-    } else {
-      const result = await enablePush();
-      if (!result.ok && result.error) alert(result.error);
-      setStatus(await getPushStatus());
-    }
-    setBusy(false);
-  };
-
-  const subscribed = status === "subscribed";
-  const Icon = subscribed ? Bell : BellOff;
-  const label = status === "loading" ? "Notifications" : subscribed ? "Notifications on" : "Enable notifications";
-
-  return variant === "icon" ? (
-    <button
-      onClick={toggle}
-      disabled={busy}
-      aria-pressed={subscribed}
-      aria-label={label}
-      className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
-        subscribed ? "text-ringo-teal hover:bg-white/10" : "text-white/50 hover:text-white hover:bg-white/10"
-      }`}
-    >
-      <Icon size={16} />
-    </button>
-  ) : (
-    <button
-      onClick={toggle}
-      disabled={busy}
-      aria-pressed={subscribed}
-      className="flex items-center gap-2 w-full px-1 py-1.5 text-sm text-white/70 hover:text-white transition-colors text-left disabled:opacity-50"
-    >
-      <Icon size={15} className={subscribed ? "text-ringo-teal" : ""} />
-      {label}
-    </button>
   );
 }

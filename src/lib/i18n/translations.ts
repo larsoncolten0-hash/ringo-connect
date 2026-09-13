@@ -85,6 +85,29 @@ export const translations = {
       menuItem: "Add to Home Screen",
       iosTitle: "Add Ringo Connect to Your Home Screen",
     },
+    // Web Push opt-in copy — NotificationBell.tsx (creator/admin
+    // dashboards), the community manage page's fan toggle, and
+    // RestaurantOrderPage.tsx's guest order tracker. Notification content
+    // itself (titles/bodies of what actually gets pushed, e.g. "New
+    // booking request") is server-generated and deliberately not
+    // localized here, same as this app's email templates.
+    pushNotifications: {
+      enable: "Get notifications",
+      enabled: "Notifications on",
+      hint: "Get notified on this device — no app to install.",
+      permissionDenied: "Notifications are blocked — check your browser or phone settings.",
+      orderEnable: "Notify me about this order",
+      orderEnabled: "We'll notify you ✓",
+      // The proactive permission prompt (PushPermissionPrompt.tsx) —
+      // shown automatically instead of requiring someone to notice and
+      // click a header icon. Body text is passed in per surface
+      // (dashboard vs admin), everything else here is shared chrome.
+      promptTitle: "Turn on notifications",
+      promptEnable: "Enable notifications",
+      promptDismiss: "Not now",
+      promptBodyDashboard: "Get notified the moment a booking, order, sale or new subscriber comes in — right on this device.",
+      promptBodyAdmin: "Get notified about new paid members, signup requests and payout requests — right on this device.",
+    },
     // The public "Join Community" form (see CommunityJoinPage.tsx) and its
     // own confirmation step. Dashboard-side copy (Overview/Subscribers/
     // Announcements/Settings) lives under `community` instead.
@@ -315,16 +338,17 @@ export const translations = {
       downloadTrack: "Download",
       emailDeliveryNote: "Email delivery isn't set up on this Ringo yet — use Play or Download above to access your music.",
       purchasePendingNote: "Your payment is being confirmed by the artist — Play and Download will unlock here as soon as it's verified. This page updates automatically.",
+      purchasePendingAutoNote: "We're confirming your Mobile Money payment automatically — Play and Download will unlock here the moment it clears, no artist confirmation needed. This page updates on its own, even if it takes a few minutes.",
       pendingConfirmation: "Pending confirmation",
       accessFailedError: "Couldn't access this track right now — try again in a moment.",
       mobileMoneyInstantNote: "You'll get a payment prompt on your phone — Play and Download unlock the moment you confirm it, no waiting.",
-      mobileMoneyDeclaredNote: "Automatic Mobile Money isn't available in this currency yet — the artist will confirm your payment.",
       mobileMoneyProcessingTitle: "Check your phone",
       mobileMoneyProcessingBody: "Confirm the payment prompt to complete your purchase. This can take a moment.",
       mobileMoneyFailed: "The payment wasn't completed. You can try again, or continue and let the artist confirm it later.",
-      mobileMoneyTimeout: "We haven't heard back yet. You can try again, or continue and let the artist confirm it later.",
+      mobileMoneyTimeout: "We haven't heard back yet — this can happen if the confirmation prompt on your phone takes a while. You can try again, or continue: we'll keep checking automatically and unlock your purchase the moment it clears.",
       mobileMoneyRetry: "Try again",
       mobileMoneyContinueAnyway: "Continue without instant access",
+      mobileMoneyContinueChecking: "Continue — we'll keep checking automatically",
 
       earningsTab: "Earnings",
       earningsTitle: "Earnings",
@@ -595,6 +619,8 @@ export const translations = {
       namePlaceholder: "e.g. Jean Paul",
       phoneLabel: "Phone number",
       phonePlaceholder: "e.g. 677 12 34 56",
+      emailLabel: "Email (optional — for your receipt)",
+      emailPlaceholder: "you@example.com",
       deliveryAddressLabel: "Delivery address",
       deliveryAddressPlaceholder: "Street, neighborhood, landmark",
       marketingOptInLabel: "I'd like to receive special offers, discounts and updates from this restaurant.",
@@ -607,6 +633,7 @@ export const translations = {
       orderRequiredError: "Please enter your name and phone number.",
       orderFailedError: "Something went wrong placing your order. Please try again.",
       orderConfirmedTitle: "Order received!",
+      receiptEmailedNote: "A receipt has been emailed to you.",
       orderNumberLabel: "Order",
       tableLabel: "Table",
       subtotalLabel: "Subtotal",
@@ -1006,6 +1033,7 @@ export const translations = {
       logout: "Log out",
       plan: "plan",
       soundEffects: "Sound effects",
+      pushNotifications: "Push notifications",
     },
     sidebar: {
       freeBadge: "You're on Free",
@@ -1607,6 +1635,19 @@ export const translations = {
       menuItem: "Ajouter à l'écran d'accueil",
       iosTitle: "Ajouter Ringo Connect à votre écran d'accueil",
     },
+    pushNotifications: {
+      enable: "Activer les notifications",
+      enabled: "Notifications activées",
+      hint: "Recevez une notification sur cet appareil — aucune application à installer.",
+      permissionDenied: "Les notifications sont bloquées — vérifiez les réglages de votre navigateur ou téléphone.",
+      orderEnable: "M'avertir pour cette commande",
+      orderEnabled: "Vous serez averti ✓",
+      promptTitle: "Activer les notifications",
+      promptEnable: "Activer les notifications",
+      promptDismiss: "Plus tard",
+      promptBodyDashboard: "Soyez averti dès qu'une réservation, commande, vente ou un nouvel abonné arrive — directement sur cet appareil.",
+      promptBodyAdmin: "Soyez averti des nouveaux membres payants, demandes d'inscription et demandes de paiement — directement sur cet appareil.",
+    },
     communityJoin: {
       formTitle: (name: string) => `Rejoindre la communauté de ${name}`,
       subtitle: "Restez informé des nouveautés musicales, produits, événements et annonces.",
@@ -1825,16 +1866,17 @@ export const translations = {
       downloadTrack: "Télécharger",
       emailDeliveryNote: "La livraison par e-mail n'est pas encore configurée sur ce Ringo — utilisez Écouter ou Télécharger ci-dessus pour accéder à votre musique.",
       purchasePendingNote: "Votre paiement est en cours de confirmation par l'artiste — Écouter et Télécharger se débloqueront ici dès qu'il sera vérifié. Cette page se met à jour automatiquement.",
+      purchasePendingAutoNote: "Nous confirmons votre paiement Mobile Money automatiquement — Écouter et Télécharger se débloqueront ici dès qu'il sera validé, sans confirmation de l'artiste. Cette page se met à jour toute seule, même si cela prend quelques minutes.",
       pendingConfirmation: "En attente de confirmation",
       accessFailedError: "Impossible d'accéder à ce titre pour le moment — réessayez dans un instant.",
       mobileMoneyInstantNote: "Vous recevrez une demande de paiement sur votre téléphone — Écouter et Télécharger se débloquent dès que vous confirmez, sans attente.",
-      mobileMoneyDeclaredNote: "Mobile Money automatique n'est pas encore disponible dans cette devise — l'artiste confirmera votre paiement.",
       mobileMoneyProcessingTitle: "Vérifiez votre téléphone",
       mobileMoneyProcessingBody: "Confirmez la demande de paiement pour finaliser votre achat. Cela peut prendre un instant.",
       mobileMoneyFailed: "Le paiement n'a pas abouti. Vous pouvez réessayer, ou continuer et laisser l'artiste le confirmer plus tard.",
-      mobileMoneyTimeout: "Nous n'avons pas encore de réponse. Vous pouvez réessayer, ou continuer et laisser l'artiste le confirmer plus tard.",
+      mobileMoneyTimeout: "Nous n'avons pas encore de réponse — cela peut arriver si la confirmation sur votre téléphone prend du temps. Vous pouvez réessayer, ou continuer : nous continuerons à vérifier automatiquement et débloquerons votre achat dès qu'il sera validé.",
       mobileMoneyRetry: "Réessayer",
       mobileMoneyContinueAnyway: "Continuer sans accès instantané",
+      mobileMoneyContinueChecking: "Continuer — nous vérifierons automatiquement",
 
       earningsTab: "Revenus",
       earningsTitle: "Revenus",
@@ -2079,6 +2121,8 @@ export const translations = {
       namePlaceholder: "ex. Jean Paul",
       phoneLabel: "Numéro de téléphone",
       phonePlaceholder: "ex. 677 12 34 56",
+      emailLabel: "E-mail (optionnel — pour votre reçu)",
+      emailPlaceholder: "vous@exemple.com",
       deliveryAddressLabel: "Adresse de livraison",
       deliveryAddressPlaceholder: "Rue, quartier, repère",
       marketingOptInLabel: "Je souhaite recevoir des offres spéciales, réductions et actualités de ce restaurant.",
@@ -2091,6 +2135,7 @@ export const translations = {
       orderRequiredError: "Merci d'indiquer votre nom et votre numéro de téléphone.",
       orderFailedError: "Un problème est survenu lors de la commande. Merci de réessayer.",
       orderConfirmedTitle: "Commande reçue !",
+      receiptEmailedNote: "Un reçu vous a été envoyé par e-mail.",
       orderNumberLabel: "Commande",
       tableLabel: "Table",
       subtotalLabel: "Sous-total",
@@ -2463,6 +2508,7 @@ export const translations = {
       logout: "Déconnexion",
       plan: "offre",
       soundEffects: "Effets sonores",
+      pushNotifications: "Notifications push",
     },
     sidebar: {
       freeBadge: "Vous êtes sur Gratuit",

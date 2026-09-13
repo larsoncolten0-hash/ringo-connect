@@ -1,10 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
-import { notifyAdmins } from "@/lib/push/send";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { notifyAdmins } from "@/lib/notifications";
+import { sendPushToAdmins } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
-// Notifies every admin that a new person just confirmed their self-serve
-// signup (/auth/signup → /auth/confirm) — called once, client-side, from
-// /auth/confirm right after verifyOtp succeeds for type === "signup".
+// Notifies every admin (in-app feed + OS push) that a new person just
+// confirmed their self-serve signup (/auth/signup → /auth/confirm) —
+// called once, client-side, from /auth/confirm right after verifyOtp
+// succeeds for type === "signup".
 //
 // There's no webhook or DB trigger to hook this into instead: the account
 // itself is created earlier by a Postgres trigger on auth.users (before
@@ -14,10 +16,10 @@ import { NextResponse } from "next/server";
 // session — it can't be used to spoof a notification about anyone else,
 // since the user id always comes from the session, never the request body.
 //
-// (The other "someone signed up" path — an admin approving a
-// /get-started signup request — has a real server-side call site already,
-// see /api/admin/requests/[id]/approve, and calls notifyAdmins directly
-// there instead of through this route.)
+// Distinct from the "new paid member" push in applyPayment.ts/the Stripe
+// webhook/the admin approve route: this fires for every free self-serve
+// signup, which never touches payment_transactions at all, so those
+// payment-triggered notifications never would.
 export async function POST() {
   const supabase = createClient();
   const {
@@ -33,11 +35,20 @@ export async function POST() {
 
   const who = profile?.name || (profile?.username ? `@${profile.username}` : user.email || "Someone");
 
-  await notifyAdmins({
-    title: "New Ringo Connect signup",
-    body: `${who} just signed up.`,
-    url: "/admin",
-  });
+  await Promise.allSettled([
+    notifyAdmins({
+      type: "signup_free",
+      title: "New Ringo Connect signup",
+      body: `${who} just signed up.`,
+      link: "/admin",
+    }),
+    sendPushToAdmins(createAdminClient(), {
+      category: "signup_free",
+      title: "New Ringo Connect signup",
+      body: `${who} just signed up.`,
+      url: "/admin",
+    }),
+  ]);
 
   return NextResponse.json({ ok: true });
 }

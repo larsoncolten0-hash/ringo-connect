@@ -1,6 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requestMusicPayout } from "@/lib/musicEarnings";
-import { notifyAdmins } from "@/lib/push/send";
+import { sendPushToAdmins } from "@/lib/push/send";
+import { formatPrice } from "@/lib/currency";
 import { NextResponse } from "next/server";
 
 // Mirrors /api/affiliate/payouts/route.ts exactly — requesting a payout is
@@ -22,11 +23,13 @@ export async function POST(request: Request) {
 
   try {
     const payout = await requestMusicPayout(currency);
-    // Best-effort — see src/lib/push/send.ts. Admin needs to know an
-    // artist is now waiting to be paid.
-    await notifyAdmins({
+    // Admin client, not the request-scoped `supabase` above — an
+    // artist's own session has no RLS access to the admin roster or to
+    // other users' push_subscriptions rows.
+    await sendPushToAdmins(createAdminClient(), {
+      category: "payout_requested",
       title: "Music payout requested",
-      body: `${user.email} requested a payout of ${payout.amount} ${payout.currency}.`,
+      body: `A ${formatPrice(payout?.amount, payout?.currency || currency)} payout was requested.`,
       url: "/admin/music-payouts",
     });
     return NextResponse.json({ ok: true, payout });

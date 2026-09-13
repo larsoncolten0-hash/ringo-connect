@@ -16,11 +16,16 @@ const FILTERS = ["all", "pending", "completed", "cancelled", "refunded"] as cons
 // simpler here — digital goods/tickets/support have no kitchen prep steps,
 // just pending → completed, plus a separate payment_status flag.
 //
-// Marking an order Paid here is the one and only place payment_status can
-// ever become 'paid' anywhere in this app — and that flag is exactly what
-// /api/music/tracks/[id]/audio checks before ever handing out a signed URL
-// to a track's full protected file. Skipping this action isn't a cosmetic
-// gap: it's the only way a fan's purchase actually unlocks.
+// Marking an order Paid here is the ONLY way payment_status becomes 'paid'
+// for a cash/card order — there's no payment gateway behind those, so the
+// artist confirming by hand really is the only signal that money changed
+// hands. A real automatic Mobile Money order (see
+// src/lib/musicOrderPayment.ts) never needs this: it flips to 'paid' on
+// its own once Fapshi confirms the charge. Either way, that flag is
+// exactly what /api/music/tracks/[id]/audio checks before ever handing
+// out a signed URL to a track's full protected file — for a cash/card
+// order, skipping this action isn't a cosmetic gap, it's the only way a
+// fan's purchase actually unlocks.
 export default function MusicOrdersView({
   profileId,
   currency,
@@ -64,7 +69,12 @@ export default function MusicOrdersView({
 
   const markPaid = async (order: any) => {
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, payment_status: "paid" } : o)));
-    await supabase.from("music_orders").update({ payment_status: "paid" }).eq("id", order.id);
+    // Goes through an API route rather than a direct client update (unlike
+    // markCompleted/cancelOrder below) — this is also the moment a fan's
+    // receipt email fires, and sendEmail is server-only (the Resend API
+    // key must never reach the browser). See that route for the RLS
+    // ownership check.
+    await fetch(`/api/music/orders/${order.id}/mark-paid`, { method: "POST" });
   };
 
   const markCompleted = async (order: any) => {

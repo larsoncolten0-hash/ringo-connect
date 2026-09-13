@@ -41,6 +41,7 @@ export default async function DashboardLayout({
 
   return (
     <DashboardShell
+      userId={user.id}
       email={userRow?.email ?? user.email ?? ""}
       username={profile?.username ?? "you"}
       avatarUrl={profile?.avatar_url}

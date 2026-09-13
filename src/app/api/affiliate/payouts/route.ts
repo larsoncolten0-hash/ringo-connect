@@ -1,6 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requestAffiliatePayout } from "@/lib/affiliate";
-import { notifyAdmins } from "@/lib/push/send";
+import { sendPushToAdmins } from "@/lib/push/send";
+import { formatPrice } from "@/lib/currency";
 import { NextResponse } from "next/server";
 
 // Requesting a payout is intentionally NOT computed here — it's a single
@@ -22,11 +23,13 @@ export async function POST(request: Request) {
 
   try {
     const payout = await requestAffiliatePayout(currency);
-    // Best-effort — see src/lib/push/send.ts. Admin needs to know an
-    // affiliate is now waiting to be paid.
-    await notifyAdmins({
+    // Admin client, not the request-scoped `supabase` above — an
+    // affiliate's own session has no RLS access to the admin roster or to
+    // other users' push_subscriptions rows.
+    await sendPushToAdmins(createAdminClient(), {
+      category: "payout_requested",
       title: "Affiliate payout requested",
-      body: `${user.email} requested a payout of ${payout.amount} ${payout.currency}.`,
+      body: `A ${formatPrice(payout?.amount, payout?.currency || currency)} payout was requested.`,
       url: "/admin/affiliates",
     });
     return NextResponse.json({ ok: true, payout });

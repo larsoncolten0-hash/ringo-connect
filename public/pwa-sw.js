@@ -37,53 +37,48 @@ self.addEventListener("activate", (event) => {
 // wants one.
 self.addEventListener("fetch", () => {});
 
-// Web Push — see src/lib/push/send.ts (server side, what sends these) and
-// src/lib/push/client.ts (browser side, what subscribes to them). The
-// payload is always our own JSON ({ title, body, url }), never someone
-// else's arbitrary push service — this worker isn't multi-tenant, it's
-// bundled with this one app.
-//
-// Deliberately separate from the fetch/install/activate handlers above,
-// which exist purely for installability (see the incident note) — a push
-// handler that shows a notification is not "caching" or "intercepting"
-// anything and carries none of that risk.
+// OS-level push notifications (see src/lib/push/) — the only other job
+// this worker has, and unlike the fetch handler above, this one is
+// supposed to do something. `event.data` is whatever JSON payload
+// src/lib/push/webpush.ts's deliverToSubscription() sent
+// (PushPayload: { category, title, body, url, data }).
 self.addEventListener("push", (event) => {
-  let data = {};
+  let payload = {};
   try {
-    data = event.data ? event.data.json() : {};
+    payload = event.data ? event.data.json() : {};
   } catch {
-    // Not JSON (shouldn't happen — we always send JSON) — fall back to a
-    // generic notification rather than dropping the push silently.
+    // A push with no/unparseable body still deserves *a* notification
+    // rather than silently doing nothing.
   }
 
-  const title = data.title || "Ringo Connect";
+  const title = payload.title || "Ringo Connect";
   const options = {
-    body: data.body || "",
-    // Same generated PWA icons every manifest.webmanifest route falls
-    // back to when there's no per-creator avatar — see
-    // src/app/dashboard/manifest.webmanifest/route.ts.
+    body: payload.body || "",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    // Carries where notificationclick below should take the person —
-    // never rendered, purely internal.
-    data: { url: data.url || "/" },
+    // Collapses rapid-fire pushes of the same kind (e.g. several order
+    // status updates) into one notification slot instead of stacking —
+    // the OS shows only the latest with a given tag.
+    tag: payload.category,
+    data: { url: payload.url || "/" },
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Tapping a notification focuses an already-open tab on its target URL
-// when one exists, instead of always opening a new one — most of the time
-// the dashboard or admin console is already open in a background tab.
+// Tapping the notification focuses an already-open tab on its target URL
+// if one exists, otherwise opens a new one — standard PWA notification
+// click behavior.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url || "/";
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      const existing = clientList.find((c) => new URL(c.url).pathname === url);
-      if (existing) return existing.focus();
-      return self.clients.openWindow(url);
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if (client.url === url && "focus" in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
     })
   );
 });

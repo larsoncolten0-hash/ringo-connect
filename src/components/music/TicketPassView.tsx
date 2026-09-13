@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MapPin, Clock, CheckCircle2, XCircle, Ban, RotateCcw, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
@@ -33,12 +34,25 @@ export default function TicketPassView({
   currency: string;
 }) {
   const { t, locale } = useLanguage();
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrStatus, setQrStatus] = useState<"idle" | "ready" | "error">("idle");
 
   const paid = order.paymentStatus === "paid";
   const isValid = ticket.status === "valid";
   const showQr = paid && isValid;
+
+  // This page is server-rendered (force-dynamic) and re-checks the real
+  // Fapshi status on every load — see the route file's own comment. A fan
+  // who lands here straight from checkout, before their Mobile Money
+  // payment has actually cleared, would otherwise have to know to
+  // manually reload; poll instead so the QR appears on its own the moment
+  // it's confirmed, no artist involved and no reload needed.
+  useEffect(() => {
+    if (paid) return;
+    const interval = setInterval(() => router.refresh(), 5000);
+    return () => clearInterval(interval);
+  }, [paid, router]);
 
   useEffect(() => {
     if (!showQr) return;

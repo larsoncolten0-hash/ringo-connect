@@ -57,19 +57,30 @@ export default function RestaurantOrdersView({
     return () => clearInterval(interval);
   }, [profileId]);
 
+  // Both routed through an API route (rather than a direct client update)
+  // so the customer's status-update email can actually be sent — sendEmail
+  // is server-only, the Resend API key must never reach the browser. See
+  // that route for the RLS ownership check and the order_status_history
+  // insert, both now handled server-side.
   const advanceStatus = async (order: any) => {
     const next = nextStatus(order.status, order.order_type);
     if (!next) return;
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: next } : o)));
-    await supabase.from("orders").update({ status: next }).eq("id", order.id);
-    await supabase.from("order_status_history").insert({ order_id: order.id, status: next });
+    await fetch(`/api/orders/${order.id}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: next }),
+    });
   };
 
   const cancelOrder = async (order: any) => {
     if (!window.confirm(t.restaurant.cancelOrder + "?")) return;
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: "cancelled" } : o)));
-    await supabase.from("orders").update({ status: "cancelled" }).eq("id", order.id);
-    await supabase.from("order_status_history").insert({ order_id: order.id, status: "cancelled" });
+    await fetch(`/api/orders/${order.id}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
   };
 
   const actionLabel = (status: OrderStatus) =>

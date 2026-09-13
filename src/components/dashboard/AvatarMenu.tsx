@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, LogOut, Volume2, VolumeX } from "lucide-react";
+import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useSound } from "@/components/SoundProvider";
+import { usePushToggle } from "@/lib/push/usePushToggle";
 import AddToHomeScreenMenuItem from "@/components/dashboard/AddToHomeScreenMenuItem";
 
 export default function AvatarMenu({
@@ -20,6 +21,11 @@ export default function AvatarMenu({
 }) {
   const { t } = useLanguage();
   const { enabled: soundEnabled, setEnabled: setSoundEnabled } = useSound();
+  // Manual on/off control — the primary way in is now the proactive
+  // PushPermissionPrompt shown on page load (see DashboardShell.tsx), so
+  // this only matters for someone who dismissed that or wants to turn it
+  // back off later.
+  const { status: pushStatus, busy: pushBusy, toggle: togglePush } = usePushToggle("/api/push/subscribe");
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -94,6 +100,30 @@ export default function AvatarMenu({
               />
             </span>
           </button>
+          {pushStatus !== "unsupported" && (
+            <button
+              onClick={togglePush}
+              disabled={pushBusy}
+              aria-pressed={pushStatus === "on"}
+              className="flex items-center justify-between gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left disabled:opacity-60"
+            >
+              <span className="flex items-center gap-2">
+                {pushStatus === "on" ? <Bell size={14} /> : <BellOff size={14} />}
+                {t.account.pushNotifications}
+              </span>
+              <span
+                className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
+                  pushStatus === "on" ? "bg-ringo-indigo" : "bg-ringo-muted/30"
+                }`}
+              >
+                <span
+                  className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+                    pushStatus === "on" ? "translate-x-[16px]" : "translate-x-[2px]"
+                  }`}
+                />
+              </span>
+            </button>
+          )}
           <AddToHomeScreenMenuItem onNavigate={() => setOpen(false)} />
           <Link
             href="/auth/logout"

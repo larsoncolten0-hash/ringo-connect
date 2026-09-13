@@ -214,6 +214,7 @@ export default function SubscriptionView({
           priceUsdYearly={Number(modalPlan.price_usd_yearly)}
           defaultMethod={defaultMethod}
           defaultInterval={interval}
+          isCameroon={isCameroon}
           fapshiEnabled={fapshiEnabled}
           stripeEnabled={stripeEnabled}
           onClose={() => setModalPlan(null)}

@@ -57,6 +57,15 @@ export async function generateMetadata({ params }: { params: { token: string } }
 
 export async function generateViewport({ params }: { params: { token: string } }): Promise<Viewport> {
   return {
+    // Repeats the root layout's zoom-lock fields (see app/layout.tsx's
+    // `viewport` export) rather than relying purely on inheritance — this
+    // segment is the one actually installed as a PWA, so it can't afford
+    // to silently lose them if that merge behavior ever changes.
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: "cover",
     // Fixed near-black, matching the scanner UI itself — there's no
     // creator theme color to read here, this app has no owner-branding
     // concept at all by design.

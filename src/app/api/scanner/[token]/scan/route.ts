@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { checkAndConfirmFapshiOrder } from "@/lib/musicOrderPayment";
 import { NextResponse } from "next/server";
 
 // The one route that actually moves a ticket between not_checked_in /
@@ -28,7 +29,9 @@ export async function POST(request: Request, { params }: { params: { token: stri
 
   const { data: ticket } = await admin
     .from("digital_tickets")
-    .select("*, music_orders(payment_status), music_order_items(name_snapshot)")
+    .select(
+      "*, music_orders(id, total, payment_status, payment_method, pending_fapshi_trans_id, profiles(id, user_id, currency)), music_order_items(name_snapshot)"
+    )
     .eq("ticket_code", code)
     .maybeSingle();
 
@@ -61,6 +64,21 @@ export async function POST(request: Request, { params }: { params: { token: stri
       result: "wrong_event",
     });
     return NextResponse.json({ outcome: "wrong_event" });
+  }
+
+  // A ticket bought with real automatic Mobile Money never needs the
+  // artist to confirm anything by hand (see src/lib/musicOrderPayment.ts)
+  // — a fan whose payment cleared after they'd already stopped watching
+  // the checkout/ticket-pass page (so nothing ever re-checked Fapshi)
+  // must still be let in on a legitimately paid ticket rather than turned
+  // away at the door pending the artist noticing and marking it by hand.
+  if (order?.payment_status !== "paid" && order?.pending_fapshi_trans_id) {
+    try {
+      const status = await checkAndConfirmFapshiOrder(admin, order);
+      if (status === "SUCCESSFUL") order.payment_status = "paid";
+    } catch {
+      // Fapshi unreachable — fall through and treat as still unpaid below.
+    }
   }
 
   // digital_tickets rows exist from the moment an order is placed (see
