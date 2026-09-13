@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
+import PushNotificationBell from "@/components/PushNotificationBell";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 
 const NAV_ITEMS = [
@@ -66,10 +67,14 @@ export default function AdminShell({ email, children }: { email: string; childre
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-1 px-1">
-          {/* New paid members, signup/payout requests, affiliate activity
-              — see src/lib/push/send.ts's sendPushToAdmins(), called from
-              every admin-relevant write across the app. */}
-          <NotificationBell variant="onDark" />
+          {/* Two distinct bells: the in-app feed (every full admin sees
+              the same rows — see notifyAdmins() in src/lib/notifications.ts)
+              and the OS-level push opt-in toggle (see sendPushToAdmins()
+              in src/lib/push/send.ts). Both fire for the same admin-
+              relevant events by design — belt and suspenders, not a
+              duplicate to clean up. */}
+          <NotificationBell mode="admin" variant="onDark" />
+          <PushNotificationBell variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
         </div>
         <div className="border-t border-white/10 pt-3 flex items-center justify-between px-1">
@@ -112,7 +117,8 @@ export default function AdminShell({ email, children }: { email: string; childre
           <span className="font-display font-medium text-white text-sm">Admin</span>
         </Link>
         <div className="flex items-center gap-1">
-          <NotificationBell variant="onDark" />
+          <NotificationBell mode="admin" variant="onDark" />
+          <PushNotificationBell variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
           <Link
             href="/auth/logout"

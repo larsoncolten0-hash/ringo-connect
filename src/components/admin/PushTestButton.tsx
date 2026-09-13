@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { BellRing, Loader2, Check, AlertTriangle } from "lucide-react";
-import NotificationBell from "@/components/NotificationBell";
+import PushNotificationBell from "@/components/PushNotificationBell";
 
 // Self-contained "Send test notification" card for /admin/settings —
 // exercises the whole pipeline end to end (this admin's own
 // push_subscriptions row → web-push → the service worker's `push`
 // listener) without waiting for a real booking/order/payout to trigger
-// one. The bell here is the same NotificationBell already in AdminShell's
-// sidebar — included again so "enable, then test" is a two-click flow on
+// one. The bell here is the same PushNotificationBell already in
+// AdminShell's sidebar — included again so "enable, then test" is a
+// two-click flow on
 // this one card instead of a trip back to the sidebar.
 export default function PushTestButton() {
   const [sending, setSending] = useState(false);
@@ -40,7 +41,7 @@ export default function PushTestButton() {
           <BellRing size={15} className="text-ringo-indigo" />
           Push notifications
         </h2>
-        <NotificationBell />
+        <PushNotificationBell />
       </div>
       <p className="text-xs text-ringo-muted mb-4">
         Enable notifications with the bell above (once per device), then send yourself a test push to confirm the

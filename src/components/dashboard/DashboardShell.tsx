@@ -8,6 +8,7 @@ import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, U
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
+import PushNotificationBell from "@/components/PushNotificationBell";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import HelpWidget from "@/components/dashboard/HelpWidget";
 import MobileMoreMenu from "@/components/dashboard/MobileMoreMenu";
@@ -217,7 +218,7 @@ export default function DashboardShell({
           <div className="flex items-center gap-1 shrink-0">
             <LanguageToggle />
             {userId && <NotificationBell mode="user" userId={userId} />}
-            <NotificationBell />
+            <PushNotificationBell />
             <ThemeToggle iconOnly />
             <span className="w-px h-5 bg-ringo-border mx-1 hidden sm:block" />
             <AvatarMenu email={email} username={username} avatarUrl={avatarUrl} planName={planName} />
