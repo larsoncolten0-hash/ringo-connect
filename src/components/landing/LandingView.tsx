@@ -190,7 +190,7 @@ export default function LandingView({
         <AnimatePresence>
           {mobileMenuOpen && (
             <>
-              <MenuBackdrop key="backdrop" onClose={() => setMobileMenuOpen(false)} className="z-30 lg:hidden" topClassName="top-16" />
+              <MenuBackdrop key="backdrop" onClose={() => setMobileMenuOpen(false)} className="z-20" topClassName="top-16" portal />
               <motion.div
                 key="panel"
                 initial={{ opacity: 0, y: -8 }}

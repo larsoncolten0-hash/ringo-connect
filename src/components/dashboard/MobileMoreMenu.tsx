@@ -48,7 +48,7 @@ export default function MobileMoreMenu({
       <AnimatePresence>
         {open && (
           <>
-            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-30 lg:hidden" topClassName="top-16" />
+            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-20" topClassName="top-16" portal />
             <motion.div
               key="panel"
               initial={{ opacity: 0, y: -8 }}

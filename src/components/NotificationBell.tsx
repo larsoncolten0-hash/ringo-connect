@@ -121,7 +121,7 @@ export default function NotificationBell({
       </button>
 
       <AnimatePresence>
-        {open && <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" topClassName={backdropTop} />}
+        {open && <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-20" topClassName={backdropTop} portal />}
       </AnimatePresence>
 
       {open && (
