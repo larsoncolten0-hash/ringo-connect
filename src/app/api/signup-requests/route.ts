@@ -60,12 +60,27 @@ export async function POST(request: Request) {
     );
   }
 
-  await sendPushToAdmins(admin, {
-    category: "signup_request_new",
-    title: "New signup request",
-    body: `${body.full_name.trim()} submitted a request to join Ringo Connect.`,
-    url: "/admin/requests",
-  });
+  // GetStartedFlow.tsx calls this route two ways: a real "pay later"
+  // submission (createRequest() with no argument — nothing left to wait
+  // on, so admins should hear about it immediately, same as always), and
+  // as the first step of an online-payment attempt (sendPayment() calling
+  // createRequest(true) right before talking to Fapshi — see that
+  // component's own comment). Only the first case should notify anyone
+  // yet: a row created to start a payment isn't an actionable request
+  // until that payment actually succeeds, which
+  // /api/signup-requests/[id]/pay-status already notifies admins about
+  // on its own the moment Fapshi confirms it. Notifying here too would
+  // mean an admin hears about (and can see, still-unpaid) every payment
+  // attempt the instant someone starts one — including ones that are
+  // abandoned or fail — not just the ones that actually go through.
+  if (!body.pending_online_payment) {
+    await sendPushToAdmins(admin, {
+      category: "signup_request_new",
+      title: "New signup request",
+      body: `${body.full_name.trim()} submitted a request to join Ringo Connect.`,
+      url: "/admin/requests",
+    });
+  }
 
   return NextResponse.json({ ok: true, id: data.id });
 }

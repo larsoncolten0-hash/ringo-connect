@@ -510,7 +510,20 @@ export default function RequestReview({
                   ))}
                 </div>
 
-                {canCharge ? (
+                {/* Customer already paid via Fapshi at signup (see
+                    pay-status/route.ts, which sets customer_paid) — there is
+                    nothing left to charge, so this takes priority over the
+                    canCharge branch below regardless of who's reviewing.
+                    Previously canCharge alone decided which UI showed, so a
+                    full admin still saw the Charge now/Manual toggle (and
+                    its live "Send charge" form) on an already-paid request —
+                    confusing at best, and a real risk of an admin charging
+                    an already-paid customer a second time by mistake. */}
+                {request.customer_paid ? (
+                  <p className="text-sm text-ringo-teal flex items-center gap-2">
+                    <Check size={14} /> Paid online at signup — nothing left to charge.
+                  </p>
+                ) : canCharge ? (
                   <div className="flex gap-1 bg-ringo-muted/10 rounded-full p-1 w-fit">
                     <button
                       onClick={() => setPaymentMethod("charge")}
@@ -529,10 +542,6 @@ export default function RequestReview({
                       Already paid (cash/transfer)
                     </button>
                   </div>
-                ) : request.customer_paid ? (
-                  <p className="text-sm text-ringo-teal flex items-center gap-2">
-                    <Check size={14} /> Paid online at signup — nothing left to charge.
-                  </p>
                 ) : (
                   <p className="text-sm text-red-500 flex items-center gap-2">
                     <AlertTriangle size={14} /> No confirmed online payment on this request yet — the customer may
@@ -540,7 +549,7 @@ export default function RequestReview({
                   </p>
                 )}
 
-                {canCharge && paymentMethod === "charge" && (
+                {canCharge && !request.customer_paid && paymentMethod === "charge" && (
                   <div className="flex flex-col gap-3 rounded-card border border-ringo-border p-4">
                     <div className="grid sm:grid-cols-2 gap-3">
                       <label className="flex flex-col gap-1">

@@ -324,7 +324,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
             <p style="font-size:14px; margin:0 0 12px;">Hi ${fullName},</p>
             <p style="font-size:14px; margin:0 0 12px;">Great news — your request was approved and your page is live at:</p>
             <p style="margin:0 0 16px;"><a href="${profileUrl}" style="color:#4F46E5; font-weight:500;">${profileUrl.replace(/^https?:\/\//, "")}</a></p>
-            <p style="font-size:14px; margin:0 0 16px;">Log in any time to edit your links, catalog, and profile — use the username and password shared with you.</p>
+            <p style="font-size:14px; margin:0 0 8px;">Log in any time to edit your links, catalog, and profile:</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%; margin:0 0 16px; border-collapse:collapse; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">
+              <tr>
+                <td style="padding:10px 14px; font-size:13px; color:#64748b; width:110px;">Username</td>
+                <td style="padding:10px 14px; font-size:14px; font-weight:600; color:#0f172a;">${username.toLowerCase()}</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 14px; font-size:13px; color:#64748b; border-top:1px solid #e2e8f0;">Password</td>
+                <td style="padding:10px 14px; font-size:14px; font-weight:600; color:#0f172a; border-top:1px solid #e2e8f0;">${password}</td>
+              </tr>
+            </table>
+            <p style="font-size:12px; margin:0 0 16px; color:#64748b;">For your security, we recommend changing this password after you log in.</p>
             <a href="${siteUrl}/auth/login" style="display:inline-block; background:#4F46E5; color:#fff; text-decoration:none; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:500;">Log in to your dashboard</a>
           `),
         })

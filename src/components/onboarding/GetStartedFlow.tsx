@@ -164,7 +164,11 @@ export default function GetStartedFlow({
   // Returns the created request's id, or null on failure (error state
   // already set). Used by both the pay-later path (direct submit) and
   // the pay-now path (creates the row right before initiating payment).
-  const createRequest = async (): Promise<string | null> => {
+  // `pendingOnlinePayment` tells the backend which case this is — see
+  // /api/signup-requests' own comment on why that decides whether an
+  // admin is notified immediately or only once the payment (started
+  // right after this call returns, in sendPayment()) actually succeeds.
+  const createRequest = async (pendingOnlinePayment = false): Promise<string | null> => {
     setError("");
     if (!fullName.trim() || !whatsapp.trim()) {
       setError(t.getStarted.requiredError);
@@ -193,6 +197,7 @@ export default function GetStartedFlow({
           : [],
         requested_social_links: socials.filter((s) => s.url.trim()),
         requested_addon_ids: selectedAddonIds,
+        pending_online_payment: pendingOnlinePayment,
       }),
     });
     const data = await res.json();
@@ -250,7 +255,7 @@ export default function GetStartedFlow({
     try {
       let requestId = createdRequestId;
       if (!requestId) {
-        const created = await createRequest();
+        const created = await createRequest(true);
         if (!created) {
           setPayStatus("idle");
           return;
