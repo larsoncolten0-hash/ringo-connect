@@ -1051,11 +1051,12 @@ export const translations = {
     help: {
       button: "Ask help",
       title: "Need help?",
-      subtitle: "Tell us what's going wrong and we'll help you fix it.",
-      placeholder: "Describe the issue you're having…",
-      whatsapp: "Message us on WhatsApp",
-      email: "Send us an email",
-      emptyError: "Add a quick description first so we know what to look into.",
+      subtitle: "Chat directly with our team — we usually reply fast.",
+      placeholder: "Write a message…",
+      send: "Send",
+      emptyState: "Send us a message and we'll get back to you right here.",
+      loadError: "Couldn't load your conversation.",
+      retry: "Try again",
     },
     // Dashboard: the /dashboard/bookings tabs (Requests + Settings) — see
     // BookingsList/BookingDetail/BookingSettingsCard. Public-facing booking
@@ -2531,11 +2532,12 @@ export const translations = {
     help: {
       button: "Aide",
       title: "Besoin d'aide ?",
-      subtitle: "Dites-nous ce qui ne va pas et on vous aide à le résoudre.",
-      placeholder: "Décrivez le problème rencontré…",
-      whatsapp: "Nous écrire sur WhatsApp",
-      email: "Nous envoyer un e-mail",
-      emptyError: "Ajoutez une courte description pour qu'on sache quoi vérifier.",
+      subtitle: "Discutez directement avec notre équipe — réponse rapide en général.",
+      placeholder: "Écrivez un message…",
+      send: "Envoyer",
+      emptyState: "Envoyez-nous un message, on vous répond directement ici.",
+      loadError: "Impossible de charger votre conversation.",
+      retry: "Réessayer",
     },
     bookings: {
       requestsTab: "Demandes",
