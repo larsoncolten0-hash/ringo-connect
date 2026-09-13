@@ -94,7 +94,7 @@ export default function DateRangePicker({
       </button>
 
       <AnimatePresence>
-        {open && <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" />}
+        {open && <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" topClassName="top-16" />}
       </AnimatePresence>
 
       {open && (

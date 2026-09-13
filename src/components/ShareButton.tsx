@@ -19,6 +19,12 @@ export default function ShareButton({
   accent,
   title,
   strings,
+  // Keeps the open menu's backdrop off a sticky header above it, for
+  // callers that have one — ItemDetailPage's compact ~60px sticky bar
+  // passes "top-[60px]"; the default (full coverage) is correct for
+  // ProfileView's own usage, which floats this over a hero image with no
+  // header at all.
+  backdropTop = "top-0",
 }: {
   accent: string;
   title: string;
@@ -37,6 +43,7 @@ export default function ShareButton({
     downloadQrCode: string;
     close: string;
   };
+  backdropTop?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -129,7 +136,7 @@ export default function ShareButton({
       <AnimatePresence>
         {open && (
           <>
-            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-10" />
+            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-10" topClassName={backdropTop} />
             <motion.div
               key="panel"
               initial={{ opacity: 0, y: -6, scale: 0.97 }}

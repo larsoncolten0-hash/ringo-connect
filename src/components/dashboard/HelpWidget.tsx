@@ -129,7 +129,7 @@ export default function HelpWidget({ username, email }: { username: string; emai
       <AnimatePresence>
         {open && (
           <>
-            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-30" />
+            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-30" topClassName="top-16" />
             <motion.div
               key="panel"
               initial={{ opacity: 0, y: 12, scale: 0.97 }}

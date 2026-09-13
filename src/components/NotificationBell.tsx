@@ -36,10 +36,17 @@ export default function NotificationBell({
   mode,
   userId,
   variant = "default",
+  // Keeps the open dropdown's backdrop off a fixed/sticky header above
+  // it — DashboardShell's own header spans every breakpoint at a
+  // consistent 64px, so it passes "top-16"; AdminShell's two mounts
+  // (a full-height sidebar, and a mobile bar that isn't sticky at all)
+  // have no comparable header to protect, so they keep the default.
+  backdropTop = "top-0",
 }: {
   mode: "user" | "admin";
   userId?: string;
   variant?: "default" | "onDark";
+  backdropTop?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationRow[]>([]);
@@ -114,7 +121,7 @@ export default function NotificationBell({
       </button>
 
       <AnimatePresence>
-        {open && <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" />}
+        {open && <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" topClassName={backdropTop} />}
       </AnimatePresence>
 
       {open && (

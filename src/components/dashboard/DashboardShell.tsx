@@ -224,7 +224,7 @@ export default function DashboardShell({
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <LanguageToggle />
-            {userId && <NotificationBell mode="user" userId={userId} />}
+            {userId && <NotificationBell mode="user" userId={userId} backdropTop="top-16" />}
             <ThemeToggle iconOnly />
             <span className="w-px h-5 bg-ringo-border mx-1 hidden sm:block" />
             <AvatarMenu email={email} username={username} avatarUrl={avatarUrl} planName={planName} />

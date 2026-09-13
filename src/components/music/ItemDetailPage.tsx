@@ -57,6 +57,7 @@ export default function ItemDetailPage({
         <ShareButton
           accent={accent}
           title={itemTitle}
+          backdropTop="top-[60px]"
           strings={{
             share: t.profilePage.share,
             copyLink: t.profilePage.copyLink,

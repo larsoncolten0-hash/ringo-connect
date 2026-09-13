@@ -50,7 +50,7 @@ export default function NavDropdown({ label, items, columns = 2 }: { label: stri
       <AnimatePresence>
         {open && (
           <>
-            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" />
+            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" topClassName="top-16" />
             <motion.div
               key="panel"
               initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}

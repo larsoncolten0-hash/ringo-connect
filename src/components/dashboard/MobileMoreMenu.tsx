@@ -15,9 +15,10 @@ import MenuBackdrop from "@/components/ui/MenuBackdrop";
 // LandingView.tsx's mobileMenuOpen) — the toggle button itself swaps
 // between the Menu/X icon (no separate close button), and the panel is a
 // plain top-anchored dropdown that fades/slides down from the header. A
-// dimmed, softly blurred backdrop (MenuBackdrop) sits behind it — both
-// the visual focus cue and the "tap outside to close" target, since the
-// panel itself has no document click-outside listener of its own.
+// softly blurred backdrop (MenuBackdrop) sits behind it, over the body
+// only — not the header this hamburger lives in — and doubles as the
+// "tap outside to close" target, since the panel itself has no document
+// click-outside listener of its own.
 export default function MobileMoreMenu({
   items,
   label,
@@ -47,7 +48,7 @@ export default function MobileMoreMenu({
       <AnimatePresence>
         {open && (
           <>
-            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-30 lg:hidden" />
+            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-30 lg:hidden" topClassName="top-16" />
             <motion.div
               key="panel"
               initial={{ opacity: 0, y: -8 }}
