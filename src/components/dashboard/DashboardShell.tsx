@@ -8,7 +8,7 @@ import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, U
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
-import PushNotificationBell from "@/components/PushNotificationBell";
+import PushPermissionPrompt from "@/components/PushPermissionPrompt";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import HelpWidget from "@/components/dashboard/HelpWidget";
 import MobileMoreMenu from "@/components/dashboard/MobileMoreMenu";
@@ -112,6 +112,12 @@ export default function DashboardShell({
           dashboard — see RegisterServiceWorker.tsx and
           AddToHomeScreenMenuItem.tsx (surfaced from AvatarMenu below). */}
       <RegisterServiceWorker />
+
+      {/* Proactively asks to enable push, instead of relying on someone
+          noticing a header icon — see that component's own comment. The
+          manual on/off control still lives in AvatarMenu's account menu
+          for anyone who dismissed this or wants to turn it off later. */}
+      <PushPermissionPrompt subscribeUrl="/api/push/subscribe" body={t.pushNotifications.promptBodyDashboard} />
 
       {/* Desktop sidebar — the persistent nav. Every dashboard page renders
           inside this layout, so this never re-mounts between pages. */}
@@ -218,7 +224,6 @@ export default function DashboardShell({
           <div className="flex items-center gap-1 shrink-0">
             <LanguageToggle />
             {userId && <NotificationBell mode="user" userId={userId} />}
-            <PushNotificationBell />
             <ThemeToggle iconOnly />
             <span className="w-px h-5 bg-ringo-border mx-1 hidden sm:block" />
             <AvatarMenu email={email} username={username} avatarUrl={avatarUrl} planName={planName} />

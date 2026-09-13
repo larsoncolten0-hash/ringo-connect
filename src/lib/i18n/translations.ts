@@ -98,6 +98,15 @@ export const translations = {
       permissionDenied: "Notifications are blocked — check your browser or phone settings.",
       orderEnable: "Notify me about this order",
       orderEnabled: "We'll notify you ✓",
+      // The proactive permission prompt (PushPermissionPrompt.tsx) —
+      // shown automatically instead of requiring someone to notice and
+      // click a header icon. Body text is passed in per surface
+      // (dashboard vs admin), everything else here is shared chrome.
+      promptTitle: "Turn on notifications",
+      promptEnable: "Enable notifications",
+      promptDismiss: "Not now",
+      promptBodyDashboard: "Get notified the moment a booking, order, sale or new subscriber comes in — right on this device.",
+      promptBodyAdmin: "Get notified about new paid members, signup requests and payout requests — right on this device.",
     },
     // The public "Join Community" form (see CommunityJoinPage.tsx) and its
     // own confirmation step. Dashboard-side copy (Overview/Subscribers/
@@ -1024,6 +1033,7 @@ export const translations = {
       logout: "Log out",
       plan: "plan",
       soundEffects: "Sound effects",
+      pushNotifications: "Push notifications",
     },
     sidebar: {
       freeBadge: "You're on Free",
@@ -1632,6 +1642,11 @@ export const translations = {
       permissionDenied: "Les notifications sont bloquées — vérifiez les réglages de votre navigateur ou téléphone.",
       orderEnable: "M'avertir pour cette commande",
       orderEnabled: "Vous serez averti ✓",
+      promptTitle: "Activer les notifications",
+      promptEnable: "Activer les notifications",
+      promptDismiss: "Plus tard",
+      promptBodyDashboard: "Soyez averti dès qu'une réservation, commande, vente ou un nouvel abonné arrive — directement sur cet appareil.",
+      promptBodyAdmin: "Soyez averti des nouveaux membres payants, demandes d'inscription et demandes de paiement — directement sur cet appareil.",
     },
     communityJoin: {
       formTitle: (name: string) => `Rejoindre la communauté de ${name}`,
@@ -2493,6 +2508,7 @@ export const translations = {
       logout: "Déconnexion",
       plan: "offre",
       soundEffects: "Effets sonores",
+      pushNotifications: "Notifications push",
     },
     sidebar: {
       freeBadge: "Vous êtes sur Gratuit",

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
-import PushNotificationBell from "@/components/PushNotificationBell";
+import PushPermissionPrompt from "@/components/PushPermissionPrompt";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 
 const NAV_ITEMS = [
@@ -67,14 +67,13 @@ export default function AdminShell({ email, children }: { email: string; childre
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-1 px-1">
-          {/* Two distinct bells: the in-app feed (every full admin sees
-              the same rows — see notifyAdmins() in src/lib/notifications.ts)
-              and the OS-level push opt-in toggle (see sendPushToAdmins()
-              in src/lib/push/send.ts). Both fire for the same admin-
-              relevant events by design — belt and suspenders, not a
-              duplicate to clean up. */}
+          {/* The in-app feed — every full admin sees the same rows (see
+              notifyAdmins() in src/lib/notifications.ts). OS-level push is
+              opted into via the proactive prompt below instead of an
+              always-visible icon here (see PushPermissionPrompt's own
+              comment); it can still be toggled manually from
+              /admin/settings once someone's dismissed that prompt. */}
           <NotificationBell mode="admin" variant="onDark" />
-          <PushNotificationBell variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
         </div>
         <div className="border-t border-white/10 pt-3 flex items-center justify-between px-1">
@@ -98,9 +97,16 @@ export default function AdminShell({ email, children }: { email: string; childre
     <div className="min-h-screen lg:grid lg:grid-cols-[248px_1fr]">
       {/* Registers the same non-caching service worker DashboardShell
           uses (see RegisterServiceWorker.tsx) — needed here too now,
-          since NotificationBell's subscribe flow depends on
+          since the push prompt below depends on
           navigator.serviceWorker.ready resolving. */}
       <RegisterServiceWorker />
+
+      {/* Proactively asks to enable push, instead of relying on someone
+          noticing a header icon — see that component's own comment. */}
+      <PushPermissionPrompt
+        subscribeUrl="/api/push/subscribe"
+        body="Get notified about new paid members, signup requests and payout requests — right on this device."
+      />
 
       {/* Fixed dark sidebar — deliberately NOT theme-toggle-aware. This is
           chrome, not content: it stays the same dark "control panel"
@@ -118,7 +124,6 @@ export default function AdminShell({ email, children }: { email: string; childre
         </Link>
         <div className="flex items-center gap-1">
           <NotificationBell mode="admin" variant="onDark" />
-          <PushNotificationBell variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
           <Link
             href="/auth/logout"

@@ -1,64 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Bell, BellOff, BellRing } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
-import { getPushStatus, subscribeToPush, unsubscribeFromPush } from "@/lib/push/subscribeClient";
+import { usePushToggle } from "@/lib/push/usePushToggle";
+import { Bell, BellOff, BellRing } from "lucide-react";
 
-// The "Enable notifications" control for an authenticated Ringo Connect
-// user — dropped into DashboardShell's header (creators) and AdminShell's
-// sidebar (admins), the only two audiences with their own account and
-// therefore the same subscribe endpoint (/api/push/subscribe, scoped by
-// auth.uid() via RLS — see that route). Fans and guest restaurant
-// customers use the same underlying subscribeClient helpers but through
-// their own token/order-scoped routes instead of this component (see the
-// community manage page and RestaurantOrderPage.tsx).
+// A compact manual on/off control for OS push notifications — kept only
+// where someone has already gone looking for a settings-style control
+// (the admin settings test card, and the account-menu toggle it mirrors
+// in AvatarMenu.tsx). The ambient header/sidebar chrome no longer uses
+// this: an easy-to-miss icon isn't how most people ever discover push at
+// all, so DashboardShell/AdminShell now show PushPermissionPrompt.tsx
+// instead — a proactive prompt that asks up front, the same way a native
+// app's system permission dialog would.
 //
 // Named PushNotificationBell, not NotificationBell — that name is taken
 // by a separate, complementary component: a persistent, cross-device
 // in-app feed backed by the `notifications` table (see
-// src/components/NotificationBell.tsx and
-// supabase/migrations/2026-09-12_notifications.sql), which was built
-// independently and merged in alongside this one. This component is only
-// ever the OS-level Web Push opt-in toggle — a per-device browser
-// permission switch, not a list of what already happened.
-//
-// Same icon-button shape as ThemeToggle's `iconOnly` variant (w-9 h-9
-// rounded-full) so it sits naturally next to it in either header.
+// src/components/NotificationBell.tsx).
 export default function PushNotificationBell({ variant = "default" }: { variant?: "default" | "onDark" }) {
   const { t } = useLanguage();
-  const [status, setStatus] = useState<"loading" | "unsupported" | "off" | "on">("loading");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    getPushStatus().then((s) => {
-      if (cancelled) return;
-      if (!s.supported) setStatus("unsupported");
-      else setStatus(s.subscribed ? "on" : "off");
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { status, busy, toggle } = usePushToggle("/api/push/subscribe");
 
   if (status === "unsupported") return null;
-
-  const toggle = async () => {
-    if (busy || status === "loading") return;
-    setBusy(true);
-    try {
-      if (status === "on") {
-        await unsubscribeFromPush("/api/push/unsubscribe");
-        setStatus("off");
-      } else {
-        const result = await subscribeToPush({ subscribeUrl: "/api/push/subscribe" });
-        setStatus(result.ok ? "on" : "off");
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const label = status === "on" ? t.pushNotifications.enabled : t.pushNotifications.enable;
   const Icon = status === "on" ? BellRing : status === "loading" ? Bell : BellOff;
