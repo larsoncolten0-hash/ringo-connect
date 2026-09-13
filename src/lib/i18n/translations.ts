@@ -1044,6 +1044,7 @@ export const translations = {
       pushNotifications: "Push notifications",
       requestVerification: "Request verification",
       verifiedLabel: "Verified",
+      changePassword: "Change password",
     },
     sidebar: {
       freeBadge: "You're on Free",
@@ -1083,6 +1084,22 @@ export const translations = {
       rejectedTitle: "Request not approved",
       rejectedBody: "Your previous request wasn't approved. Review your details and try again.",
       resubmit: "Try again",
+      close: "Close",
+    },
+    // The profile menu's "Change password" modal (see
+    // ChangePasswordModal.tsx) — delegates entirely to the same emailed
+    // reset link /auth/forgot-password already sends (a signed-in
+    // account and a "forgot" one use the exact same recovery email),
+    // rather than an inline current/new-password form.
+    changePassword: {
+      title: "Change your password",
+      subtitle: "For your security, we'll email a link to set a new password rather than changing it here directly.",
+      sendCta: "Send reset link",
+      sending: "Sending…",
+      sentTitle: "Check your inbox",
+      sentBody: "We've sent a password reset link to",
+      resend: "Send again",
+      error: "Couldn't send the reset link — try again.",
       close: "Close",
     },
     // Dashboard: the /dashboard/bookings tabs (Requests + Settings) — see
@@ -2552,6 +2569,7 @@ export const translations = {
       pushNotifications: "Notifications push",
       requestVerification: "Demander la vérification",
       verifiedLabel: "Vérifié",
+      changePassword: "Changer le mot de passe",
     },
     sidebar: {
       freeBadge: "Vous êtes sur Gratuit",
@@ -2588,6 +2606,17 @@ export const translations = {
       rejectedTitle: "Demande non approuvée",
       rejectedBody: "Votre précédente demande n'a pas été approuvée. Vérifiez vos informations et réessayez.",
       resubmit: "Réessayer",
+      close: "Fermer",
+    },
+    changePassword: {
+      title: "Changer votre mot de passe",
+      subtitle: "Pour votre sécurité, nous vous envoyons un lien par e-mail pour définir un nouveau mot de passe plutôt que de le changer ici directement.",
+      sendCta: "Envoyer le lien",
+      sending: "Envoi…",
+      sentTitle: "Vérifiez votre boîte mail",
+      sentBody: "Nous avons envoyé un lien de réinitialisation à",
+      resend: "Renvoyer",
+      error: "Impossible d'envoyer le lien — réessayez.",
       close: "Fermer",
     },
     bookings: {

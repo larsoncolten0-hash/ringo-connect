@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
-import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff, BadgeCheck } from "lucide-react";
+import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff, BadgeCheck, KeyRound } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useSound } from "@/components/SoundProvider";
 import { usePushToggle } from "@/lib/push/usePushToggle";
 import AddToHomeScreenMenuItem from "@/components/dashboard/AddToHomeScreenMenuItem";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
 import VerificationRequestModal from "@/components/dashboard/VerificationRequestModal";
+import ChangePasswordModal from "@/components/dashboard/ChangePasswordModal";
 
 export default function AvatarMenu({
   email,
@@ -38,6 +39,7 @@ export default function AvatarMenu({
   const { status: pushStatus, busy: pushBusy, toggle: togglePush } = usePushToggle("/api/push/subscribe");
   const [open, setOpen] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -161,6 +163,19 @@ export default function AvatarMenu({
             </button>
           )}
           <AddToHomeScreenMenuItem onNavigate={() => setOpen(false)} />
+          {/* Delegates to the same emailed reset link /auth/forgot-password
+              already sends — see ChangePasswordModal.tsx's own comment on
+              why this never asks for a new password inline. */}
+          <button
+            onClick={() => {
+              setOpen(false);
+              setShowChangePassword(true);
+            }}
+            className="flex items-center gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left"
+          >
+            <KeyRound size={14} />
+            {t.account.changePassword}
+          </button>
           <Link
             href="/auth/logout"
             className="flex items-center gap-2 px-3.5 py-2.5 text-sm text-ringo-coral hover:bg-ringo-coral/10 transition-colors"
@@ -172,6 +187,7 @@ export default function AvatarMenu({
       )}
 
       {showVerification && <VerificationRequestModal onClose={() => setShowVerification(false)} />}
+      {showChangePassword && <ChangePasswordModal email={email} onClose={() => setShowChangePassword(false)} />}
     </div>
   );
 }
