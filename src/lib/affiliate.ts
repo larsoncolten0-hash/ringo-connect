@@ -229,6 +229,38 @@ export async function saveAffiliatePayoutMethod(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Lets an affiliate replace their auto-generated code with one they chose
+ * themselves (e.g. "JOHN23" instead of a random 8-char hex string — see
+ * set_affiliate_code() in supabase/migrations/2026-09-06_affiliate_system.sql).
+ * Format (3-6 uppercase letters/digits) must already be validated by the
+ * caller — see src/lib/affiliateCode.ts, shared with the client-side form.
+ *
+ * Goes through the service-role client for the same reason
+ * saveAffiliatePayoutMethod() above does: trg_protect_affiliate_fields
+ * (2026-09-06_affiliate_system.sql) silently reverts affiliate_code back
+ * to its old value on any update made through a real user session
+ * (auth.uid() is non-null there) — specifically so it can only change
+ * through a deliberate server-side path like this one, never a stray
+ * client-side write. The service-role client has no session, so
+ * auth.uid() is null and the trigger lets it through.
+ *
+ * Uniqueness is enforced twice: the caller should pre-check for a
+ * friendly "that code is taken" message, but the `users.affiliate_code`
+ * unique constraint is the actual guarantee against a race between two
+ * people claiming the same code at the same instant — a 23505 error here
+ * means exactly that race happened.
+ */
+export async function setAffiliateCode(userId: string, code: string): Promise<{ ok: true } | { ok: false; taken: boolean }> {
+  const admin = createAdminClient();
+  const { error } = await admin.from("users").update({ affiliate_code: code }).eq("id", userId);
+  if (error) {
+    if ((error as any).code === "23505") return { ok: false, taken: true };
+    throw new Error(error.message);
+  }
+  return { ok: true };
+}
+
 export async function requestAffiliatePayout(currency: "XAF" | "USD") {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("request_affiliate_payout", { p_currency: currency });

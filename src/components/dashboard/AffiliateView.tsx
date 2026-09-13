@@ -13,12 +13,14 @@ import {
   AlertTriangle,
   PauseCircle,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import StatCard from "@/components/analytics/StatCard";
 import AffiliateEarningsChart from "./AffiliateEarningsChart";
 import type { AffiliateOverview } from "@/lib/affiliate";
+import { AFFILIATE_CODE_MAX_LENGTH, isValidAffiliateCodeFormat, normalizeAffiliateCode } from "@/lib/affiliateCode";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-ringo-indigo/10 text-ringo-indigo",
@@ -134,6 +136,11 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <p className="text-sm font-medium text-ringo-text mb-1">{t.affiliate.yourLink}</p>
         <p className="text-xs text-ringo-muted mb-3">{t.affiliate.commissionRateNote(overview.settings.commissionRatePct)}</p>
+        <AffiliateCodeEditor
+          code={overview.affiliateCode}
+          onSaved={(newCode) => setOverview((prev) => ({ ...prev, affiliateCode: newCode }))}
+          t={t}
+        />
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="flex-1 min-w-0 flex items-center rounded-card border border-ringo-border bg-ringo-bg px-3.5 py-2.5">
             <p className="text-sm text-ringo-text truncate font-mono">{referralLink}</p>
@@ -476,6 +483,114 @@ function BalanceCard({
             </p>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+// Lets the affiliate replace their auto-generated code (a random 8-char
+// string — see set_affiliate_code() in
+// supabase/migrations/2026-09-06_affiliate_system.sql) with a short one
+// they choose themselves. POST /api/affiliate/code is the only thing that
+// can actually write it (users.affiliate_code is locked against a direct
+// client-side update — see that route's own comment); a 409 there means
+// someone else already holds the code, surfaced here as an inline error
+// rather than a toast so it stays attached to the input that caused it.
+function AffiliateCodeEditor({ code, onSaved, t }: { code: string; onSaved: (newCode: string) => void; t: any }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(code);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  const startEdit = () => {
+    setValue(code);
+    setError("");
+    setEditing(true);
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setError("");
+    setValue(code);
+  };
+
+  const save = async () => {
+    const normalized = normalizeAffiliateCode(value);
+    if (!isValidAffiliateCodeFormat(normalized)) {
+      setError(t.affiliate.codeHint);
+      return;
+    }
+    if (normalized === code) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    setError("");
+    const res = await fetch("/api/affiliate/code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: normalized }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      setError(data.error || "Could not save.");
+      return;
+    }
+    onSaved(normalized);
+    setEditing(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <p className="text-xs text-ringo-muted">{t.affiliate.code}:</p>
+        <span className="text-xs font-mono font-semibold text-ringo-text tracking-wide">{code}</span>
+        <button onClick={startEdit} className="text-xs font-medium text-ringo-indigo hover:underline">
+          {t.affiliate.editCode}
+        </button>
+        {saved && (
+          <span className="text-xs text-ringo-teal flex items-center gap-1">
+            <Check size={11} />
+            {t.affiliate.codeSaved}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 mb-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value.toUpperCase().slice(0, AFFILIATE_CODE_MAX_LENGTH))}
+          maxLength={AFFILIATE_CODE_MAX_LENGTH}
+          autoFocus
+          className="w-28 border border-ringo-border rounded-card px-2.5 py-1.5 text-sm font-mono tracking-wide bg-ringo-bg text-ringo-text outline-none focus:ring-2 focus:ring-ringo-indigo/40 focus:border-ringo-indigo transition"
+        />
+        <button
+          onClick={save}
+          disabled={saving}
+          className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-card bg-ringo-indigo text-white disabled:opacity-60"
+        >
+          {saving && <Loader2 size={12} className="animate-spin" />}
+          {t.affiliate.saveCode}
+        </button>
+        <button onClick={cancel} disabled={saving} className="text-xs text-ringo-muted hover:text-ringo-text disabled:opacity-60">
+          {t.affiliate.cancelEditCode}
+        </button>
+      </div>
+      {error ? (
+        <p className="text-xs text-red-500 flex items-center gap-1.5">
+          <AlertTriangle size={12} />
+          {error}
+        </p>
+      ) : (
+        <p className="text-xs text-ringo-muted">{t.affiliate.codeHint}</p>
       )}
     </div>
   );
