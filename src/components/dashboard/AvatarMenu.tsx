@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence } from "framer-motion";
 import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useSound } from "@/components/SoundProvider";
 import { usePushToggle } from "@/lib/push/usePushToggle";
 import AddToHomeScreenMenuItem from "@/components/dashboard/AddToHomeScreenMenuItem";
+import MenuBackdrop from "@/components/ui/MenuBackdrop";
 
 export default function AvatarMenu({
   email,
@@ -54,6 +56,10 @@ export default function AvatarMenu({
           initial
         )}
       </button>
+
+      <AnimatePresence>
+        {open && <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" />}
+      </AnimatePresence>
 
       {open && (
         <div className="absolute right-0 mt-2 w-56 rounded-card border border-ringo-border/70 bg-ringo-surface shadow-[0_8px_30px_-6px_rgba(15,23,42,0.15)] py-1.5 z-50 animate-dropdown-in">

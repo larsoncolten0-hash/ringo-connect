@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FaWhatsapp } from "react-icons/fa6";
+import MenuBackdrop from "@/components/ui/MenuBackdrop";
 import { useLanguage } from "@/components/LanguageProvider";
 import LanguageToggle from "@/components/LanguageToggle";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -188,26 +189,30 @@ export default function LandingView({
 
         <AnimatePresence>
           {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.16 }}
-              className="lg:hidden absolute top-16 inset-x-0 max-h-[calc(100vh-4rem)] overflow-y-auto bg-ringo-bg border-b border-ringo-border shadow-[0_20px_40px_-16px_rgba(15,23,42,0.2)]"
-            >
-              <nav className="flex flex-col px-5 py-3" aria-label="Mobile">
-                {mobileNavLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="py-3 text-sm font-medium text-ringo-text border-b border-ringo-border/60 last:border-0"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </nav>
-            </motion.div>
+            <>
+              <MenuBackdrop key="backdrop" onClose={() => setMobileMenuOpen(false)} className="z-30 lg:hidden" />
+              <motion.div
+                key="panel"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.16 }}
+                className="lg:hidden absolute top-16 inset-x-0 z-40 max-h-[calc(100vh-4rem)] overflow-y-auto bg-ringo-bg border-b border-ringo-border shadow-[0_20px_40px_-16px_rgba(15,23,42,0.2)]"
+              >
+                <nav className="flex flex-col px-5 py-3" aria-label="Mobile">
+                  {mobileNavLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="py-3 text-sm font-medium text-ringo-text border-b border-ringo-border/60 last:border-0"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </nav>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
       </header>

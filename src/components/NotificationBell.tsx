@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence } from "framer-motion";
 import { Bell, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import MenuBackdrop from "@/components/ui/MenuBackdrop";
 
 type NotificationRow = {
   id: string;
@@ -110,6 +112,10 @@ export default function NotificationBell({
         <Bell size={17} />
         {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-ringo-coral" />}
       </button>
+
+      <AnimatePresence>
+        {open && <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" />}
+      </AnimatePresence>
 
       {open && (
         <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-card border border-ringo-border/70 bg-ringo-surface shadow-[0_8px_30px_-6px_rgba(15,23,42,0.15)] z-50 animate-dropdown-in overflow-hidden text-left">

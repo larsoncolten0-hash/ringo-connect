@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, type LucideIcon } from "lucide-react";
+import MenuBackdrop from "@/components/ui/MenuBackdrop";
 
 // The mobile header's "More" hamburger — holds every dashboard nav item
 // that isn't one of the bottom tab bar's 5 core ones (see DashboardShell's
@@ -13,8 +14,10 @@ import { Menu, X, type LucideIcon } from "lucide-react";
 // Opens the same way the landing page's mobile nav does (see
 // LandingView.tsx's mobileMenuOpen) — the toggle button itself swaps
 // between the Menu/X icon (no separate close button), and the panel is a
-// plain top-anchored dropdown that fades/slides down from the header,
-// rather than a bottom sheet with its own backdrop.
+// plain top-anchored dropdown that fades/slides down from the header. A
+// dimmed, softly blurred backdrop (MenuBackdrop) sits behind it — both
+// the visual focus cue and the "tap outside to close" target, since the
+// panel itself has no document click-outside listener of its own.
 export default function MobileMoreMenu({
   items,
   label,
@@ -43,14 +46,17 @@ export default function MobileMoreMenu({
 
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.16 }}
-            className="lg:hidden absolute top-full inset-x-0 z-40 max-h-[calc(100vh-4rem)] overflow-y-auto bg-ringo-bg border-b border-ringo-border shadow-[0_20px_40px_-16px_rgba(15,23,42,0.2)]"
-          >
-            <nav className="flex flex-col px-5 py-3" aria-label={label}>
+          <>
+            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-30 lg:hidden" />
+            <motion.div
+              key="panel"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.16 }}
+              className="lg:hidden absolute top-full inset-x-0 z-40 max-h-[calc(100vh-4rem)] overflow-y-auto bg-ringo-bg border-b border-ringo-border shadow-[0_20px_40px_-16px_rgba(15,23,42,0.2)]"
+            >
+              <nav className="flex flex-col px-5 py-3" aria-label={label}>
               {items.map(({ href, label: itemLabel, icon: Icon, exact }) => {
                 const active = isActive(href, exact);
                 return (
@@ -67,8 +73,9 @@ export default function MobileMoreMenu({
                   </Link>
                 );
               })}
-            </nav>
-          </motion.div>
+              </nav>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import MenuBackdrop from "@/components/ui/MenuBackdrop";
 
 export type NavDropdownItem = {
   icon: any;
@@ -48,13 +49,16 @@ export default function NavDropdown({ label, items, columns = 2 }: { label: stri
 
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-            transition={{ duration: 0.16 }}
-            className="absolute left-1/2 -translate-x-1/2 top-full mt-3 z-50 w-[380px] sm:w-[440px] rounded-2xl border border-ringo-border bg-ringo-surface shadow-[0_20px_50px_-16px_rgba(15,23,42,0.25)] p-2.5"
-          >
+          <>
+            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" />
+            <motion.div
+              key="panel"
+              initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.16 }}
+              className="absolute left-1/2 -translate-x-1/2 top-full mt-3 z-50 w-[380px] sm:w-[440px] rounded-2xl border border-ringo-border bg-ringo-surface shadow-[0_20px_50px_-16px_rgba(15,23,42,0.25)] p-2.5"
+            >
             <div className={`grid gap-1 ${columns === 2 ? "sm:grid-cols-2" : "grid-cols-1"}`}>
               {items.map((item) => (
                 <Link
@@ -76,7 +80,8 @@ export default function NavDropdown({ label, items, columns = 2 }: { label: stri
                 </Link>
               ))}
             </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>

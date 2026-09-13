@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MessageCircle, X, Mail } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { useLanguage } from "@/components/LanguageProvider";
+import MenuBackdrop from "@/components/ui/MenuBackdrop";
 
 // Ringo Connect's own support line and inbox — not tied to any creator's
 // profile data, so this is the one place those two contacts are allowed
@@ -50,13 +51,16 @@ export default function HelpWidget({ username, email }: { username: string; emai
     <div className="fixed bottom-36 right-4 lg:bottom-6 lg:right-6 z-40" ref={panelRef}>
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 12, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.97 }}
-            transition={{ duration: 0.15 }}
-            className="absolute bottom-[4.75rem] right-0 w-[calc(100vw-2rem)] max-w-[320px] rounded-2xl border border-ringo-border/70 bg-ringo-surface shadow-[0_20px_48px_-16px_rgba(15,23,42,0.35)] p-4 flex flex-col gap-3"
-          >
+          <>
+            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-30" />
+            <motion.div
+              key="panel"
+              initial={{ opacity: 0, y: 12, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="absolute bottom-[4.75rem] right-0 w-[calc(100vw-2rem)] max-w-[320px] rounded-2xl border border-ringo-border/70 bg-ringo-surface shadow-[0_20px_48px_-16px_rgba(15,23,42,0.35)] p-4 flex flex-col gap-3 z-40"
+            >
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold text-ringo-text">{t.help.title}</p>
@@ -103,7 +107,8 @@ export default function HelpWidget({ username, email }: { username: string; emai
                 {t.help.email}
               </a>
             </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 

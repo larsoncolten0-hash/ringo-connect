@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Share, Link2, Check, Share2, QrCode, X, Download, Loader2 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaXTwitter } from "react-icons/fa6";
 import { drawQrCodeWithLogo, downloadCanvas } from "@/lib/qrCode";
+import MenuBackdrop from "@/components/ui/MenuBackdrop";
 
 // The public page's own share control — replaces what used to be a plain
 // "copy link" button with the familiar share icon (an arrow out of a box,
@@ -127,14 +128,17 @@ export default function ShareButton({
 
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.97 }}
-            transition={{ duration: 0.15 }}
-            className="absolute top-11 right-0 w-56 rounded-2xl overflow-hidden z-20 text-sm"
-            style={{ backgroundColor: "#FFFFFF", boxShadow: "0 16px 40px -12px rgba(0,0,0,0.3)" }}
-          >
+          <>
+            <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-10" />
+            <motion.div
+              key="panel"
+              initial={{ opacity: 0, y: -6, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-11 right-0 w-56 rounded-2xl overflow-hidden z-20 text-sm"
+              style={{ backgroundColor: "#FFFFFF", boxShadow: "0 16px 40px -12px rgba(0,0,0,0.3)" }}
+            >
             <button
               onClick={copyLink}
               className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[#1F2937] hover:bg-black/[0.04] transition text-left"
@@ -188,13 +192,14 @@ export default function ShareButton({
                 {strings.moreOptions}
               </button>
             )}
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
       {showQr && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowQr(false)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowQr(false)} />
           <div
             className="relative w-full sm:max-w-xs rounded-t-3xl sm:rounded-3xl bg-white p-5 flex flex-col items-center text-center"
             style={{ color: "#14202B" }}

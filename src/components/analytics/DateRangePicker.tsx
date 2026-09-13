@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Calendar, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getPresetRange, formatRangeLabel, isSameDay, type DateRange } from "@/lib/dateRanges";
+import MenuBackdrop from "@/components/ui/MenuBackdrop";
 
 const PRESETS = ["today", "last7", "last30", "thisMonth", "lastMonth", "allTime"] as const;
 
@@ -90,6 +92,10 @@ export default function DateRangePicker({
         {formatRangeLabel(value, locale)}
         <ChevronDown size={14} className="text-ringo-muted" />
       </button>
+
+      <AnimatePresence>
+        {open && <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-40" />}
+      </AnimatePresence>
 
       {open && (
         <div className="absolute right-0 mt-2 z-50 bg-ringo-surface border border-ringo-border rounded-card shadow-lg flex flex-col sm:flex-row w-[calc(100vw-2rem)] max-w-[340px] sm:w-auto sm:max-w-[calc(100vw-2rem)]">
