@@ -1,7 +1,18 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sendRestaurantOrderStatusEmail } from "@/lib/email/sendRestaurantOrderStatusEmail";
+import { sendPushToOrderWatcher } from "@/lib/push/send";
 import type { OrderStatus } from "@/lib/orderStatus";
 import { NextResponse } from "next/server";
+
+// The two moments the user explicitly asked for push on: the kitchen
+// starting the order, and it being ready. Every other transition
+// (accepted/served/completed/cancelled) still gets the existing email
+// via sendRestaurantOrderStatusEmail below, just not a push — mirroring
+// exactly the two stages requested, not every status this table has.
+const PUSH_STATUS_COPY: Partial<Record<OrderStatus, { title: string; body: string }>> = {
+  preparing: { title: "Your order is being prepared", body: "The kitchen has started on your order." },
+  ready: { title: "Order ready", body: "Your order is ready." },
+};
 
 const VALID_STATUSES: OrderStatus[] = ["accepted", "preparing", "ready", "served", "completed", "cancelled"];
 
@@ -43,6 +54,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (error || !order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
 
   await supabase.from("order_status_history").insert({ order_id: order.id, status });
+
+  const pushCopy = PUSH_STATUS_COPY[status];
+  if (pushCopy) {
+    // The admin client, not the request-scoped `supabase` above — the
+    // guest customer's push_subscriptions row (owned by order_id, not
+    // user_id) has no RLS policy granting the restaurant owner's own
+    // session access to it, same reasoning every cross-owner push send
+    // elsewhere in this app uses the admin client.
+    await sendPushToOrderWatcher(createAdminClient(), order.id, {
+      category: `order_${status}`,
+      title: pushCopy.title,
+      body: pushCopy.body,
+    });
+  }
 
   try {
     await sendRestaurantOrderStatusEmail(supabase, order.id, status);

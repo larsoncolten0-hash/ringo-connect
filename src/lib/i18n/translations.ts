@@ -85,6 +85,20 @@ export const translations = {
       menuItem: "Add to Home Screen",
       iosTitle: "Add Ringo Connect to Your Home Screen",
     },
+    // Web Push opt-in copy — NotificationBell.tsx (creator/admin
+    // dashboards), the community manage page's fan toggle, and
+    // RestaurantOrderPage.tsx's guest order tracker. Notification content
+    // itself (titles/bodies of what actually gets pushed, e.g. "New
+    // booking request") is server-generated and deliberately not
+    // localized here, same as this app's email templates.
+    pushNotifications: {
+      enable: "Get notifications",
+      enabled: "Notifications on",
+      hint: "Get notified on this device — no app to install.",
+      permissionDenied: "Notifications are blocked — check your browser or phone settings.",
+      orderEnable: "Notify me about this order",
+      orderEnabled: "We'll notify you ✓",
+    },
     // The public "Join Community" form (see CommunityJoinPage.tsx) and its
     // own confirmation step. Dashboard-side copy (Overview/Subscribers/
     // Announcements/Settings) lives under `community` instead.
@@ -1610,6 +1624,14 @@ export const translations = {
     dashboardInstall: {
       menuItem: "Ajouter à l'écran d'accueil",
       iosTitle: "Ajouter Ringo Connect à votre écran d'accueil",
+    },
+    pushNotifications: {
+      enable: "Activer les notifications",
+      enabled: "Notifications activées",
+      hint: "Recevez une notification sur cet appareil — aucune application à installer.",
+      permissionDenied: "Les notifications sont bloquées — vérifiez les réglages de votre navigateur ou téléphone.",
+      orderEnable: "M'avertir pour cette commande",
+      orderEnabled: "Vous serez averti ✓",
     },
     communityJoin: {
       formTitle: (name: string) => `Rejoindre la communauté de ${name}`,

@@ -1,5 +1,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getMusicPayoutSettings } from "@/lib/musicPayoutSettings";
+import { sendPushToUser } from "@/lib/push/send";
+import { formatPrice } from "@/lib/currency";
 
 // Mirrors src/lib/affiliate.ts's payout-resolution + overview functions
 // closely — same shape, same reasoning, just a different source of money
@@ -193,7 +195,7 @@ export async function getAdminMusicPayoutOverview(): Promise<AdminMusicPayoutOve
  *  to this payout are locked in as paid. */
 export async function markMusicPayoutPaid(payoutId: string, opts: { adminId: string; note?: string | null }) {
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data: payout, error } = await admin
     .from("music_payouts")
     .update({
       status: "paid",
@@ -201,10 +203,21 @@ export async function markMusicPayoutPaid(payoutId: string, opts: { adminId: str
       processed_at: new Date().toISOString(),
       processed_by: opts.adminId,
     })
-    .eq("id", payoutId);
+    .eq("id", payoutId)
+    .select("artist_user_id, amount, currency")
+    .single();
   if (error) throw new Error(error.message);
 
   await admin.from("music_sale_earnings").update({ status: "paid" }).eq("payout_id", payoutId);
+
+  // The single shared choke point for both the Fapshi-automated and
+  // manual-admin "mark paid" paths — see this function's own callers.
+  await sendPushToUser(admin, payout?.artist_user_id, {
+    category: "payout_paid",
+    title: "Payout sent",
+    body: `Your ${formatPrice(payout.amount, payout.currency)} payout from Ringo Connect has been sent.`,
+    url: "/dashboard/music/earnings",
+  });
 }
 
 /** Terminal: an admin is declining this specific request — hands the

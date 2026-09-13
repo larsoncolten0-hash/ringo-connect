@@ -3,9 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
+import NotificationBell from "@/components/NotificationBell";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import HelpWidget from "@/components/dashboard/HelpWidget";
 import MobileMoreMenu from "@/components/dashboard/MobileMoreMenu";
@@ -209,6 +211,7 @@ export default function DashboardShell({
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <LanguageToggle />
+            <NotificationBell />
             <ThemeToggle iconOnly />
             <span className="w-px h-5 bg-ringo-border mx-1 hidden sm:block" />
             <AvatarMenu email={email} username={username} avatarUrl={avatarUrl} planName={planName} />
@@ -217,7 +220,15 @@ export default function DashboardShell({
 
         <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-28 lg:pb-10">{children}</main>
 
-        {/* Mobile bottom tab bar — replaces the sidebar on small screens. */}
+        {/* Mobile bottom tab bar — replaces the sidebar on small screens.
+            Built to read as a native app tab bar, not a shrunk sidebar:
+            the active tab's pill background is one shared element (via
+            framer-motion's layoutId) that slides between tabs instead of
+            just toggling per-item, and every tab gets a spring-y press
+            scale — the same "physical" feedback iOS/Android tab bars
+            give on tap. Purely mobile (lg:hidden): desktop's sidebar
+            above already has an always-visible active state and doesn't
+            need this treatment. */}
         <nav
           className="lg:hidden fixed bottom-3 inset-x-3 z-40 bg-ringo-surface/95 backdrop-blur border border-ringo-border/70 rounded-2xl shadow-[0_12px_32px_-12px_rgba(15,23,42,0.25)] flex justify-around gap-0.5 py-1.5 px-1 overflow-x-auto no-scrollbar"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
@@ -225,15 +236,28 @@ export default function DashboardShell({
           {mobileTabItems.map(({ href, label, icon: Icon, exact }) => {
             const active = isActive(href, exact);
             return (
-              <Link
-                key={href}
-                href={href}
-                className={`shrink-0 flex flex-col items-center gap-0.5 px-3.5 py-1.5 rounded-xl text-[11px] font-medium transition-colors ${
-                  active ? "text-ringo-indigo bg-ringo-indigo/10" : "text-ringo-muted"
-                }`}
-              >
-                <Icon size={19} strokeWidth={active ? 2.4 : 2} />
-                {label}
+              <Link key={href} href={href} className="relative shrink-0">
+                <motion.span
+                  whileTap={{ scale: 0.88 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  className="relative flex flex-col items-center gap-0.5 px-3.5 py-1.5 rounded-xl text-[11px] font-medium"
+                >
+                  {active && (
+                    <motion.span
+                      layoutId="mobile-tab-active"
+                      className="absolute inset-0 rounded-xl bg-ringo-indigo/10"
+                      transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                    />
+                  )}
+                  <span className="relative flex flex-col items-center gap-0.5">
+                    <Icon
+                      size={19}
+                      strokeWidth={active ? 2.4 : 2}
+                      className={`transition-transform duration-200 ${active ? "text-ringo-indigo scale-110" : "text-ringo-muted"}`}
+                    />
+                    <span className={active ? "text-ringo-indigo" : "text-ringo-muted"}>{label}</span>
+                  </span>
+                </motion.span>
               </Link>
             );
           })}

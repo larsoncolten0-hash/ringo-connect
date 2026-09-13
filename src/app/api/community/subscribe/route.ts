@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { sendPushToUser } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — a visitor joining a community has no
@@ -49,7 +50,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Pick at least one way to hear from you." }, { status: 400 });
   }
 
-  const { data: profile } = await admin.from("profiles").select("id, community_enabled").eq("id", profileId).eq("published", true).single();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, user_id, community_enabled")
+    .eq("id", profileId)
+    .eq("published", true)
+    .single();
   if (!profile) {
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
@@ -98,6 +104,17 @@ export async function POST(request: Request) {
     }
     subscriberId = created.id;
   }
+
+  // Net-new notification path — unlike bookings/orders, there's no
+  // existing email receipt here to mirror; a new subscriber is still
+  // exactly the kind of "someone did a thing on my page" event the
+  // creator dashboard's push notifications are for.
+  await sendPushToUser(admin, profile.user_id, {
+    category: "community_subscriber_new",
+    title: "New community subscriber",
+    body: `${name} just joined your community.`,
+    url: "/dashboard/community",
+  });
 
   await admin.from("community_subscription_preferences").upsert(
     {

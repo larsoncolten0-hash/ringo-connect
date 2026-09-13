@@ -3,8 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationBell from "@/components/NotificationBell";
+import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Users", icon: Users, exact: true },
@@ -14,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/admin/price-controls", label: "Price Controls", icon: DollarSign },
   { href: "/admin/affiliates", label: "Affiliates", icon: Handshake },
   { href: "/admin/music-payouts", label: "Music payouts", icon: Banknote },
+  { href: "/admin/broadcast", label: "Broadcast", icon: Radio },
   { href: "/admin/qr-code", label: "QR code", icon: QrCode },
   { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -62,7 +65,11 @@ export default function AdminShell({ email, children }: { email: string; childre
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-1 px-1">
+          {/* New paid members, signup/payout requests, affiliate activity
+              — see src/lib/push/send.ts's sendPushToAdmins(), called from
+              every admin-relevant write across the app. */}
+          <NotificationBell variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
         </div>
         <div className="border-t border-white/10 pt-3 flex items-center justify-between px-1">
@@ -84,6 +91,12 @@ export default function AdminShell({ email, children }: { email: string; childre
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[248px_1fr]">
+      {/* Registers the same non-caching service worker DashboardShell
+          uses (see RegisterServiceWorker.tsx) — needed here too now,
+          since NotificationBell's subscribe flow depends on
+          navigator.serviceWorker.ready resolving. */}
+      <RegisterServiceWorker />
+
       {/* Fixed dark sidebar — deliberately NOT theme-toggle-aware. This is
           chrome, not content: it stays the same dark "control panel"
           regardless of the admin's light/dark preference for the main
@@ -99,6 +112,7 @@ export default function AdminShell({ email, children }: { email: string; childre
           <span className="font-display font-medium text-white text-sm">Admin</span>
         </Link>
         <div className="flex items-center gap-1">
+          <NotificationBell variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
           <Link
             href="/auth/logout"

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ShieldCheck, AlertTriangle } from "lucide-react";
+import PushTestButton from "@/components/admin/PushTestButton";
 
 type Settings = {
   fapshiEnabled: boolean;
@@ -207,6 +208,8 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
           are both stored independently — switching modes never loses the other set.
         </p>
       </div>
+
+      <PushTestButton />
 
       {/* Provider on/off toggles */}
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">

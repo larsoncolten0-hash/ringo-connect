@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { sendPushToAdmins } from "@/lib/push/send";
+import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
 
 /**
  * Applies a successful payment: grants the plan and marks the transaction
@@ -30,6 +32,13 @@ export async function applySuccessfulPayment({
   const { data: plan } = await admin.from("plans").select("id").eq("name", tx.plan_name).single();
   if (!plan) return { applied: false };
 
+  // Read BEFORE the update below — this is what tells "first paid plan"
+  // (notify admins) apart from "renewing/changing an already-paid plan"
+  // (don't spam admins for every renewal, per the user's own "new
+  // subscription/new member" ask, not every payment).
+  const { data: currentUser } = await admin.from("users").select("plan_id, plans(name)").eq("id", tx.user_id).maybeSingle();
+  const wasOnFreePlan = !currentUser?.plan_id || (currentUser.plans as any)?.name === "free";
+
   const interval: "monthly" | "yearly" = tx.billing_interval === "yearly" ? "yearly" : "monthly";
 
   const updates: Record<string, any> = {
@@ -52,6 +61,17 @@ export async function applySuccessfulPayment({
 
   await admin.from("users").update(updates).eq("id", tx.user_id);
   await admin.from("payment_transactions").update({ status: "success", updated_at: new Date().toISOString() }).eq("id", tx.id);
+
+  if (wasOnFreePlan) {
+    const { data: buyerProfile } = await admin.from("profiles").select("name, username").eq("user_id", tx.user_id).maybeSingle();
+    await sendPushToAdmins(admin, {
+      category: "member_paid_new",
+      title: "New paid member",
+      body: `${buyerProfile?.name || buyerProfile?.username || "A new member"} joined on the ${tx.plan_name} plan.`,
+      url: "/admin/requests",
+    });
+  }
+  await notifyAffiliateCommissionIfAny(admin, tx.id);
 
   return { applied: true };
 }

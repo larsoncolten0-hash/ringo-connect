@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
+import { sendPushToAdmins } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — this is the whole point of the
@@ -54,6 +55,13 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+
+  await sendPushToAdmins(admin, {
+    category: "signup_request_new",
+    title: "New signup request",
+    body: `${body.full_name.trim()} submitted a request to join Ringo Connect.`,
+    url: "/admin/requests",
+  });
 
   return NextResponse.json({ ok: true, id: data.id });
 }

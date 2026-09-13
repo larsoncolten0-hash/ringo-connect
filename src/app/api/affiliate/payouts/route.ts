@@ -1,5 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requestAffiliatePayout } from "@/lib/affiliate";
+import { sendPushToAdmins } from "@/lib/push/send";
+import { formatPrice } from "@/lib/currency";
 import { NextResponse } from "next/server";
 
 // Requesting a payout is intentionally NOT computed here — it's a single
@@ -21,6 +23,15 @@ export async function POST(request: Request) {
 
   try {
     const payout = await requestAffiliatePayout(currency);
+    // Admin client, not the request-scoped `supabase` above — an
+    // affiliate's own session has no RLS access to the admin roster or to
+    // other users' push_subscriptions rows.
+    await sendPushToAdmins(createAdminClient(), {
+      category: "payout_requested",
+      title: "Affiliate payout requested",
+      body: `A ${formatPrice(payout?.amount, payout?.currency || currency)} payout was requested.`,
+      url: "/admin/affiliates",
+    });
     return NextResponse.json({ ok: true, payout });
   } catch (err: any) {
     // The RPC's own exceptions (below minimum, no payout method set) are

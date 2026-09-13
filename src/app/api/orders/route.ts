@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
 import { sendRestaurantOrderReceiptEmail } from "@/lib/email/sendRestaurantOrderReceipt";
+import { sendPushToUser } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — guest ordering, no Ringo account
@@ -142,6 +143,15 @@ export async function POST(request: Request) {
 
   await admin.from("order_items").insert(orderItems.map((i) => ({ ...i, order_id: order.id })));
   await admin.from("order_status_history").insert({ order_id: order.id, status: "pending" });
+
+  // The kitchen — the profile owner is the only "staff" role this schema
+  // has, so this doubles as "notify the chef" from the user's own request.
+  await sendPushToUser(admin, profile.user_id, {
+    category: "order_new",
+    title: "New order",
+    body: `${customerName} placed an order · #${order.order_number}`,
+    url: "/dashboard/restaurant/orders",
+  });
 
   if (customerEmail) {
     try {
