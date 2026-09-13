@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Clock, CheckCircle2, XCircle, Ban, RotateCcw, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { MapPin, Clock, CheckCircle2, XCircle, Ban, RotateCcw, Loader2, Receipt } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { drawQrCodeWithLogo } from "@/lib/qrCode";
@@ -23,6 +24,7 @@ export default function TicketPassView({
   artistName,
   accent,
   currency,
+  receiptHref,
 }: {
   ticket: { code: string; status: string; attendeeName: string; usedAt: string | null };
   order: { orderNumber: number; paymentStatus: string; createdAt: string };
@@ -32,6 +34,7 @@ export default function TicketPassView({
   artistName: string;
   accent: string;
   currency: string;
+  receiptHref: string;
 }) {
   const { t, locale } = useLanguage();
   const router = useRouter();
@@ -195,6 +198,17 @@ export default function TicketPassView({
             )}
           </div>
         </div>
+
+        {paid && (
+          <Link
+            href={receiptHref}
+            className="flex items-center justify-center gap-1.5 text-xs font-medium py-2"
+            style={{ color: accent }}
+          >
+            <Receipt size={13} />
+            {t.music.viewReceiptButton}
+          </Link>
+        )}
 
         <p className="text-center text-xs" style={{ opacity: 0.4 }}>
           {t.music.ticketPassFooter}

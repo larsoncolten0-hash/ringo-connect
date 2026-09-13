@@ -366,6 +366,16 @@ export default function MusicStorePage({ profile }: { profile: any }) {
             ))}
           </div>
 
+          {orderDetail?.payment_status === "paid" && (
+            <Link
+              href={`/m/${profile.username}/receipt/${placedOrder.id}`}
+              className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-full text-sm font-semibold text-white mt-1"
+              style={{ backgroundColor: accent }}
+            >
+              {t.music.viewReceiptButton}
+            </Link>
+          )}
+
           <Link href={`/${profile.username}`} className="text-sm font-medium mt-4" style={{ color: accent }}>
             {t.music.backToProfile}
           </Link>

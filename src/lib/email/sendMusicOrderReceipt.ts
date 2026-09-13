@@ -1,6 +1,7 @@
 import { sendEmail } from "@/lib/email/provider";
 import { renderReceiptEmail } from "@/lib/email/renderReceiptEmail";
 import { formatPrice } from "@/lib/currency";
+import { formatOrderNumber, formatReceiptNumber } from "@/lib/receiptNumber";
 
 // Called from every place a music order can become 'paid' — the automatic
 // Fapshi confirmation (src/lib/musicOrderPayment.ts) and the artist's
@@ -41,24 +42,27 @@ export async function sendMusicOrderReceiptEmail(client: any, orderId: string): 
   const currency = profile?.currency || "USD";
   const artistName = profile?.name || profile?.username || "the artist";
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com").replace(/\/$/, "");
-  // Re-opens the same confirmation screen the fan saw right after checkout
-  // (see MusicStorePage's ?order= resume support) — Play/Download for a
-  // song/release and each ticket's own QR pass link all live there, gated
-  // the same "paid" check either way, so one link covers every item type
-  // in the order rather than trying to enumerate per-item links here.
-  const ctaUrl = profile?.username ? `${siteUrl}/m/${profile.username}?order=${orderId}` : null;
+  const hasTickets = (order.music_order_items || []).some((i: any) => i.item_type === "ticket");
+  // The premium fan-facing receipt (see src/components/music/ReceiptPageView.tsx)
+  // — it already links out to each purchased ticket's own QR pass and
+  // covers Play/Download for a song/release too, so one link still covers
+  // every item type in the order without enumerating per-item links here.
+  const ctaUrl = profile?.username ? `${siteUrl}/m/${profile.username}/receipt/${orderId}` : null;
+  const receiptNumber = formatReceiptNumber(order.order_number);
 
   const items = (order.music_order_items || []) as any[];
   const html = renderReceiptEmail({
-    heading: "Purchase confirmed",
-    subheading: `Order #${order.order_number} · ${artistName}`,
+    heading: hasTickets ? "Your ticket is confirmed 🎟️" : "Purchase confirmed",
+    subheading: `Order ${formatOrderNumber(order.order_number)} · ${artistName}`,
     lines: items.map((i) => ({
       label: `${i.quantity > 1 ? `${i.quantity} × ` : ""}${i.name_snapshot}`,
       amount: formatPrice(i.line_total, currency),
     })),
     total: formatPrice(order.total, currency),
     ctaUrl,
-    ctaLabel: "View your purchase",
+    ctaLabel: hasTickets ? "View ticket & receipt" : "View your purchase",
+    secondaryUrl: ctaUrl ? `${siteUrl}/api/music/orders/${orderId}/receipt-pdf` : null,
+    secondaryLabel: `Download receipt (${receiptNumber})`,
     footerNote: `Thanks for supporting ${artistName}.`,
   });
 

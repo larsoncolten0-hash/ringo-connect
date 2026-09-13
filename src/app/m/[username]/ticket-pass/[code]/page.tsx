@@ -89,6 +89,7 @@ export default async function TicketPassPage({ params }: { params: { username: s
       artistName={profile.name || profile.username}
       accent={profile.theme_color || "#F2B705"}
       currency={profile.currency || "USD"}
+      receiptHref={`/m/${profile.username}/receipt/${order.id}`}
     />
   );
 }

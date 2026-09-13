@@ -12,6 +12,14 @@ export function renderReceiptEmail({
   totalLabel,
   ctaUrl,
   ctaLabel,
+  // An optional second, smaller link below the primary button — added for
+  // the music/ticket receipt email's "Download Receipt" alongside "View
+  // Receipt" (PART 18/19 of the ticket receipt spec) without giving every
+  // caller of this shared template a second button it doesn't need; the
+  // restaurant/booking receipt emails simply never pass this and render
+  // exactly as before.
+  secondaryUrl,
+  secondaryLabel,
   footerNote,
 }: {
   heading: string;
@@ -21,6 +29,8 @@ export function renderReceiptEmail({
   totalLabel?: string;
   ctaUrl?: string | null;
   ctaLabel?: string | null;
+  secondaryUrl?: string | null;
+  secondaryLabel?: string | null;
   footerNote?: string | null;
 }): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -64,6 +74,11 @@ export function renderReceiptEmail({
                 ${
                   ctaUrl
                     ? `<div style="margin-top:22px;text-align:center;"><a href="${esc(ctaUrl)}" style="display:inline-block;background-color:#4F46E5;color:#FFFFFF;font-size:14px;font-weight:600;padding:11px 22px;border-radius:9999px;text-decoration:none;">${esc(ctaLabel || "View")}</a></div>`
+                    : ""
+                }
+                ${
+                  secondaryUrl
+                    ? `<div style="margin-top:12px;text-align:center;"><a href="${esc(secondaryUrl)}" style="color:#4F46E5;font-size:13px;font-weight:500;text-decoration:none;">${esc(secondaryLabel || "View")}</a></div>`
                     : ""
                 }
               </td>

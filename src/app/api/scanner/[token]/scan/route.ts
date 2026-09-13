@@ -11,9 +11,31 @@ import { NextResponse } from "next/server";
 // next scan, not whenever the page next happens to reload.
 export const dynamic = "force-dynamic";
 
+// TicketPassView.tsx's QR encodes the ticket's own full pass URL (e.g.
+// "https://ringoconnectltd.com/m/artist/ticket-pass/AB12CD34"), not the
+// bare code — nice on its own merit (a generic camera app that isn't the
+// Ringo scanner still lands the fan on their ticket instead of a useless
+// string), but it means whatever decodes the QR must pull the code back
+// out of that URL before it can ever match digital_tickets.ticket_code.
+// Handled here, server-side, rather than in the scanner's own camera
+// component, so EVERY caller (this camera scanner, a future hardware
+// scanner, a manually pasted code) gets the same normalization — the
+// server is what stays authoritative, per this feature's own security
+// requirements, not the client doing the parsing. A value that isn't a
+// URL at all (a bare code, typed or already extracted) passes through
+// unchanged.
+function extractTicketCode(raw: string): string {
+  try {
+    const segments = new URL(raw).pathname.split("/").filter(Boolean);
+    return segments[segments.length - 1] || raw;
+  } catch {
+    return raw;
+  }
+}
+
 export async function POST(request: Request, { params }: { params: { token: string } }) {
   const body = await request.json().catch(() => null);
-  const rawCode = typeof body?.ticket_code === "string" ? body.ticket_code.trim() : "";
+  const rawCode = typeof body?.ticket_code === "string" ? extractTicketCode(body.ticket_code.trim()) : "";
   if (!rawCode) return NextResponse.json({ outcome: "not_found" });
 
   const admin = createAdminClient();
