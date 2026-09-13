@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Reorder, useDragControls } from "framer-motion";
-import { GripVertical, Plus, Trash2, Star } from "lucide-react";
+import { GripVertical, Trash2, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { remainingForTicketType, isSoldOut } from "@/lib/ticketTypes";
+import SaveButton, { type SaveState } from "@/components/dashboard/SaveButton";
+import UnsavedChangesDialog from "@/components/dashboard/UnsavedChangesDialog";
 
 // Unlimited/custom ticket tiers for one event (Standard/VIP/Backstage/
 // whatever the artist wants to call them — see
@@ -135,6 +138,24 @@ export default function EventTicketTypesEditor({
   );
 }
 
+// Extracts just the fields Save actually persists, in the exact shape
+// event_ticket_types expects — shared by the initial "nothing to save
+// yet" snapshot and by handleSave's own patch, so the two can never drift
+// out of sync with each other.
+function editableFields(tt: any, toIsoOrNull: (v: string) => string | null) {
+  return {
+    name: tt.name,
+    description: tt.description ?? "",
+    benefits: (tt.benefits || []).map((b: string) => b.trim()).filter(Boolean),
+    price: Number(tt.price) || 0,
+    total_quantity: tt.total_quantity ? Number(tt.total_quantity) : null,
+    max_per_customer: tt.max_per_customer ? Number(tt.max_per_customer) : null,
+    sales_start_at: toIsoOrNull(tt.sales_start_at || ""),
+    sales_end_at: toIsoOrNull(tt.sales_end_at || ""),
+    is_active: tt.is_active !== false,
+  };
+}
+
 function TicketTypeRow({
   ticketType,
   currency,
@@ -155,6 +176,16 @@ function TicketTypeRow({
   const { t } = useLanguage();
   const controls = useDragControls();
   const [expanded, setExpanded] = useState(!!startExpanded);
+  // Real buffering, not the rest of the editor's "every field auto-saves
+  // on blur, the Save button is just a nice confirmation moment" pattern
+  // (see EditorSection.tsx's own comment on that) — a ticket type is
+  // priced inventory a fan can actually buy the moment it's active, so a
+  // half-typed price or name auto-committing mid-edit is a real risk here
+  // in a way it isn't for a profile bio field. Nothing below writes to
+  // event_ticket_types until handleSave runs.
+  const [dirty, setDirty] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
 
   const remaining = remainingForTicketType(ticketType);
   const soldOut = isSoldOut(ticketType);
@@ -162,6 +193,49 @@ function TicketTypeRow({
 
   const toIsoOrNull = (v: string) => (v ? new Date(v).toISOString() : null);
   const toLocalInputValue = (iso?: string | null) => (iso ? new Date(iso).toISOString().slice(0, 16) : "");
+
+  // The last-SAVED field values — what "Discard Changes" reverts back to.
+  // Starts at whatever this row loaded with, and only ever moves forward
+  // to a fresh save's own values, never to an in-progress edit.
+  const [savedSnapshot, setSavedSnapshot] = useState(() => editableFields(ticketType, toIsoOrNull));
+
+  const handleSave = () => {
+    const patch = editableFields(ticketType, toIsoOrNull);
+    setSaveState("saving");
+    Promise.resolve(onPersist(patch)).then(() => {
+      setSaveState("success");
+      setDirty(false);
+      setSavedSnapshot(patch);
+      window.setTimeout(() => setSaveState("idle"), 1200);
+    });
+  };
+
+  const revertToSnapshot = () => {
+    onChange({
+      ...savedSnapshot,
+      // The two datetime fields round-trip through <input type="datetime-
+      // local">'s own value format while being edited (see
+      // toLocalInputValue) — reverting to the plain ISO string here is
+      // exactly what they held before any edit, so this needs no special
+      // handling beyond what onChange already does for every other field.
+    });
+    setDirty(false);
+  };
+
+  const handleToggleExpand = () => {
+    if (expanded && dirty) {
+      setShowUnsavedDialog(true);
+      return;
+    }
+    setExpanded((v) => !v);
+  };
+
+  const handleKeepEditing = () => setShowUnsavedDialog(false);
+  const handleDiscard = () => {
+    setShowUnsavedDialog(false);
+    revertToSnapshot();
+    setExpanded(false);
+  };
 
   return (
     <Reorder.Item
@@ -180,7 +254,7 @@ function TicketTypeRow({
           <GripVertical size={14} />
         </div>
 
-        <button type="button" onClick={() => setExpanded((v) => !v)} className="flex-1 min-w-0 text-left">
+        <button type="button" onClick={handleToggleExpand} className="flex-1 min-w-0 text-left">
           <p className="text-sm font-medium text-ringo-text truncate flex items-center gap-1.5">
             {ticketType.name || t.music.untitledTicketType}
             {ticketType.is_primary && <Star size={11} className="shrink-0 fill-ringo-indigo text-ringo-indigo" />}
@@ -204,18 +278,20 @@ function TicketTypeRow({
       </div>
 
       {expanded && (
-        <div className="px-2.5 pb-2.5 pt-1 border-t border-ringo-border flex flex-col gap-2">
+        <div
+          onChangeCapture={() => setDirty(true)}
+          onInputCapture={() => setDirty(true)}
+          className="px-2.5 pb-2.5 pt-1 border-t border-ringo-border flex flex-col gap-2"
+        >
           <input
             value={ticketType.name}
             onChange={(e) => onChange({ name: e.target.value })}
-            onBlur={(e) => onPersist({ name: e.target.value })}
             placeholder={t.music.ticketTypeNamePlaceholder}
             className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
           />
           <input
             value={ticketType.description ?? ""}
             onChange={(e) => onChange({ description: e.target.value })}
-            onBlur={(e) => onPersist({ description: e.target.value })}
             placeholder={t.music.ticketTypeDescriptionPlaceholder}
             className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
           />
@@ -224,9 +300,6 @@ function TicketTypeRow({
             <textarea
               value={benefitsText}
               onChange={(e) => onChange({ benefits: e.target.value.split("\n") })}
-              onBlur={(e) =>
-                onPersist({ benefits: e.target.value.split("\n").map((b) => b.trim()).filter(Boolean) })
-              }
               placeholder={t.music.ticketTypeBenefitsPlaceholder}
               rows={3}
               className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text resize-y"
@@ -239,7 +312,6 @@ function TicketTypeRow({
               <input
                 value={ticketType.price ?? ""}
                 onChange={(e) => onChange({ price: e.target.value.replace(/[^0-9.]/g, "") })}
-                onBlur={(e) => onPersist({ price: Number(e.target.value) || 0 })}
                 inputMode="decimal"
                 className="text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
               />
@@ -249,7 +321,6 @@ function TicketTypeRow({
               <input
                 value={ticketType.total_quantity ?? ""}
                 onChange={(e) => onChange({ total_quantity: e.target.value.replace(/[^0-9]/g, "") })}
-                onBlur={(e) => onPersist({ total_quantity: e.target.value ? Number(e.target.value) : null })}
                 placeholder={t.music.ticketTypeQuantityPlaceholder}
                 inputMode="numeric"
                 className="text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
@@ -268,7 +339,6 @@ function TicketTypeRow({
             <input
               value={ticketType.max_per_customer ?? ""}
               onChange={(e) => onChange({ max_per_customer: e.target.value.replace(/[^0-9]/g, "") })}
-              onBlur={(e) => onPersist({ max_per_customer: e.target.value ? Number(e.target.value) : null })}
               placeholder={t.music.ticketTypeMaxPerCustomerPlaceholder}
               inputMode="numeric"
               className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
@@ -282,7 +352,6 @@ function TicketTypeRow({
                 type="datetime-local"
                 value={toLocalInputValue(ticketType.sales_start_at)}
                 onChange={(e) => onChange({ sales_start_at: e.target.value })}
-                onBlur={(e) => onPersist({ sales_start_at: toIsoOrNull(e.target.value) })}
                 className="text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
               />
             </label>
@@ -292,7 +361,6 @@ function TicketTypeRow({
                 type="datetime-local"
                 value={toLocalInputValue(ticketType.sales_end_at)}
                 onChange={(e) => onChange({ sales_end_at: e.target.value })}
-                onBlur={(e) => onPersist({ sales_end_at: toIsoOrNull(e.target.value) })}
                 className="text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
               />
             </label>
@@ -303,10 +371,7 @@ function TicketTypeRow({
               <input
                 type="checkbox"
                 checked={ticketType.is_active !== false}
-                onChange={(e) => {
-                  onChange({ is_active: e.target.checked });
-                  onPersist({ is_active: e.target.checked });
-                }}
+                onChange={(e) => onChange({ is_active: e.target.checked })}
               />
               {t.music.ticketTypeActiveLabel}
             </label>
@@ -324,8 +389,28 @@ function TicketTypeRow({
               {t.editor.delete}
             </button>
           </div>
+
+          {/* Only appears once there's actually something unsaved — same
+              "don't show it until there's a reason to" rule EditorSection
+              follows for its own Save button. */}
+          {(dirty || saveState !== "idle") && (
+            <div className="flex items-center gap-2 pt-1">
+              <SaveButton state={saveState} onClick={handleSave} />
+            </div>
+          )}
         </div>
       )}
+
+      {/* Portaled straight to document.body — UnsavedChangesDialog relies
+          on `fixed` positioning to cover the whole viewport, which breaks
+          (clips to this row instead) if rendered anywhere inside
+          Reorder.Item's own subtree, since framer-motion applies CSS
+          transforms to it for drag. A sibling wouldn't work either:
+          Reorder.Group expects its direct children to line up 1:1 with
+          `values` for reordering, so an extra non-Reorder.Item sibling
+          risks confusing that. */}
+      {showUnsavedDialog &&
+        createPortal(<UnsavedChangesDialog onKeepEditing={handleKeepEditing} onDiscard={handleDiscard} />, document.body)}
     </Reorder.Item>
   );
 }

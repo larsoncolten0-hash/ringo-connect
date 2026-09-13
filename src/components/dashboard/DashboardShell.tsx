@@ -16,6 +16,43 @@ import PullToRefresh from "@/components/dashboard/PullToRefresh";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import { useLanguage } from "@/components/LanguageProvider";
 
+// Where a manual "pull down to check for new activity" gesture actually
+// makes sense: list/overview pages showing something that can genuinely
+// change on its own (new orders, new bookings, a fresh subscriber) —
+// exactly the case a manual refresh gesture exists for. Deliberately an
+// allowlist of exact paths, not a blanket wrap around the whole dashboard
+// (which is what this used to be) and not a prefix match either: a
+// prefix like "/dashboard/bookings" would also match
+// "/dashboard/bookings/settings" and "/dashboard/bookings/<uuid>", which
+// are exactly the pages this needs to stay OFF for — a single record's
+// detail view, a settings form, or (most importantly) the profile editor
+// and the ticket-type editor nested inside /dashboard/tickets/<id>, both
+// of which hold real typed-but-not-yet-saved state that an accidental
+// drag-to-refresh would silently wipe with no "unsaved changes" warning
+// at all. New pages default to OFF until deliberately added here, rather
+// than every future page silently inheriting a gesture that isn't always
+// wanted.
+const PULL_TO_REFRESH_PATHS = new Set([
+  "/dashboard/analytics",
+  "/dashboard/restaurant",
+  "/dashboard/restaurant/orders",
+  "/dashboard/restaurant/kitchen",
+  "/dashboard/restaurant/tables",
+  "/dashboard/restaurant/customers",
+  "/dashboard/restaurant/sales",
+  "/dashboard/music",
+  "/dashboard/music/orders",
+  "/dashboard/music/customers",
+  "/dashboard/music/sales",
+  "/dashboard/music/earnings",
+  "/dashboard/bookings",
+  "/dashboard/community",
+  "/dashboard/community/subscribers",
+  "/dashboard/community/announcements",
+  "/dashboard/tickets",
+  "/dashboard/requests",
+]);
+
 export default function DashboardShell({
   userId,
   email,
@@ -85,7 +122,7 @@ export default function DashboardShell({
   const NAV_ITEMS = [
     { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true, core: true },
     ...(isRestaurant ? [{ href: "/dashboard/restaurant", label: t.nav.restaurant, icon: UtensilsCrossed, core: false }] : []),
-    ...(isMusic ? [{ href: "/dashboard/music", label: t.nav.music, icon: Music2, core: false }] : []),
+    ...(isMusic ? [{ href: "/dashboard/music", label: t.nav.musicSales, icon: Music2, core: false }] : []),
     // Its own section, not nested inside Music's editor — Events &
     // Experiences profiles get this without needing Music's other tools.
     ...(hasTicketing ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket, core: false }] : []),
@@ -248,26 +285,33 @@ export default function DashboardShell({
             desktop by construction — see PullToRefresh.tsx) wraps the
             page-transition block below, so pulling down reveals its
             indicator right under the sticky header and pushes the same
-            content the transition itself animates. */}
-        <PullToRefresh>
-          {/* Keyed on pathname so switching sections (tap Music, tap
-              Community, …) always plays a quick fade + tiny slide-in for
-              the new content instead of it just snapping into place —
-              coordinated with the bottom tab bar's pill morph and the
-              header's title swap, which both animate on the same
-              navigation. No exit animation: the old content unmounts
-              immediately rather than waiting, so the new page never feels
-              delayed. Skipped entirely under prefers-reduced-motion. */}
-          <motion.main
-            key={pathname}
-            initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-28 lg:pb-10"
-          >
-            {children}
-          </motion.main>
-        </PullToRefresh>
+            content the transition itself animates. Only mounted on pages
+            where the gesture is actually relevant (see
+            PULL_TO_REFRESH_PATHS above) — everywhere else this renders
+            `content` directly with no gesture listener at all, not just a
+            disabled one. */}
+        {(() => {
+          const content = (
+            <motion.main
+              key={pathname}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+              className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-28 lg:pb-10"
+            >
+              {children}
+            </motion.main>
+          );
+          // Keyed on pathname so switching sections (tap Music, tap
+          // Community, …) always plays a quick fade + tiny slide-in for
+          // the new content instead of it just snapping into place —
+          // coordinated with the bottom tab bar's pill morph and the
+          // header's title swap, which both animate on the same
+          // navigation. No exit animation: the old content unmounts
+          // immediately rather than waiting, so the new page never feels
+          // delayed. Skipped entirely under prefers-reduced-motion.
+          return PULL_TO_REFRESH_PATHS.has(pathname) ? <PullToRefresh>{content}</PullToRefresh> : content;
+        })()}
 
         {/* Mobile bottom tab bar — a floating glass dock, not a shrunk
             sidebar. Frosted, translucent, and centered (a fixed 5 core

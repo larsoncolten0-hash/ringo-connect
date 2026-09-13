@@ -919,6 +919,16 @@ export const translations = {
       editor: "Editor",
       restaurant: "Restaurant",
       music: "Music",
+      // The Music section's own entry in the hamburger/"More" menu
+      // (DashboardShell.tsx) — deliberately a different label than
+      // `music` above: that key is also MusicTabs.tsx's own first
+      // internal tab, which links to the exact same /dashboard/music
+      // overview page and has to stay "Music" there so it doesn't
+      // collide with that section's own separate "Sales" tab
+      // (t.restaurant.salesTitle, /dashboard/music/sales — a different
+      // page). One destination, two labels depending on where it's
+      // being linked from.
+      musicSales: "Sales",
       tickets: "Tickets",
       bookings: "Bookings",
       community: "Community",
@@ -2483,6 +2493,7 @@ export const translations = {
       editor: "Éditeur",
       restaurant: "Restaurant",
       music: "Musique",
+      musicSales: "Ventes",
       tickets: "Billets",
       bookings: "Réservations",
       community: "Communauté",
