@@ -25,7 +25,8 @@
     "react-simple-maps": "^3.0.0",
     "recharts": "^2.12.7",
     "stripe": "^22.5.0",
-    "tailwind-merge": "^2.5.2"
+    "tailwind-merge": "^2.5.2",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -33,6 +34,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-simple-maps": "^3.0.6",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.40",
     "sharp": "^0.35.3",

@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AdminShell from "@/components/admin/AdminShell";
 
+// Per-admin PWA installability (manifest link, iOS home-screen name/icon,
+// theme color) for the whole /admin/** tree — see src/lib/adminMetadata.ts.
+export { generateMetadata, generateViewport } from "@/lib/adminMetadata";
+
 export default async function AdminLayout({
   children,
 }: {

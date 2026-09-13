@@ -79,6 +79,11 @@ function ConfirmInner() {
             })
             .eq("user_id", data.user.id);
         }
+        // Best-effort — a push notification failing to send must never
+        // block the person from reaching the confirmation page. See
+        // /api/push/events/signup for why this lives here instead of a
+        // server-side trigger.
+        fetch("/api/push/events/signup", { method: "POST" }).catch(() => {});
         router.replace("/auth/confirmed");
       }
     });

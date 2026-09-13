@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requestMusicPayout } from "@/lib/musicEarnings";
+import { notifyAdmins } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 // Mirrors /api/affiliate/payouts/route.ts exactly — requesting a payout is
@@ -21,6 +22,13 @@ export async function POST(request: Request) {
 
   try {
     const payout = await requestMusicPayout(currency);
+    // Best-effort — see src/lib/push/send.ts. Admin needs to know an
+    // artist is now waiting to be paid.
+    await notifyAdmins({
+      title: "Music payout requested",
+      body: `${user.email} requested a payout of ${payout.amount} ${payout.currency}.`,
+      url: "/admin/music-payouts",
+    });
     return NextResponse.json({ ok: true, payout });
   } catch (err: any) {
     // The RPC's own exceptions (below minimum, no payout method set) are

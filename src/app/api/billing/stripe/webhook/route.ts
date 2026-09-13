@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getPlatformSettings } from "@/lib/platformSettings";
+import { notifyAdmins } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 // Configure this URL in the Stripe dashboard (Developers → Webhooks),
@@ -95,6 +96,21 @@ export async function POST(request: Request) {
         amount: (session.amount_total || 0) / 100,
         currency: (session.currency || "usd").toUpperCase(),
         status: "success",
+      });
+
+      // Best-effort, same as applySuccessfulPayment's Fapshi path — never
+      // lets a notification failure turn a real Stripe event into an
+      // error Stripe would retry.
+      const { data: buyerProfile } = await admin
+        .from("profiles")
+        .select("username, name")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const who = buyerProfile?.name || (buyerProfile?.username ? `@${buyerProfile.username}` : "Someone");
+      await notifyAdmins({
+        title: "Subscription payment received",
+        body: `${who} paid for the ${planName} plan (${interval}) via Stripe.`,
+        url: "/admin",
       });
       break;
     }

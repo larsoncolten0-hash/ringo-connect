@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requestAffiliatePayout } from "@/lib/affiliate";
+import { notifyAdmins } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 // Requesting a payout is intentionally NOT computed here — it's a single
@@ -21,6 +22,13 @@ export async function POST(request: Request) {
 
   try {
     const payout = await requestAffiliatePayout(currency);
+    // Best-effort — see src/lib/push/send.ts. Admin needs to know an
+    // affiliate is now waiting to be paid.
+    await notifyAdmins({
+      title: "Affiliate payout requested",
+      body: `${user.email} requested a payout of ${payout.amount} ${payout.currency}.`,
+      url: "/admin/affiliates",
+    });
     return NextResponse.json({ ok: true, payout });
   } catch (err: any) {
     // The RPC's own exceptions (below minimum, no payout method set) are

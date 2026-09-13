@@ -5,6 +5,8 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import RegisterServiceWorker from "@/components/RegisterServiceWorker";
+import { AdminInstallButton, AdminPushToggle } from "@/components/admin/AdminAppControls";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Users", icon: Users, exact: true },
@@ -65,6 +67,10 @@ export default function AdminShell({ email, children }: { email: string; childre
         <div className="flex items-center justify-between px-1">
           <ThemeToggle iconOnly variant="onDark" />
         </div>
+        <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3">
+          <AdminInstallButton variant="row" />
+          <AdminPushToggle variant="row" />
+        </div>
         <div className="border-t border-white/10 pt-3 flex items-center justify-between px-1">
           <div className="min-w-0">
             <p className="text-xs text-white/40 uppercase tracking-wide mb-0.5">Signed in as</p>
@@ -84,6 +90,7 @@ export default function AdminShell({ email, children }: { email: string; childre
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[248px_1fr]">
+      <RegisterServiceWorker />
       {/* Fixed dark sidebar — deliberately NOT theme-toggle-aware. This is
           chrome, not content: it stays the same dark "control panel"
           regardless of the admin's light/dark preference for the main
@@ -99,6 +106,8 @@ export default function AdminShell({ email, children }: { email: string; childre
           <span className="font-display font-medium text-white text-sm">Admin</span>
         </Link>
         <div className="flex items-center gap-1">
+          <AdminInstallButton variant="icon" />
+          <AdminPushToggle variant="icon" />
           <ThemeToggle iconOnly variant="onDark" />
           <Link
             href="/auth/logout"

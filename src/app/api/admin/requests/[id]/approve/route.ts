@@ -2,6 +2,7 @@ import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assert
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus } from "@/lib/fapshi";
 import { getCategory, isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
+import { notifyAdmins } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -270,6 +271,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
     action: "approve_signup_request",
     target_user_id: newUserId,
     details: { requestId: signupRequest.id, planName: plan.name, paymentMethod },
+  });
+
+  // Best-effort — see src/lib/push/send.ts. This is the "someone signs up"
+  // path for the assisted /get-started flow; the self-serve /auth/signup
+  // path notifies from /api/push/events/signup instead.
+  await notifyAdmins({
+    title: "New Ringo Connect signup",
+    body: `${fullName} (@${username.toLowerCase()}) just signed up — ${plan.name} plan.`,
+    url: "/admin",
   });
 
   return NextResponse.json({ ok: true, userId: newUserId, username: username.toLowerCase() });

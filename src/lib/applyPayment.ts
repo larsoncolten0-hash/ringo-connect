@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { notifyAdmins } from "@/lib/push/send";
 
 /**
  * Applies a successful payment: grants the plan and marks the transaction
@@ -52,6 +53,21 @@ export async function applySuccessfulPayment({
 
   await admin.from("users").update(updates).eq("id", tx.user_id);
   await admin.from("payment_transactions").update({ status: "success", updated_at: new Date().toISOString() }).eq("id", tx.id);
+
+  // Best-effort — see src/lib/push/send.ts, every call here swallows its
+  // own errors, so this can never turn a successful payment into a
+  // failed response.
+  const { data: buyerProfile } = await admin
+    .from("profiles")
+    .select("username, name")
+    .eq("user_id", tx.user_id)
+    .maybeSingle();
+  const who = buyerProfile?.name || (buyerProfile?.username ? `@${buyerProfile.username}` : "Someone");
+  await notifyAdmins({
+    title: "Subscription payment received",
+    body: `${who} paid for the ${tx.plan_name} plan (${interval}) via ${provider}.`,
+    url: "/admin",
+  });
 
   return { applied: true };
 }
