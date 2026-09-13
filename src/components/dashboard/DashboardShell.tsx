@@ -22,6 +22,7 @@ export default function DashboardShell({
   avatarUrl,
   planName,
   isFreePlan,
+  isVerified = false,
   canApproveRequests = false,
   isRestaurant = false,
   isMusic = false,
@@ -37,6 +38,10 @@ export default function DashboardShell({
   avatarUrl?: string | null;
   planName: string;
   isFreePlan: boolean;
+  // Whether the account already has the blue-tick badge — decides which
+  // item AvatarMenu shows: "Request verification" or a plain "Verified"
+  // label. See src/components/dashboard/VerificationRequestModal.tsx.
+  isVerified?: boolean;
   // "Super creator" permission — an admin-granted, narrower-than-admin
   // ability to review signup requests. See src/lib/assertAdmin.ts
   // (assertCanApproveRequests) and src/app/dashboard/requests/.
@@ -227,7 +232,7 @@ export default function DashboardShell({
             {userId && <NotificationBell mode="user" userId={userId} backdropTop="top-16" />}
             <ThemeToggle iconOnly />
             <span className="w-px h-5 bg-ringo-border mx-1 hidden sm:block" />
-            <AvatarMenu email={email} username={username} avatarUrl={avatarUrl} planName={planName} />
+            <AvatarMenu email={email} username={username} avatarUrl={avatarUrl} planName={planName} isVerified={isVerified} />
           </div>
         </div>
 

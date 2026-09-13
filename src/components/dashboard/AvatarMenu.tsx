@@ -3,23 +3,31 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
-import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff } from "lucide-react";
+import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff, BadgeCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useSound } from "@/components/SoundProvider";
 import { usePushToggle } from "@/lib/push/usePushToggle";
 import AddToHomeScreenMenuItem from "@/components/dashboard/AddToHomeScreenMenuItem";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
+import VerificationRequestModal from "@/components/dashboard/VerificationRequestModal";
 
 export default function AvatarMenu({
   email,
   username,
   avatarUrl,
   planName,
+  isVerified = false,
 }: {
   email: string;
   username: string;
   avatarUrl?: string | null;
   planName: string;
+  // Server-known state at page load, used only to decide which menu item
+  // to show (the "Request verification" action vs. a static "Verified"
+  // label) — the modal itself re-fetches fresh status on open, since
+  // this can go stale between an admin's decision and the next page
+  // load.
+  isVerified?: boolean;
 }) {
   const { t } = useLanguage();
   const { enabled: soundEnabled, setEnabled: setSoundEnabled } = useSound();
@@ -29,6 +37,7 @@ export default function AvatarMenu({
   // back off later.
   const { status: pushStatus, busy: pushBusy, toggle: togglePush } = usePushToggle("/api/push/subscribe");
   const [open, setOpen] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,6 +89,27 @@ export default function AvatarMenu({
             <ExternalLink size={14} />
             {t.account.viewPage}
           </Link>
+          {/* Blue-tick request — opens a full modal (VerificationRequestModal)
+              rather than anything inline here, since a real form needs more
+              room than a dropdown row. Already-verified creators see a plain
+              label instead of a button — nothing left to request. */}
+          {isVerified ? (
+            <span className="flex items-center gap-2 px-3.5 py-2.5 text-sm text-blue-500">
+              <BadgeCheck size={14} />
+              {t.account.verifiedLabel}
+            </span>
+          ) : (
+            <button
+              onClick={() => {
+                setOpen(false);
+                setShowVerification(true);
+              }}
+              className="flex items-center gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left"
+            >
+              <BadgeCheck size={14} />
+              {t.account.requestVerification}
+            </button>
+          )}
           {/* Global sound preference — the closest thing this dashboard has
               to a dedicated Settings page, so it lives here. Toggling it
               doesn't close the menu (unlike the links above it) since it's
@@ -140,6 +170,8 @@ export default function AvatarMenu({
           </Link>
         </div>
       )}
+
+      {showVerification && <VerificationRequestModal onClose={() => setShowVerification(false)} />}
     </div>
   );
 }

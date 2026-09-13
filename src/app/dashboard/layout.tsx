@@ -33,7 +33,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, avatar_url, category, categories")
+    .select("username, avatar_url, category, categories, verified")
     .eq("user_id", user.id)
     .single();
 
@@ -47,6 +47,7 @@ export default async function DashboardLayout({
       avatarUrl={profile?.avatar_url}
       planName={planName}
       isFreePlan={planName === "free"}
+      isVerified={!!profile?.verified}
       canApproveRequests={userRow?.role === "admin" || !!userRow?.can_approve_requests}
       isRestaurant={profileHasCategory(profile, "restaurant_food")}
       isMusic={profileHasCategory(profile, "music_entertainment")}
