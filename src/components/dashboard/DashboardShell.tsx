@@ -232,17 +232,23 @@ export default function DashboardShell({
 
         <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-28 lg:pb-10">{children}</main>
 
-        {/* Mobile bottom tab bar — replaces the sidebar on small screens.
-            Built to read as a native app tab bar, not a shrunk sidebar:
-            the active tab's pill background is one shared element (via
-            framer-motion's layoutId) that slides between tabs instead of
-            just toggling per-item, and every tab gets a spring-y press
-            scale — the same "physical" feedback iOS/Android tab bars
-            give on tap. Purely mobile (lg:hidden): desktop's sidebar
-            above already has an always-visible active state and doesn't
-            need this treatment. */}
+        {/* Mobile bottom tab bar — a floating glass dock, not a shrunk
+            sidebar. Frosted, translucent, and centered (a fixed 5 core
+            items always fit, so it never needs to stretch edge-to-edge)
+            with a thin border and a restrained shadow doing the "glass"
+            work instead of any gradient or glow. The active tab's pill
+            background is one shared element (via framer-motion's
+            layoutId) that morphs between tabs rather than just toggling
+            per-item, tuned fast and nearly bounce-free to feel crisp
+            rather than springy. Icon + label both get a small settle
+            animation on activation, and every tab gets a quick press
+            scale for tactile feedback. Purely mobile (lg:hidden):
+            desktop's sidebar above already has an always-visible active
+            state and doesn't need this treatment. Category-specific and
+            secondary items stay out of this dock entirely — they live in
+            MobileMoreMenu's hamburger, kept deliberately separate. */}
         <nav
-          className="lg:hidden fixed bottom-3 inset-x-3 z-40 bg-ringo-surface/95 backdrop-blur border border-ringo-border/70 rounded-2xl shadow-[0_12px_32px_-12px_rgba(15,23,42,0.25)] flex justify-around gap-0.5 py-1.5 px-1 overflow-x-auto no-scrollbar"
+          className="lg:hidden fixed bottom-3 inset-x-3 z-40 mx-auto flex max-w-[420px] items-center justify-around gap-0.5 overflow-x-auto rounded-[28px] border border-ringo-border/60 bg-ringo-surface/75 px-1.5 py-1.5 shadow-[0_10px_28px_-10px_rgba(15,23,42,0.2)] backdrop-blur-2xl no-scrollbar"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
           {mobileTabItems.map(({ href, label, icon: Icon, exact }) => {
@@ -250,24 +256,31 @@ export default function DashboardShell({
             return (
               <Link key={href} href={href} className="relative shrink-0">
                 <motion.span
-                  whileTap={{ scale: 0.88 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  className="relative flex flex-col items-center gap-0.5 px-3.5 py-1.5 rounded-xl text-[11px] font-medium"
+                  whileTap={{ scale: 0.92 }}
+                  transition={{ type: "spring", stiffness: 600, damping: 32 }}
+                  className="relative flex flex-col items-center gap-0.5 rounded-full px-4 py-1.5 text-[11px] font-medium"
                 >
                   {active && (
                     <motion.span
                       layoutId="mobile-tab-active"
-                      className="absolute inset-0 rounded-xl bg-ringo-indigo/10"
-                      transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                      className="absolute inset-0 rounded-full bg-ringo-indigo/12"
+                      transition={{ type: "spring", stiffness: 700, damping: 45, mass: 0.6 }}
                     />
                   )}
                   <span className="relative flex flex-col items-center gap-0.5">
-                    <Icon
-                      size={19}
-                      strokeWidth={active ? 2.4 : 2}
-                      className={`transition-transform duration-200 ${active ? "text-ringo-indigo scale-110" : "text-ringo-muted"}`}
-                    />
-                    <span className={active ? "text-ringo-indigo" : "text-ringo-muted"}>{label}</span>
+                    <motion.span
+                      animate={{ y: active ? -1 : 0, scale: active ? 1.08 : 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 26 }}
+                    >
+                      <Icon
+                        size={19}
+                        strokeWidth={active ? 2.4 : 2}
+                        className={active ? "text-ringo-indigo" : "text-ringo-muted"}
+                      />
+                    </motion.span>
+                    <span className={`transition-colors duration-150 ${active ? "text-ringo-indigo" : "text-ringo-muted"}`}>
+                      {label}
+                    </span>
                   </span>
                 </motion.span>
               </Link>
