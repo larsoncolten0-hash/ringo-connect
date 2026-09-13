@@ -33,6 +33,16 @@ import { useSound } from "@/components/SoundProvider";
 // Only ever responds to touch events, so it's inherently a no-op on
 // desktop/mouse input without needing a breakpoint check — this can only
 // activate on an actual touchscreen.
+//
+// Strictly top-of-page only, by design: a gesture can only ever START
+// when the page's scroll position is exactly 0 (see isAtTop() below,
+// checked at touchstart), and is immediately abandoned — mid-gesture,
+// before any refresh can fire — the instant that stops being true,
+// whether that's detected by the gesture's own touchmove math or by the
+// separate `scroll` listener that exists purely as a second, independent
+// guarantee. Scrolling through the middle of a page, or scrolling
+// downward through content, can never trigger this no matter how the
+// finger moves — only starting the drag already sitting at the top does.
 const ENGAGE_PX = 14;
 const THRESHOLD_PX = 68;
 const MAX_PULL_PX = 100;
@@ -40,6 +50,22 @@ const MAX_PULL_PX = 100;
 // "rubber band" feel iOS/Android use so it doesn't feel like the content
 // is glued 1:1 to your thumb.
 const DAMPING = 0.45;
+
+// The single source of truth for "is the page at the very top" — checked
+// three ways (window, and both documentElement/body scrollTop, whichever
+// a given mobile browser actually keeps in sync) and required to be
+// exactly 0, not just "close enough," so a sliver of residual scroll
+// never reads as "at the top." Used both to decide whether a gesture is
+// even allowed to start and, continuously, whether it's still allowed to
+// continue — see the dedicated `scroll` listener below, which is what
+// makes this robust to scroll position changing for reasons other than
+// this component's own touchmove math (momentum still settling, a
+// keyboard opening, etc.), not just the touch events it drives off of.
+function isAtTop(): boolean {
+  if (typeof window === "undefined") return false;
+  const top = Math.max(window.scrollY || 0, document.documentElement.scrollTop || 0, document.body.scrollTop || 0);
+  return top <= 0;
+}
 
 export default function PullToRefresh({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -58,8 +84,21 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
     const el = containerRef.current;
     if (!el) return;
 
+    // Immediately kills any gesture in progress the instant the page
+    // isn't at the top anymore, independent of the touchmove handler's
+    // own check — this is what guarantees "never mid-scroll, never
+    // mid-page" holds even in edge cases touchmove alone might miss
+    // (e.g. momentum from an earlier scroll still resolving under a new
+    // touch, or anything else nudging scroll position programmatically).
+    const onScroll = () => {
+      if (touchStartY.current !== null && !isAtTop()) {
+        touchStartY.current = null;
+        setPull(0);
+      }
+    };
+
     const onTouchStart = (e: TouchEvent) => {
-      if (refreshing || window.scrollY > 0) {
+      if (refreshing || !isAtTop()) {
         touchStartY.current = null;
         return;
       }
@@ -74,8 +113,11 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
       // Only take over once we're both still at the top AND actually
       // pulling down — anything else (pulling up, or having scrolled
       // away from the top mid-gesture) hands the touch back to normal
-      // scrolling immediately.
-      if (delta <= 0 || window.scrollY > 0) {
+      // scrolling immediately and for the rest of this gesture (once
+      // nulled, touchStartY never gets reassigned until the next
+      // touchstart, so a gesture that lost "at the top" status can't
+      // silently regain pull-to-refresh partway through).
+      if (delta <= 0 || !isAtTop()) {
         touchStartY.current = null;
         setPull(0);
         return;
@@ -117,11 +159,13 @@ export default function PullToRefresh({ children }: { children: React.ReactNode 
       }
     };
 
+    window.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd, { passive: true });
     el.addEventListener("touchcancel", onTouchEnd, { passive: true });
     return () => {
+      window.removeEventListener("scroll", onScroll);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
