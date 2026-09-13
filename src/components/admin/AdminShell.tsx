@@ -1,34 +1,91 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, type LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import { AdminInstallButton } from "@/components/admin/AdminAppControls";
+import AdminMoreMenu from "@/components/admin/AdminMoreMenu";
+import CountBadge from "@/components/admin/CountBadge";
+import type { AdminNavCounts } from "@/lib/adminNavCounts";
 
-const NAV_ITEMS = [
-  { href: "/admin", label: "Users", icon: Users, exact: true },
-  { href: "/admin/requests", label: "Requests", icon: Inbox },
-  { href: "/admin/support", label: "Support", icon: MessageCircle },
-  { href: "/admin/verification", label: "Verification", icon: BadgeCheck },
-  { href: "/admin/plans", label: "Plans", icon: Layers },
-  { href: "/admin/addons", label: "Add-ons", icon: Package },
-  { href: "/admin/price-controls", label: "Price Controls", icon: DollarSign },
-  { href: "/admin/affiliates", label: "Affiliates", icon: Handshake },
-  { href: "/admin/music-payouts", label: "Music payouts", icon: Banknote },
-  { href: "/admin/broadcast", label: "Broadcast", icon: Radio },
-  { href: "/admin/qr-code", label: "QR code", icon: QrCode },
-  { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+// `core: true` marks the 4 items the mobile bottom tab bar shows — kept
+// short on purpose, same reasoning as the creator dashboard's own
+// mobile tab bar (see DashboardShell.tsx's NAV_ITEMS comment). Everything
+// else lives behind the mobile header's hamburger (AdminMoreMenu). The
+// desktop sidebar is unaffected by this split: it always renders every
+// item, core or not, since it has the room mobile doesn't.
+//
+// `countKey`, when present, looks up a live "needs your attention" count
+// from AdminNavCounts (see src/lib/adminNavCounts.ts) to show as a
+// CountBadge next to that item everywhere it appears — sidebar, hamburger
+// panel, and (for the 4 core ones) the bottom tab bar itself.
+const NAV_ITEMS: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  exact?: boolean;
+  core: boolean;
+  countKey?: keyof AdminNavCounts;
+}[] = [
+  { href: "/admin", label: "Users", icon: Users, exact: true, core: true },
+  { href: "/admin/requests", label: "Requests", icon: Inbox, core: true, countKey: "requests" },
+  { href: "/admin/support", label: "Support", icon: MessageCircle, core: true, countKey: "support" },
+  { href: "/admin/verification", label: "Verification", icon: BadgeCheck, core: false, countKey: "verification" },
+  { href: "/admin/plans", label: "Plans", icon: Layers, core: false },
+  { href: "/admin/addons", label: "Add-ons", icon: Package, core: false },
+  { href: "/admin/price-controls", label: "Price Controls", icon: DollarSign, core: false },
+  { href: "/admin/affiliates", label: "Affiliates", icon: Handshake, core: false, countKey: "affiliates" },
+  { href: "/admin/music-payouts", label: "Music payouts", icon: Banknote, core: false, countKey: "musicPayouts" },
+  { href: "/admin/broadcast", label: "Broadcast", icon: Radio, core: false },
+  { href: "/admin/qr-code", label: "QR code", icon: QrCode, core: false },
+  { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal, core: true },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3, core: false },
 ];
 
-export default function AdminShell({ email, children }: { email: string; children: React.ReactNode }) {
+export default function AdminShell({
+  email,
+  initialCounts,
+  children,
+}: {
+  email: string;
+  initialCounts: AdminNavCounts;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
+
+  const [counts, setCounts] = useState(initialCounts);
+
+  // Polls rather than Supabase Realtime — same "no Realtime dependency"
+  // posture every other live view in this app already uses. 15s keeps
+  // the badges current without hammering the database from every open
+  // admin tab; nothing here is urgent enough to need the ~3-5s intervals
+  // an actually-open chat/inbox pane uses.
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/admin/nav-counts");
+        if (!res.ok) return;
+        setCounts(await res.json());
+      } catch {
+        // Silent — a missed refresh just means slightly stale badges
+        // until the next tick.
+      }
+    };
+    const interval = setInterval(poll, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const countFor = (countKey?: keyof AdminNavCounts) => (countKey ? counts[countKey] : undefined);
+
+  const coreItems = NAV_ITEMS.filter((i) => i.core);
+  const moreItems = NAV_ITEMS.filter((i) => !i.core);
 
   const SidebarContent = (
     <>
@@ -47,7 +104,7 @@ export default function AdminShell({ email, children }: { email: string; childre
         <div className="h-[2px] w-full mt-4 mb-6 rounded-full bg-gradient-to-r from-ringo-indigo via-ringo-coral to-ringo-teal opacity-60" />
 
         <nav className="flex flex-col gap-0.5">
-          {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
+          {NAV_ITEMS.map(({ href, label, icon: Icon, exact, countKey }) => {
             const active = isActive(href, exact);
             return (
               <Link
@@ -61,7 +118,8 @@ export default function AdminShell({ email, children }: { email: string; childre
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-full bg-ringo-coral" />
                 )}
                 <Icon size={17} strokeWidth={2} />
-                {label}
+                <span className="flex-1">{label}</span>
+                <CountBadge count={countFor(countKey)} />
               </Link>
             );
           })}
@@ -126,13 +184,17 @@ export default function AdminShell({ email, children }: { email: string; childre
         {SidebarContent}
       </aside>
 
-      {/* Mobile top bar */}
-      <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#0B1023]">
-        <Link href="/admin" className="flex items-center gap-2">
-          <Image src="/logo.png" alt="" width={22} height={22} className="rounded-md" />
-          <span className="font-display font-medium text-white text-sm">Admin</span>
-        </Link>
-        <div className="flex items-center gap-1">
+      {/* Mobile top bar — `relative` so AdminMoreMenu's dropdown panel
+          (position: absolute, top-full) anchors right below it. */}
+      <div className="lg:hidden relative flex items-center justify-between px-4 py-3 bg-[#0B1023]">
+        <div className="flex items-center gap-1 min-w-0">
+          <AdminMoreMenu items={moreItems} isActive={isActive} />
+          <Link href="/admin" className="flex items-center gap-2 min-w-0">
+            <Image src="/logo.png" alt="" width={22} height={22} className="rounded-md shrink-0" />
+            <span className="font-display font-medium text-white text-sm truncate">Admin</span>
+          </Link>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
           <AdminInstallButton variant="icon" />
           <NotificationBell mode="admin" variant="onDark" />
           <ThemeToggle iconOnly variant="onDark" />
@@ -148,12 +210,14 @@ export default function AdminShell({ email, children }: { email: string; childre
 
       <main className="p-6 lg:p-10 pb-24 lg:pb-10">{children}</main>
 
-      {/* Mobile bottom tab bar */}
+      {/* Mobile bottom tab bar — just the 4 core items (Users, Requests,
+          Support, Settings); everything else lives in AdminMoreMenu
+          above. */}
       <nav
         className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#0B1023] flex justify-around pt-2"
         style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
       >
-        {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
+        {coreItems.map(({ href, label, icon: Icon, exact, countKey }) => {
           const active = isActive(href, exact);
           return (
             <Link
@@ -163,7 +227,10 @@ export default function AdminShell({ email, children }: { email: string; childre
                 active ? "text-white bg-white/10" : "text-white/45"
               }`}
             >
-              <Icon size={18} strokeWidth={active ? 2.4 : 2} />
+              <span className="relative">
+                <Icon size={18} strokeWidth={active ? 2.4 : 2} />
+                <CountBadge count={countFor(countKey)} variant="corner" />
+              </span>
               {label}
             </Link>
           );

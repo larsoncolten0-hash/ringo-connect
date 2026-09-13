@@ -1,6 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AdminShell from "@/components/admin/AdminShell";
+import { getAdminNavCounts } from "@/lib/adminNavCounts";
 
 // Per-admin PWA installability (manifest link, iOS home-screen name/icon,
 // theme color) for the whole /admin/** tree — see src/lib/adminMetadata.ts.
@@ -26,5 +27,14 @@ export default async function AdminLayout({
   // Server-side role check - this is the real gate. RLS backs it up at the data layer.
   if (userRow?.role !== "admin") redirect("/dashboard");
 
-  return <AdminShell email={userRow.email ?? user.email ?? ""}>{children}</AdminShell>;
+  // Initial paint for the nav's "needs your attention" badges — AdminShell
+  // polls /api/admin/nav-counts itself afterward to stay current across
+  // every /admin/** page. See src/lib/adminNavCounts.ts.
+  const initialCounts = await getAdminNavCounts(createAdminClient());
+
+  return (
+    <AdminShell email={userRow.email ?? user.email ?? ""} initialCounts={initialCounts}>
+      {children}
+    </AdminShell>
+  );
 }
