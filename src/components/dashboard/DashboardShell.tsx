@@ -27,6 +27,8 @@ export default function DashboardShell({
   isRestaurant = false,
   isMusic = false,
   hasTicketing = false,
+  appName,
+  logoUrl,
   children,
 }: {
   // Used only to scope the notification bell to this account's own rows
@@ -38,6 +40,11 @@ export default function DashboardShell({
   avatarUrl?: string | null;
   planName: string;
   isFreePlan: boolean;
+  // Platform branding (src/lib/branding.ts) — the sidebar/header wordmark
+  // and logo aren't hardcoded so an admin can rebrand the whole platform
+  // from /admin/branding without a code change.
+  appName: string;
+  logoUrl: string;
   // Whether the account already has the blue-tick badge — decides which
   // item AvatarMenu shows: "Request verification" or a plain "Verified"
   // label. See src/components/dashboard/VerificationRequestModal.tsx.
@@ -130,8 +137,8 @@ export default function DashboardShell({
       <aside className="hidden lg:flex flex-col justify-between border-r border-ringo-border/70 bg-ringo-surface/40 p-5 h-screen sticky top-0">
         <div>
           <Link href="/" className="flex items-center gap-2.5 px-1">
-            <Image src="/logo.png" alt="Ringo Connect" width={30} height={30} className="rounded-[9px] shadow-[0_2px_8px_-2px_rgba(79,70,229,0.4)]" />
-            <span className="font-display font-semibold text-[15px] text-ringo-text tracking-[-0.01em]">Ringo Connect</span>
+            <Image src={logoUrl} alt={appName} width={30} height={30} className="rounded-[9px] object-contain shadow-[0_2px_8px_-2px_rgba(79,70,229,0.4)]" />
+            <span className="font-display font-semibold text-[15px] text-ringo-text tracking-[-0.01em]">{appName}</span>
           </Link>
           {/* Signature: a quiet gradient line — same brand signal as the
               animated rings on the auth pages, at rest for a daily-use screen. */}
@@ -221,7 +228,7 @@ export default function DashboardShell({
                 position. */}
             <MobileMoreMenu items={moreMenuItems} label={t.nav.more} isActive={isActive} />
             <Link href="/" className="flex items-center gap-2 lg:hidden shrink-0">
-              <Image src="/logo.png" alt="Ringo Connect" width={26} height={26} className="rounded-lg" />
+              <Image src={logoUrl} alt={appName} width={26} height={26} className="rounded-lg object-contain" />
             </Link>
             {currentLabel && (
               <h1 className="hidden sm:block text-[15px] font-semibold text-ringo-text truncate">{currentLabel}</h1>

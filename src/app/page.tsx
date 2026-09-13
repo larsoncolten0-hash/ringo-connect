@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import LandingView from "@/components/landing/LandingView";
+import { getBrandingSettings } from "@/lib/branding";
 
 // Reads the visiting user's own cookie-based session — must never be
 // served from a shared cache, or one visitor's logged-in state (and
@@ -34,5 +35,14 @@ export default async function Home() {
     dashboardHref = userRow?.role === "admin" ? "/admin" : "/dashboard";
   }
 
-  return <LandingView isLoggedIn={!!user} dashboardHref={dashboardHref} />;
+  const branding = await getBrandingSettings();
+
+  return (
+    <LandingView
+      isLoggedIn={!!user}
+      dashboardHref={dashboardHref}
+      appName={branding.appName}
+      logoUrl={branding.logoUrl}
+    />
+  );
 }

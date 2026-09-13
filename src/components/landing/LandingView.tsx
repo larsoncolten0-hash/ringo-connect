@@ -63,9 +63,15 @@ import AffiliateSection from "./AffiliateSection";
 export default function LandingView({
   isLoggedIn,
   dashboardHref,
+  appName,
+  logoUrl,
 }: {
   isLoggedIn: boolean;
   dashboardHref: string;
+  // Platform branding (src/lib/branding.ts) — see AdminShell.tsx's own
+  // comment on why this isn't hardcoded.
+  appName: string;
+  logoUrl: string;
 }) {
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -127,8 +133,8 @@ export default function LandingView({
       <header className="fixed top-0 inset-x-0 z-40 h-16 flex items-center bg-ringo-bg/80 backdrop-blur-md border-b border-ringo-border">
         <div className="max-w-6xl mx-auto w-full flex items-center justify-between px-5">
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <Image src="/logo.png" alt="Ringo Connect" width={26} height={26} className="rounded-md" />
-            <span className="hidden sm:inline font-display font-medium text-ringo-text">Ringo Connect</span>
+            <Image src={logoUrl} alt={appName} width={26} height={26} className="rounded-md object-contain" />
+            <span className="hidden sm:inline font-display font-medium text-ringo-text">{appName}</span>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-7" aria-label="Main">
@@ -512,8 +518,8 @@ export default function LandingView({
         <div className="max-w-6xl mx-auto px-5 py-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <Image src="/logo.png" alt="" width={22} height={22} className="rounded-md" />
-              <span className="font-display font-medium text-sm">Ringo Connect</span>
+              <Image src={logoUrl} alt="" width={22} height={22} className="rounded-md object-contain" />
+              <span className="font-display font-medium text-sm">{appName}</span>
             </div>
             <p className="text-sm text-ringo-muted leading-relaxed">{t.landing.footerTagline}</p>
           </div>

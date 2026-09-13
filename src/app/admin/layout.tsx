@@ -2,6 +2,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AdminShell from "@/components/admin/AdminShell";
 import { getAdminNavCounts } from "@/lib/adminNavCounts";
+import { getBrandingSettings } from "@/lib/branding";
 
 // Per-admin PWA installability (manifest link, iOS home-screen name/icon,
 // theme color) for the whole /admin/** tree — see src/lib/adminMetadata.ts.
@@ -30,10 +31,15 @@ export default async function AdminLayout({
   // Initial paint for the nav's "needs your attention" badges — AdminShell
   // polls /api/admin/nav-counts itself afterward to stay current across
   // every /admin/** page. See src/lib/adminNavCounts.ts.
-  const initialCounts = await getAdminNavCounts(createAdminClient());
+  const [initialCounts, branding] = await Promise.all([getAdminNavCounts(createAdminClient()), getBrandingSettings()]);
 
   return (
-    <AdminShell email={userRow.email ?? user.email ?? ""} initialCounts={initialCounts}>
+    <AdminShell
+      email={userRow.email ?? user.email ?? ""}
+      initialCounts={initialCounts}
+      appName={branding.appName}
+      logoUrl={branding.logoUrl}
+    >
       {children}
     </AdminShell>
   );

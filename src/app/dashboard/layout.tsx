@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
+import { getBrandingSettings } from "@/lib/branding";
 
 // Per-creator PWA installability (manifest link, iOS home-screen name/
 // icon, theme color) for the whole /dashboard/** tree — see
@@ -31,11 +32,10 @@ export default async function DashboardLayout({
     .eq("id", user.id)
     .single();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username, avatar_url, category, categories, verified")
-    .eq("user_id", user.id)
-    .single();
+  const [{ data: profile }, branding] = await Promise.all([
+    supabase.from("profiles").select("username, avatar_url, category, categories, verified").eq("user_id", user.id).single(),
+    getBrandingSettings(),
+  ]);
 
   const planName = (userRow?.plans as any)?.name ?? "free";
 
@@ -52,6 +52,8 @@ export default async function DashboardLayout({
       isRestaurant={profileHasCategory(profile, "restaurant_food")}
       isMusic={profileHasCategory(profile, "music_entertainment")}
       hasTicketing={profileHasTicketing(profile)}
+      appName={branding.appName}
+      logoUrl={branding.logoUrl}
     >
       {children}
     </DashboardShell>

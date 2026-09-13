@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, type LucideIcon } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, type LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
@@ -46,15 +46,23 @@ const NAV_ITEMS: {
   { href: "/admin/qr-code", label: "QR code", icon: QrCode, core: false },
   { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal, core: true },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, core: false },
+  { href: "/admin/branding", label: "Branding", icon: Palette, core: false },
 ];
 
 export default function AdminShell({
   email,
   initialCounts,
+  appName,
+  logoUrl,
   children,
 }: {
   email: string;
   initialCounts: AdminNavCounts;
+  // Platform branding (src/lib/branding.ts) — this console's own "Ringo
+  // Connect" wordmark/logo aren't hardcoded so an admin can rebrand the
+  // whole platform from /admin/branding without a code change.
+  appName: string;
+  logoUrl: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -91,9 +99,9 @@ export default function AdminShell({
     <>
       <div>
         <Link href="/admin" className="flex items-center gap-2.5 px-1 mb-1">
-          <Image src="/logo.png" alt="" width={26} height={26} className="rounded-md" />
+          <Image src={logoUrl} alt="" width={26} height={26} className="rounded-md object-contain" />
           <div className="leading-tight">
-            <p className="font-display font-medium text-white text-sm">Ringo Connect</p>
+            <p className="font-display font-medium text-white text-sm">{appName}</p>
             <p className="text-[10px] uppercase tracking-wider text-white/40">Admin console</p>
           </div>
         </Link>
@@ -190,7 +198,7 @@ export default function AdminShell({
         <div className="flex items-center gap-1 min-w-0">
           <AdminMoreMenu items={moreItems} isActive={isActive} />
           <Link href="/admin" className="flex items-center gap-2 min-w-0">
-            <Image src="/logo.png" alt="" width={22} height={22} className="rounded-md shrink-0" />
+            <Image src={logoUrl} alt="" width={22} height={22} className="rounded-md shrink-0 object-contain" />
             <span className="font-display font-medium text-white text-sm truncate">Admin</span>
           </Link>
         </div>

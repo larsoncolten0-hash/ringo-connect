@@ -14,7 +14,15 @@ const config: Config = {
       },
       colors: {
         ringo: {
-          indigo: "#4F46E5",
+          // Sourced from the --ringo-indigo CSS variable (globals.css,
+          // R G B channel numbers, not a hex string — see its own
+          // comment on why), overridden per-request from
+          // branding_settings.primary_color. The `rgb(... / <alpha-value>)`
+          // form (a documented Tailwind pattern for dynamic colors) is
+          // what keeps `bg-ringo-indigo/10`-style opacity modifiers
+          // working — a plain `var(--ringo-indigo)` string would silently
+          // break every one of them.
+          indigo: "rgb(var(--ringo-indigo) / <alpha-value>)",
           coral: "#FF6B4A",
           teal: "#14B8A6",
           bg: "var(--ringo-bg)",

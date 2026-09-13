@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getBrandingSettings } from "@/lib/branding";
 import { NextResponse } from "next/server";
 
 // The dashboard's own Web App Manifest — same "Add to Home Screen"
@@ -24,29 +25,27 @@ export async function GET() {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name, username, avatar_url, theme_color")
-    .eq("user_id", user.id)
-    .single();
+  const [{ data: profile }, branding] = await Promise.all([
+    supabase.from("profiles").select("name, username, avatar_url, theme_color").eq("user_id", user.id).single(),
+    getBrandingSettings(),
+  ]);
 
-  const displayName = profile?.name || profile?.username || "Ringo Connect";
-  const themeColor = profile?.theme_color || "#4F46E5";
+  const displayName = profile?.name || profile?.username || branding.appName;
+  // A creator's own theme_color (set in their editor) wins when present —
+  // it's more specific than the platform default; branding.pwaThemeColor
+  // is what a fresh account with no theme_color set yet gets instead.
+  const themeColor = profile?.theme_color || branding.pwaThemeColor;
 
   // Same reasoning as the profile route: no image-processing pipeline
   // exists here, so the creator's own avatar is referenced at whatever
   // size it actually is (browsers scale to fit) and falls back to the
-  // site's own generated PWA icons when there's no avatar.
+  // platform's own branding logo when there's no avatar.
   const icons = profile?.avatar_url
     ? [
         { src: profile.avatar_url, sizes: "192x192", type: "image/png" },
         { src: profile.avatar_url, sizes: "512x512", type: "image/png" },
       ]
-    : [
-        { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
-        { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
-        { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-      ];
+    : [{ src: branding.logoUrl, sizes: "512x512", type: "image/png" }];
 
   const manifest = {
     id: "/dashboard",
@@ -63,7 +62,7 @@ export async function GET() {
     // dashboard shell.
     scope: "/dashboard",
     display: "standalone",
-    background_color: "#0A0A0A",
+    background_color: branding.pwaBackgroundColor,
     theme_color: themeColor,
     icons,
   };

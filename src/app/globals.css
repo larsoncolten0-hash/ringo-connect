@@ -8,6 +8,23 @@
   --ringo-text: #0F172A;
   --ringo-muted: #64748B;
   --ringo-border: rgba(15, 23, 42, 0.12);
+  /* Default only — the root layout injects an inline override sourced
+     from branding_settings.primary_color (see src/lib/branding.ts and
+     app/layout.tsx's own comment) before first paint. This value is
+     what renders if that hasn't happened yet, and is the value
+     tailwind.config.ts's `ringo.indigo` color always resolves through,
+     same across light/dark since the brand color itself doesn't change
+     with theme.
+
+     Space-separated R G B channel numbers (79 70 229 = #4F46E5), NOT a
+     hex string — required for the `rgb(var(--ringo-indigo) / <alpha-value>)`
+     form in tailwind.config.ts, which is what lets utilities like
+     `bg-ringo-indigo/10` (used ~70 places in this app) keep working with
+     a runtime-variable color. A plain hex string in a CSS variable can't
+     be decomposed by Tailwind at build time, so every opacity-modified
+     ringo-indigo utility would silently stop generating — confirmed by
+     compiling with that approach before settling on this one. */
+  --ringo-indigo: 79 70 229;
 }
 
 .dark {

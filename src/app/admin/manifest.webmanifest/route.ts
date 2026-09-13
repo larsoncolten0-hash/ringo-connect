@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getBrandingSettings } from "@/lib/branding";
 import { NextResponse } from "next/server";
 
 // The admin console's own Web App Manifest — same "Add to Home Screen"
@@ -20,20 +21,23 @@ export async function GET() {
   const { data: userRow } = await supabase.from("users").select("role").eq("id", user.id).single();
   if (userRow?.role !== "admin") return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const branding = await getBrandingSettings();
+
   const manifest = {
     id: "/admin",
     start_url: "/admin",
-    name: "Ringo Connect Admin",
+    name: `${branding.appName} Admin`,
     short_name: "Admin",
     scope: "/admin",
     display: "standalone",
+    // Deliberately NOT branding.pwaThemeColor/pwaBackgroundColor — this
+    // console's dark chrome is a fixed identity independent of the
+    // admin's light/dark preference (see AdminShell.tsx's own comment),
+    // so it stays independent of the platform's general PWA color
+    // setting too. The logo is still the platform's own, though.
     background_color: "#0B1023",
     theme_color: "#0B1023",
-    icons: [
-      { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
-      { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-    ],
+    icons: [{ src: branding.logoUrl, sizes: "512x512", type: "image/png" }],
   };
 
   return NextResponse.json(manifest, {
