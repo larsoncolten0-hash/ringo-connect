@@ -12,6 +12,7 @@ import PushPermissionPrompt from "@/components/PushPermissionPrompt";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import HelpWidget from "@/components/dashboard/HelpWidget";
 import MobileMoreMenu from "@/components/dashboard/MobileMoreMenu";
+import PullToRefresh from "@/components/dashboard/PullToRefresh";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -243,23 +244,30 @@ export default function DashboardShell({
           </div>
         </div>
 
-        {/* Keyed on pathname so switching sections (tap Music, tap
-            Community, …) always plays a quick fade + tiny slide-in for
-            the new content instead of it just snapping into place —
-            coordinated with the bottom tab bar's pill morph and the
-            header's title swap, which both animate on the same
-            navigation. No exit animation: the old content unmounts
-            immediately rather than waiting, so the new page never feels
-            delayed. Skipped entirely under prefers-reduced-motion. */}
-        <motion.main
-          key={pathname}
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.16, ease: "easeOut" }}
-          className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-28 lg:pb-10"
-        >
-          {children}
-        </motion.main>
+        {/* Custom pull-to-refresh (touch-only, so this is a no-op on
+            desktop by construction — see PullToRefresh.tsx) wraps the
+            page-transition block below, so pulling down reveals its
+            indicator right under the sticky header and pushes the same
+            content the transition itself animates. */}
+        <PullToRefresh>
+          {/* Keyed on pathname so switching sections (tap Music, tap
+              Community, …) always plays a quick fade + tiny slide-in for
+              the new content instead of it just snapping into place —
+              coordinated with the bottom tab bar's pill morph and the
+              header's title swap, which both animate on the same
+              navigation. No exit animation: the old content unmounts
+              immediately rather than waiting, so the new page never feels
+              delayed. Skipped entirely under prefers-reduced-motion. */}
+          <motion.main
+            key={pathname}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-28 lg:pb-10"
+          >
+            {children}
+          </motion.main>
+        </PullToRefresh>
 
         {/* Mobile bottom tab bar — a floating glass dock, not a shrunk
             sidebar. Frosted, translucent, and centered (a fixed 5 core

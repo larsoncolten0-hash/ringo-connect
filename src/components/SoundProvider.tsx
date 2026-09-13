@@ -10,7 +10,9 @@ export type SoundKind =
   | "error"
   | "scanValid"
   | "scanInvalid"
-  | "scanAlreadyUsed";
+  | "scanAlreadyUsed"
+  | "pullEngage"
+  | "pullThreshold";
 
 const PLAYERS: Record<SoundKind, () => void> = {
   success: tones.playSuccess,
@@ -20,6 +22,8 @@ const PLAYERS: Record<SoundKind, () => void> = {
   scanValid: tones.playScanValid,
   scanInvalid: tones.playScanInvalid,
   scanAlreadyUsed: tones.playScanAlreadyUsed,
+  pullEngage: tones.playPullEngage,
+  pullThreshold: tones.playPullThreshold,
 };
 
 type SoundContextValue = {

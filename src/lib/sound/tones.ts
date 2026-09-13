@@ -135,3 +135,27 @@ export function playScanAlreadyUsed() {
     { freq: 523, start: 0.14, duration: 0.09, gain: 0.16, type: "triangle" },
   ]);
 }
+
+// --- Pull-to-refresh (see src/components/dashboard/PullToRefresh.tsx) ---
+// Two distinct moments, not a continuous sound tied to drag position —
+// the component fires each exactly once per gesture (when the pull first
+// engages, and again if/when it crosses the release threshold), never on
+// every pixel of movement, which is what keeps this from turning into
+// noise during normal scrolling. Completion reuses playSuccess() above
+// rather than adding a third near-identical chime.
+
+// The pull has just engaged — barely audible, a single very soft, quick
+// tick. Quieter and shorter than every other tone in this file on
+// purpose: this fires on ordinary, frequent gestures, not a rare event
+// like a save or a scan result.
+export function playPullEngage() {
+  playNotes([{ freq: 560, start: 0, duration: 0.045, gain: 0.05 }]);
+}
+
+// The pull has crossed the release-to-refresh threshold — a clearer,
+// slightly brighter confirmation than the engage tick (comparable level
+// to playNotification()), the same "ok, now let go" role a haptic tap
+// plays on native iOS/Android pull-to-refresh.
+export function playPullThreshold() {
+  playNotes([{ freq: 880, start: 0, duration: 0.07, gain: 0.13 }]);
+}

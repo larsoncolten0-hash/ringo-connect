@@ -39,23 +39,31 @@ export default function SupportInboxView({ initialConversations }: { initialConv
     return () => clearInterval(interval);
   }, []);
 
-  // Clears the just-opened conversation's unread flag locally right away
-  // — SupportThread's own GET marks it read server-side, but that
-  // response doesn't flow back into this list, so without this the badge
-  // would linger for up to 5s until the next list poll.
+  // Clears the just-opened conversation's unread count locally right
+  // away — SupportThread's own GET marks it read server-side, but that
+  // response doesn't flow back into this list, so without this the
+  // badge would linger for up to 5s until the next list poll.
   const openConversation = (id: string) => {
     setSelectedId(id);
-    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, unread: false } : c)));
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)));
   };
 
   const selected = conversations.find((c) => c.id === selectedId);
+  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
+  const unreadConversationCount = conversations.filter((c) => c.unreadCount > 0).length;
 
   return (
     <div className="flex h-[calc(100vh-8rem)] lg:h-[calc(100vh-6rem)] rounded-card border border-ringo-border/70 bg-ringo-surface overflow-hidden">
       <div className={`w-full lg:w-80 shrink-0 border-r border-ringo-border/70 flex-col overflow-y-auto ${selectedId ? "hidden lg:flex" : "flex"}`}>
         <div className="px-4 py-3.5 border-b border-ringo-border/70">
           <h1 className="text-sm font-semibold text-ringo-text">Support</h1>
-          <p className="text-xs text-ringo-muted mt-0.5">Creators' messages to the admin team</p>
+          <p className="text-xs text-ringo-muted mt-0.5">
+            {totalUnread > 0
+              ? `${totalUnread} unread message${totalUnread === 1 ? "" : "s"} · ${unreadConversationCount} conversation${
+                  unreadConversationCount === 1 ? "" : "s"
+                }`
+              : "Creators' messages to the admin team"}
+          </p>
         </div>
 
         {conversations.length === 0 ? (
@@ -64,14 +72,17 @@ export default function SupportInboxView({ initialConversations }: { initialConv
           conversations.map((c) => {
             const name = c.username ? `@${c.username}` : c.email || "Unknown";
             const initial = (c.username || c.email || "?")[0]?.toUpperCase();
+            const unread = c.unreadCount > 0;
+            const preview = c.lastMessageBody ? `${c.lastMessageFromAdmin ? "You: " : ""}${c.lastMessageBody}` : "No messages yet";
             return (
               <button
                 key={c.id}
                 onClick={() => openConversation(c.id)}
-                className={`flex items-center gap-2.5 px-4 py-3 border-b border-ringo-border/60 last:border-0 text-left transition-colors ${
+                className={`relative flex items-center gap-2.5 px-4 py-3 border-b border-ringo-border/60 last:border-0 text-left transition-colors ${
                   c.id === selectedId ? "bg-ringo-indigo/10" : "hover:bg-ringo-muted/10"
                 }`}
               >
+                {unread && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-ringo-indigo" aria-hidden="true" />}
                 <span className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-ringo-indigo text-white text-xs font-medium shrink-0">
                   {c.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -81,10 +92,25 @@ export default function SupportInboxView({ initialConversations }: { initialConv
                   )}
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-medium text-ringo-text truncate">{name}</span>
-                  <span className="block text-xs text-ringo-muted truncate">{relativeTime(c.lastMessageAt)}</span>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className={`text-sm truncate ${unread ? "font-semibold text-ringo-text" : "font-medium text-ringo-text"}`}>{name}</span>
+                    <span className="text-[11px] text-ringo-muted shrink-0">{relativeTime(c.lastMessageAt)}</span>
+                  </span>
+                  <span className={`block text-xs truncate ${unread ? "text-ringo-text" : "text-ringo-muted"}`}>{preview}</span>
+                  {!unread && c.status === "needs_reply" && (
+                    <span className="inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                      Needs reply
+                    </span>
+                  )}
                 </span>
-                {c.unread && <span className="w-2 h-2 rounded-full bg-ringo-coral shrink-0" aria-label="Unread" />}
+                {unread && (
+                  <span
+                    className="shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full bg-ringo-coral text-white text-[10px] font-semibold flex items-center justify-center leading-none"
+                    aria-label={`${c.unreadCount} unread`}
+                  >
+                    {c.unreadCount > 99 ? "99+" : c.unreadCount}
+                  </span>
+                )}
               </button>
             );
           })

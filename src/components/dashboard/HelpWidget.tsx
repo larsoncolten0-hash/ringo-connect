@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { MessageCircle, X, Send, Loader2, AlertCircle } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
@@ -30,11 +30,12 @@ export default function HelpWidget({ username, email }: { username: string; emai
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [unread, setUnread] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!open) return;
@@ -51,7 +52,7 @@ export default function HelpWidget({ username, email }: { username: string; emai
       if (!res.ok) throw new Error("load failed");
       const data = await res.json();
       setMessages(data.messages || []);
-      setUnread(false); // GET marks the thread read server-side.
+      setUnreadCount(0); // GET marks the thread read server-side.
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -86,7 +87,7 @@ export default function HelpWidget({ username, email }: { username: string; emai
         const data = await res.json();
         setMessages(data.messages || []);
         setLoaded(true);
-        setUnread((data.unread || 0) > 0);
+        setUnreadCount(data.unread || 0);
       } catch {
         // Silent — this is a background convenience check, not a load
         // the user is waiting on.
@@ -222,7 +223,7 @@ export default function HelpWidget({ username, email }: { username: string; emai
 
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label={t.help.button}
+        aria-label={unreadCount > 0 ? `${t.help.button}, ${unreadCount > 99 ? "99+" : unreadCount} unread` : t.help.button}
         className="relative w-16 h-16 rounded-2xl bg-ringo-indigo text-white flex flex-col items-center justify-center gap-0.5 shadow-[0_10px_28px_-8px_rgba(79,70,229,0.55)] transition hover:-translate-y-0.5 active:scale-95"
       >
         {open ? (
@@ -231,9 +232,21 @@ export default function HelpWidget({ username, email }: { username: string; emai
           <>
             <MessageCircle size={20} />
             <span className="text-[9px] font-semibold leading-none">{t.help.button}</span>
-            {unread && (
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-ringo-coral ring-2 ring-ringo-surface" aria-hidden />
-            )}
+            <AnimatePresence>
+              {unreadCount > 0 && (
+                <motion.span
+                  key={unreadCount}
+                  initial={shouldReduceMotion ? false : { scale: 1.35, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 22 }}
+                  className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-ringo-coral text-white text-[10px] font-semibold flex items-center justify-center leading-none ring-2 ring-ringo-surface"
+                  aria-hidden="true"
+                >
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </>
         )}
       </button>
