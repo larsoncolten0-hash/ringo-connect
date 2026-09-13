@@ -5,6 +5,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { STATUS_COLOR } from "@/lib/orderStatus";
+import HighlightOnArrival from "@/components/HighlightOnArrival";
 
 // Owner-side view of a music order — same underlying data (music_orders +
 // music_order_items snapshots) the fan's own confirmation screen in
@@ -19,7 +20,7 @@ export default function MusicReceiptView({ artistName, currency, order }: { arti
         {t.restaurant.ordersLabel}
       </Link>
 
-      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5">
+      <HighlightOnArrival className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5">
         <div className="flex items-center justify-between mb-1">
           <p className="font-display font-bold text-ringo-text">{artistName}</p>
           <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${STATUS_COLOR[order.status] || ""}`}>{order.status}</span>
@@ -55,7 +56,7 @@ export default function MusicReceiptView({ artistName, currency, order }: { arti
           </p>
         </div>
         <p className="text-center text-xs text-ringo-muted mt-4">{t.music.receiptThankYou}</p>
-      </div>
+      </HighlightOnArrival>
 
       <button
         onClick={() => window.print()}

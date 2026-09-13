@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendBookingReceivedEmail } from "@/lib/email/sendBookingReceivedEmail";
 import { sendPushToUser } from "@/lib/push/send";
+import { dashboardBookingLink } from "@/lib/notificationLinks";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — a visitor booking a profile has no
@@ -128,7 +129,7 @@ export async function POST(request: Request) {
     category: "booking_new",
     title: "New booking request",
     body: serviceNameSnapshot ? `${customerName} requested ${serviceNameSnapshot}` : `${customerName} sent you a booking request`,
-    url: "/dashboard/bookings",
+    url: dashboardBookingLink(booking.id),
   });
 
   if (customerEmail) {

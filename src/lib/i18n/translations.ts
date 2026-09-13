@@ -651,6 +651,11 @@ export const translations = {
       viewReceipt: "View Receipt",
       printReceipt: "Print",
       receiptThankYou: "Thank you for visiting!",
+      // Standalone /order/[id] tracking page (reached from a push
+      // notification, a bookmark, or a second visit) — shown when the id
+      // in the URL doesn't resolve to a real order.
+      orderNotFoundTitle: "Order not found",
+      orderNotFoundBody: "This order link is invalid or no longer available.",
 
       // Dashboard: restaurant operations (Orders/Kitchen/Tables/Sales/Customers)
       dashboardGreeting: (name: string) => `Good day, ${name} 👋`,
@@ -2206,6 +2211,8 @@ export const translations = {
       viewReceipt: "Voir le reçu",
       printReceipt: "Imprimer",
       receiptThankYou: "Merci de votre visite !",
+      orderNotFoundTitle: "Commande introuvable",
+      orderNotFoundBody: "Ce lien de commande est invalide ou n'est plus disponible.",
 
       dashboardGreeting: (name: string) => `Bonjour, ${name} 👋`,
       todaysSales: "Ventes du jour",

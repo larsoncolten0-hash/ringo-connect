@@ -9,7 +9,7 @@ import { getRestaurantSubcategory } from "@/lib/categories";
 import { isOpenNow } from "@/lib/restaurantHours";
 import ImageGallery from "@/components/ImageGallery";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
-import { getPushStatus, subscribeToPush } from "@/lib/push/subscribeClient";
+import { useOrderPushSubscription } from "@/lib/push/useOrderPushSubscription";
 
 type CartLine = { menuItemId: string; name: string; price: number; quantity: number; notes: string };
 type OrderType = "dine_in" | "takeaway" | "delivery";
@@ -49,11 +49,12 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
   const [placedOrder, setPlacedOrder] = useState<{ id: string; order_number: number } | null>(null);
   const [orderStatus, setOrderStatus] = useState<any>(null);
   // "Notify me about this order" — a guest customer has no account, so
-  // this subscribes a push_subscriptions row keyed by order_id alone
-  // (see /api/push/subscribe-order), independent of the status-polling
-  // effect below.
-  const [pushStatus, setPushStatus] = useState<"loading" | "unsupported" | "off" | "on">("loading");
-  const [pushBusy, setPushBusy] = useState(false);
+  // this subscribes a push_subscriptions row keyed by order_id alone (see
+  // /api/push/subscribe-order), independent of the status-polling effect
+  // below. Also the returning-customer path: if this browser already
+  // granted permission on a previous order, this silently re-associates
+  // the existing subscription with THIS order — no prompt shown again.
+  const { status: pushStatus, enable: enableOrderPush } = useOrderPushSubscription(placedOrder?.id);
 
   const closed = !isOpenNow(profile.opening_hours);
   const orderingOpen = profile.ordering_enabled !== false;
@@ -147,19 +148,6 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
     return () => clearInterval(interval);
   }, [placedOrder]);
 
-  useEffect(() => {
-    if (!placedOrder) return;
-    getPushStatus().then((s) => setPushStatus(!s.supported ? "unsupported" : s.subscribed ? "on" : "off"));
-  }, [placedOrder]);
-
-  const enableOrderPush = async () => {
-    if (!placedOrder || pushBusy || pushStatus !== "off") return;
-    setPushBusy(true);
-    const result = await subscribeToPush({ subscribeUrl: "/api/push/subscribe-order", extra: { orderId: placedOrder.id } });
-    setPushStatus(result.ok ? "on" : "off");
-    setPushBusy(false);
-  };
-
   const subcategoryLabel = getRestaurantSubcategory(profile.restaurant_subcategory)?.label[locale];
 
   const statusMessage = (status: string) =>
@@ -190,20 +178,26 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
           )}
           {email.trim() && <p className="text-xs" style={{ opacity: 0.6 }}>{t.restaurant.receiptEmailedNote}</p>}
 
-          {pushStatus !== "unsupported" && (
-            <button
-              onClick={enableOrderPush}
-              disabled={pushBusy || pushStatus === "on"}
-              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full disabled:opacity-70"
-              style={
-                pushStatus === "on"
-                  ? { backgroundColor: `${accent}1a`, color: accent }
-                  : { border: "1.5px solid #E5E7EB", color: "#14202B" }
-              }
-            >
-              {pushBusy ? <Loader2 size={13} className="animate-spin" /> : <BellRing size={13} />}
-              {pushStatus === "on" ? t.pushNotifications.orderEnabled : t.pushNotifications.orderEnable}
-            </button>
+          {pushStatus === "denied" ? (
+            <p className="text-xs max-w-[280px]" style={{ opacity: 0.6 }}>
+              {t.pushNotifications.permissionDenied}
+            </p>
+          ) : (
+            pushStatus !== "unsupported" && (
+              <button
+                onClick={enableOrderPush}
+                disabled={pushStatus === "loading" || pushStatus === "on"}
+                className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full disabled:opacity-70"
+                style={
+                  pushStatus === "on"
+                    ? { backgroundColor: `${accent}1a`, color: accent }
+                    : { border: "1.5px solid #E5E7EB", color: "#14202B" }
+                }
+              >
+                {pushStatus === "loading" ? <Loader2 size={13} className="animate-spin" /> : <BellRing size={13} />}
+                {pushStatus === "on" ? t.pushNotifications.orderEnabled : t.pushNotifications.orderEnable}
+              </button>
+            )
           )}
 
           <div id="receipt" className="w-full rounded-2xl border p-4 text-left mt-2" style={{ borderColor: "#E5E7EB" }}>

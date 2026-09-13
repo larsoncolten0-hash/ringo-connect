@@ -67,17 +67,37 @@ self.addEventListener("push", (event) => {
 });
 
 // Tapping the notification focuses an already-open tab on its target URL
-// if one exists, otherwise opens a new one — standard PWA notification
-// click behavior.
+// if one exists; if Ringo is open but on some OTHER page, navigate that
+// tab to the target instead of leaving it behind and opening a second
+// one; only open a new tab/window when Ringo isn't open at all.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url || "/";
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
       for (const client of clients) {
         if (client.url === url && "focus" in client) return client.focus();
       }
+
+      // No exact match, but Ringo is open somewhere — reuse that tab
+      // rather than piling up a duplicate. client.navigate() is part of
+      // the Clients API (widely supported alongside notificationclick
+      // itself); guarded anyway so a browser without it just falls
+      // through to focusing the tab as-is instead of throwing.
+      const existing = clients.find((c) => "focus" in c);
+      if (existing) {
+        if ("navigate" in existing) {
+          try {
+            await existing.navigate(url);
+          } catch {
+            // e.g. the tab navigated away mid-flight — still focus it
+            // rather than lose the click entirely.
+          }
+        }
+        return existing.focus();
+      }
+
       if (self.clients.openWindow) return self.clients.openWindow(url);
     })
   );

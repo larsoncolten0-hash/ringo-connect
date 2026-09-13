@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
 import { sendRestaurantOrderReceiptEmail } from "@/lib/email/sendRestaurantOrderReceipt";
 import { sendPushToUser } from "@/lib/push/send";
+import { dashboardOrderLink } from "@/lib/notificationLinks";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — guest ordering, no Ringo account
@@ -150,7 +151,7 @@ export async function POST(request: Request) {
     category: "order_new",
     title: "New order",
     body: `${customerName} placed an order · #${order.order_number}`,
-    url: "/dashboard/restaurant/orders",
+    url: dashboardOrderLink(order.id),
   });
 
   if (customerEmail) {

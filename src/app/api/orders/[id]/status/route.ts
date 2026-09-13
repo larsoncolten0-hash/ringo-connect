@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sendRestaurantOrderStatusEmail } from "@/lib/email/sendRestaurantOrderStatusEmail";
 import { sendPushToOrderWatcher } from "@/lib/push/send";
+import { guestOrderTrackingLink } from "@/lib/notificationLinks";
 import type { OrderStatus } from "@/lib/orderStatus";
 import { NextResponse } from "next/server";
 
@@ -66,6 +67,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       category: `order_${status}`,
       title: pushCopy.title,
       body: pushCopy.body,
+      url: guestOrderTrackingLink(order.id),
     });
   }
 

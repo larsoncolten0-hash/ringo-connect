@@ -7,6 +7,7 @@ import { ArrowLeft, Mail, Phone, UserX, UserCheck, Loader2 } from "lucide-react"
 import { useLanguage } from "@/components/LanguageProvider";
 import { createClient } from "@/lib/supabase/client";
 import { SUBSCRIBER_STATUS_COLOR } from "@/lib/communityStatus";
+import HighlightOnArrival from "@/components/HighlightOnArrival";
 
 // Owner-side status changes go straight through the authenticated browser
 // client — RLS ("community_subscribers owner all") already scopes
@@ -45,7 +46,7 @@ export default function CommunitySubscriberDetail({ subscriber }: { subscriber: 
         {t.community.backToSubscribers}
       </Link>
 
-      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 flex flex-col gap-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <HighlightOnArrival className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 flex flex-col gap-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="font-display text-lg font-medium text-ringo-text">{subscriber.name || "—"}</h1>
@@ -122,7 +123,7 @@ export default function CommunitySubscriberDetail({ subscriber }: { subscriber: 
             </button>
           )}
         </div>
-      </div>
+      </HighlightOnArrival>
     </div>
   );
 }

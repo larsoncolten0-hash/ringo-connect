@@ -33,6 +33,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     created_at: order.created_at,
     table_label: order.restaurant_tables?.label || null,
     restaurant_name: order.profiles?.name || order.profiles?.username,
+    restaurant_username: order.profiles?.username || null,
     currency: order.profiles?.currency || "USD",
     items: (order.order_items || []).map((i: any) => ({
       name: i.item_name_snapshot,

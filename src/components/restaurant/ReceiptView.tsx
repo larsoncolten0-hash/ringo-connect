@@ -5,6 +5,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { STATUS_COLOR } from "@/lib/orderStatus";
+import HighlightOnArrival from "@/components/HighlightOnArrival";
 
 // Shared shape between the owner's receipt (here) and the customer's own
 // confirmation screen (RestaurantOrderPage) — same underlying data
@@ -19,7 +20,7 @@ export default function ReceiptView({ restaurantName, currency, order }: { resta
         {t.restaurant.ordersLabel}
       </Link>
 
-      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5">
+      <HighlightOnArrival className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5">
         <div className="flex items-center justify-between mb-1">
           <p className="font-display font-bold text-ringo-text">{restaurantName}</p>
           <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${STATUS_COLOR[order.status] || ""}`}>{order.status}</span>
@@ -60,7 +61,7 @@ export default function ReceiptView({ restaurantName, currency, order }: { resta
           </p>
         </div>
         <p className="text-center text-xs text-ringo-muted mt-4">{t.restaurant.receiptThankYou}</p>
-      </div>
+      </HighlightOnArrival>
 
       <button
         onClick={() => window.print()}

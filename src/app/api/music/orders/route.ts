@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
 import { sendPushToUser } from "@/lib/push/send";
+import { dashboardMusicOrderLink } from "@/lib/notificationLinks";
 import { NextResponse } from "next/server";
 
 type CartLine = {
@@ -329,7 +330,7 @@ export async function POST(request: Request) {
     category: "order_new",
     title: "New order",
     body: `${customerName} ordered ${itemSummary}`,
-    url: `/dashboard/music/orders/${order.id}`,
+    url: dashboardMusicOrderLink(order.id),
   });
 
   return NextResponse.json({ id: order.id, order_number: order.order_number });

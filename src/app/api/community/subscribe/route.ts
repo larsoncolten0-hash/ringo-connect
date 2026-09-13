@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendPushToUser } from "@/lib/push/send";
+import { dashboardSubscriberLink } from "@/lib/notificationLinks";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — a visitor joining a community has no
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
     category: "community_subscriber_new",
     title: "New community subscriber",
     body: `${name} just joined your community.`,
-    url: "/dashboard/community",
+    url: dashboardSubscriberLink(subscriberId),
   });
 
   await admin.from("community_subscription_preferences").upsert(

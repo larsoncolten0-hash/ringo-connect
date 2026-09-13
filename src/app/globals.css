@@ -112,6 +112,20 @@ h1, h2, h3, .font-display {
   animation: fade-in 0.18s ease-out 0.16s forwards;
 }
 
+/* HighlightOnArrival.tsx — a brief ring around a dashboard resource
+   (order/booking/subscriber) reached via a notification's `?ref=push`.
+   The base rule always applies the transition (even when inactive, at
+   zero-alpha/zero-spread, so it's invisible) so toggling the "active"
+   class off animates smoothly back to nothing instead of snapping. */
+.ringo-arrival-highlight-wrap {
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 rgb(var(--ringo-indigo) / 0);
+  transition: box-shadow 1.6s ease-out;
+}
+.ringo-arrival-highlight-wrap.ringo-arrival-highlight-active {
+  box-shadow: 0 0 0 3px rgb(var(--ringo-indigo) / 0.35);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-ring-pulse-1,
   .animate-ring-pulse-2,
@@ -126,5 +140,8 @@ h1, h2, h3, .font-display {
   .loading-reveal {
     animation: none !important;
     opacity: 1;
+  }
+  .ringo-arrival-highlight-wrap {
+    transition: none;
   }
 }

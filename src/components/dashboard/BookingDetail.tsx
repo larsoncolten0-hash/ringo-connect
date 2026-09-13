@@ -8,6 +8,7 @@ import { FaWhatsapp } from "react-icons/fa6";
 import { useLanguage } from "@/components/LanguageProvider";
 import { createClient } from "@/lib/supabase/client";
 import { BOOKING_STATUS_COLOR, availableActions, type BookingStatus } from "@/lib/bookingStatus";
+import HighlightOnArrival from "@/components/HighlightOnArrival";
 
 // Owner-side status changes go straight through the authenticated browser
 // client + a booking_status_history insert — no API route needed, RLS
@@ -61,7 +62,7 @@ export default function BookingDetail({ booking, whatsappNumber }: { booking: an
         {t.bookings.backToBookings}
       </Link>
 
-      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 flex flex-col gap-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <HighlightOnArrival className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 flex flex-col gap-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="font-display text-lg font-medium text-ringo-text">{booking.customer_name}</h1>
@@ -150,7 +151,7 @@ export default function BookingDetail({ booking, whatsappNumber }: { booking: an
             </a>
           )}
         </div>
-      </div>
+      </HighlightOnArrival>
 
       {history.length > 0 && (
         <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5">
