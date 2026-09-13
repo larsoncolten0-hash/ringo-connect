@@ -58,6 +58,15 @@ export async function generateMetadata(
 export async function generateViewport({ params }: { params: { username: string } }): Promise<Viewport> {
   const profile = await getProfileForMetadata(params.username);
   return {
+    // Repeats the root layout's zoom-lock fields (see app/layout.tsx's
+    // `viewport` export) rather than relying purely on inheritance — this
+    // segment is the one actually installed as a PWA, so it can't afford
+    // to silently lose them if that merge behavior ever changes.
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: "cover",
     themeColor: profile?.theme_color || "#4F46E5",
   };
 }

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
+import { sendPushToUser } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 type CartLine = {
@@ -321,6 +322,15 @@ export async function POST(request: Request) {
       })
       .eq("id", customer.id);
   }
+
+  const itemSummary =
+    orderItems.length === 1 ? `${orderItems[0].quantity}× ${orderItems[0].name_snapshot}` : `${orderItems.length} items`;
+  await sendPushToUser(admin, profile.user_id, {
+    category: "order_new",
+    title: "New order",
+    body: `${customerName} ordered ${itemSummary}`,
+    url: `/dashboard/music/orders/${order.id}`,
+  });
 
   return NextResponse.json({ id: order.id, order_number: order.order_number });
 }

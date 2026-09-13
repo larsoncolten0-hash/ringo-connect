@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Minus, ShoppingCart, X, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Minus, ShoppingCart, X, Check, Loader2, BellRing } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { getRestaurantSubcategory } from "@/lib/categories";
 import { isOpenNow } from "@/lib/restaurantHours";
 import ImageGallery from "@/components/ImageGallery";
+import RegisterServiceWorker from "@/components/RegisterServiceWorker";
+import { getPushStatus, subscribeToPush } from "@/lib/push/subscribeClient";
 
 type CartLine = { menuItemId: string; name: string; price: number; quantity: number; notes: string };
 type OrderType = "dine_in" | "takeaway" | "delivery";
@@ -46,6 +48,12 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
   const [error, setError] = useState("");
   const [placedOrder, setPlacedOrder] = useState<{ id: string; order_number: number } | null>(null);
   const [orderStatus, setOrderStatus] = useState<any>(null);
+  // "Notify me about this order" — a guest customer has no account, so
+  // this subscribes a push_subscriptions row keyed by order_id alone
+  // (see /api/push/subscribe-order), independent of the status-polling
+  // effect below.
+  const [pushStatus, setPushStatus] = useState<"loading" | "unsupported" | "off" | "on">("loading");
+  const [pushBusy, setPushBusy] = useState(false);
 
   const closed = !isOpenNow(profile.opening_hours);
   const orderingOpen = profile.ordering_enabled !== false;
@@ -139,6 +147,19 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
     return () => clearInterval(interval);
   }, [placedOrder]);
 
+  useEffect(() => {
+    if (!placedOrder) return;
+    getPushStatus().then((s) => setPushStatus(!s.supported ? "unsupported" : s.subscribed ? "on" : "off"));
+  }, [placedOrder]);
+
+  const enableOrderPush = async () => {
+    if (!placedOrder || pushBusy || pushStatus !== "off") return;
+    setPushBusy(true);
+    const result = await subscribeToPush({ subscribeUrl: "/api/push/subscribe-order", extra: { orderId: placedOrder.id } });
+    setPushStatus(result.ok ? "on" : "off");
+    setPushBusy(false);
+  };
+
   const subcategoryLabel = getRestaurantSubcategory(profile.restaurant_subcategory)?.label[locale];
 
   const statusMessage = (status: string) =>
@@ -156,6 +177,7 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
   if (step === "confirmation" && placedOrder) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center px-4 py-10" style={{ color: "#14202B" }}>
+        <RegisterServiceWorker />
         <div className="w-full max-w-md flex flex-col items-center gap-4 text-center">
           <span className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: `${accent}1a` }}>
             <Check size={28} style={{ color: accent }} />
@@ -167,6 +189,22 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
             </p>
           )}
           {email.trim() && <p className="text-xs" style={{ opacity: 0.6 }}>{t.restaurant.receiptEmailedNote}</p>}
+
+          {pushStatus !== "unsupported" && (
+            <button
+              onClick={enableOrderPush}
+              disabled={pushBusy || pushStatus === "on"}
+              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full disabled:opacity-70"
+              style={
+                pushStatus === "on"
+                  ? { backgroundColor: `${accent}1a`, color: accent }
+                  : { border: "1.5px solid #E5E7EB", color: "#14202B" }
+              }
+            >
+              {pushBusy ? <Loader2 size={13} className="animate-spin" /> : <BellRing size={13} />}
+              {pushStatus === "on" ? t.pushNotifications.orderEnabled : t.pushNotifications.orderEnable}
+            </button>
+          )}
 
           <div id="receipt" className="w-full rounded-2xl border p-4 text-left mt-2" style={{ borderColor: "#E5E7EB" }}>
             <div className="flex items-center justify-between mb-1">

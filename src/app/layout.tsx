@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import { SoundProvider } from "@/components/SoundProvider";
@@ -23,6 +23,22 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
+};
+
+// Site-wide base viewport — every route inherits this (dashboardMetadata/
+// profileMetadata/scannerMetadata's own generateViewport only override
+// themeColor, so these fields fall through everywhere else too). Locking
+// maximumScale/userScalable is what stops pinch- and double-tap-zoom, and
+// viewportFit lets content draw under the iOS notch/home-indicator area
+// (paired with the safe-area-inset padding already used for the mobile
+// tab bar) — both are what make the installed PWA read as a real
+// Android/iOS app rather than a zoomable mobile website.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 // Runs before paint to avoid a light-mode flash for users who prefer dark.

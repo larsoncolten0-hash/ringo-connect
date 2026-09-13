@@ -61,6 +61,12 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-8px)" },
         },
+        // Generic entrance for content that swaps in all at once — e.g.
+        // a loading.tsx skeleton, so it doesn't just snap into view.
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
       },
       animation: {
         "ring-pulse-1": "ring-pulse 3.2s ease-out infinite",
@@ -71,6 +77,7 @@ const config: Config = {
         "fade-up": "fade-up 0.6s ease-out both",
         "eq-bar": "eq-bar 0.9s ease-in-out infinite",
         float: "float 5s ease-in-out infinite",
+        "fade-in": "fade-in 0.3s ease-out both",
       },
     },
   },

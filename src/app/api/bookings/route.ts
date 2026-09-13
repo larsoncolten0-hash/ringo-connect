@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendBookingReceivedEmail } from "@/lib/email/sendBookingReceivedEmail";
+import { sendPushToUser } from "@/lib/push/send";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — a visitor booking a profile has no
@@ -122,6 +123,13 @@ export async function POST(request: Request) {
   }
 
   await admin.from("booking_status_history").insert({ booking_id: booking.id, status: "pending" });
+
+  await sendPushToUser(admin, profile.user_id, {
+    category: "booking_new",
+    title: "New booking request",
+    body: serviceNameSnapshot ? `${customerName} requested ${serviceNameSnapshot}` : `${customerName} sent you a booking request`,
+    url: "/dashboard/bookings",
+  });
 
   if (customerEmail) {
     try {

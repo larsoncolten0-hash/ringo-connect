@@ -1,7 +1,8 @@
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getPlatformSettings } from "@/lib/platformSettings";
-import { notifyPaymentSucceeded } from "@/lib/applyPayment";
+import { sendPushToAdmins } from "@/lib/push/send";
+import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
 import { NextResponse } from "next/server";
 
 // Configure this URL in the Stripe dashboard (Developers → Webhooks),
@@ -87,23 +88,33 @@ export async function POST(request: Request) {
         })
         .eq("id", userId);
 
-      await admin.from("payment_transactions").insert({
-        user_id: userId,
-        provider: "stripe",
-        provider_transaction_id: session.id,
-        plan_name: planName,
-        billing_interval: interval,
-        amount: (session.amount_total || 0) / 100,
-        currency: (session.currency || "usd").toUpperCase(),
-        status: "success",
-      });
+      const { data: txRow } = await admin
+        .from("payment_transactions")
+        .insert({
+          user_id: userId,
+          provider: "stripe",
+          provider_transaction_id: session.id,
+          plan_name: planName,
+          billing_interval: interval,
+          amount: (session.amount_total || 0) / 100,
+          currency: (session.currency || "usd").toUpperCase(),
+          status: "success",
+        })
+        .select("id")
+        .single();
 
-      await notifyPaymentSucceeded({
-        userId,
-        planDisplayName: plan.display_name || plan.name,
-        amount: (session.amount_total || 0) / 100,
-        currency: (session.currency || "usd").toUpperCase(),
+      // checkout.session.completed only ever fires once per new Checkout
+      // session — unlike customer.subscription.updated (a renewal signal
+      // too), this is unambiguously a brand-new paid signup, no "was this
+      // actually their first paid plan" check needed.
+      const { data: buyerProfile } = await admin.from("profiles").select("name, username").eq("user_id", userId).maybeSingle();
+      await sendPushToAdmins(admin, {
+        category: "member_paid_new",
+        title: "New paid member",
+        body: `${buyerProfile?.name || buyerProfile?.username || "A new member"} joined on the ${planName} plan.`,
+        url: "/admin/requests",
       });
+      if (txRow?.id) await notifyAffiliateCommissionIfAny(admin, txRow.id);
       break;
     }
 
