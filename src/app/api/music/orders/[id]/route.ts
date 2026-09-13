@@ -24,7 +24,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   // pay-status loop) so a Mobile Money payment that takes longer than that
   // initial window to approve on the fan's phone still unlocks Play/
   // Download the moment it actually goes through, automatically, with no
-  // artist confirmation ever required. A no-op for cash/card orders (no
+  // artist confirmation ever required. A no-op for cash orders (no
   // pending_fapshi_trans_id) and for one already 'paid'.
   let paymentStatus = order.payment_status;
   if (paymentStatus !== "paid" && order.pending_fapshi_trans_id) {

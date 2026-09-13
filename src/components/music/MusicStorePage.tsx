@@ -57,16 +57,21 @@ export default function MusicStorePage({ profile }: { profile: any }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  // Mobile Money defaults on for an XAF profile, where it's a real
-  // automatic Fapshi charge — everywhere else it's not offered at all
-  // (see the payment method list below), so default to cash instead.
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "mobile_money" | "card">(
-    currency === "XAF" ? "mobile_money" : "cash"
-  );
-  // Only meaningful for paymentMethod === "mobile_money" — which real
-  // provider to charge. Same two options UpgradeModal.tsx already offers
-  // for subscription payments.
+  // Mobile Money (a real, automatic Fapshi charge) is the only payment
+  // method right now — no cash (there's no in-person handoff moment for a
+  // digital/ticket purchase to make that meaningful), and no Card yet
+  // either: that's Stripe, deliberately not turned on until a later pass
+  // (see paymentAvailable below for what a non-XAF store — the only case
+  // Fapshi can't serve — shows instead of a payment method to pick).
+  const paymentMethod = "mobile_money" as const;
+  // Which real provider to charge. Same two options UpgradeModal.tsx
+  // already offers for subscription payments.
   const [medium, setMedium] = useState<"mobile money" | "orange money">("mobile money");
+  // Fapshi only ever moves XAF — until Card (Stripe) is turned back on,
+  // a non-XAF store has no automatic payment method at all, and
+  // deliberately no manual/declared fallback either (cash and card were
+  // both removed everywhere in this flow) — see the checkout step below.
+  const paymentAvailable = currency === "XAF";
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [mmError, setMmError] = useState("");
@@ -202,17 +207,13 @@ export default function MusicStorePage({ profile }: { profile: any }) {
       }
       setPlacedOrder({ id: data.id, order_number: data.order_number });
 
-      // Real, automatically-verified collection — only possible for XAF
-      // Mobile Money (Fapshi doesn't move any other currency). Everything
-      // else (cash, card, or mobile_money on a non-XAF profile) falls
-      // straight to the existing confirmation screen, where access stays
-      // "pending confirmation" until the artist marks it paid by hand —
-      // unchanged from before.
-      if (paymentMethod === "mobile_money" && currency === "XAF") {
-        startMobileMoneyPayment(data.id);
-        return;
-      }
-      setStep("confirmation");
+      // The only payment method right now is a real, automatically-
+      // verified Fapshi Mobile Money charge — never needs the artist to
+      // confirm anything by hand. (paymentAvailable being false is
+      // supposed to keep the checkout form itself from ever reaching this
+      // point for a non-XAF store — see the checkout step's own guard —
+      // so this only ever runs for XAF.)
+      startMobileMoneyPayment(data.id);
     } catch {
       setError(t.restaurant.orderFailedError);
     } finally {
@@ -319,12 +320,12 @@ export default function MusicStorePage({ profile }: { profile: any }) {
 
   const musicSectionLabel = getMusicRole(profile.music_role)?.sectionLabel[locale] || t.music.storeMusicHeading;
 
-  // Whether this order still has a real, not-yet-resolved automatic Mobile
-  // Money attempt behind it — as opposed to a cash/card (or non-XAF
-  // mobile_money) order, which has never had one and genuinely does need
-  // the artist to confirm it by hand, or a Mobile Money attempt that has
-  // already permanently FAILED/EXPIRED (mmTerminalFailure), for which no
-  // further automatic confirmation will ever arrive either.
+  // Whether this order still has a real, not-yet-resolved automatic
+  // payment attempt behind it — genuinely still in flight, not yet
+  // FAILED/EXPIRED — as opposed to an order that's never had one (nothing
+  // left to auto-confirm) or a Mobile Money attempt that has already
+  // permanently failed, for which no further automatic confirmation will
+  // ever arrive either.
   const autoConfirmPending = !!orderDetail?.pending_fapshi_trans_id && orderDetail?.payment_status !== "paid" && !mmTerminalFailure;
 
   if (step === "confirmation" && placedOrder) {
@@ -560,82 +561,79 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           <h1 className="font-display text-xl font-bold">{t.restaurant.checkoutTitle}</h1>
           {error && <p className="text-sm px-3.5 py-2.5 rounded-card" style={{ backgroundColor: "#FEE2E2", color: "#991B1B" }}>{error}</p>}
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium" style={{ opacity: 0.7 }}>{t.restaurant.nameLabel}</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.restaurant.namePlaceholder} className="border rounded-card px-3.5 py-2.5 text-sm" style={{ borderColor: "#E5E7EB" }} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium" style={{ opacity: 0.7 }}>{t.restaurant.phoneLabel}</span>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.restaurant.phonePlaceholder} inputMode="tel" className="border rounded-card px-3.5 py-2.5 text-sm" style={{ borderColor: "#E5E7EB" }} />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium" style={{ opacity: 0.7 }}>{t.music.emailLabel}</span>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.music.emailPlaceholder} inputMode="email" className="border rounded-card px-3.5 py-2.5 text-sm" style={{ borderColor: "#E5E7EB" }} />
-          </label>
+          {!paymentAvailable ? (
+            // Fapshi (the only payment method right now — see paymentMethod
+            // above) only ever moves XAF, and there's deliberately no
+            // fallback for any other currency until Card (Stripe) is
+            // turned back on: no cash, no declared/artist-confirms option
+            // either. Rather than let a fan fill out the whole form and
+            // hit a wall (or worse, land on an order stuck unpaid forever
+            // with no way to pay), this stops them right here.
+            <p className="text-sm px-3.5 py-3 rounded-card" style={{ backgroundColor: "#FEF3C7", color: "#92400E" }}>
+              {t.music.onlinePaymentsUnavailableNote}
+            </p>
+          ) : (
+            <>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium" style={{ opacity: 0.7 }}>{t.restaurant.nameLabel}</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.restaurant.namePlaceholder} className="border rounded-card px-3.5 py-2.5 text-sm" style={{ borderColor: "#E5E7EB" }} />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium" style={{ opacity: 0.7 }}>{t.restaurant.phoneLabel}</span>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t.restaurant.phonePlaceholder} inputMode="tel" className="border rounded-card px-3.5 py-2.5 text-sm" style={{ borderColor: "#E5E7EB" }} />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium" style={{ opacity: 0.7 }}>{t.music.emailLabel}</span>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.music.emailPlaceholder} inputMode="email" className="border rounded-card px-3.5 py-2.5 text-sm" style={{ borderColor: "#E5E7EB" }} />
+              </label>
 
-          <div>
-            <p className="text-xs font-medium mb-1.5" style={{ opacity: 0.7 }}>{t.restaurant.paymentMethodLabel}</p>
-            <div className="flex gap-2">
-              {/* Mobile Money is only ever offered for an XAF profile — it's
-                  the one method that's a real, automatically-confirmed
-                  Fapshi charge (see musicOrderPayment.ts); everywhere else
-                  it would just be another declared/artist-confirms option
-                  indistinguishable from cash, so it isn't shown at all. */}
-              {(currency === "XAF"
-                ? ([["cash", t.restaurant.paymentCash], ["mobile_money", t.restaurant.paymentMobileMoney], ["card", t.restaurant.paymentCard]] as const)
-                : ([["cash", t.restaurant.paymentCash], ["card", t.restaurant.paymentCard]] as const)
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  onClick={() => setPaymentMethod(id)}
-                  className="flex-1 text-xs font-medium py-2 rounded-full border transition"
-                  style={paymentMethod === id ? { backgroundColor: accent, color: "#fff", border: "1.5px solid transparent" } : { border: "1.5px solid #E5E7EB" }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {paymentMethod === "mobile_money" && (
-              <div className="mt-2.5">
-                <p className="text-[11px] mb-1.5" style={{ opacity: 0.6 }}>{t.music.mobileMoneyInstantNote}</p>
-                <div className="flex gap-2">
-                  {([["mobile money", "MTN MoMo"], ["orange money", "Orange Money"]] as const).map(([id, label]) => (
-                    <button
-                      key={id}
-                      onClick={() => setMedium(id)}
-                      className="flex-1 text-xs font-medium py-2 rounded-full border transition"
-                      style={medium === id ? { backgroundColor: accent, color: "#fff", border: "1.5px solid transparent" } : { border: "1.5px solid #E5E7EB" }}
-                    >
-                      {label}
-                    </button>
-                  ))}
+              <div>
+                <p className="text-xs font-medium mb-1.5" style={{ opacity: 0.7 }}>{t.restaurant.paymentMethodLabel}</p>
+                {/* Mobile Money (Fapshi) is the only method — nothing to
+                    actually choose between, so this just states it and
+                    lets the fan pick MTN vs Orange below. */}
+                <p className="text-xs" style={{ opacity: 0.6 }}>{t.restaurant.paymentMobileMoney}</p>
+                <div className="mt-2.5">
+                  <p className="text-[11px] mb-1.5" style={{ opacity: 0.6 }}>{t.music.mobileMoneyInstantNote}</p>
+                  <div className="flex gap-2">
+                    {([["mobile money", "MTN MoMo"], ["orange money", "Orange Money"]] as const).map(([id, label]) => (
+                      <button
+                        key={id}
+                        onClick={() => setMedium(id)}
+                        className="flex-1 text-xs font-medium py-2 rounded-full border transition"
+                        style={medium === id ? { backgroundColor: accent, color: "#fff", border: "1.5px solid transparent" } : { border: "1.5px solid #E5E7EB" }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
 
-          <div className="rounded-card border p-3.5 flex flex-col gap-1.5 text-sm" style={{ borderColor: "#E5E7EB" }}>
-            {cart.map((l, i) => (
-              <div key={i} className="flex justify-between" style={{ opacity: 0.75 }}>
-                <span>{l.quantity} × {l.name}</span>
-                <span suppressHydrationWarning>{formatPrice(l.price * l.quantity, currency, locale)}</span>
+              <div className="rounded-card border p-3.5 flex flex-col gap-1.5 text-sm" style={{ borderColor: "#E5E7EB" }}>
+                {cart.map((l, i) => (
+                  <div key={i} className="flex justify-between" style={{ opacity: 0.75 }}>
+                    <span>{l.quantity} × {l.name}</span>
+                    <span suppressHydrationWarning>{formatPrice(l.price * l.quantity, currency, locale)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between font-bold pt-1.5 mt-1 border-t" style={{ borderColor: "#E5E7EB" }}>
+                  <span>{t.restaurant.totalLabel}</span>
+                  <span suppressHydrationWarning>{formatPrice(total, currency, locale)}</span>
+                </div>
               </div>
-            ))}
-            <div className="flex justify-between font-bold pt-1.5 mt-1 border-t" style={{ borderColor: "#E5E7EB" }}>
-              <span>{t.restaurant.totalLabel}</span>
-              <span suppressHydrationWarning>{formatPrice(total, currency, locale)}</span>
-            </div>
-          </div>
 
-          <button
-            onClick={placeOrder}
-            disabled={submitting}
-            className="flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white disabled:opacity-60"
-            style={{ backgroundColor: accent }}
-          >
-            {submitting && <Loader2 size={15} className="animate-spin" />}
-            {submitting ? t.restaurant.placingOrder : t.restaurant.placeOrderButton}
-          </button>
+              <button
+                onClick={placeOrder}
+                disabled={submitting}
+                className="flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: accent }}
+              >
+                {submitting && <Loader2 size={15} className="animate-spin" />}
+                {submitting ? t.restaurant.placingOrder : t.restaurant.placeOrderButton}
+              </button>
+            </>
+          )}
         </div>
       )}
 

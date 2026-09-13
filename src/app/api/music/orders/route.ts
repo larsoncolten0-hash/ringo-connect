@@ -42,6 +42,17 @@ export async function POST(request: Request) {
   if (!profile || !profileHasCategory(profile, "music_entertainment")) {
     return NextResponse.json({ error: "Artist not found." }, { status: 404 });
   }
+  // Mobile Money (Fapshi) is the only payment method for this checkout
+  // right now (see MusicStorePage.tsx's own paymentAvailable guard) — and
+  // Fapshi only ever moves XAF, with deliberately no fallback (no cash, no
+  // declared/artist-confirms "card") for any other currency until that's
+  // turned back on. The client already stops a fan from ever reaching
+  // checkout for a non-XAF store; this is the same rule enforced
+  // server-side, since a client-side check alone is never the real
+  // boundary in this app.
+  if ((profile.currency || "USD") !== "XAF") {
+    return NextResponse.json({ error: "Online payments aren't set up for this store's currency yet." }, { status: 400 });
+  }
 
   const orderItems: {
     item_type: CartLine["item_type"];
@@ -238,7 +249,13 @@ export async function POST(request: Request) {
   }
 
   const subtotal = orderItems.reduce((sum, i) => sum + i.line_total, 0);
-  const paymentMethod = ["cash", "mobile_money", "card"].includes(body?.payment_method) ? body.payment_method : "cash";
+  // 'mobile_money' is the only payment method this route accepts right
+  // now — cash was never offered here on purpose (a music/ticket/merch
+  // order has no in-person handoff moment the way a restaurant order
+  // does), and 'card' (Stripe) is deliberately not enabled yet. The
+  // currency check above is what actually guarantees a real Fapshi charge
+  // is even possible for this order.
+  const paymentMethod = "mobile_money";
 
   const { data: customer } = await admin
     .from("music_customers")
