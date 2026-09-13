@@ -908,6 +908,14 @@ export const translations = {
       // DashboardShell.tsx/MobileMoreMenu.tsx.
       more: "More",
     },
+    // The dashboard-wide error boundary (src/app/dashboard/error.tsx) —
+    // shown in place of a page's content when its data fetch/render
+    // throws, with the nav/header still mounted around it.
+    dashboardError: {
+      title: "Unable to load this section",
+      hint: "Something went wrong while fetching this page. Your other data is safe — just try again.",
+      retry: "Try Again",
+    },
     // Ringo Card Writer — the branded, customer-facing NFC card feature
     // (dashboard/ringo-card). Keep every string here in "Ringo Card"
     // language, never generic NFC/tag-writer terminology — see
@@ -2388,6 +2396,11 @@ export const translations = {
       qrCode: "Code QR",
       ringoCard: "Carte Ringo",
       more: "Plus",
+    },
+    dashboardError: {
+      title: "Impossible de charger cette section",
+      hint: "Une erreur s'est produite lors du chargement de cette page. Vos autres données sont en sécurité — réessayez simplement.",
+      retry: "Réessayer",
     },
     ringoCard: {
       pageTitle: "Écriture de Carte Ringo",

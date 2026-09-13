@@ -84,6 +84,17 @@ h1, h2, h3, .font-display {
   }
 }
 
+/* Delays a loading fallback's appearance by ~160ms, reusing the "fade-in"
+   keyframe already defined in tailwind.config.ts, so a fast navigation
+   (well under the ~250-300ms most people perceive as an actual wait)
+   never flashes a skeleton at all — it only fades in once a fetch is
+   genuinely taking a moment. Applied to loading.tsx fallbacks; pure CSS,
+   no JS timer needed. */
+.loading-reveal {
+  opacity: 0;
+  animation: fade-in 0.18s ease-out 0.16s forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-ring-pulse-1,
   .animate-ring-pulse-2,
@@ -94,5 +105,9 @@ h1, h2, h3, .font-display {
   }
   .skeleton::after {
     animation: none !important;
+  }
+  .loading-reveal {
+    animation: none !important;
+    opacity: 1;
   }
 }

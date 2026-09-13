@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
@@ -58,6 +58,7 @@ export default function DashboardShell({
 }) {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const shouldReduceMotion = useReducedMotion();
 
   // `core: true` marks the small set of items the mobile bottom tab bar
   // actually shows (Editor, Community, Ringo Card, Analytics,
@@ -230,7 +231,23 @@ export default function DashboardShell({
           </div>
         </div>
 
-        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-28 lg:pb-10">{children}</main>
+        {/* Keyed on pathname so switching sections (tap Music, tap
+            Community, …) always plays a quick fade + tiny slide-in for
+            the new content instead of it just snapping into place —
+            coordinated with the bottom tab bar's pill morph and the
+            header's title swap, which both animate on the same
+            navigation. No exit animation: the old content unmounts
+            immediately rather than waiting, so the new page never feels
+            delayed. Skipped entirely under prefers-reduced-motion. */}
+        <motion.main
+          key={pathname}
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.16, ease: "easeOut" }}
+          className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-28 lg:pb-10"
+        >
+          {children}
+        </motion.main>
 
         {/* Mobile bottom tab bar — a floating glass dock, not a shrunk
             sidebar. Frosted, translucent, and centered (a fixed 5 core
