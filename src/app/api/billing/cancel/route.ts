@@ -19,7 +19,7 @@ export async function POST() {
 
   const { data: userRow } = await admin
     .from("users")
-    .select("payment_provider, stripe_subscription_id")
+    .select("plan_id, payment_provider, stripe_subscription_id, plans(name)")
     .eq("id", user.id)
     .single();
 
@@ -48,6 +48,32 @@ export async function POST() {
       plan_expires_at: null,
     })
     .eq("id", user.id);
+
+  // Organic (self-serve) downgrade signal for the admin Users analytics
+  // view's churn metric — this endpoint previously wrote no audit trail at
+  // all, which made a self-serve downgrade indistinguishable from "nothing
+  // happened" after the fact, unlike the expiry cron's own
+  // plan_expired_downgrade logging. admin_id is NOT NULL and there's no
+  // human admin behind a self-serve action, so the user is recorded as
+  // their own actor, same convention as plan_expired_downgrade. Skipped
+  // when already on Free — this endpoint being called from that state
+  // isn't a downgrade, it's a no-op, and shouldn't inflate the count.
+  if (userRow && userRow.plan_id !== freePlan.id) {
+    const { error: auditError } = await admin.from("admin_audit_log").insert({
+      admin_id: user.id,
+      action: "self_downgrade",
+      target_user_id: user.id,
+      details: {
+        automated: false,
+        reason: "self_serve_cancel",
+        fromPlanId: userRow.plan_id,
+        fromPlanName: (userRow.plans as any)?.name ?? null,
+        toPlanId: freePlan.id,
+        toPlanName: "free",
+      },
+    });
+    if (auditError) console.error("billing/cancel: failed to write self_downgrade audit row:", auditError.message);
+  }
 
   return NextResponse.json({ ok: true });
 }

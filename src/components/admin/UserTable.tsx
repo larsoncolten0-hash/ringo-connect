@@ -3,8 +3,45 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Users, BadgeCheck } from "lucide-react";
+import { ONLINE_WINDOW_MINUTES, DAILY_ACTIVE_WINDOW_HOURS } from "@/lib/adminUserActivity";
 
-export default function UserTable({ users, plans }: { users: any[]; plans: any[] }) {
+// "Active in the last 15 min" / "Active today" / "Inactive" — see
+// adminUserActivity.ts for why these two windows and why this is
+// explicitly NOT called "online" (no real presence system backs it, this
+// is a last_active_at poll).
+function activityBadge(lastActiveAt: string | null | undefined) {
+  if (!lastActiveAt) return { label: "Inactive", dot: "bg-ringo-muted/40", text: "text-ringo-muted" };
+  const ageMs = Date.now() - new Date(lastActiveAt).getTime();
+  if (ageMs <= ONLINE_WINDOW_MINUTES * 60 * 1000) {
+    return { label: `Active <${ONLINE_WINDOW_MINUTES}m`, dot: "bg-ringo-teal", text: "text-ringo-teal" };
+  }
+  if (ageMs <= DAILY_ACTIVE_WINDOW_HOURS * 60 * 60 * 1000) {
+    return { label: "Active today", dot: "bg-amber-400", text: "text-amber-600" };
+  }
+  return { label: "Inactive", dot: "bg-ringo-muted/40", text: "text-ringo-muted" };
+}
+
+function formatRelativeOrDate(iso: string | null | undefined) {
+  if (!iso) return "Never";
+  const date = new Date(iso);
+  const ageMs = Date.now() - date.getTime();
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (ageMs < dayMs) {
+    const hours = Math.max(1, Math.floor(ageMs / (60 * 60 * 1000)));
+    return hours < 1 ? "Just now" : `${hours}h ago`;
+  }
+  return date.toLocaleDateString("en-US");
+}
+
+export default function UserTable({
+  users,
+  plans,
+  lastSignInMap = {},
+}: {
+  users: any[];
+  plans: any[];
+  lastSignInMap?: Record<string, string | null>;
+}) {
   const router = useRouter();
   const [rows, setRows] = useState(users);
   const [query, setQuery] = useState("");
@@ -88,7 +125,7 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[720px]">
+            <table className="w-full text-sm min-w-[920px]">
               <thead>
                 <tr className="text-left text-ringo-muted border-b border-ringo-border/70">
                   <th className="py-3 px-4 font-normal">Creator</th>
@@ -96,6 +133,8 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
                   <th className="font-normal">Status</th>
                   <th className="font-normal">Requests access</th>
                   <th className="font-normal">Verified</th>
+                  <th className="font-normal">Last login</th>
+                  <th className="font-normal">Activity</th>
                   <th className="font-normal">Joined</th>
                   <th className="font-normal text-right px-4">Actions</th>
                 </tr>
@@ -174,6 +213,20 @@ export default function UserTable({ users, plans }: { users: any[]; plans: any[]
                           <BadgeCheck size={12} />
                           {u.profiles?.[0]?.verified ? "Verified" : "—"}
                         </button>
+                      </td>
+                      <td className="text-ringo-muted whitespace-nowrap">
+                        {formatRelativeOrDate(lastSignInMap[u.id])}
+                      </td>
+                      <td className="whitespace-nowrap">
+                        {(() => {
+                          const badge = activityBadge(u.last_active_at);
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${badge.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="text-ringo-muted">{new Date(u.created_at).toLocaleDateString("en-US")}</td>
                       <td className="text-right px-4">

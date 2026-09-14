@@ -15,6 +15,7 @@ import MobileMoreMenu from "@/components/dashboard/MobileMoreMenu";
 import PullToRefresh from "@/components/dashboard/PullToRefresh";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import AppBadgeReset from "@/components/AppBadgeReset";
+import ActivitySignals from "@/components/ActivitySignals";
 import OrgSwitcher, { type OrgOption } from "@/components/dashboard/OrgSwitcher";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -225,6 +226,11 @@ export default function DashboardShell({
           AddToHomeScreenMenuItem.tsx (surfaced from AvatarMenu below). */}
       <RegisterServiceWorker />
       <AppBadgeReset />
+      {/* Feeds the admin Users analytics view's "currently using as
+          installed app" and "has installed at least once" signals — see
+          that component's own comment for what it does and why it's
+          scoped to the dashboard only. */}
+      <ActivitySignals />
 
       {/* Proactively asks to enable push, instead of relying on someone
           noticing a header icon — see that component's own comment. The
