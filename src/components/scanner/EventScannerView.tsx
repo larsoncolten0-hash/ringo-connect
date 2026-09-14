@@ -13,6 +13,7 @@ import {
   LogOut,
 } from "lucide-react";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
+import AppBadgeReset from "@/components/AppBadgeReset";
 import ScannerAddToHomeScreen from "./ScannerAddToHomeScreen";
 import ScannerSoundToggle from "./ScannerSoundToggle";
 import { useSound } from "@/components/SoundProvider";
@@ -275,6 +276,7 @@ export default function EventScannerView({ token }: { token: string }) {
   return (
     <div className="fixed inset-0 bg-black overflow-hidden">
       <RegisterServiceWorker />
+      <AppBadgeReset />
       <video ref={videoRef} muted playsInline className="absolute inset-0 w-full h-full object-cover" />
       <canvas ref={canvasRef} className="hidden" />
 

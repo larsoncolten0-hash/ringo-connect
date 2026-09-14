@@ -14,6 +14,7 @@ import HelpWidget from "@/components/dashboard/HelpWidget";
 import MobileMoreMenu from "@/components/dashboard/MobileMoreMenu";
 import PullToRefresh from "@/components/dashboard/PullToRefresh";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
+import AppBadgeReset from "@/components/AppBadgeReset";
 import OrgSwitcher, { type OrgOption } from "@/components/dashboard/OrgSwitcher";
 import { useLanguage } from "@/components/LanguageProvider";
 
@@ -223,6 +224,7 @@ export default function DashboardShell({
           dashboard — see RegisterServiceWorker.tsx and
           AddToHomeScreenMenuItem.tsx (surfaced from AvatarMenu below). */}
       <RegisterServiceWorker />
+      <AppBadgeReset />
 
       {/* Proactively asks to enable push, instead of relying on someone
           noticing a header icon — see that component's own comment. The

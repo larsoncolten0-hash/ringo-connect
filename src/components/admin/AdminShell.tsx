@@ -9,6 +9,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
+import AppBadgeReset from "@/components/AppBadgeReset";
 import { AdminInstallButton } from "@/components/admin/AdminAppControls";
 import AdminMoreMenu from "@/components/admin/AdminMoreMenu";
 import CountBadge from "@/components/admin/CountBadge";
@@ -176,6 +177,7 @@ export default function AdminShell({
           since the push prompt below depends on
           navigator.serviceWorker.ready resolving. */}
       <RegisterServiceWorker />
+      <AppBadgeReset />
 
       {/* Proactively asks to enable push, instead of relying on someone
           noticing a header icon — see that component's own comment. */}

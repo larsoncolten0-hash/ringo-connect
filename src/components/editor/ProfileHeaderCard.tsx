@@ -16,6 +16,9 @@ export default function ProfileHeaderCard({
   initialCoverUrl,
   initialName,
   initialBio,
+  initialIcon192Url,
+  initialIcon512Url,
+  initialIconMaskable512Url,
 }: {
   profileId: string;
   userId: string;
@@ -23,6 +26,13 @@ export default function ProfileHeaderCard({
   initialCoverUrl: string | null;
   initialName: string | null;
   initialBio: string | null;
+  // Fan-facing profile PWA icon derivatives (see
+  // /api/profile/avatar-icons and 2026-10-09_profile_pwa_icons.sql) —
+  // preloaded so an unrelated Save (editing just name/bio, say) doesn't
+  // blank out already-generated icons for an avatar that hasn't changed.
+  initialIcon192Url?: string | null;
+  initialIcon512Url?: string | null;
+  initialIconMaskable512Url?: string | null;
 }) {
   const supabase = createClient();
   const { t } = useLanguage();
@@ -30,8 +40,40 @@ export default function ProfileHeaderCard({
   const [coverUrl, setCoverUrl] = useState(initialCoverUrl || "");
   const [name, setName] = useState(initialName || "");
   const [bio, setBio] = useState(initialBio || "");
+  const [icon192Url, setIcon192Url] = useState(initialIcon192Url || "");
+  const [icon512Url, setIcon512Url] = useState(initialIcon512Url || "");
+  const [iconMaskable512Url, setIconMaskable512Url] = useState(initialIconMaskable512Url || "");
+  const [generatingIcons, setGeneratingIcons] = useState(false);
   const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
+
+  // Fires right after ImageUploadField's own direct-to-storage upload
+  // completes — generates the three PWA icon derivatives server-side
+  // (sharp can't run in the browser) and stages their URLs alongside
+  // avatarUrl, so they all commit together on the next explicit Save.
+  // Best-effort: a failure here just leaves the previous (or no)
+  // derivatives in place — the manifest route already falls back to the
+  // raw avatar_url, then the platform's generic icons, so a fan can still
+  // install the profile either way.
+  const generateAvatarIcons = async (newAvatarUrl: string) => {
+    setGeneratingIcons(true);
+    try {
+      const res = await fetch("/api/profile/avatar-icons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarUrl: newAvatarUrl }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setIcon192Url(data.icon192Url || "");
+      setIcon512Url(data.icon512Url || "");
+      setIconMaskable512Url(data.iconMaskable512Url || "");
+    } catch {
+      // Network error — leave whatever icons were already staged alone.
+    } finally {
+      setGeneratingIcons(false);
+    }
+  };
 
   // One explicit save for the whole card — mirrors WhatsAppCard: uploading
   // a photo or typing only updates local state (and the live preview)
@@ -39,7 +81,15 @@ export default function ProfileHeaderCard({
   const save = async () => {
     await supabase
       .from("profiles")
-      .update({ cover_image_url: coverUrl || null, avatar_url: avatarUrl || null, name, bio })
+      .update({
+        cover_image_url: coverUrl || null,
+        avatar_url: avatarUrl || null,
+        name,
+        bio,
+        avatar_icon_192_url: icon192Url || null,
+        avatar_icon_512_url: icon512Url || null,
+        avatar_icon_maskable_512_url: iconMaskable512Url || null,
+      })
       .eq("id", profileId);
     pulse.show();
   };
@@ -71,6 +121,7 @@ export default function ProfileHeaderCard({
           onChange={(url) => {
             setAvatarUrl(url);
             updateDraft({ avatar_url: url });
+            generateAvatarIcons(url);
           }}
           userId={userId}
           folder="avatar"
@@ -107,7 +158,9 @@ export default function ProfileHeaderCard({
 
       <button
         onClick={save}
-        className="self-start mt-4 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
+        disabled={generatingIcons}
+        title={generatingIcons ? "Preparing your home-screen icon…" : undefined}
+        className="self-start mt-4 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97] disabled:opacity-60"
       >
         {t.editor.save}
       </button>

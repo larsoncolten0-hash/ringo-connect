@@ -30,6 +30,7 @@ import ShareButton from "./ShareButton";
 import BookingButton from "./BookingButton";
 import AddToHomeScreen from "./AddToHomeScreen";
 import RegisterServiceWorker from "./RegisterServiceWorker";
+import AppBadgeReset from "./AppBadgeReset";
 
 export default function ProfileView({
   profile,
@@ -230,6 +231,7 @@ export default function ProfileView({
       style={pageStyle}
     >
       {!preview && <RegisterServiceWorker />}
+      {!preview && <AppBadgeReset />}
 
       {/* Pixel base code — deliberately held back until `visitorId` is
           set (client-only, see the effect above) so the very first

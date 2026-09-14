@@ -18,7 +18,9 @@ export async function GET(_request: Request, { params }: { params: { username: s
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("name, username, avatar_url, theme_color, background_color, published")
+    .select(
+      "name, username, avatar_url, theme_color, background_color, published, avatar_icon_192_url, avatar_icon_512_url, avatar_icon_maskable_512_url"
+    )
     .eq("username", params.username)
     .eq("published", true)
     .single();
@@ -31,22 +33,33 @@ export async function GET(_request: Request, { params }: { params: { username: s
   const themeColor = profile.theme_color || "#4F46E5";
 
   // The creator's own avatar becomes the home-screen icon where one
-  // exists — no image-processing pipeline exists in this project (see the
-  // implementation plan), so this references the avatar at whatever size
-  // it actually is; browsers scale a referenced icon to fit, they don't
-  // require an exact pixel match to the `sizes` hint. Falls back to the
-  // site's own generated PWA icons (scripts/generate-pwa-icons.js) when
-  // there's no avatar to use.
-  const icons = profile.avatar_url
-    ? [
-        { src: profile.avatar_url, sizes: "192x192", type: "image/png" },
-        { src: profile.avatar_url, sizes: "512x512", type: "image/png" },
-      ]
-    : [
-        { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
-        { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
-        { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-      ];
+  // exists. Proper sized/padded derivatives (see
+  // /api/profile/avatar-icons and 2026-10-09_profile_pwa_icons.sql), not
+  // the raw avatar file referenced twice — generated once at avatar
+  // upload time, not computed fresh on every manifest request. Falls
+  // back to the raw avatar_url (no `purpose: maskable` entry, since an
+  // unprocessed photo isn't safe-zone padded) for a profile whose avatar
+  // predates this feature, then to the site's own generated PWA icons
+  // (scripts/generate-pwa-icons.js) when there's no avatar at all.
+  const icons =
+    profile.avatar_icon_192_url && profile.avatar_icon_512_url
+      ? [
+          { src: profile.avatar_icon_192_url, sizes: "192x192", type: "image/png" },
+          { src: profile.avatar_icon_512_url, sizes: "512x512", type: "image/png" },
+          ...(profile.avatar_icon_maskable_512_url
+            ? [{ src: profile.avatar_icon_maskable_512_url, sizes: "512x512", type: "image/png", purpose: "maskable" }]
+            : []),
+        ]
+      : profile.avatar_url
+      ? [
+          { src: profile.avatar_url, sizes: "192x192", type: "image/png" },
+          { src: profile.avatar_url, sizes: "512x512", type: "image/png" },
+        ]
+      : [
+          { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ];
 
   const manifest = {
     id: `/${profile.username}`,

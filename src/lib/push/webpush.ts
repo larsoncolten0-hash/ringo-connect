@@ -44,6 +44,15 @@ export interface PushPayload {
   body: string;
   url?: string;
   data?: Record<string, unknown>;
+  // Home-screen badge count for the ONE subscription this exact payload
+  // is delivered to (see push_subscriptions.badge_count and send.ts's
+  // deliverAndLog, which stamps a per-device value in here right before
+  // calling deliverToSubscription — never set by a call site directly).
+  // Read by public/pwa-sw.js's push handler to call the Badging API on
+  // platforms that support it (iOS 16.4+ home-screen, desktop Chrome/
+  // Edge) — Android ignores this entirely, its home-screen badge is an OS
+  // side effect of showNotification() below, not this field.
+  badgeCount?: number;
 }
 
 export interface DeliverResult {

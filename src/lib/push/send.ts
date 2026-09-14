@@ -37,7 +37,25 @@ async function deliverAndLog(
 ): Promise<boolean> {
   if (subs.length === 0) return false;
 
-  const results = await Promise.all(subs.map((sub) => deliverToSubscription(sub, payload)));
+  // Home-screen badge count (2026-10-09_push_badge_count.sql) — one
+  // atomic increment per subscription, done BEFORE delivery so each
+  // device's own push carries its own up-to-date count (a subscriber's
+  // phone and laptop can legitimately be at different counts; this is a
+  // per-installed-app-instance number, not a per-owner one). Best-effort:
+  // a failed increment must never block the notification itself from
+  // sending — it just leaves that one subscription's badge stale until
+  // its next push.
+  let badgeCounts = new Map<string, number>();
+  try {
+    const { data: counts } = await admin.rpc("increment_push_badge_count", { sub_ids: subs.map((s) => s.id) });
+    badgeCounts = new Map((counts || []).map((c: any) => [c.id, c.badge_count]));
+  } catch (err) {
+    console.error("increment_push_badge_count failed:", err);
+  }
+
+  const results = await Promise.all(
+    subs.map((sub) => deliverToSubscription(sub, { ...payload, badgeCount: badgeCounts.get(sub.id) }))
+  );
 
   const goneIds = subs.filter((_, i) => results[i].gone).map((s) => s.id);
   if (goneIds.length > 0) {

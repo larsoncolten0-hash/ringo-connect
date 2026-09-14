@@ -64,6 +64,19 @@ self.addEventListener("push", (event) => {
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
+
+  // Home-screen badge (iOS 16.4+ installed PWAs, desktop Chrome/Edge) —
+  // Android ignores this entirely; its home-screen badge is already an OS
+  // side effect of showNotification() above, nothing more to do for it.
+  // The Badging API is exposed on WorkerNavigator here (self.navigator),
+  // not on `self` directly — feature-detected since plenty of supported
+  // browsers (Firefox, most of Android Chrome) simply don't have it, and
+  // this must never throw and break notification display over that.
+  if (typeof payload.badgeCount === "number" && "setAppBadge" in self.navigator) {
+    event.waitUntil(
+      (payload.badgeCount > 0 ? self.navigator.setAppBadge(payload.badgeCount) : self.navigator.clearAppBadge()).catch(() => {})
+    );
+  }
 });
 
 // Tapping the notification focuses an already-open tab on its target URL

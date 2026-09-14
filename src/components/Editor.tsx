@@ -118,6 +118,9 @@ function EditorCards({
           initialCoverUrl={profile.cover_image_url}
           initialName={profile.name}
           initialBio={profile.bio}
+          initialIcon192Url={profile.avatar_icon_192_url}
+          initialIcon512Url={profile.avatar_icon_512_url}
+          initialIconMaskable512Url={profile.avatar_icon_maskable_512_url}
         />
 
         <Accordion defaultOpenId={initialSection} className="rounded-[20px] border border-ringo-border/60 bg-ringo-surface px-4 sm:px-5">
