@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { notifyUser } from "@/lib/notifications";
 import { emailShell } from "@/lib/email/emailShell";
 import { sendEmail } from "@/lib/email/provider";
+import { applyCardBundleGrant } from "@/lib/cardBundle";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const admin = await assertCanApproveRequests();
@@ -222,11 +223,26 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (addonIds.length > 0) {
     const { data: selectedAddons } = await adminClient
       .from("addons")
-      .select("name, price_xaf, price_usd")
+      .select("name, price_xaf, price_usd, grants_plan_name, grants_plan_duration_days")
       .in("id", addonIds);
     for (const a of selectedAddons || []) {
       addonsXaf += Number(a.price_xaf);
       addonsUsd += Number(a.price_usd);
+    }
+
+    // Card + Subscription bundles (grants_plan_name set) — applied AFTER
+    // the account's own plan above, using the exact same never-downgrade/
+    // extend rules a Fapshi bundle purchase from an existing user gets
+    // (see applyCardBundleGrant's own comment). For a brand-new signup
+    // this almost always just grants Basic on top of whatever plan was
+    // just set (which stays Free unless the admin also picked a paid plan
+    // for this approval) — the function still does the right thing either
+    // way, including "don't downgrade" if the admin chose a higher plan
+    // AND a bundle was requested together.
+    for (const a of selectedAddons || []) {
+      if (a.grants_plan_name && a.grants_plan_duration_days) {
+        await applyCardBundleGrant(newUserId, a.grants_plan_name, a.grants_plan_duration_days);
+      }
     }
   }
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
@@ -71,6 +71,7 @@ export default function DashboardShell({
   organizations = [],
   ownProfileId = null,
   teamBadgesEnabled = true,
+  subscriptionBanner = null,
   appName,
   logoUrl,
   children,
@@ -134,6 +135,12 @@ export default function DashboardShell({
   // belongs in.
   ownProfileId?: string | null;
   teamBadgesEnabled?: boolean;
+  // Persistent "renew soon" banner for a Fapshi/manual (fixed-duration)
+  // account approaching or past its plan_expires_at — see
+  // src/lib/subscriptionReminderSettings.ts's getSubscriptionBannerState,
+  // computed server-side in dashboard/layout.tsx. Null (the common case:
+  // Free, Stripe, or a paid-up fixed-duration plan) renders nothing.
+  subscriptionBanner?: { state: "expiring_soon" | "grace_period"; daysRemaining: number } | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -374,6 +381,34 @@ export default function DashboardShell({
               </span>
             )}
           </div>
+        )}
+
+        {/* Persistent while expiring soon or in the grace period — amber
+            for "renew soon," red once access is actually at risk (grace
+            period, the last stretch before downgrade to Free). Shown on
+            every dashboard page, not dismissible, so it can't be missed
+            and forgotten about the way a one-time toast could be. */}
+        {subscriptionBanner && (
+          <Link
+            href="/dashboard/subscription"
+            className={`px-4 lg:px-10 py-2 border-b flex items-center gap-2 text-xs font-medium transition-colors ${
+              subscriptionBanner.state === "grace_period"
+                ? "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/15"
+                : "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15"
+            }`}
+          >
+            <AlertTriangle size={13} className="shrink-0" />
+            <span className="truncate">
+              {subscriptionBanner.state === "grace_period"
+                ? `Your subscription has expired — renew within ${subscriptionBanner.daysRemaining} day${
+                    subscriptionBanner.daysRemaining === 1 ? "" : "s"
+                  } to keep your access.`
+                : `Your subscription expires in ${subscriptionBanner.daysRemaining} day${
+                    subscriptionBanner.daysRemaining === 1 ? "" : "s"
+                  } — renew now to avoid losing access.`}
+            </span>
+            <span className="shrink-0 underline underline-offset-2">Renew</span>
+          </Link>
         )}
 
         {/* Custom pull-to-refresh (touch-only, so this is a no-op on

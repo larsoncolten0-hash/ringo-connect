@@ -15,7 +15,12 @@ export default async function GetStartedPage({
   // trusted as anything more than "which one to pre-highlight") and
   // handed to GetStartedFlow, which still lets them change their mind —
   // see that component's own comment on preselectedPlan.
-  searchParams: { plan?: string };
+  // ?intent=card_bundle — set by the shareable "sales link" a creator
+  // generates from their dashboard (see AffiliateView.tsx's "Get my sales
+  // link"). Any ?ref=<code> alongside it needs no handling here at all —
+  // ReferralCapture (mounted globally in the root layout) already reads
+  // ?ref= from the URL on every page load, get-started included.
+  searchParams: { plan?: string; intent?: string };
 }) {
   const supabase = createClient();
 
@@ -45,6 +50,7 @@ export default async function GetStartedPage({
       manualPaymentMtnNumber={settings.manualPaymentMtnNumber}
       manualPaymentOrangeNumber={settings.manualPaymentOrangeNumber}
       preselectedPlan={preselectedPlan}
+      initialIntent={searchParams.intent === "card_bundle" ? "card_bundle" : undefined}
     />
   );
 }

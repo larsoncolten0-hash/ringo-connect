@@ -4,6 +4,26 @@ import { emailShell } from "@/lib/email/emailShell";
 import { sendEmail } from "@/lib/email/provider";
 import { sendPushToAdmins } from "@/lib/push/send";
 import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
+import { applyCardBundleGrant } from "@/lib/cardBundle";
+
+// Card + Subscription bundle transactions (src/app/api/ringo-cards/bundle/
+// initiate/route.ts) use this exact sentinel shape for payment_transactions
+// .plan_name instead of a real plans.name — "card_bundle:<planName>:<days>"
+// — so the normal plan lookup below never matches one by accident, and so
+// this file (the one place a payment becomes a real grant, for both Fapshi
+// polling AND the Stripe webhook — bundles are Fapshi/mobile-money only,
+// but detecting the sentinel here rather than duplicating this function's
+// idempotency/transaction-lookup logic in a second place is what "reuse
+// existing patterns" means for this feature).
+const BUNDLE_PREFIX = "card_bundle:";
+
+function parseBundlePlanName(planName: string): { grantPlanName: string; durationDays: number } | null {
+  if (!planName.startsWith(BUNDLE_PREFIX)) return null;
+  const [, grantPlanName, daysRaw] = planName.split(":");
+  const durationDays = Number(daysRaw);
+  if (!grantPlanName || !Number.isFinite(durationDays) || durationDays <= 0) return null;
+  return { grantPlanName, durationDays };
+}
 
 /**
  * Applies a successful payment: grants the plan and marks the transaction
@@ -31,6 +51,15 @@ export async function applySuccessfulPayment({
 
   if (!tx || tx.status === "success") {
     return { applied: false };
+  }
+
+  const bundle = parseBundlePlanName(tx.plan_name);
+  if (bundle) {
+    const result = await applyCardBundleGrant(tx.user_id, bundle.grantPlanName, bundle.durationDays);
+    await admin.from("payment_transactions").update({ status: "success", updated_at: new Date().toISOString() }).eq("id", tx.id);
+    await notifyCardBundlePurchased({ userId: tx.user_id, durationDays: bundle.durationDays, outcome: result.applied ? result.outcome : null, amount: tx.amount, currency: tx.currency });
+    await notifyAffiliateCommissionIfAny(admin, tx.id);
+    return { applied: true };
   }
 
   const { data: plan } = await admin.from("plans").select("id, display_name, name").eq("name", tx.plan_name).single();
@@ -143,6 +172,82 @@ export async function notifyPaymentSucceeded({
             <a href="${siteUrl}/dashboard/subscription" style="display:inline-block; background:#4F46E5; color:#fff; text-decoration:none; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:500;">View your subscription</a>
           `),
           log: { emailType: "subscription_payment_confirmed", resourceType: "user", resourceId: userId },
+        })
+      : Promise.resolve(),
+  ]);
+}
+
+/**
+ * Best-effort notification for a Card + Subscription bundle purchase —
+ * mirrors notifyPaymentSucceeded's shape/channels (push isn't sent here,
+ * unlike a plain plan purchase, since a physical card also needs human
+ * fulfillment — the admin push/email below says so explicitly) but with
+ * wording that actually reflects what happened to the buyer's plan, which
+ * varies by applyCardBundleGrant's outcome.
+ */
+async function notifyCardBundlePurchased({
+  userId,
+  durationDays,
+  outcome,
+  amount,
+  currency,
+}: {
+  userId: string;
+  durationDays: number;
+  outcome: "granted_from_free" | "extended_existing_plan" | "stripe_subscriber_unchanged" | null;
+  amount: number;
+  currency: string;
+}) {
+  const admin = createAdminClient();
+  const durationLabel = durationDays >= 300 ? "1 year" : "1 month";
+
+  const buyerBody =
+    outcome === "granted_from_free"
+      ? `Your Basic-tier access (${durationLabel}) is live — your Ringo Card is on its way.`
+      : outcome === "extended_existing_plan"
+      ? `We've added ${durationLabel} to your current plan's access — your Ringo Card is on its way.`
+      : `Payment received — your Ringo Card is on its way.`;
+
+  const [{ data: user }, { data: admins }, { data: buyerProfile }] = await Promise.all([
+    admin.from("users").select("email").eq("id", userId).single(),
+    admin.from("users").select("email").eq("role", "admin"),
+    admin.from("profiles").select("name, username").eq("user_id", userId).maybeSingle(),
+  ]);
+  const adminEmails = (admins || []).map((a) => a.email).filter(Boolean);
+  const buyerName = buyerProfile?.name || buyerProfile?.username || user?.email || "A customer";
+
+  await Promise.allSettled([
+    notifyUser(userId, { type: "card_bundle_purchase", title: "Ringo Card bundle purchased", body: buyerBody, link: "/dashboard/ringo-card" }),
+    // Admin-facing — this is the actual "go ship a physical card" signal;
+    // there's no automated fulfillment for the card itself (see the
+    // migration's own note — fulfillment has always been a manual/offline
+    // step for the existing standalone addon too, unchanged here).
+    notifyAdmins({
+      type: "card_bundle_purchase",
+      title: `Card bundle purchased — ${buyerName}`,
+      body: `${durationLabel} bundle · ${amount} ${currency} · ship a Ringo Card.`,
+      link: "/admin/settings",
+    }),
+    sendPushToAdmins(admin, {
+      category: "card_bundle_purchase",
+      title: "Card bundle purchased",
+      body: `${buyerName} · ${durationLabel} bundle — ship a Ringo Card.`,
+      url: "/admin/settings",
+    }),
+    user?.email
+      ? sendEmail({
+          to: user.email,
+          subject: "Your Ringo Card bundle — Ringo Connect",
+          html: emailShell(`<p style="font-size:14px; margin:0;">${buyerBody}</p>`),
+          log: { emailType: "card_bundle_purchase_confirmed", resourceType: "user", resourceId: userId },
+        })
+      : Promise.resolve(),
+    adminEmails.length > 0
+      ? sendEmail({
+          to: adminEmails,
+          subject: `Card bundle purchased — ${buyerName}`,
+          html: emailShell(`<p style="font-size:14px; margin:0;"><strong>${buyerName}</strong> just bought the ${durationLabel} Card bundle (${amount} ${currency}) — ship them a Ringo Card.</p>`),
+          log: { emailType: "card_bundle_purchase_admin", resourceType: "user", resourceId: userId },
         })
       : Promise.resolve(),
   ]);

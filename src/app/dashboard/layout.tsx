@@ -4,6 +4,7 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import { getBrandingSettings } from "@/lib/branding";
 import { listUserOrganizations, pickActiveOrganization } from "@/lib/team/access";
+import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 
 // Per-creator PWA installability (manifest link, iOS home-screen name/
 // icon, theme color) for the whole /dashboard/** tree — see
@@ -29,7 +30,7 @@ export default async function DashboardLayout({
 
   const { data: userRow } = await supabase
     .from("users")
-    .select("email, role, can_approve_requests, plans(name)")
+    .select("email, role, can_approve_requests, plan_expires_at, payment_provider, plans(name)")
     .eq("id", user.id)
     .single();
 
@@ -40,7 +41,19 @@ export default async function DashboardLayout({
   // and have switched into otherwise. A brand-new account always has its
   // own profile (the signup trigger creates one), so `orgs` is only ever
   // empty in a genuinely broken account state.
-  const [orgs, branding] = await Promise.all([listUserOrganizations(user.id), getBrandingSettings()]);
+  const [orgs, branding, reminderSettings] = await Promise.all([
+    listUserOrganizations(user.id),
+    getBrandingSettings(),
+    getSubscriptionReminderSettings(),
+  ]);
+  // Persistent "renew soon" banner — the signed-in person's OWN billing
+  // state, independent of whichever organization is currently active
+  // (staff acting inside someone else's business has nothing to renew
+  // here; only an owner's own account ever carries plan_expires_at).
+  const subscriptionBanner = getSubscriptionBannerState(
+    { planExpiresAt: userRow?.plan_expires_at ?? null, paymentProvider: userRow?.payment_provider ?? null },
+    reminderSettings
+  );
   const active = pickActiveOrganization(orgs);
   const profile = active?.profile ?? null;
   // The signed-in person's OWN profile, independent of whichever
@@ -59,6 +72,11 @@ export default async function DashboardLayout({
   // An owner never sees it: for them there's no ambiguity, the business IS
   // their own account.
   const isActingAsStaff = !!active && !active.isOwner;
+  // plan_expires_at lives on the signed-in person's OWN account — it's
+  // meaningless while acting as staff inside someone else's organization
+  // (there's nothing of theirs to renew from that context), so the banner
+  // only ever shows for an owner looking at their own account/business.
+  const visibleSubscriptionBanner = isActingAsStaff ? null : subscriptionBanner;
   // Team nav only ever shows for an Enterprise-plan organization (see
   // 2026-10-02_team_plan_gate.sql) — a Personal-plan owner never sees it,
   // even though they're the owner, and hiding it here is only the UX
@@ -106,6 +124,7 @@ export default async function DashboardLayout({
       logoUrl={branding.logoUrl}
       ownProfileId={ownProfile?.id ?? null}
       teamBadgesEnabled={ownProfile?.team_badges_enabled ?? true}
+      subscriptionBanner={visibleSubscriptionBanner}
     >
       {children}
     </DashboardShell>

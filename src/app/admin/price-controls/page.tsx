@@ -1,5 +1,6 @@
 import { getAffiliateSettings } from "@/lib/affiliateSettings";
 import { getMusicPayoutSettings } from "@/lib/musicPayoutSettings";
+import { getSubscriptionReminderSettings } from "@/lib/subscriptionReminderSettings";
 import AdminPriceControlsView from "@/components/admin/AdminPriceControlsView";
 
 // The one place every revenue-share knob lives — commission/fee rates,
@@ -15,6 +16,16 @@ import AdminPriceControlsView from "@/components/admin/AdminPriceControlsView";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPriceControlsPage() {
-  const [affiliateSettings, musicSettings] = await Promise.all([getAffiliateSettings(), getMusicPayoutSettings()]);
-  return <AdminPriceControlsView initialAffiliateSettings={affiliateSettings} initialMusicSettings={musicSettings} />;
+  const [affiliateSettings, musicSettings, subscriptionReminderSettings] = await Promise.all([
+    getAffiliateSettings(),
+    getMusicPayoutSettings(),
+    getSubscriptionReminderSettings(),
+  ]);
+  return (
+    <AdminPriceControlsView
+      initialAffiliateSettings={affiliateSettings}
+      initialMusicSettings={musicSettings}
+      initialSubscriptionReminderSettings={subscriptionReminderSettings}
+    />
+  );
 }

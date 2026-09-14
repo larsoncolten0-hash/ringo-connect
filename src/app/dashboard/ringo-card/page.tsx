@@ -1,5 +1,8 @@
+import { headers } from "next/headers";
 import { requireOwnProfile } from "@/lib/bookingAuth";
 import RingoCardWriter from "@/components/dashboard/RingoCardWriter";
+import CardBundleSection from "@/components/dashboard/CardBundleSection";
+import { extractRequestContext } from "@/lib/requestContext";
 
 // Ringo Card Writer — connects a physical Ringo Card (an NTAG216 NFC tag)
 // to the creator's own Ringo profile URL. See
@@ -25,21 +28,37 @@ export default async function RingoCardWriterPage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
+  // Card + Subscription bundles — active addon rows that actually grant a
+  // plan (see 2026-10-07_card_subscription_bundles.sql). Public read
+  // ("addons" has no RLS restricting select), same as get-started's own
+  // addon fetch.
+  const { data: bundleAddons } = await supabase
+    .from("addons")
+    .select("id, name, price_xaf, grants_plan_duration_days")
+    .eq("active", true)
+    .not("grants_plan_name", "is", null)
+    .order("sort_order", { ascending: true });
+
+  const { country } = extractRequestContext(headers());
+
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com";
 
   return (
-    <RingoCardWriter
-      profile={{
-        id: profile.id,
-        username: profile.username,
-        name: profile.name,
-        category: profile.category,
-        categories: profile.categories,
-        about_location: profile.about_location,
-        published: profile.published,
-      }}
-      siteUrl={siteUrl}
-      initialCards={cards || []}
-    />
+    <>
+      <CardBundleSection bundles={bundleAddons || []} isCameroon={country === "CM"} />
+      <RingoCardWriter
+        profile={{
+          id: profile.id,
+          username: profile.username,
+          name: profile.name,
+          category: profile.category,
+          categories: profile.categories,
+          about_location: profile.about_location,
+          published: profile.published,
+        }}
+        siteUrl={siteUrl}
+        initialCards={cards || []}
+      />
+    </>
   );
 }

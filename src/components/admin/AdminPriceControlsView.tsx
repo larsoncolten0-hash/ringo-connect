@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Handshake, Music2, Check, AlertTriangle } from "lucide-react";
+import { Handshake, Music2, Check, AlertTriangle, Clock } from "lucide-react";
 import type { AffiliateSettings } from "@/lib/affiliateSettings";
 import type { MusicPayoutSettings } from "@/lib/musicPayoutSettings";
+import type { SubscriptionReminderSettings } from "@/lib/subscriptionReminderSettings";
 
 // One category = one self-contained card, each saving to its own settings
 // route independently — see the page file's comment for how a future
@@ -114,9 +115,11 @@ function CategoryCard({
 export default function AdminPriceControlsView({
   initialAffiliateSettings,
   initialMusicSettings,
+  initialSubscriptionReminderSettings,
 }: {
   initialAffiliateSettings: AffiliateSettings;
   initialMusicSettings: MusicPayoutSettings;
+  initialSubscriptionReminderSettings: SubscriptionReminderSettings;
 }) {
   const router = useRouter();
 
@@ -150,6 +153,23 @@ export default function AdminPriceControlsView({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(music),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) router.refresh();
+    return { ok: res.ok, error: data.error };
+  };
+
+  const [subscriptionReminders, setSubscriptionReminders] = useState({
+    gracePeriodDays: initialSubscriptionReminderSettings.gracePeriodDays,
+    expiringSoonReminderDays: initialSubscriptionReminderSettings.expiringSoonReminderDays,
+    graceEndingReminderDays: initialSubscriptionReminderSettings.graceEndingReminderDays,
+  });
+
+  const saveSubscriptionReminders = async () => {
+    const res = await fetch("/api/admin/subscription-reminders/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(subscriptionReminders),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) router.refresh();
@@ -229,6 +249,33 @@ export default function AdminPriceControlsView({
           },
         ]}
         onSave={saveMusic}
+      />
+
+      <CategoryCard
+        icon={Clock}
+        title="Subscription Expiry Reminders"
+        subtitle="Fapshi/manual (fixed-duration) accounts only — a Stripe subscription renews itself and never reaches this. Reminders fire push + email + in-app, exactly once per billing cycle."
+        fields={[
+          {
+            label: '"Expiring soon" reminder',
+            value: subscriptionReminders.expiringSoonReminderDays,
+            onChange: (v) => setSubscriptionReminders((s) => ({ ...s, expiringSoonReminderDays: v })),
+            suffix: "days before",
+          },
+          {
+            label: "Grace period",
+            value: subscriptionReminders.gracePeriodDays,
+            onChange: (v) => setSubscriptionReminders((s) => ({ ...s, gracePeriodDays: v })),
+            suffix: "days after expiry",
+          },
+          {
+            label: '"Grace ending" reminder',
+            value: subscriptionReminders.graceEndingReminderDays,
+            onChange: (v) => setSubscriptionReminders((s) => ({ ...s, graceEndingReminderDays: v })),
+            suffix: "days before grace ends",
+          },
+        ]}
+        onSave={saveSubscriptionReminders}
       />
     </div>
   );

@@ -14,7 +14,7 @@ import SocialIcon from "@/components/SocialIcon";
 import CategoryPicker from "@/components/CategoryPicker";
 import { getCategory, type CategoryId } from "@/lib/categories";
 
-type Step = "accountType" | "category" | "plan" | "info" | "payChoice" | "paying" | "success";
+type Step = "cardOrPlatform" | "bundlePicker" | "accountType" | "category" | "plan" | "info" | "payChoice" | "paying" | "success";
 type AccountType = "personal" | "enterprise";
 type LinkItem = { title: string; url: string };
 type ProductItem = { name: string; price: string; image_url: string };
@@ -31,6 +31,7 @@ export default function GetStartedFlow({
   manualPaymentOrangeNumber,
   variant = "standard",
   preselectedPlan = null,
+  initialIntent,
 }: {
   plans: any[];
   addons: any[];
@@ -53,6 +54,14 @@ export default function GetStartedFlow({
   // can still change their mind (pick a different plan, or a different
   // track) before continuing, per the task this was built from.
   preselectedPlan?: any | null;
+  // Set from ?intent=card_bundle (see get-started/page.tsx) — the
+  // shareable "sales link" affiliates/creators generate from their
+  // dashboard (see AffiliateView.tsx's "Get my sales link"). Opens
+  // straight on the cardOrPlatform choice screen instead of accountType,
+  // skipping the earlier steps entirely. Only meaningful on the standard
+  // variant, and only when no specific plan already arrived preselected
+  // (that case already has a clearer, more specific starting point).
+  initialIntent?: "card_bundle";
 }) {
   const { t, locale } = useLanguage();
   // Personal vs Enterprise — the very first choice on the standard flow
@@ -65,7 +74,9 @@ export default function GetStartedFlow({
   // list for that variant).
   const [step, setStep] = useState<Step>(() => {
     if (variant !== "standard") return "category";
-    return preselectedPlan ? "plan" : "accountType";
+    if (preselectedPlan) return "plan";
+    if (initialIntent === "card_bundle") return "cardOrPlatform";
+    return "accountType";
   });
   const [accountType, setAccountType] = useState<AccountType | null>(() =>
     preselectedPlan ? (preselectedPlan.team_enabled ? "enterprise" : "personal") : null
@@ -146,12 +157,6 @@ export default function GetStartedFlow({
   // as it always has been.
   const trackPlans = variant === "standard" ? plans.filter((p) => Boolean(p.team_enabled) === (accountType === "enterprise")) : plans;
 
-  // Whether the currently selected plan is free — this, not accountType,
-  // is what actually decides whether payment collection applies below:
-  // Personal now offers Basic/Pro (paid) alongside Free, so "personal"
-  // can no longer stand in for "free" the way it did before this task.
-  const isFreeSelection = !selectedPlan || (Number(selectedPlan.price_usd) === 0 && Number(selectedPlan.price_xaf) === 0);
-
   const selectPlan = (plan: any) => {
     setSelectedPlan(plan);
     // Standard: plan -> category (the new order this task introduces).
@@ -159,6 +164,38 @@ export default function GetStartedFlow({
     // straight on to info.
     setStep(variant === "standard" ? "category" : "info");
   };
+
+  // The two Card + Subscription bundle rows — active addons that grant a
+  // plan (see 2026-10-07_card_subscription_bundles.sql). Reuses the same
+  // `addons` list the info step's own addon checkboxes already draw from,
+  // rather than a separate fetch.
+  const bundleAddons = addons.filter((a) => a.grants_plan_duration_days);
+
+  // Entry choice for someone arriving via a ?intent=card_bundle sales
+  // link (see cardOrPlatform step below). "bundle" shows the two bundle
+  // cards; "platform" drops them into the normal flow at its usual first
+  // step, exactly as if they'd landed on plain /get-started.
+  const chooseIntent = (intent: "bundle" | "platform") => {
+    setStep(intent === "bundle" ? "bundlePicker" : "accountType");
+  };
+
+  // Selecting a bundle behaves like picking an addon, not a plan — the
+  // bundle grants its plan through the same addon-approval path
+  // /api/admin/requests/[id]/approve already handles, not through
+  // selectedPlan/the "plan" step. Keeps any already-selected required
+  // addon, replaces any previously chosen bundle (only one makes sense at
+  // a time), then continues into category -> info like the rest of the
+  // standard flow.
+  const chooseBundle = (addon: any) => {
+    setSelectedAddonIds((prev) => [...prev.filter((id) => addons.find((a) => a.id === id)?.required), addon.id]);
+    setStep("category");
+  };
+
+  // Whether the currently selected addons include one of the two
+  // bundles — used to send the category step's back button to
+  // "bundlePicker" instead of "plan" (a bundle purchase never visits the
+  // "plan" step at all, so there's nothing there to go back to).
+  const hasBundleSelected = selectedAddonIds.some((id) => bundleAddons.some((b) => b.id === id));
 
   // Resets any previously selected plan — Personal and Business now both
   // require an explicit plan pick on the very next step ("plan"), so there
@@ -215,6 +252,14 @@ export default function GetStartedFlow({
   const selectedAddons = addons.filter((a) => selectedAddonIds.includes(a.id));
   const addonsTotal = selectedAddons.reduce((sum, a) => sum + getPrice(a), 0);
   const grandTotal = planPrice + addonsTotal;
+
+  // Whether payment collection applies below — the actual TOTAL due
+  // (plan + every selected addon), not just the plan's own price. Fixed
+  // as part of this task: a Card + Subscription bundle is a priced addon
+  // on an otherwise-free ("no plan selected") signup, so gating only on
+  // the plan's price would have let someone through with neither the
+  // bundle nor any other priced addon actually charged for.
+  const isFreeSelection = grandTotal <= 0;
 
   // Returns the created request's id, or null on failure (error state
   // already set). Used by both the pay-later path (direct submit) and
@@ -415,8 +460,71 @@ export default function GetStartedFlow({
       </div>
 
       <div className="w-full max-w-md">
+        {step === "cardOrPlatform" && (
+          <>
+            <h1 className="font-display text-xl font-bold text-center mb-1">What would you like to get?</h1>
+            <p className="text-sm text-ringo-muted text-center mb-6">You can always add a Ringo Card later from your dashboard.</p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => chooseIntent("bundle")}
+                className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98]"
+              >
+                <span className="block font-display text-base font-bold mb-1">Ringo Card + Platform subscription</span>
+                <span className="block text-sm text-ringo-muted">A physical Ringo Card plus Basic-tier access, bundled at one price.</span>
+              </button>
+
+              <button
+                onClick={() => chooseIntent("platform")}
+                className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98]"
+              >
+                <span className="block font-display text-base font-bold mb-1">Platform subscription only</span>
+                <span className="block text-sm text-ringo-muted">Pick a plan — Free, Basic, Pro, or Business — with no physical card.</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === "bundlePicker" && (
+          <>
+            <button onClick={() => setStep("cardOrPlatform")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+              <ArrowLeft size={15} />
+              {t.getStarted.backButton}
+            </button>
+
+            <h1 className="font-display text-xl font-bold text-center mb-1">Choose your bundle</h1>
+            <p className="text-sm text-ringo-muted text-center mb-6">1 Ringo Card plus Basic-tier access — never lowers an existing higher plan, only adds to it.</p>
+
+            <div className="flex flex-col gap-3">
+              {bundleAddons.map((bundle) => (
+                <button
+                  key={bundle.id}
+                  onClick={() => chooseBundle(bundle)}
+                  className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98]"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-display text-base font-bold">{bundle.name}</span>
+                    <span className="text-base font-bold text-ringo-indigo" suppressHydrationWarning>
+                      {formatPrice(getPrice(bundle), isCameroon ? "XAF" : "USD", locale)}
+                    </span>
+                  </div>
+                  <span className="block text-sm text-ringo-muted">
+                    1 Ringo Card + {bundle.grants_plan_duration_days >= 300 ? "1 year" : "1 month"} of Basic
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
         {step === "accountType" && (
           <>
+            {initialIntent === "card_bundle" && (
+              <button onClick={() => setStep("cardOrPlatform")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+                <ArrowLeft size={15} />
+                {t.getStarted.backButton}
+              </button>
+            )}
             <h1 className="font-display text-xl font-bold text-center mb-1">{t.getStarted.accountTypeTitle}</h1>
             <p className="text-sm text-ringo-muted text-center mb-6">{t.getStarted.accountTypeSubtitle}</p>
 
@@ -453,7 +561,10 @@ export default function GetStartedFlow({
         {step === "category" && (
           <>
             {variant === "standard" && (
-              <button onClick={() => setStep("plan")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+              <button
+                onClick={() => setStep(hasBundleSelected ? "bundlePicker" : "plan")}
+                className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4"
+              >
                 <ArrowLeft size={15} />
                 {t.getStarted.backButton}
               </button>
@@ -841,16 +952,18 @@ export default function GetStartedFlow({
                 {referralPrefilled && <p className="mt-1 text-xs text-ringo-teal">{t.getStarted.couponCodeApplied}</p>}
               </div>
 
-              {selectedPlan && (
+              {(selectedPlan || selectedAddons.length > 0) && (
                 <div className="border-t border-ringo-border pt-4">
                   <p className="text-sm font-medium mb-2">{t.getStarted.totalHeading}</p>
                   <div className="rounded-card border border-ringo-border p-3.5 flex flex-col gap-1.5 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-ringo-muted">
-                        {t.getStarted.totalPlan} ({selectedPlan.display_name || selectedPlan.name})
-                      </span>
-                      <span suppressHydrationWarning>{formatPrice(planPrice, isCameroon ? "XAF" : "USD", locale)}</span>
-                    </div>
+                    {selectedPlan && (
+                      <div className="flex justify-between">
+                        <span className="text-ringo-muted">
+                          {t.getStarted.totalPlan} ({selectedPlan.display_name || selectedPlan.name})
+                        </span>
+                        <span suppressHydrationWarning>{formatPrice(planPrice, isCameroon ? "XAF" : "USD", locale)}</span>
+                      </div>
+                    )}
                     {selectedAddons.map((a) => (
                       <div key={a.id} className="flex justify-between text-ringo-muted">
                         <span>
@@ -895,14 +1008,16 @@ export default function GetStartedFlow({
 
             <h1 className="font-display text-xl font-bold mb-4">{t.getStarted.payNowTitle}</h1>
 
-            {selectedPlan && (
+            {(selectedPlan || selectedAddons.length > 0) && (
               <div className="rounded-card border border-ringo-border p-3.5 flex flex-col gap-1.5 text-sm mb-5">
-                <div className="flex justify-between">
-                  <span className="text-ringo-muted">
-                    {t.getStarted.totalPlan} ({selectedPlan.display_name || selectedPlan.name})
-                  </span>
-                  <span suppressHydrationWarning>{formatPrice(planPrice, isCameroon ? "XAF" : "USD", locale)}</span>
-                </div>
+                {selectedPlan && (
+                  <div className="flex justify-between">
+                    <span className="text-ringo-muted">
+                      {t.getStarted.totalPlan} ({selectedPlan.display_name || selectedPlan.name})
+                    </span>
+                    <span suppressHydrationWarning>{formatPrice(planPrice, isCameroon ? "XAF" : "USD", locale)}</span>
+                  </div>
+                )}
                 {selectedAddons.map((a) => (
                   <div key={a.id} className="flex justify-between text-ringo-muted">
                     <span>
@@ -1029,10 +1144,14 @@ export default function GetStartedFlow({
 
             {/* Receipt: plan + any add-ons + total, so the customer walks
                 away with a clear record of what they're being charged for,
-                not just a "thanks" message. Every path now goes through the
+                not just a "thanks" message. Most paths go through the
                 "plan" step (standard: accountType -> plan; affiliate:
-                category -> plan), so selectedPlan is always set by here. */}
-            {selectedPlan && (
+                category -> plan) so selectedPlan is set by here — the one
+                exception is a Card + Subscription bundle bought via the
+                cardOrPlatform/bundlePicker shortcut, which never visits
+                "plan" at all (the bundle is an addon, not a plan pick), so
+                this also has to show whenever there's a priced addon. */}
+            {(selectedPlan || selectedAddons.length > 0) && (
               <div className="w-full rounded-card border border-ringo-border bg-ringo-surface p-4 text-left">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-medium">{t.getStarted.receiptHeading}</p>
@@ -1045,12 +1164,14 @@ export default function GetStartedFlow({
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-ringo-muted">
-                      {t.getStarted.totalPlan} ({selectedPlan.display_name || selectedPlan.name})
-                    </span>
-                    <span suppressHydrationWarning>{formatPrice(planPrice, isCameroon ? "XAF" : "USD", locale)}</span>
-                  </div>
+                  {selectedPlan && (
+                    <div className="flex justify-between">
+                      <span className="text-ringo-muted">
+                        {t.getStarted.totalPlan} ({selectedPlan.display_name || selectedPlan.name})
+                      </span>
+                      <span suppressHydrationWarning>{formatPrice(planPrice, isCameroon ? "XAF" : "USD", locale)}</span>
+                    </div>
+                  )}
                   {selectedAddons.map((a) => (
                     <div key={a.id} className="flex justify-between text-ringo-muted">
                       <span>
