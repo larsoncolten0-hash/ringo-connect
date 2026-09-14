@@ -10,7 +10,7 @@ import { getRoleTemplatesForCategory } from "@/lib/team/permissions";
 // authorization check by itself: every page/route that reads it still goes
 // through requireOrgAccess/has_org_permission below, which re-derive access
 // from auth.uid() + organization_members, never from this cookie's value.
-const ACTIVE_ORG_COOKIE = "ringo_active_org";
+export const ACTIVE_ORG_COOKIE = "ringo_active_org";
 
 export function getActiveOrgCookie(): string | null {
   return cookies().get(ACTIVE_ORG_COOKIE)?.value ?? null;
@@ -22,6 +22,27 @@ export interface OrgMembership {
   roleId: string | null;
   roleName: string | null;
   permissions: Permission[];
+  // Whether THIS organization's plan unlocks Team Management (see
+  // 2026-10-02_team_plan_gate.sql) — a property of the organization (its
+  // owner's plan), not of the viewer. A staff member's own personal plan
+  // is irrelevant here: what matters is whether the business they work
+  // for is on a plan that has Team Management at all.
+  teamEnabled: boolean;
+}
+
+/**
+ * Whether `profileId`'s plan unlocks Team Management — resolved via the
+ * service-role client because this is a system-level gating check on the
+ * ORGANIZATION's (i.e. its owner's) plan, which the current viewer (a
+ * staff member, not the owner) has no RLS access to read directly (see
+ * "users read own row" in supabase/schema.sql — a member can't select
+ * another account's `users` row). Returns false (fails closed) for a
+ * missing/malformed profile rather than throwing.
+ */
+export async function getOrgTeamEnabled(profileId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("profiles").select("user_id, users(plan_id, plans(team_enabled))").eq("id", profileId).maybeSingle();
+  return !!(data as any)?.users?.plans?.team_enabled;
 }
 
 /**
@@ -37,7 +58,7 @@ export async function listUserOrganizations(userId: string): Promise<OrgMembersh
 
   const { data: ownProfile } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
   if (ownProfile) {
-    results.push({ profile: ownProfile, isOwner: true, roleId: null, roleName: "Owner", permissions: [] });
+    results.push({ profile: ownProfile, isOwner: true, roleId: null, roleName: "Owner", permissions: [], teamEnabled: false });
   }
 
   const { data: memberships } = await supabase
@@ -56,8 +77,15 @@ export async function listUserOrganizations(userId: string): Promise<OrgMembersh
       roleId: role.id,
       roleName: role.name,
       permissions: (role.permissions || []) as Permission[],
+      teamEnabled: false,
     });
   }
+
+  // One batch of plan lookups rather than N+1 sequential ones — a person
+  // realistically belongs to a handful of organizations, but there's no
+  // reason to serialize these.
+  const teamEnabledFlags = await Promise.all(results.map((r) => getOrgTeamEnabled(r.profile.id)));
+  results.forEach((r, i) => (r.teamEnabled = teamEnabledFlags[i]));
 
   return results;
 }
@@ -129,6 +157,11 @@ export interface OrgAccess {
   roleName: string | null;
   permissions: Set<Permission>;
   hasPermission: (p: Permission) => boolean;
+  // See OrgMembership.teamEnabled above — same "the organization's plan,
+  // not the viewer's" semantics. A platform admin always sees this as
+  // true (an admin's whole point is being able to reach/support any
+  // organization regardless of its plan).
+  teamEnabled: boolean;
 }
 
 /**
@@ -141,6 +174,12 @@ export interface OrgAccess {
  * client-supplied role/permission list), so an API route can make its own
  * server-side decision (e.g. "which fields to return") without relying on
  * RLS alone.
+ *
+ * Deliberately does NOT itself reject a non-Enterprise organization —
+ * `teamEnabled` is exposed so callers can decide (requireOrgAccess/
+ * requireOrgAccessJson below reject; a future caller that only needs to
+ * know "am I this org's owner" for something unrelated to Team Management
+ * wouldn't want to).
  */
 export async function getOrgAccess(profileId: string, userId: string): Promise<OrgAccess | null> {
   const supabase = createClient();
@@ -153,6 +192,7 @@ export async function getOrgAccess(profileId: string, userId: string): Promise<O
 
   if (isOwner || isAdmin) {
     const allPermissions = new Set<Permission>();
+    const teamEnabled = isAdmin || (await getOrgTeamEnabled(profileId));
     return {
       isOwner,
       isAdmin,
@@ -160,6 +200,7 @@ export async function getOrgAccess(profileId: string, userId: string): Promise<O
       roleName: isOwner ? "Owner" : "Admin",
       permissions: allPermissions,
       hasPermission: () => true,
+      teamEnabled,
     };
   }
 
@@ -182,16 +223,21 @@ export async function getOrgAccess(profileId: string, userId: string): Promise<O
     roleName: role.name,
     permissions,
     hasPermission: (p) => permissions.has(p),
+    teamEnabled: await getOrgTeamEnabled(profileId),
   };
 }
 
 /**
  * The generic, category-agnostic guard every /dashboard/team page and API
  * route uses: resolves the caller and their access to `profileId`,
- * redirecting to /dashboard when there's no access at all or the specific
- * `permission` requested is missing. Category-specific guards (e.g.
- * requireRestaurantProfile) build on top of this rather than duplicating
- * the resolution logic — see src/lib/restaurantAuth.ts.
+ * redirecting to /dashboard when there's no access at all, the
+ * organization's plan doesn't unlock Team Management (Personal/non-
+ * Enterprise), or the specific `permission` requested is missing.
+ * Category-specific guards (e.g. requireRestaurantProfile) do NOT go
+ * through this — Restaurant's own category permissions (kitchen.view,
+ * orders.update, ...) are not plan-gated, only Team Management itself is
+ * (see 2026-10-02_team_plan_gate.sql's own comment on why that line is
+ * drawn there).
  */
 export async function requireOrgAccess(profileId: string, permission?: Permission) {
   const supabase = createClient();
@@ -202,6 +248,7 @@ export async function requireOrgAccess(profileId: string, permission?: Permissio
 
   const access = await getOrgAccess(profileId, user.id);
   if (!access) redirect("/dashboard");
+  if (!access.teamEnabled) redirect("/dashboard");
   if (permission && !access.isOwner && !access.isAdmin && !access.hasPermission(permission)) redirect("/dashboard");
 
   return { supabase, user, access };
@@ -218,6 +265,12 @@ export type OrgAccessJsonResult =
  * in" vs. "signed in but not authorized" without each route re-deriving
  * this logic (and without the risk of a shared mutable/module-level
  * variable across concurrent requests).
+ *
+ * This is the ONE choke point every /api/team/* route goes through, which
+ * is what makes the Personal/Enterprise plan gate a real backend
+ * boundary rather than just a hidden nav item: a Personal-plan owner (or
+ * anyone else) hitting these routes directly gets rejected here
+ * regardless of what the frontend shows.
  */
 export async function requireOrgAccessJson(profileId: string, permission?: Permission): Promise<OrgAccessJsonResult> {
   const supabase = createClient();
@@ -228,6 +281,9 @@ export async function requireOrgAccessJson(profileId: string, permission?: Permi
 
   const access = await getOrgAccess(profileId, user.id);
   if (!access) return { ok: false, response: NextResponse.json({ error: "Not authorized." }, { status: 403 }) };
+  if (!access.teamEnabled) {
+    return { ok: false, response: NextResponse.json({ error: "Team Management requires the Business plan." }, { status: 403 }) };
+  }
   if (permission && !access.isOwner && !access.isAdmin && !access.hasPermission(permission)) {
     return { ok: false, response: NextResponse.json({ error: "Not authorized." }, { status: 403 }) };
   }

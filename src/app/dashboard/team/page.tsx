@@ -14,6 +14,7 @@ export default async function TeamPage() {
 
   const active = await resolveActiveOrganization(user.id);
   if (!active) redirect("/dashboard");
+  if (!active.teamEnabled) redirect("/dashboard");
   if (!active.isOwner && !active.permissions.includes("staff.view")) redirect("/dashboard");
 
   const profileId = active.profile.id;

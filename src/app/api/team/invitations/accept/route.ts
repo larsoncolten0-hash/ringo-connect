@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { hashInvitationToken } from "@/lib/team/invitations";
 import { logOrgActivity } from "@/lib/team/activity";
 import { notifyUser } from "@/lib/notifications";
+import { getOrgTeamEnabled } from "@/lib/team/access";
 
 // POST /api/team/invitations/accept — body: { token }. Requires the caller
 // to already be signed in (the public invite page routes an unauthenticated
@@ -61,6 +62,15 @@ export async function POST(request: Request) {
   if (org?.user_id === user.id) {
     // The owner can't "join" their own organization as staff.
     return NextResponse.json({ error: "is_owner" }, { status: 400 });
+  }
+
+  // The organization's plan may have changed between invitation creation
+  // and acceptance (e.g. the owner downgraded away from the plan that
+  // unlocks Team Management) — re-checked here rather than trusted from
+  // creation time, same "never trust a stale precondition" reasoning as
+  // the status/expiry checks above.
+  if (!(await getOrgTeamEnabled(invitation.profile_id))) {
+    return NextResponse.json({ error: "team_disabled" }, { status: 403 });
   }
 
   // Upsert rather than insert — re-inviting someone previously removed

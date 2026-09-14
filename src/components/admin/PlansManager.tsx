@@ -34,6 +34,7 @@ export default function PlansManager({ plans }: { plans: any[] }) {
         custom_theme_enabled: plan.custom_theme_enabled,
         full_analytics_enabled: plan.full_analytics_enabled,
         badge_removed: plan.badge_removed,
+        team_enabled: plan.team_enabled,
         price_usd: Number(plan.price_usd),
         price_xaf: Number(plan.price_xaf),
         price_usd_yearly: Number(plan.price_usd_yearly),
@@ -190,6 +191,7 @@ export default function PlansManager({ plans }: { plans: any[] }) {
                 { key: "custom_theme_enabled", label: "Custom theme" },
                 { key: "full_analytics_enabled", label: "Full analytics" },
                 { key: "badge_removed", label: "Remove badge" },
+                { key: "team_enabled", label: "Team Management (Enterprise)" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 text-sm text-ringo-text">
                   <input

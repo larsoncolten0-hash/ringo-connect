@@ -10,6 +10,7 @@ const EDITABLE_FIELDS = [
   "custom_theme_enabled",
   "full_analytics_enabled",
   "badge_removed",
+  "team_enabled",
   "price_usd",
   "price_xaf",
   "price_usd_yearly",

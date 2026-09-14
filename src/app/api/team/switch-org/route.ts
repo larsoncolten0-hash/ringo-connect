@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { listUserOrganizations } from "@/lib/team/access";
+import { listUserOrganizations, ACTIVE_ORG_COOKIE } from "@/lib/team/access";
 
 // POST /api/team/switch-org — body: { profileId }. Sets which organization
 // the dashboard renders next. Purely a UX preference (see the comment on
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set("ringo_active_org", profileId, {
+  response.cookies.set(ACTIVE_ORG_COOKIE, profileId, {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",

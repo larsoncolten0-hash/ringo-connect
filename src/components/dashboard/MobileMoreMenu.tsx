@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, type LucideIcon } from "lucide-react";
+import { Menu, X, Check, Loader2, ChevronsUpDown, type LucideIcon } from "lucide-react";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
+import { useOrgSwitch } from "@/lib/team/useOrgSwitch";
+import { orgDisplayName, orgDisplaySubtitle, type OrgOption } from "@/lib/team/orgDisplay";
 
 // The mobile header's "More" hamburger — holds every dashboard nav item
 // that isn't one of the bottom tab bar's 5 core ones (see DashboardShell's
@@ -23,16 +25,28 @@ export default function MobileMoreMenu({
   items,
   label,
   isActive,
+  organizations = [],
+  currentOrgId,
 }: {
   items: { href: string; label: string; icon: LucideIcon; exact?: boolean }[];
   label: string;
   isActive: (href: string, exact?: boolean) => boolean;
+  // The mobile equivalent of the desktop sidebar's OrgSwitcher — only
+  // rendered (as a "Workspace" section at the top of this same panel)
+  // when there's more than one to choose from. Reuses the exact same
+  // switching logic (useOrgSwitch) and labeling rules (orgDisplay) as the
+  // desktop version rather than a second mobile-only organization system.
+  organizations?: OrgOption[];
+  currentOrgId?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { switchTo, switchingTo } = useOrgSwitch();
+  const showSwitcher = organizations.length > 1 && !!currentOrgId;
 
-  // Nothing to show (e.g. a plan/role with no gated items at all) — no
-  // point rendering a hamburger that opens onto an empty panel.
-  if (items.length === 0) return null;
+  // Nothing to show (e.g. a plan/role with no gated items and no
+  // switcher) — no point rendering a hamburger that opens onto an empty
+  // panel.
+  if (items.length === 0 && !showSwitcher) return null;
 
   return (
     <>
@@ -57,6 +71,42 @@ export default function MobileMoreMenu({
               transition={{ duration: 0.16 }}
               className="lg:hidden absolute top-full inset-x-0 z-40 max-h-[calc(100vh-4rem)] overflow-y-auto bg-ringo-bg border-b border-ringo-border shadow-[0_20px_40px_-16px_rgba(15,23,42,0.2)]"
             >
+              {showSwitcher && (
+                <div className="px-5 pt-3 pb-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-ringo-muted/70 mb-1.5">Workspace</p>
+                  <div className="flex flex-col gap-1 mb-1">
+                    {organizations.map((org) => {
+                      const active = org.profileId === currentOrgId;
+                      const busy = switchingTo === org.profileId;
+                      return (
+                        <button
+                          key={org.profileId}
+                          onClick={() => {
+                            if (!active) switchTo(org.profileId, currentOrgId!);
+                          }}
+                          disabled={busy}
+                          className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left transition ${
+                            active ? "bg-ringo-indigo/10" : "hover:bg-ringo-muted/10"
+                          }`}
+                        >
+                          <span className="min-w-0">
+                            <span className={`block text-sm font-medium truncate ${active ? "text-ringo-indigo" : "text-ringo-text"}`}>{orgDisplayName(org)}</span>
+                            <span className="block text-[11px] text-ringo-muted truncate">{orgDisplaySubtitle(org)}</span>
+                          </span>
+                          {busy ? (
+                            <Loader2 size={14} className="animate-spin text-ringo-muted shrink-0" />
+                          ) : active ? (
+                            <Check size={14} className="text-ringo-indigo shrink-0" />
+                          ) : (
+                            <ChevronsUpDown size={13} className="text-ringo-muted/50 shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {items.length > 0 && <div className="h-px bg-ringo-border/60 mt-1" />}
+                </div>
+              )}
               <nav className="flex flex-col px-5 py-3" aria-label={label}>
               {items.map(({ href, label: itemLabel, icon: Icon, exact }) => {
                 const active = isActive(href, exact);

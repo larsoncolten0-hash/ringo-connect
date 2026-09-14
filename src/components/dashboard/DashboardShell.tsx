@@ -301,7 +301,13 @@ export default function DashboardShell({
                 isn't one of the tab bar's 5 core ones (see moreMenuItems
                 above). Sits before the logo, the conventional hamburger
                 position. */}
-            <MobileMoreMenu items={moreMenuItems} label={t.nav.more} isActive={isActive} />
+            <MobileMoreMenu
+              items={moreMenuItems}
+              label={t.nav.more}
+              isActive={isActive}
+              organizations={organizations}
+              currentOrgId={organization?.profileId}
+            />
             <Link href="/" className="flex items-center gap-2 lg:hidden shrink-0">
               <Image src={logoUrl} alt={appName} width={26} height={26} className="rounded-lg object-contain" />
             </Link>

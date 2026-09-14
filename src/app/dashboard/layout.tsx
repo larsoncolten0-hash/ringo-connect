@@ -51,7 +51,12 @@ export default async function DashboardLayout({
   // An owner never sees it: for them there's no ambiguity, the business IS
   // their own account.
   const isActingAsStaff = !!active && !active.isOwner;
-  const canManageTeam = !!active && (active.isOwner || active.permissions.includes("staff.view"));
+  // Team nav only ever shows for an Enterprise-plan organization (see
+  // 2026-10-02_team_plan_gate.sql) — a Personal-plan owner never sees it,
+  // even though they're the owner, and hiding it here is only the UX
+  // half: /dashboard/team's own layout and every /api/team/* route
+  // enforce the exact same two conditions server-side.
+  const canManageTeam = !!active && active.teamEnabled && (active.isOwner || active.permissions.includes("staff.view"));
 
   return (
     <DashboardShell
@@ -77,7 +82,18 @@ export default async function DashboardLayout({
             }
           : null
       }
-      organizations={orgs.map((o) => ({ profileId: o.profile.id, name: o.profile.name || o.profile.username, isOwner: o.isOwner, roleName: o.roleName }))}
+      organizations={orgs.map((o) => ({
+        profileId: o.profile.id,
+        name: o.profile.name || o.profile.username,
+        isOwner: o.isOwner,
+        roleName: o.roleName,
+        // An owned profile that isn't itself an Enterprise business reads
+        // as "Personal" in the switcher (see the product spec's own
+        // example: "Personal Ringo → Personal") rather than showing its
+        // profile name — it's just the person's individual account, not a
+        // business workspace they manage a team for.
+        teamEnabled: o.teamEnabled,
+      }))}
       appName={branding.appName}
       logoUrl={branding.logoUrl}
     >

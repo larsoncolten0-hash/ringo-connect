@@ -18,6 +18,7 @@ const ACCEPT_ERROR_MESSAGES: Record<string, string> = {
   already_used: "This invitation has already been used.",
   is_owner: "You already own this organization.",
   not_authenticated: "Sign in first, then try joining again.",
+  team_disabled: "This organization's Team Management is currently unavailable. Contact the business owner.",
 };
 
 // The whole employee-facing side of both invitation methods lands here —
