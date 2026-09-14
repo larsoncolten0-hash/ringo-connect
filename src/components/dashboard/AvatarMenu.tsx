@@ -157,8 +157,8 @@ export default function AvatarMenu({
               {t.account.soundEffects}
             </span>
             <span
-              className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
-                soundEnabled ? "bg-ringo-indigo" : "bg-ringo-muted/30"
+              className={`relative w-8 h-[18px] rounded-full border transition-colors shrink-0 ${
+                soundEnabled ? "bg-ringo-indigo border-ringo-indigo" : "bg-ringo-muted/30 border-ringo-border/70"
               }`}
             >
               <span
@@ -190,8 +190,8 @@ export default function AvatarMenu({
                   {t.account.pushNotifications}
                 </span>
                 <span
-                  className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
-                    pushStatus === "on" ? "bg-ringo-indigo" : "bg-ringo-muted/30"
+                  className={`relative w-8 h-[18px] rounded-full border transition-colors shrink-0 ${
+                    pushStatus === "on" ? "bg-ringo-indigo border-ringo-indigo" : "bg-ringo-muted/30 border-ringo-border/70"
                   }`}
                 >
                   <span
@@ -215,8 +215,8 @@ export default function AvatarMenu({
                 {t.account.showTeamBadges}
               </span>
               <span
-                className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
-                  badgesEnabled ? "bg-ringo-indigo" : "bg-ringo-muted/30"
+                className={`relative w-8 h-[18px] rounded-full border transition-colors shrink-0 ${
+                  badgesEnabled ? "bg-ringo-indigo border-ringo-indigo" : "bg-ringo-muted/30 border-ringo-border/70"
                 }`}
               >
                 <span

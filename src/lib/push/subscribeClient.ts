@@ -62,11 +62,19 @@ export async function subscribeToPush({
   subscribeUrl: string;
   extra?: Record<string, unknown>;
 }): Promise<SubscribeToPushResult> {
-  const status = await getPushStatus();
-  if (!status.supported) return { ok: false, error: "unsupported" };
+  const supported = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  if (!supported) return { ok: false, error: "unsupported" };
 
-  const permission = status.permission === "unsupported" ? "default" : status.permission;
-  const granted = permission === "granted" ? "granted" : await Notification.requestPermission();
+  // iOS Safari (Home Screen installs included) only honors
+  // Notification.requestPermission() while it's still inside the
+  // synchronous tail of the click that triggered it — even a single
+  // microtask tick ahead of it (this used to `await getPushStatus()`
+  // first) is enough for WebKit to silently drop the request: no dialog,
+  // no error, nothing happens. Chrome is far more forgiving of an async
+  // gap here, which is why this only ever showed up on iOS. So this has
+  // to be the very first `await` anywhere in the
+  // toggle()/enable()/subscribeToPush() chain from the click handler.
+  const granted = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
   if (granted !== "granted") return { ok: false, error: "permission_denied" };
 
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
