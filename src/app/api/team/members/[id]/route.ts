@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireOrgAccessJson } from "@/lib/team/access";
+import { requireOrgAccessJson, getOrgMaxSeats, countActiveOrgMembers } from "@/lib/team/access";
 import { logOrgActivity } from "@/lib/team/activity";
 
 const VALID_STATUSES = ["active", "inactive", "removed"];
@@ -38,6 +38,26 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   if (!access.isOwner && !access.isAdmin && member.user_id === user.id) {
     return NextResponse.json({ error: "You can't change your own role or status." }, { status: 403 });
+  }
+
+  // Seat cap — this route can flip a previously removed/deactivated member
+  // straight back to 'active' without going through an invitation at all, so
+  // it needs the same check as invitation creation/acceptance (see those
+  // routes' own comments). Only checked when actually transitioning INTO
+  // 'active' from something else — a role-only edit on an already-active
+  // member, or a transition OUT of 'active' (which frees a seat), is never
+  // blocked by this.
+  if (status === "active" && member.status !== "active") {
+    const maxSeats = await getOrgMaxSeats(profileId);
+    if (maxSeats != null) {
+      const activeCount = await countActiveOrgMembers(profileId);
+      if (activeCount >= maxSeats) {
+        return NextResponse.json(
+          { error: `Your plan's staff seat limit (${maxSeats}) is full. Remove another team member first or upgrade your plan.` },
+          { status: 403 }
+        );
+      }
+    }
   }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };

@@ -3,7 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { hashInvitationToken } from "@/lib/team/invitations";
 import { logOrgActivity } from "@/lib/team/activity";
 import { notifyUser } from "@/lib/notifications";
-import { getOrgTeamEnabled } from "@/lib/team/access";
+import { getOrgTeamEnabled, getOrgMaxSeats, countActiveOrgMembers } from "@/lib/team/access";
 
 // POST /api/team/invitations/accept — body: { token }. Requires the caller
 // to already be signed in (the public invite page routes an unauthenticated
@@ -71,6 +71,20 @@ export async function POST(request: Request) {
   // the status/expiry checks above.
   if (!(await getOrgTeamEnabled(invitation.profile_id))) {
     return NextResponse.json({ error: "team_disabled" }, { status: 403 });
+  }
+
+  // Seat cap, re-checked HERE rather than only at invitation-creation time —
+  // the whole reason this is a separate check: another invitation for this
+  // same organization may have been created earlier and accepted in the
+  // meantime, filling the last seat between when THIS invitation was sent
+  // and now. A seat freed up by someone being removed/deactivated after
+  // this invitation was created is, symmetrically, allowed to be used here.
+  const maxSeats = await getOrgMaxSeats(invitation.profile_id);
+  if (maxSeats != null) {
+    const activeCount = await countActiveOrgMembers(invitation.profile_id);
+    if (activeCount >= maxSeats) {
+      return NextResponse.json({ error: "seats_full" }, { status: 409 });
+    }
   }
 
   // Upsert rather than insert — re-inviting someone previously removed

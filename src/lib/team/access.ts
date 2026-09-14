@@ -150,6 +150,41 @@ export async function ensureDefaultRoles(profileId: string, category: string | n
   );
 }
 
+/**
+ * The staff-seat cap for `profileId`'s current plan (Business Basic = 3,
+ * Business Pro = 7 as of the 2026 pricing restructure) — null means either
+ * "unlimited" or "no team access at all" (Free/Basic/Pro always have
+ * max_team_seats = null alongside team_enabled = false, so a caller that
+ * hasn't already gone through requireOrgAccess/getOrgTeamEnabled should not
+ * treat a null result here as "unlimited seats" on its own). Resolved via
+ * the service-role client for the same reason getOrgTeamEnabled is: this is
+ * the ORGANIZATION's (its owner's) plan, which the current caller — often a
+ * staff member, not the owner — has no RLS access to read directly.
+ */
+export async function getOrgMaxSeats(profileId: string): Promise<number | null> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("profiles").select("user_id, users(plan_id, plans(max_team_seats))").eq("id", profileId).maybeSingle();
+  const seats = (data as any)?.users?.plans?.max_team_seats;
+  return seats == null ? null : Number(seats);
+}
+
+/**
+ * How many active organization_members this organization currently has —
+ * the owner is never counted here (they're not a row in this table at all,
+ * see this file's own design note at the top). Only `status = 'active'`
+ * counts against a seat cap; a removed/deactivated member frees their seat
+ * back up immediately.
+ */
+export async function countActiveOrgMembers(profileId: string): Promise<number> {
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from("organization_members")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", profileId)
+    .eq("status", "active");
+  return count || 0;
+}
+
 export interface OrgAccess {
   isOwner: boolean;
   isAdmin: boolean;

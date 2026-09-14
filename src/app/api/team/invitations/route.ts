@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireOrgAccessJson } from "@/lib/team/access";
+import { requireOrgAccessJson, getOrgMaxSeats, countActiveOrgMembers } from "@/lib/team/access";
 import { generateInvitationToken, invitationExpiryDate, buildInvitationUrl, DEFAULT_INVITATION_TTL_DAYS } from "@/lib/team/invitations";
 import { logOrgActivity } from "@/lib/team/activity";
 import { sendTeamInvitationEmail } from "@/lib/email/sendTeamInvitationEmail";
@@ -65,6 +65,23 @@ export async function POST(request: Request) {
   const auth = await requireOrgAccessJson(profileId, "staff.invite");
   if (!auth.ok) return auth.response;
   const { supabase, user, access } = auth;
+
+  // Seat cap (2026 pricing restructure — Business Basic = 3, Business Pro =
+  // 7). Checked against ACTIVE members only, not other pending invitations —
+  // an invitation doesn't reserve a seat, it's just an offer; the seat is
+  // only actually taken once someone accepts (see /api/team/invitations/
+  // accept's own, separate check for why this route's check alone isn't
+  // enough — a seat can fill up between this call and that one).
+  const maxSeats = await getOrgMaxSeats(profileId);
+  if (maxSeats != null) {
+    const activeCount = await countActiveOrgMembers(profileId);
+    if (activeCount >= maxSeats) {
+      return NextResponse.json(
+        { error: `Your plan's staff seat limit (${maxSeats}) is full. Remove a team member or upgrade your plan to invite more.` },
+        { status: 403 }
+      );
+    }
+  }
 
   // The role must belong to THIS organization — never trust a role id from
   // the client without checking it wasn't picked from a different

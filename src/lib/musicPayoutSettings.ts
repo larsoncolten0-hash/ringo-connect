@@ -34,6 +34,28 @@ export async function getMusicPayoutSettings(): Promise<MusicPayoutSettings> {
   };
 }
 
+/**
+ * The commission rate that actually applies to ONE artist's sale — their
+ * own plan's `commission_rate_override` (2026 pricing restructure) when
+ * set, otherwise the platform-wide default above. Deliberately a separate
+ * function rather than a parameter on getMusicPayoutSettings(): the global
+ * rate has no notion of "whose sale is this," while this one specifically
+ * needs the artist's user id to resolve their plan. Call this at the moment
+ * a sale is actually confirmed (see checkAndConfirmFapshiOrder in
+ * src/lib/musicOrderPayment.ts) — the resolved rate is snapshotted onto
+ * music_sale_earnings.commission_rate then, so a later plan change (or
+ * override edit) never rewrites a past sale's already-recorded commission.
+ * NEVER surfaced in any customer-facing UI — internal only, same posture as
+ * the global rate it falls back to.
+ */
+export async function getEffectiveMusicCommissionRate(artistUserId: string): Promise<number> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("users").select("plans(commission_rate_override)").eq("id", artistUserId).maybeSingle();
+  const override = (data as any)?.plans?.commission_rate_override;
+  if (override != null) return Number(override);
+  return (await getMusicPayoutSettings()).musicCommissionRate;
+}
+
 export type MusicPayoutSettingsPatch = Partial<{
   /** Admin edits the rate as a whole-number percentage (0-100) — converted to a fraction on write. */
   musicCommissionRatePct: number;

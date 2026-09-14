@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus, type FapshiStatus } from "@/lib/fapshi";
-import { getMusicPayoutSettings } from "@/lib/musicPayoutSettings";
+import { getMusicPayoutSettings, getEffectiveMusicCommissionRate } from "@/lib/musicPayoutSettings";
 import { sendMusicOrderReceiptEmail } from "@/lib/email/sendMusicOrderReceipt";
 import { sendPushToUser } from "@/lib/push/send";
 import { formatPrice } from "@/lib/currency";
@@ -59,8 +59,13 @@ export async function checkAndConfirmFapshiOrder(
       // order_id is unique on music_sale_earnings, so a second insert
       // attempt for the same order is simply ignored.
       const musicSettings = await getMusicPayoutSettings();
+      // 2026 pricing restructure — the artist's own plan can override the
+      // global rate (Basic 10% / Pro 8% / Business Basic 8% / Business Pro
+      // 7%); falls back to the platform default when their plan has no
+      // override set. See getEffectiveMusicCommissionRate's own comment.
+      const commissionRate = await getEffectiveMusicCommissionRate(profile.user_id);
       const gross = Number(order.total);
-      const platformFee = Math.round(gross * musicSettings.musicCommissionRate * 100) / 100;
+      const platformFee = Math.round(gross * commissionRate * 100) / 100;
       const artistAmount = Math.round((gross - platformFee) * 100) / 100;
       const availableAt = new Date();
       availableAt.setDate(availableAt.getDate() + musicSettings.musicPayoutHoldDays);
@@ -71,7 +76,7 @@ export async function checkAndConfirmFapshiOrder(
           artist_user_id: profile.user_id,
           order_id: order.id,
           gross_amount: gross,
-          commission_rate: musicSettings.musicCommissionRate,
+          commission_rate: commissionRate,
           platform_fee: platformFee,
           artist_amount: artistAmount,
           currency: profile.currency || "XAF",
