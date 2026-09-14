@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import { getBrandingSettings } from "@/lib/branding";
+import { listUserOrganizations, pickActiveOrganization } from "@/lib/team/access";
 
 // Per-creator PWA installability (manifest link, iOS home-screen name/
 // icon, theme color) for the whole /dashboard/** tree — see
@@ -32,12 +33,25 @@ export default async function DashboardLayout({
     .eq("id", user.id)
     .single();
 
-  const [{ data: profile }, branding] = await Promise.all([
-    supabase.from("profiles").select("username, avatar_url, category, categories, verified").eq("user_id", user.id).single(),
-    getBrandingSettings(),
-  ]);
+  // The "active organization" (see src/lib/team/access.ts) drives every
+  // category/branding decision below — it's the user's own profile when
+  // they own one (unchanged from before Team & Organization Management
+  // existed), or whichever organization they're an active staff member of
+  // and have switched into otherwise. A brand-new account always has its
+  // own profile (the signup trigger creates one), so `orgs` is only ever
+  // empty in a genuinely broken account state.
+  const [orgs, branding] = await Promise.all([listUserOrganizations(user.id), getBrandingSettings()]);
+  const active = pickActiveOrganization(orgs);
+  const profile = active?.profile ?? null;
 
   const planName = (userRow?.plans as any)?.name ?? "free";
+  // Acting inside someone else's organization (not the owner) — this is
+  // what DashboardShell uses to show the "which business am I working for"
+  // banner (see the product spec's "WHO AM I? WHICH BUSINESS?" section).
+  // An owner never sees it: for them there's no ambiguity, the business IS
+  // their own account.
+  const isActingAsStaff = !!active && !active.isOwner;
+  const canManageTeam = !!active && (active.isOwner || active.permissions.includes("staff.view"));
 
   return (
     <DashboardShell
@@ -52,6 +66,18 @@ export default async function DashboardLayout({
       isRestaurant={profileHasCategory(profile, "restaurant_food")}
       isMusic={profileHasCategory(profile, "music_entertainment")}
       hasTicketing={profileHasTicketing(profile)}
+      canManageTeam={canManageTeam}
+      organization={
+        active
+          ? {
+              profileId: active.profile.id,
+              name: active.profile.name || active.profile.username,
+              roleName: active.roleName,
+              isStaff: isActingAsStaff,
+            }
+          : null
+      }
+      organizations={orgs.map((o) => ({ profileId: o.profile.id, name: o.profile.name || o.profile.username, isOwner: o.isOwner, roleName: o.roleName }))}
       appName={branding.appName}
       logoUrl={branding.logoUrl}
     >

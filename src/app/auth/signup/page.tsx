@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getReferralCode } from "@/lib/referral";
 import { Check, ArrowLeft } from "lucide-react";
@@ -14,10 +15,17 @@ import type { CategoryId } from "@/lib/categories";
 
 type UsernameStatus = "idle" | "checking" | "available" | "taken" | "invalid";
 
-export default function SignupPage() {
+function SignupForm() {
   // This page doesn't use the app's i18n system (it's English-only by
   // design, unlike /get-started) — CategoryPicker still needs a locale to
   // pick which language to render its labels in, so it's hardcoded here.
+  const searchParams = useSearchParams();
+  // A pending team invitation (see /team/invite/[token]) — carried through
+  // email confirmation so /auth/confirm can send the person straight back
+  // to it instead of the generic "you're confirmed" page. Never affects
+  // what account/profile gets created here: this is purely a "where to go
+  // next" hint, the same way `ref` above already works.
+  const invite = searchParams.get("invite");
   const [step, setStep] = useState<"category" | "form">("category");
   const [category, setCategory] = useState<CategoryId | null>(null);
   const [extraCategories, setExtraCategories] = useState<CategoryId[]>([]);
@@ -105,7 +113,7 @@ export default function SignupPage() {
           ...(ref ? { ref } : {}),
           ...(category ? { category, categories: [category, ...extraCategories] } : {}),
         },
-        emailRedirectTo: `${window.location.origin}/auth/confirm`,
+        emailRedirectTo: `${window.location.origin}/auth/confirm${invite ? `?invite=${invite}` : ""}`,
       },
     });
 
@@ -359,5 +367,14 @@ export default function SignupPage() {
         </Link>
       </p>
     </AuthShell>
+  );
+}
+
+// useSearchParams needs a Suspense boundary in the App Router
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
   );
 }

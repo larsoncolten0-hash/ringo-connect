@@ -4,7 +4,7 @@ import TablesStatusView from "@/components/restaurant/TablesStatusView";
 export const dynamic = "force-dynamic";
 
 export default async function RestaurantTablesPage() {
-  const { supabase, profile } = await requireRestaurantProfile();
+  const { supabase, profile } = await requireRestaurantProfile("tables.view");
 
   const { data: tables } = await supabase
     .from("restaurant_tables")

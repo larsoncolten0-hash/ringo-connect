@@ -84,7 +84,13 @@ function ConfirmInner() {
         // /api/push/events/signup for why this lives here instead of a
         // server-side trigger.
         fetch("/api/push/events/signup", { method: "POST" }).catch(() => {});
-        router.replace("/auth/confirmed");
+
+        // A pending team invitation (see /auth/signup's own comment on
+        // `invite`) takes priority over the generic "you're confirmed"
+        // page — carried through as a query param since Supabase's
+        // emailRedirectTo preserves it end to end.
+        const invite = searchParams.get("invite");
+        router.replace(invite ? `/team/invite/${invite}` : "/auth/confirmed");
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

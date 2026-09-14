@@ -4,7 +4,7 @@ import SalesView from "@/components/restaurant/SalesView";
 export const dynamic = "force-dynamic";
 
 export default async function RestaurantSalesPage() {
-  const { supabase, profile } = await requireRestaurantProfile();
+  const { supabase, profile } = await requireRestaurantProfile("sales.view");
 
   const since = new Date();
   since.setDate(since.getDate() - 90);

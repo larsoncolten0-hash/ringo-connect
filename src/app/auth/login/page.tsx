@@ -54,7 +54,12 @@ function LoginForm() {
       return;
     }
 
-    router.push(data.role === "admin" ? "/admin" : "/dashboard");
+    // A pending team invitation (see /team/invite/[token]) takes priority
+    // over the normal post-login destination — the invite page picks up
+    // right where the person left off instead of stranding them on the
+    // main dashboard with no obvious way back to what they clicked.
+    const invite = searchParams.get("invite");
+    router.push(invite ? `/team/invite/${invite}` : data.role === "admin" ? "/admin" : "/dashboard");
     router.refresh();
   };
 

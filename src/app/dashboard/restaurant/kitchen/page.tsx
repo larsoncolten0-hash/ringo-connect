@@ -4,7 +4,7 @@ import KitchenView from "@/components/restaurant/KitchenView";
 export const dynamic = "force-dynamic";
 
 export default async function RestaurantKitchenPage() {
-  const { supabase, profile } = await requireRestaurantProfile();
+  const { supabase, profile } = await requireRestaurantProfile("kitchen.view");
 
   const { data: orders } = await supabase
     .from("orders")

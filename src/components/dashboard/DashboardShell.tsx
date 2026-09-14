@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
@@ -14,6 +14,7 @@ import HelpWidget from "@/components/dashboard/HelpWidget";
 import MobileMoreMenu from "@/components/dashboard/MobileMoreMenu";
 import PullToRefresh from "@/components/dashboard/PullToRefresh";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
+import OrgSwitcher, { type OrgOption } from "@/components/dashboard/OrgSwitcher";
 import { useLanguage } from "@/components/LanguageProvider";
 
 // Where a manual "pull down to check for new activity" gesture actually
@@ -65,6 +66,9 @@ export default function DashboardShell({
   isRestaurant = false,
   isMusic = false,
   hasTicketing = false,
+  canManageTeam = false,
+  organization = null,
+  organizations = [],
   appName,
   logoUrl,
   children,
@@ -104,6 +108,22 @@ export default function DashboardShell({
   // Bookings' own button: events, ticket types, Gate Access, and Check-in
   // all live at /dashboard/tickets/*, not tucked inside the main editor.
   hasTicketing?: boolean;
+  // Team & Organization Management — whether this account can see/manage
+  // the Team section: the owner always can, a staff member only with the
+  // staff.view permission (see dashboard/layout.tsx). Never trusted as the
+  // actual security boundary — that's staff.* permission checks server-side
+  // (RLS + the /api/team/* routes) — this only decides whether the nav
+  // item and workspace banner render.
+  canManageTeam?: boolean;
+  // Which organization's workspace this is, and whether the signed-in
+  // person is staff there rather than its owner — drives the "WHICH
+  // BUSINESS AM I WORKING FOR" banner shown just for staff (an owner's own
+  // dashboard has no such ambiguity to clear up).
+  organization?: { profileId: string; name: string; roleName: string | null; isStaff: boolean } | null;
+  // Every organization this account belongs to (their own + any they're an
+  // active team member of) — the switcher only renders when there's more
+  // than one.
+  organizations?: OrgOption[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -140,6 +160,11 @@ export default function DashboardShell({
     { href: "/dashboard/ringo-card", label: t.nav.ringoCard, icon: Nfc, core: true },
     { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3, core: true },
     { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake, core: false },
+    // Team & Organization Management — gated on canManageTeam, not just
+    // "is the owner": a staff member with the staff.view permission also
+    // sees this (e.g. a Manager reviewing the roster), scoped to whichever
+    // organization is currently active.
+    ...(canManageTeam ? [{ href: "/dashboard/team", label: t.nav.team, icon: UserCog, core: false }] : []),
     { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard, core: true },
     ...(canApproveRequests
       ? [
@@ -221,6 +246,18 @@ export default function DashboardShell({
             </Link>
           )}
 
+          {/* Organization switcher — only rendered when this account
+              actually belongs to more than one organization (their own,
+              plus at least one they're a team member of). See
+              src/lib/team/access.ts for how "active organization" is
+              picked and persisted (a plain preference cookie, never a
+              security boundary). */}
+          {organizations.length > 1 && organization && (
+            <div className="mb-3">
+              <OrgSwitcher current={organization.profileId} organizations={organizations} />
+            </div>
+          )}
+
           {/* Compact identity card — quick "who am I" + a shortcut to the
               live page, without duplicating what AvatarMenu already does. */}
           <Link
@@ -280,6 +317,22 @@ export default function DashboardShell({
             <AvatarMenu email={email} username={username} avatarUrl={avatarUrl} planName={planName} isVerified={isVerified} />
           </div>
         </div>
+
+        {/* "WHO AM I? WHICH BUSINESS AM I WORKING FOR?" — shown only when
+            acting as staff inside someone else's organization (never for
+            an owner, who has no such ambiguity about their own account).
+            Deliberately simple: business name + role, nothing else — see
+            the product spec's own mockup for why this stays this plain. */}
+        {organization?.isStaff && (
+          <div className="px-4 lg:px-10 py-2 border-b border-ringo-border/70 bg-ringo-indigo/5 flex items-center gap-2 text-xs">
+            <span className="font-semibold text-ringo-text truncate">{organization.name}</span>
+            {organization.roleName && (
+              <span className="shrink-0 px-2 py-0.5 rounded-full bg-ringo-indigo/10 text-ringo-indigo font-medium uppercase tracking-wide text-[10px]">
+                {organization.roleName}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Custom pull-to-refresh (touch-only, so this is a no-op on
             desktop by construction — see PullToRefresh.tsx) wraps the

@@ -5,7 +5,7 @@ import ReceiptView from "@/components/restaurant/ReceiptView";
 export const dynamic = "force-dynamic";
 
 export default async function OrderReceiptPage({ params }: { params: { id: string } }) {
-  const { supabase, profile } = await requireRestaurantProfile();
+  const { supabase, profile } = await requireRestaurantProfile("orders.view");
 
   // RLS ("orders owner all") already scopes this to the logged-in
   // creator's own profile_id — the .eq below is defense in depth, not the

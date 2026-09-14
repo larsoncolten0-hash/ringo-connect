@@ -4,7 +4,7 @@ import RestaurantOrdersView from "@/components/restaurant/RestaurantOrdersView";
 export const dynamic = "force-dynamic";
 
 export default async function RestaurantOrdersPage() {
-  const { supabase, profile } = await requireRestaurantProfile();
+  const { supabase, profile } = await requireRestaurantProfile("orders.view");
 
   const { data: orders } = await supabase
     .from("orders")

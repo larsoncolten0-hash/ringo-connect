@@ -4,7 +4,7 @@ import CustomersView from "@/components/restaurant/CustomersView";
 export const dynamic = "force-dynamic";
 
 export default async function RestaurantCustomersPage() {
-  const { supabase, profile } = await requireRestaurantProfile();
+  const { supabase, profile } = await requireRestaurantProfile("customers.view");
 
   const { data: customers } = await supabase
     .from("restaurant_customers")
