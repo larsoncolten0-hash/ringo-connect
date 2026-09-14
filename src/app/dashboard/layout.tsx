@@ -43,6 +43,14 @@ export default async function DashboardLayout({
   const [orgs, branding] = await Promise.all([listUserOrganizations(user.id), getBrandingSettings()]);
   const active = pickActiveOrganization(orgs);
   const profile = active?.profile ?? null;
+  // The signed-in person's OWN profile, independent of whichever
+  // organization is currently active — every account has exactly one (the
+  // signup trigger guarantees it), so `orgs` always has an isOwner entry
+  // for it regardless of how many other organizations they're staff at.
+  // Needed for AvatarMenu's "show my role on my profile" toggle below: that
+  // preference belongs to the person, not to whichever business's
+  // workspace they happen to be viewing right now.
+  const ownProfile = orgs.find((o) => o.isOwner)?.profile ?? null;
 
   const planName = (userRow?.plans as any)?.name ?? "free";
   // Acting inside someone else's organization (not the owner) — this is
@@ -96,6 +104,8 @@ export default async function DashboardLayout({
       }))}
       appName={branding.appName}
       logoUrl={branding.logoUrl}
+      ownProfileId={ownProfile?.id ?? null}
+      teamBadgesEnabled={ownProfile?.team_badges_enabled ?? true}
     >
       {children}
     </DashboardShell>

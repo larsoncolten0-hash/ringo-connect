@@ -36,6 +36,7 @@ export default function ProfileView({
   pixelsEnabled,
   pageViewEventId,
   preview = false,
+  staffBadges = [],
 }: {
   profile: any;
   pixelsEnabled?: boolean;
@@ -46,6 +47,14 @@ export default function ProfileView({
   // hides the "copy link" affordance (window.location.href there would be
   // the dashboard's own URL, not the profile's).
   preview?: boolean;
+  // "Chef at Mama's Kitchen" style pill(s) — one per organization this
+  // person is currently active staff at, live-derived server-side (see
+  // src/app/[username]/page.tsx). Empty whenever there's nothing to show
+  // (no active memberships, or the person turned the toggle off) — never
+  // computed client-side, so there's nothing here to gate on preview vs.
+  // real render beyond just passing an empty array from the dashboard's
+  // live preview, which doesn't fetch this at all.
+  staffBadges?: { orgUsername: string; orgName: string; orgAvatarUrl: string | null; roleName: string }[];
 }) {
   const { t, locale } = useLanguage();
   const [showCatalog, setShowCatalog] = useState(true);
@@ -379,6 +388,32 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           >
             <MapPin size={14} />
             {profile.about_location}
+          </div>
+        )}
+
+        {staffBadges.length > 0 && (
+          // Deliberately plain, bordered outline pills — not a filled
+          // accent-colored button like the rest of this page's CTAs — so
+          // this reads as "current role, stated as fact" rather than
+          // something the creator added to their own links/catalog. Each
+          // links straight through to that business's own public profile.
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-3 animate-fade-up" style={{ animationDelay: "200ms" }}>
+            {staffBadges.map((badge) => (
+              <a
+                key={badge.orgUsername}
+                href={`/${badge.orgUsername}`}
+                className="flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-full border text-xs font-medium transition hover:opacity-75"
+                style={{ borderColor: hexToRgba(accent, 0.35), color: accent }}
+              >
+                <img
+                  src={badge.orgAvatarUrl || "/default-avatar.png"}
+                  alt=""
+                  className="w-5 h-5 rounded-full object-cover shrink-0"
+                  style={{ backgroundColor: bgColor }}
+                />
+                {t.profilePage.staffBadge(badge.roleName, badge.orgName)}
+              </a>
+            ))}
           </div>
         )}
 

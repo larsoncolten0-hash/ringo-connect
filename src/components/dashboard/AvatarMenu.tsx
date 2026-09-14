@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
-import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff, BadgeCheck, KeyRound } from "lucide-react";
+import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff, BadgeCheck, KeyRound, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useSound } from "@/components/SoundProvider";
 import { usePushToggle } from "@/lib/push/usePushToggle";
+import { createClient } from "@/lib/supabase/client";
 import AddToHomeScreenMenuItem from "@/components/dashboard/AddToHomeScreenMenuItem";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
 import VerificationRequestModal from "@/components/dashboard/VerificationRequestModal";
@@ -18,6 +19,8 @@ export default function AvatarMenu({
   avatarUrl,
   planName,
   isVerified = false,
+  ownProfileId = null,
+  teamBadgesEnabled = true,
 }: {
   email: string;
   username: string;
@@ -29,6 +32,13 @@ export default function AvatarMenu({
   // this can go stale between an admin's decision and the next page
   // load.
   isVerified?: boolean;
+  // "Show my role on my profile" toggle below — always about the
+  // signed-in person's OWN profile (see DashboardShell's own comment on
+  // why this is a separate prop from `organization`). Null only if
+  // somehow no profile resolved at all, in which case the toggle just
+  // doesn't render — there's nothing to point it at.
+  ownProfileId?: string | null;
+  teamBadgesEnabled?: boolean;
 }) {
   const { t } = useLanguage();
   const { enabled: soundEnabled, setEnabled: setSoundEnabled } = useSound();
@@ -40,7 +50,27 @@ export default function AvatarMenu({
   const [open, setOpen] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [badgesEnabled, setBadgesEnabled] = useState(teamBadgesEnabled);
+  const [badgesSaving, setBadgesSaving] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // Applies immediately, same "no Save button" posture as the Sound
+  // effects/Push toggles right below it — "profiles update by owner or
+  // admin" RLS already lets the owner write their own row directly, no API
+  // route needed for a single boolean flip.
+  const toggleTeamBadges = async () => {
+    if (!ownProfileId || badgesSaving) return;
+    const next = !badgesEnabled;
+    setBadgesEnabled(next); // optimistic — this is a personal preference, not worth a loading flicker
+    setBadgesSaving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("profiles").update({ team_badges_enabled: next }).eq("id", ownProfileId);
+      if (error) setBadgesEnabled(!next); // roll back on failure
+    } finally {
+      setBadgesSaving(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -157,6 +187,30 @@ export default function AvatarMenu({
                 <span
                   className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
                     pushStatus === "on" ? "translate-x-[16px]" : "translate-x-[2px]"
+                  }`}
+                />
+              </span>
+            </button>
+          )}
+          {ownProfileId && (
+            <button
+              onClick={toggleTeamBadges}
+              disabled={badgesSaving}
+              aria-pressed={badgesEnabled}
+              className="flex items-center justify-between gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left disabled:opacity-60"
+            >
+              <span className="flex items-center gap-2">
+                {badgesSaving ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+                {t.account.showTeamBadges}
+              </span>
+              <span
+                className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
+                  badgesEnabled ? "bg-ringo-indigo" : "bg-ringo-muted/30"
+                }`}
+              >
+                <span
+                  className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+                    badgesEnabled ? "translate-x-[16px]" : "translate-x-[2px]"
                   }`}
                 />
               </span>

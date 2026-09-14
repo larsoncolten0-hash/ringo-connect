@@ -4,8 +4,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, ClipboardList, ChefHat, Table2, Receipt, TrendingUp, Users } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import type { Permission } from "@/lib/team/permissions";
 
-export default function RestaurantTabs() {
+// Which permission each tab requires — kept in exact lockstep with the
+// permission each tab's own page passes to requireRestaurantProfile() (see
+// src/lib/restaurantAuth.ts and each page.tsx under
+// src/app/dashboard/restaurant/*). `null` = no specific permission, only
+// "an active member of a restaurant-category org," matching the Overview
+// page's own (lack of) restriction — this file must never invent a
+// stricter or looser rule than what the page it links to already enforces.
+const TAB_PERMISSION: Record<string, Permission | null> = {
+  "/dashboard/restaurant": null,
+  "/dashboard/restaurant/orders": "orders.view",
+  "/dashboard/restaurant/kitchen": "kitchen.view",
+  "/dashboard/restaurant/tables": "tables.view",
+  "/dashboard/restaurant/sales": "sales.view",
+  "/dashboard/restaurant/customers": "customers.view",
+};
+
+export default function RestaurantTabs({ access }: { access: { isOwner: boolean; permissions: Permission[] } }) {
   const pathname = usePathname();
   const { t } = useLanguage();
 
@@ -16,7 +33,10 @@ export default function RestaurantTabs() {
     { href: "/dashboard/restaurant/tables", label: t.restaurant.tablesTitle, icon: Table2 },
     { href: "/dashboard/restaurant/sales", label: t.restaurant.salesTitle, icon: TrendingUp },
     { href: "/dashboard/restaurant/customers", label: t.restaurant.customersTitle, icon: Users },
-  ];
+  ].filter((tab) => {
+    const required = TAB_PERMISSION[tab.href];
+    return !required || access.isOwner || access.permissions.includes(required);
+  });
 
   const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
 

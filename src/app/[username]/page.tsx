@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import { extractRequestContext } from "@/lib/requestContext";
@@ -89,5 +89,46 @@ export default async function PublicProfilePage({
   // reads would otherwise ship to every anonymous visitor.
   const { facebook_capi_token_encrypted, tiktok_events_token_encrypted, ...publicProfile } = profile;
 
-  return <ProfileView profile={publicProfile} pixelsEnabled={pixelsEnabled} pageViewEventId={pageViewEventId} />;
+  // Public "current role" badge(s) — e.g. "Chef at Mama's Kitchen" — live-
+  // derived from active organization_members rows every render (never a
+  // stored copy, so being removed from a team makes the badge disappear
+  // automatically). Governed by one global opt-out
+  // (profiles.team_badges_enabled, default true — see AvatarMenu.tsx).
+  //
+  // Fetched with the admin client: an anonymous visitor has no RLS access
+  // to organization_members/organization_roles at all ("staff.view or
+  // your own row" — a public visitor is neither), the same posture every
+  // other public-page read of cross-tenant data in this app already uses
+  // (see /r/[username]/page.tsx for the identical createAdminClient()
+  // pattern). Only ever returns non-sensitive, already-public fields
+  // (an org's own name/username/avatar, a role's own name).
+  let staffBadges: { orgUsername: string; orgName: string; orgAvatarUrl: string | null; roleName: string }[] = [];
+  if (profile.team_badges_enabled !== false) {
+    const admin = createAdminClient();
+    const { data: memberships } = await admin
+      .from("organization_members")
+      .select("organization_roles(name), profiles(username, name, avatar_url, published)")
+      .eq("user_id", profile.user_id)
+      .eq("status", "active");
+
+    staffBadges = (memberships || [])
+      .map((m: any) => ({
+        orgUsername: m.profiles?.username as string | undefined,
+        orgName: (m.profiles?.name || m.profiles?.username) as string | undefined,
+        orgAvatarUrl: (m.profiles?.avatar_url ?? null) as string | null,
+        roleName: m.organization_roles?.name as string | undefined,
+        published: m.profiles?.published as boolean | undefined,
+      }))
+      // Only a badge that can actually be clicked through to a real,
+      // reachable page — an org profile that isn't published 404s on
+      // /[username] itself, so no point linking to it.
+      .filter((b): b is { orgUsername: string; orgName: string; orgAvatarUrl: string | null; roleName: string; published: boolean } =>
+        !!b.orgUsername && !!b.roleName && b.published !== false
+      )
+      .map(({ orgUsername, orgName, orgAvatarUrl, roleName }) => ({ orgUsername, orgName: orgName!, orgAvatarUrl, roleName }));
+  }
+
+  return (
+    <ProfileView profile={publicProfile} pixelsEnabled={pixelsEnabled} pageViewEventId={pageViewEventId} staffBadges={staffBadges} />
+  );
 }

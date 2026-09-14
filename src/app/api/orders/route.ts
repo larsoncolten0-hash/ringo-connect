@@ -1,8 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
 import { sendRestaurantOrderReceiptEmail } from "@/lib/email/sendRestaurantOrderReceipt";
-import { sendPushToUser } from "@/lib/push/send";
+import { sendPushToUsers } from "@/lib/push/send";
 import { dashboardOrderLink } from "@/lib/notificationLinks";
+import { getOrgNotificationAudience } from "@/lib/team/notificationAudience";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — guest ordering, no Ringo account
@@ -145,12 +146,22 @@ export async function POST(request: Request) {
   await admin.from("order_items").insert(orderItems.map((i) => ({ ...i, order_id: order.id })));
   await admin.from("order_status_history").insert({ order_id: order.id, status: "pending" });
 
-  // The kitchen — the profile owner is the only "staff" role this schema
-  // has, so this doubles as "notify the chef" from the user's own request.
-  await sendPushToUser(admin, profile.user_id, {
+  // The owner, plus any active staff whose role can actually see this order
+  // (orders.view) or is responsible for preparing it (kitchen.view) — real
+  // RLS backs both permissions for orders/kitchen today (see
+  // 2026-10-01_team_management.sql), so everyone notified here can actually
+  // open what they're being told about. Restaurant is the only order/
+  // booking event this applies to so far — bookings and music orders stay
+  // owner-only until their own staff RLS exists (see the matching TODO on
+  // those routes' equivalent notification calls).
+  const notifyUserIds = await getOrgNotificationAudience(profile.id, ["orders.view", "kitchen.view"]);
+  await sendPushToUsers(admin, notifyUserIds, {
     category: "order_new",
     title: "New order",
-    body: `${customerName} placed an order · #${order.order_number}`,
+    // Business name included so this reads unambiguously for someone who's
+    // staff at more than one organization — see the product spec's own
+    // note on this.
+    body: `${profile.name || profile.username} — ${customerName} placed an order · #${order.order_number}`,
     url: dashboardOrderLink(order.id),
   });
 

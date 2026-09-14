@@ -12,6 +12,12 @@ import { profileHasTicketing } from "@/lib/categories";
 // ticket_checkin_logs row is scoped by profile_id and RLS-protected the
 // same way regardless — this is just a UX redirect, not itself the
 // security boundary.
+//
+// KNOWN GAP (not fixed here — flagged, real scope of its own): same issue
+// as requireMusicProfile/requireOwnProfile — only ever resolves the
+// caller's OWN profile, not the organization they're currently viewing as
+// staff. See src/lib/bookingAuth.ts's comment for the full reasoning;
+// DashboardShell hides this nav item for staff for exactly this reason.
 export async function requireTicketingProfile() {
   const supabase = createClient();
   const {

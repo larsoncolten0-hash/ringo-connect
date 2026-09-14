@@ -343,6 +343,10 @@ export async function POST(request: Request) {
 
   const itemSummary =
     orderItems.length === 1 ? `${orderItems[0].quantity}× ${orderItems[0].name_snapshot}` : `${orderItems.length} items`;
+  // Owner-only, deliberately not expanded to staff yet — same reasoning as
+  // the equivalent note on /api/bookings' notification call: `music_orders`
+  // has no staff RLS policy at all today (only "music_orders owner all"),
+  // so a staff member notified here couldn't actually open the order.
   await sendPushToUser(admin, profile.user_id, {
     category: "order_new",
     title: "New order",

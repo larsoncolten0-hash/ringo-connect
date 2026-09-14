@@ -13,6 +13,12 @@ export const translations = {
       catalogHeading: "Catalog",
       viewDetails: "View details",
       verifiedBadge: "Verified",
+      // "Chef at Mama's Kitchen" — the public staff-role badge (see
+      // ProfileView.tsx). One function, not two separate strings either
+      // side of an interpolation, so word order can differ freely by
+      // language (French moves "at" → "chez" but keeps the same shape;
+      // a future language might need to reorder role/org entirely).
+      staffBadge: (role: string, org: string) => `${role} at ${org}`,
       share: "Share",
       copyLink: "Copy link",
       shareWhatsapp: "Share on WhatsApp",
@@ -1107,6 +1113,11 @@ export const translations = {
       requestVerification: "Request verification",
       verifiedLabel: "Verified",
       changePassword: "Change password",
+      // "Chef at Mama's Kitchen" style badge(s) on this person's own
+      // public profile — see ProfileView.tsx. One global toggle, not
+      // per-organization: if they're staff at more than one business,
+      // this controls whether ANY of those badges show.
+      showTeamBadges: "Show my role on my profile",
     },
     sidebar: {
       freeBadge: "You're on Free",
@@ -1700,6 +1711,7 @@ export const translations = {
       catalogHeading: "Catalogue",
       viewDetails: "Voir les détails",
       verifiedBadge: "Certifié",
+      staffBadge: (role: string, org: string) => `${role} chez ${org}`,
       share: "Partager",
       copyLink: "Copier le lien",
       shareWhatsapp: "Partager sur WhatsApp",
@@ -2683,6 +2695,7 @@ export const translations = {
       requestVerification: "Demander la vérification",
       verifiedLabel: "Vérifié",
       changePassword: "Changer le mot de passe",
+      showTeamBadges: "Afficher mon rôle sur mon profil",
     },
     sidebar: {
       freeBadge: "Vous êtes sur Gratuit",

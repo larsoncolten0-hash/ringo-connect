@@ -69,6 +69,8 @@ export default function DashboardShell({
   canManageTeam = false,
   organization = null,
   organizations = [],
+  ownProfileId = null,
+  teamBadgesEnabled = true,
   appName,
   logoUrl,
   children,
@@ -124,6 +126,14 @@ export default function DashboardShell({
   // active team member of) — the switcher only renders when there's more
   // than one.
   organizations?: OrgOption[];
+  // The signed-in person's OWN profile id + their current opt-out state
+  // for the public "current role" badge (see ProfileView.tsx) — always
+  // about their own account, independent of `organization` above, which is
+  // whichever business's workspace they're currently viewing. Passed
+  // through to AvatarMenu, the account-level settings surface this toggle
+  // belongs in.
+  ownProfileId?: string | null;
+  teamBadgesEnabled?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -141,16 +151,34 @@ export default function DashboardShell({
   // every item below, core or not, since it has the room for it.
   const NAV_ITEMS = [
     { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true, core: true },
+    // Restaurant is safe to show to staff regardless: requireRestaurantProfile
+    // is org-aware (resolves the active organization, not just an owned
+    // profile) and RestaurantTabs filters its own sub-nav to the viewer's
+    // actual permissions — see that component's own comment.
     ...(isRestaurant ? [{ href: "/dashboard/restaurant", label: t.nav.restaurant, icon: UtensilsCrossed, core: false }] : []),
-    ...(isMusic ? [{ href: "/dashboard/music", label: t.nav.musicSales, icon: Music2, core: false }] : []),
+    // Music/Tickets/Bookings, unlike Restaurant, are NOT org-aware yet —
+    // requireMusicProfile/requireTicketingProfile/requireOwnProfile still
+    // resolve the viewer's OWN profile only (the pre-Team pattern), with no
+    // concept of "the organization I'm currently viewing as staff" at all.
+    // For an owner that's harmless (their own profile IS the org). For
+    // staff it's actively wrong: they'd silently see their OWN unrelated
+    // profile's music/tickets/bookings while the org-branding banner still
+    // says they're working inside someone else's business — worse than a
+    // permission bounce, since nothing indicates the data on screen belongs
+    // to the wrong account. Hidden entirely for staff until those three
+    // page guards are rewritten to be organization-aware (a real follow-up
+    // of its own, not attempted here) — same reasoning as filtering
+    // RestaurantTabs to what's actually enforced, just one level up.
+    ...(isMusic && !organization?.isStaff ? [{ href: "/dashboard/music", label: t.nav.musicSales, icon: Music2, core: false }] : []),
     // Its own section, not nested inside Music's editor — Events &
     // Experiences profiles get this without needing Music's other tools.
-    ...(hasTicketing ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket, core: false }] : []),
+    ...(hasTicketing && !organization?.isStaff ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket, core: false }] : []),
     // Universal, unlike Restaurant/Music above — every category can turn
     // bookings on, so this is never gated by category. Always visible (not
     // hidden until enabled) so an owner can actually find Settings to turn
-    // it on in the first place.
-    { href: "/dashboard/bookings", label: t.nav.bookings, icon: CalendarCheck, core: false },
+    // it on in the first place — but still hidden for staff, same
+    // not-yet-org-aware reasoning as Music/Tickets above.
+    ...(!organization?.isStaff ? [{ href: "/dashboard/bookings", label: t.nav.bookings, icon: CalendarCheck, core: false }] : []),
     // Same "always visible" reasoning as Bookings above — every category
     // can build a community, so this isn't gated either.
     { href: "/dashboard/community", label: t.nav.community, icon: Users, core: true },
@@ -320,7 +348,15 @@ export default function DashboardShell({
             {userId && <NotificationBell mode="user" userId={userId} backdropTop="top-16" />}
             <ThemeToggle iconOnly />
             <span className="w-px h-5 bg-ringo-border mx-1 hidden sm:block" />
-            <AvatarMenu email={email} username={username} avatarUrl={avatarUrl} planName={planName} isVerified={isVerified} />
+            <AvatarMenu
+              email={email}
+              username={username}
+              avatarUrl={avatarUrl}
+              planName={planName}
+              isVerified={isVerified}
+              ownProfileId={ownProfileId}
+              teamBadgesEnabled={teamBadgesEnabled}
+            />
           </div>
         </div>
 

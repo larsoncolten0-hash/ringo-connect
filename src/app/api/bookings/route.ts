@@ -125,6 +125,12 @@ export async function POST(request: Request) {
 
   await admin.from("booking_status_history").insert({ booking_id: booking.id, status: "pending" });
 
+  // Owner-only, deliberately not expanded to staff yet (unlike
+  // /api/orders' equivalent restaurant-order notification) — `bookings`
+  // has no staff RLS policy at all today (only "bookings owner all"), so a
+  // staff member notified here couldn't actually open the booking anyway.
+  // Revisit once bookings gets organization-aware staff access (see the
+  // matching gap noted on requireOwnProfile in src/lib/bookingAuth.ts).
   await sendPushToUser(admin, profile.user_id, {
     category: "booking_new",
     title: "New booking request",
