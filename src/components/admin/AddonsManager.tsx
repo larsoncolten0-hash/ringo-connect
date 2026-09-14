@@ -33,6 +33,10 @@ export default function AddonsManager({ addons }: { addons: any[] }) {
         required: addon.required,
         active: addon.active,
         show_on_affiliate_page: addon.show_on_affiliate_page,
+        // Only meaningful for a Ringo Card bundle row (grants_plan_name
+        // set) — harmless to always send, the PATCH route just writes
+        // whatever array is here (sanitized server-side too).
+        ...(addon.grants_plan_name ? { bundle_features: addon.bundle_features || [] } : {}),
       }),
     });
     setSavingId(null);
@@ -62,7 +66,9 @@ export default function AddonsManager({ addons }: { addons: any[] }) {
         <h1 className="font-display text-xl font-medium text-ringo-text tracking-[-0.01em]">Add-ons</h1>
         <p className="text-sm text-ringo-muted mt-1">
           Extras shown alongside plan selection on the get-started form — the same list regardless of which plan
-          someone picks. A "required" add-on is pre-selected there and can't be unchecked.
+          someone picks. A "required" add-on is pre-selected there and can't be unchecked. The two Ringo Card bundle
+          rows are the exception: they're reached through their own "Ringo Card" entry point on get-started, not this
+          checklist — price, name, and feature bullets are still edited right here.
         </p>
       </div>
 
@@ -75,11 +81,18 @@ export default function AddonsManager({ addons }: { addons: any[] }) {
             }`}
           >
             <div className="flex items-center justify-between mb-3">
-              <input
-                value={addon.name}
-                onChange={(e) => updateField(addon.id, "name", e.target.value)}
-                className="text-sm font-medium text-ringo-text bg-transparent border-b border-transparent hover:border-ringo-border focus:border-ringo-indigo focus:outline-none px-0.5 py-0.5"
-              />
+              <div className="flex items-center gap-2 min-w-0">
+                <input
+                  value={addon.name}
+                  onChange={(e) => updateField(addon.id, "name", e.target.value)}
+                  className="text-sm font-medium text-ringo-text bg-transparent border-b border-transparent hover:border-ringo-border focus:border-ringo-indigo focus:outline-none px-0.5 py-0.5 min-w-0"
+                />
+                {addon.grants_plan_name && (
+                  <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full bg-ringo-indigo/10 text-ringo-indigo">
+                    Ringo Card bundle
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 {savedId === addon.id && (
                   <span className="flex items-center gap-1 text-xs text-ringo-teal">
@@ -114,6 +127,22 @@ export default function AddonsManager({ addons }: { addons: any[] }) {
                 />
               </label>
             </div>
+
+            {addon.grants_plan_name && (
+              <label className="flex flex-col gap-1 mb-3">
+                <span className="text-xs text-ringo-muted">
+                  Feature bullets shown on the get-started bundle card (one per line — card type, subscription duration, QR code, free
+                  configuration, etc.)
+                </span>
+                <textarea
+                  value={(addon.bundle_features || []).join("\n")}
+                  onChange={(e) => updateField(addon.id, "bundle_features", e.target.value.split("\n"))}
+                  rows={4}
+                  placeholder={"1 month Basic subscription included\nQR code on card\nFree card configuration"}
+                  className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text resize-none"
+                />
+              </label>
+            )}
 
             <div className="flex flex-wrap gap-4">
               <label className="flex items-center gap-2 text-sm text-ringo-text">

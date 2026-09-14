@@ -19,6 +19,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import StatCard from "@/components/analytics/StatCard";
 import AffiliateEarningsChart from "./AffiliateEarningsChart";
+import SalesFunnelLinkCard from "@/components/SalesFunnelLinkCard";
 import type { AffiliateOverview } from "@/lib/affiliate";
 import { AFFILIATE_CODE_MAX_LENGTH, isValidAffiliateCodeFormat, normalizeAffiliateCode } from "@/lib/affiliateCode";
 
@@ -38,14 +39,6 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
   const [copied, setCopied] = useState(false);
 
   const referralLink = `${siteUrl.replace(/\/$/, "")}/?ref=${overview.affiliateCode}`;
-  // Shareable "sales link" — same ?ref= attribution as referralLink
-  // above (reuses the existing referral capture mechanism unchanged),
-  // but opens directly on the Ringo Card + Subscription bundle choice
-  // screen (see GetStartedFlow.tsx's cardOrPlatform/bundlePicker steps)
-  // instead of the landing page. Meant to be pasted into a WhatsApp
-  // conversation by hand — not a WhatsApp bot or API integration.
-  const bundleLink = `${siteUrl.replace(/\/$/, "")}/get-started?intent=card_bundle&ref=${overview.affiliateCode}`;
-  const [bundleCopied, setBundleCopied] = useState(false);
   const ZERO_TOTALS = { pending: 0, available: 0, requested: 0, paid: 0 };
   const getTotals = (cur: string) => overview.totalsByCurrency[cur] ?? ZERO_TOTALS;
   // Always at least XAF/USD so the balance + "Request payout" card (and
@@ -107,29 +100,6 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
       }
     } else {
       copyLink();
-    }
-  };
-
-  const copyBundleLink = async () => {
-    try {
-      await navigator.clipboard.writeText(bundleLink);
-    } catch {
-      // Clipboard API can be unavailable — the link is still visible and
-      // selectable by hand.
-    }
-    setBundleCopied(true);
-    setTimeout(() => setBundleCopied(false), 2000);
-  };
-
-  const shareBundleLink = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ url: bundleLink, title: "Ringo Card + Subscription" });
-      } catch {
-        // User cancelled the share sheet — not an error.
-      }
-    } else {
-      copyBundleLink();
     }
   };
 
@@ -195,34 +165,7 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
         </div>
       </div>
 
-      {/* Card + Subscription sales link */}
-      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <p className="text-sm font-medium text-ringo-text mb-1">Get my sales link</p>
-        <p className="text-xs text-ringo-muted mb-3">
-          Opens straight on the Ringo Card + Subscription bundles, with your referral code already attached — paste it into a WhatsApp chat.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1 min-w-0 flex items-center rounded-card border border-ringo-border bg-ringo-bg px-3.5 py-2.5">
-            <p className="text-sm text-ringo-text truncate font-mono">{bundleLink}</p>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={copyBundleLink}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-card bg-ringo-indigo text-white text-sm font-medium hover:bg-ringo-indigo/90 transition-colors"
-            >
-              {bundleCopied ? <Check size={15} /> : <Copy size={15} />}
-              {bundleCopied ? t.affiliate.copied : t.affiliate.copy}
-            </button>
-            <button
-              onClick={shareBundleLink}
-              aria-label="Share"
-              className="flex items-center justify-center w-10 h-10 shrink-0 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors"
-            >
-              <Share2 size={15} />
-            </button>
-          </div>
-        </div>
-      </div>
+      <SalesFunnelLinkCard siteUrl={siteUrl} affiliateCode={overview.affiliateCode} />
 
       {/* Top stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">

@@ -37,12 +37,22 @@ export default async function Home() {
     dashboardHref = userRow?.role === "admin" ? "/admin" : "/dashboard";
   }
 
-  const [branding, plansResult] = await Promise.all([
+  const [branding, plansResult, bundleAddonsResult] = await Promise.all([
     getBrandingSettings(),
     // Public, unauthenticated read — same "plans are publicly readable" RLS
     // every pricing-facing page already relies on (see /get-started's own
     // fetch). All 5 plans, in existing-convention price order.
     supabase.from("plans").select("*").order("price_usd", { ascending: true }),
+    // The two Ringo Card bundles (A5 of the entry-point restructure) —
+    // same public read as /get-started's own addon fetch, filtered to
+    // just the bundle rows since this section never shows the generic
+    // addon checklist.
+    supabase
+      .from("addons")
+      .select("id, name, price_xaf, price_usd, grants_plan_duration_days, bundle_features")
+      .eq("active", true)
+      .not("grants_plan_name", "is", null)
+      .order("sort_order", { ascending: true }),
   ]);
   const { country } = extractRequestContext(headers());
 
@@ -53,6 +63,7 @@ export default async function Home() {
       appName={branding.appName}
       logoUrl={branding.logoUrl}
       plans={plansResult.data || []}
+      bundleAddons={bundleAddonsResult.data || []}
       isCameroon={country === "CM"}
     />
   );

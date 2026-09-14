@@ -67,6 +67,7 @@ export default function LandingView({
   appName,
   logoUrl,
   plans,
+  bundleAddons,
   isCameroon,
 }: {
   isLoggedIn: boolean;
@@ -79,6 +80,10 @@ export default function LandingView({
   // #pricing section — fetched server-side in src/app/page.tsx, same
   // reason appName/logoUrl are props instead of a client-side fetch.
   plans: any[];
+  // The two Ringo Card bundle addon rows, for #pricing's third "Ringo
+  // Card" track (A5 of the entry-point restructure) — see
+  // PricingSection.tsx.
+  bundleAddons: any[];
   isCameroon: boolean;
 }) {
   const { t } = useLanguage();
@@ -361,7 +366,7 @@ export default function LandingView({
           <p className="text-ringo-muted max-w-md mx-auto">{t.landing.pricingSubtitle}</p>
         </Reveal>
         <Reveal delay={0.1}>
-          <PricingSection plans={plans} isCameroon={isCameroon} />
+          <PricingSection plans={plans} bundleAddons={bundleAddons} isCameroon={isCameroon} />
         </Reveal>
       </section>
 

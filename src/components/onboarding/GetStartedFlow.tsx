@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Check, ArrowLeft, Loader2, X, User, Building2 } from "lucide-react";
+import { Check, ArrowLeft, Loader2, X, User, Building2, Nfc } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getReferralCode } from "@/lib/referral";
 import LanguageToggle from "@/components/LanguageToggle";
@@ -14,7 +14,7 @@ import SocialIcon from "@/components/SocialIcon";
 import CategoryPicker from "@/components/CategoryPicker";
 import { getCategory, type CategoryId } from "@/lib/categories";
 
-type Step = "cardOrPlatform" | "bundlePicker" | "accountType" | "category" | "plan" | "info" | "payChoice" | "paying" | "success";
+type Step = "cardQuestion" | "bundlePicker" | "accountType" | "category" | "plan" | "info" | "payChoice" | "paying" | "success";
 type AccountType = "personal" | "enterprise";
 type LinkItem = { title: string; url: string };
 type ProductItem = { name: string; price: string; image_url: string };
@@ -54,14 +54,22 @@ export default function GetStartedFlow({
   // can still change their mind (pick a different plan, or a different
   // track) before continuing, per the task this was built from.
   preselectedPlan?: any | null;
-  // Set from ?intent=card_bundle (see get-started/page.tsx) — the
-  // shareable "sales link" affiliates/creators generate from their
-  // dashboard (see AffiliateView.tsx's "Get my sales link"). Opens
-  // straight on the cardOrPlatform choice screen instead of accountType,
-  // skipping the earlier steps entirely. Only meaningful on the standard
-  // variant, and only when no specific plan already arrived preselected
-  // (that case already has a clearer, more specific starting point).
-  initialIntent?: "card_bundle";
+  // "sales_funnel": set from ?intent=sales_funnel (see get-started/
+  // page.tsx) — the shareable "sales link" affiliates/creators generate
+  // from their dashboard (see SalesFunnelLinkCard.tsx). Opens straight on
+  // the cardQuestion step (a genuine "do you want a physical card?"
+  // Yes/No question) instead of accountType, skipping the earlier steps
+  // entirely. Renamed from the old "card_bundle" value, which forced a
+  // two-choice screen rather than asking — see the entry-point
+  // restructure this was built from.
+  // "card_direct": set from ?card=1 (the landing page's #pricing "Ringo
+  // Card" track, PricingSection.tsx) — skips straight to bundlePicker,
+  // no question asked, same reasoning preselectedPlan skips straight to
+  // "plan" instead of asking Personal/Business again.
+  // Only meaningful on the standard variant, and only when no specific
+  // plan already arrived preselected (that case already has a clearer,
+  // more specific starting point).
+  initialIntent?: "sales_funnel" | "card_direct";
 }) {
   const { t, locale } = useLanguage();
   // Personal vs Enterprise — the very first choice on the standard flow
@@ -75,7 +83,8 @@ export default function GetStartedFlow({
   const [step, setStep] = useState<Step>(() => {
     if (variant !== "standard") return "category";
     if (preselectedPlan) return "plan";
-    if (initialIntent === "card_bundle") return "cardOrPlatform";
+    if (initialIntent === "sales_funnel") return "cardQuestion";
+    if (initialIntent === "card_direct") return "bundlePicker";
     return "accountType";
   });
   const [accountType, setAccountType] = useState<AccountType | null>(() =>
@@ -165,18 +174,46 @@ export default function GetStartedFlow({
     setStep(variant === "standard" ? "category" : "info");
   };
 
-  // The two Card + Subscription bundle rows — active addons that grant a
-  // plan (see 2026-10-07_card_subscription_bundles.sql). Reuses the same
-  // `addons` list the info step's own addon checkboxes already draw from,
-  // rather than a separate fetch.
+  // The two Ringo Card bundle rows — active addons that grant a plan (see
+  // 2026-10-07_card_subscription_bundles.sql). Reuses the same `addons`
+  // list the info step's own addon checkboxes draw from, rather than a
+  // separate fetch — but excluded from that checklist itself below (see
+  // checklistAddons): "Ringo Card" is now its own top-level entry point,
+  // not one more independently-checkable box among unrelated addons
+  // (which is also what let both bundles be picked at once before this
+  // restructure — no longer possible now that this is the only way in).
   const bundleAddons = addons.filter((a) => a.grants_plan_duration_days);
+  // Scoped to the standard variant only, per the task's own wording
+  // ("the generic addon checklist shown during normal Personal/Business
+  // signup") — the affiliate variant (/get-started-affiliate) curates its
+  // own addon list independently (show_on_affiliate_page) and never
+  // visits accountType/cardQuestion/bundlePicker at all, so filtering
+  // bundles out of ITS checklist too would remove the only way an
+  // affiliate-page visitor could buy one, with no replacement entry point
+  // offered there. Flagged in the summary rather than decided here.
+  const checklistAddons = variant === "standard" ? addons.filter((a) => !a.grants_plan_duration_days) : addons;
 
-  // Entry choice for someone arriving via a ?intent=card_bundle sales
-  // link (see cardOrPlatform step below). "bundle" shows the two bundle
-  // cards; "platform" drops them into the normal flow at its usual first
-  // step, exactly as if they'd landed on plain /get-started.
-  const chooseIntent = (intent: "bundle" | "platform") => {
-    setStep(intent === "bundle" ? "bundlePicker" : "accountType");
+  // A1 (organic entry): the third top-level choice on the accountType
+  // step below, alongside Personal/Business — a bundle grants Basic
+  // directly, so this skips the "plan" step entirely, same as it already
+  // did before this restructure.
+  const chooseCardBundle = () => setStep("bundlePicker");
+
+  // Task B (sales-funnel link only): the very first thing asked there —
+  // "Do you want a Ringo physical card?" Yes routes to the exact same
+  // bundlePicker destination as chooseCardBundle above; No drops into the
+  // normal accountType step exactly as if this were a plain organic
+  // visit (still shows all three choices there, Ringo Card included —
+  // nothing is hidden or forced for a "No" answer).
+  const answerCardQuestion = (wantsCard: boolean) => {
+    if (!wantsCard) {
+      // Covers cardQuestion -> Yes -> bundlePicker -> pick a bundle ->
+      // back -> back -> No — a real, reachable path where a bundle was
+      // already added to selectedAddonIds before backing all the way out
+      // to answer "No" instead. Same reset chooseAccountType does.
+      setSelectedAddonIds((prev) => prev.filter((id) => addons.find((a) => a.id === id)?.required));
+    }
+    setStep(wantsCard ? "bundlePicker" : "accountType");
   };
 
   // Selecting a bundle behaves like picking an addon, not a plan — the
@@ -184,8 +221,9 @@ export default function GetStartedFlow({
   // /api/admin/requests/[id]/approve already handles, not through
   // selectedPlan/the "plan" step. Keeps any already-selected required
   // addon, replaces any previously chosen bundle (only one makes sense at
-  // a time), then continues into category -> info like the rest of the
-  // standard flow.
+  // a time — there is no other entry point left that could select a
+  // second one), then continues into category -> info like the rest of
+  // the standard flow.
   const chooseBundle = (addon: any) => {
     setSelectedAddonIds((prev) => [...prev.filter((id) => addons.find((a) => a.id === id)?.required), addon.id]);
     setStep("category");
@@ -205,6 +243,14 @@ export default function GetStartedFlow({
   const chooseAccountType = (type: AccountType) => {
     setAccountType(type);
     setSelectedPlan(null);
+    // Clears any bundle picked via the "Ringo Card" choice before backing
+    // out to here (accountType -> bundlePicker -> pick -> back -> back ->
+    // Personal/Business is a real, reachable path) — choosing Personal or
+    // Business is a genuine change of track, not a deeper step inside the
+    // Ringo Card flow, so nothing bundle-related should silently carry
+    // into a plan-based signup. Required addons are kept, same as
+    // chooseBundle's own reset.
+    setSelectedAddonIds((prev) => prev.filter((id) => addons.find((a) => a.id === id)?.required));
     setStep("plan");
   };
 
@@ -232,9 +278,24 @@ export default function GetStartedFlow({
 
   const toggleAddon = (addon: any) => {
     if (addon.required) return; // can't be unchecked
-    setSelectedAddonIds((prev) =>
-      prev.includes(addon.id) ? prev.filter((id) => id !== addon.id) : [...prev, addon.id]
-    );
+    setSelectedAddonIds((prev) => {
+      if (prev.includes(addon.id)) return prev.filter((id) => id !== addon.id);
+      // Mutual exclusion between the two Ringo Card bundles — the same
+      // underlying "both bundles stackable" bug A2 fixed on the standard
+      // variant by removing them from this checklist entirely. The
+      // affiliate variant (/get-started-affiliate) keeps its own,
+      // independently-curated checklist (show_on_affiliate_page) and
+      // never visits accountType/cardQuestion at all, so a top-level
+      // "Ringo Card" entry point doesn't fit its deliberately simpler
+      // "every option in one list, payment mandatory" design — this
+      // constraint is the equivalent fix for that page specifically.
+      // No-op wherever bundles never reach this checklist in the first
+      // place (the standard variant, via checklistAddons).
+      const withoutOtherBundles = addon.grants_plan_duration_days
+        ? prev.filter((id) => !bundleAddons.some((b) => b.id === id))
+        : prev;
+      return [...withoutOtherBundles, addon.id];
+    });
   };
 
   const getPrice = (item: any) => (isCameroon ? Number(item.price_xaf) : Number(item.price_usd));
@@ -460,26 +521,32 @@ export default function GetStartedFlow({
       </div>
 
       <div className="w-full max-w-md">
-        {step === "cardOrPlatform" && (
+        {/* Sales-funnel arrivals only (?intent=sales_funnel) — a genuine
+            first question, not a hidden routing mechanism: framed exactly
+            like every other choice screen in this flow, not as a
+            disclaimer or a fine-print toggle. The organic flow never
+            shows this at all; it offers "Ringo Card" as a plain third
+            choice on the accountType step below instead. */}
+        {step === "cardQuestion" && (
           <>
-            <h1 className="font-display text-xl font-bold text-center mb-1">What would you like to get?</h1>
-            <p className="text-sm text-ringo-muted text-center mb-6">You can always add a Ringo Card later from your dashboard.</p>
+            <h1 className="font-display text-xl font-bold text-center mb-1">Do you want a Ringo physical card?</h1>
+            <p className="text-sm text-ringo-muted text-center mb-6">A physical NFC card that opens your Ringo profile with a tap — optional either way.</p>
 
             <div className="flex flex-col gap-3">
               <button
-                onClick={() => chooseIntent("bundle")}
+                onClick={() => answerCardQuestion(true)}
                 className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98]"
               >
-                <span className="block font-display text-base font-bold mb-1">Ringo Card + Platform subscription</span>
-                <span className="block text-sm text-ringo-muted">A physical Ringo Card plus Basic-tier access, bundled at one price.</span>
+                <span className="block font-display text-base font-bold mb-1">Yes, I want a Ringo Card</span>
+                <span className="block text-sm text-ringo-muted">See the two card + subscription bundle options.</span>
               </button>
 
               <button
-                onClick={() => chooseIntent("platform")}
+                onClick={() => answerCardQuestion(false)}
                 className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98]"
               >
-                <span className="block font-display text-base font-bold mb-1">Platform subscription only</span>
-                <span className="block text-sm text-ringo-muted">Pick a plan — Free, Basic, Pro, or Business — with no physical card.</span>
+                <span className="block font-display text-base font-bold mb-1">No, just the platform</span>
+                <span className="block text-sm text-ringo-muted">Continue to pick Personal or Business and a plan, no physical card.</span>
               </button>
             </div>
           </>
@@ -487,40 +554,58 @@ export default function GetStartedFlow({
 
         {step === "bundlePicker" && (
           <>
-            <button onClick={() => setStep("cardOrPlatform")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+            <button
+              onClick={() => setStep(initialIntent === "sales_funnel" ? "cardQuestion" : "accountType")}
+              className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4"
+            >
               <ArrowLeft size={15} />
               {t.getStarted.backButton}
             </button>
 
-            <h1 className="font-display text-xl font-bold text-center mb-1">Choose your bundle</h1>
-            <p className="text-sm text-ringo-muted text-center mb-6">1 Ringo Card plus Basic-tier access — never lowers an existing higher plan, only adds to it.</p>
+            <h1 className="font-display text-xl font-bold text-center mb-1">Choose your Ringo Card</h1>
+            <p className="text-sm text-ringo-muted text-center mb-6">Never lowers an existing higher plan — only adds to it.</p>
 
             <div className="flex flex-col gap-3">
-              {bundleAddons.map((bundle) => (
-                <button
-                  key={bundle.id}
-                  onClick={() => chooseBundle(bundle)}
-                  className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98]"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-display text-base font-bold">{bundle.name}</span>
-                    <span className="text-base font-bold text-ringo-indigo" suppressHydrationWarning>
-                      {formatPrice(getPrice(bundle), isCameroon ? "XAF" : "USD", locale)}
-                    </span>
-                  </div>
-                  <span className="block text-sm text-ringo-muted">
-                    1 Ringo Card + {bundle.grants_plan_duration_days >= 300 ? "1 year" : "1 month"} of Basic
-                  </span>
-                </button>
-              ))}
+              {bundleAddons.map((bundle) => {
+                // Admin-editable via /admin/addons (bundle_features) — a
+                // sensible fallback covers a bundle row saved before that
+                // field existed, or cleared blank by an admin.
+                const features: string[] =
+                  bundle.bundle_features && bundle.bundle_features.length > 0
+                    ? bundle.bundle_features
+                    : [`${bundle.grants_plan_duration_days >= 300 ? "1 year" : "1 month"} Basic subscription included`, "QR code on card", "Free card configuration"];
+
+                return (
+                  <button
+                    key={bundle.id}
+                    onClick={() => chooseBundle(bundle)}
+                    className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98]"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-display text-base font-bold">{bundle.name}</span>
+                      <span className="text-base font-bold text-ringo-indigo" suppressHydrationWarning>
+                        {formatPrice(getPrice(bundle), isCameroon ? "XAF" : "USD", locale)}
+                      </span>
+                    </div>
+                    <ul className="flex flex-col gap-1">
+                      {features.map((f) => (
+                        <li key={f} className="flex items-start gap-1.5 text-sm text-ringo-muted">
+                          <Check size={14} className="text-ringo-teal shrink-0 mt-0.5" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
 
         {step === "accountType" && (
           <>
-            {initialIntent === "card_bundle" && (
-              <button onClick={() => setStep("cardOrPlatform")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+            {initialIntent === "sales_funnel" && (
+              <button onClick={() => setStep("cardQuestion")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
                 <ArrowLeft size={15} />
                 {t.getStarted.backButton}
               </button>
@@ -554,6 +639,27 @@ export default function GetStartedFlow({
                   <span className="block text-sm text-ringo-muted">{t.getStarted.accountTypeEnterpriseDesc}</span>
                 </span>
               </button>
+
+              {/* A1: third top-level choice — a bundle grants Basic
+                  directly, so this skips straight to bundlePicker rather
+                  than going through chooseAccountType/the "plan" step
+                  Personal and Business both use. Only shown when there's
+                  actually something to sell here (bundleAddons empty
+                  would mean no active Ringo Card bundle rows at all). */}
+              {bundleAddons.length > 0 && (
+                <button
+                  onClick={chooseCardBundle}
+                  className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98] flex items-start gap-3.5"
+                >
+                  <span className="w-10 h-10 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
+                    <Nfc size={18} className="text-ringo-indigo" />
+                  </span>
+                  <span>
+                    <span className="block font-display text-base font-bold mb-1">{t.getStarted.accountTypeCardLabel}</span>
+                    <span className="block text-sm text-ringo-muted">{t.getStarted.accountTypeCardDesc}</span>
+                  </span>
+                </button>
+              )}
             </div>
           </>
         )}
@@ -883,14 +989,21 @@ export default function GetStartedFlow({
                 </button>
               </div>
 
-              {addons.length > 0 && (
+              {/* checklistAddons, not addons — the Ringo Card bundles are
+                  excluded from this generic list (A2 of the entry-point
+                  restructure): "Ringo Card" is now its own top-level
+                  entry point (accountType step / cardQuestion step),
+                  never an independently-checkable box here. This also
+                  removes any way to select both bundles at once, or a
+                  bundle alongside an unrelated free-plan signup. */}
+              {checklistAddons.length > 0 && (
                 <div className="border-t border-ringo-border pt-4 flex flex-col gap-3">
                   <div>
                     <p className="text-sm font-medium">{t.getStarted.addonsHeading}</p>
                     <p className="text-xs text-ringo-muted">{t.getStarted.addonsHint}</p>
                   </div>
 
-                  {addons.map((addon) => {
+                  {checklistAddons.map((addon) => {
                     const checked = selectedAddonIds.includes(addon.id);
                     return (
                       <label

@@ -15,12 +15,22 @@ export default async function GetStartedPage({
   // trusted as anything more than "which one to pre-highlight") and
   // handed to GetStartedFlow, which still lets them change their mind —
   // see that component's own comment on preselectedPlan.
-  // ?intent=card_bundle — set by the shareable "sales link" a creator
-  // generates from their dashboard (see AffiliateView.tsx's "Get my sales
-  // link"). Any ?ref=<code> alongside it needs no handling here at all —
+  // ?intent=sales_funnel — set by the shareable "sales link" a creator
+  // generates from their dashboard (see SalesFunnelLinkCard.tsx). Any
+  // ?ref=<code> alongside it needs no handling here at all —
   // ReferralCapture (mounted globally in the root layout) already reads
   // ?ref= from the URL on every page load, get-started included.
-  searchParams: { plan?: string; intent?: string };
+  // "card_bundle" (the old value, before the entry-point restructure that
+  // introduced the cardQuestion Yes/No step) is still accepted so any
+  // already-shared link keeps working — both map to the same behavior.
+  // ?card=1 — set by #pricing's "Ringo Card" track (see
+  // PricingSection.tsx, A5 of the entry-point restructure). Unlike
+  // ?intent=sales_funnel, this skips straight to the bundle picker with
+  // no Yes/No question first — the visitor already chose "Ringo Card" by
+  // switching to that pricing tab, same reasoning ?plan= already skips
+  // straight to a specific highlighted plan instead of asking Personal/
+  // Business again.
+  searchParams: { plan?: string; intent?: string; card?: string };
 }) {
   const supabase = createClient();
 
@@ -50,7 +60,13 @@ export default async function GetStartedPage({
       manualPaymentMtnNumber={settings.manualPaymentMtnNumber}
       manualPaymentOrangeNumber={settings.manualPaymentOrangeNumber}
       preselectedPlan={preselectedPlan}
-      initialIntent={searchParams.intent === "card_bundle" ? "card_bundle" : undefined}
+      initialIntent={
+        searchParams.card === "1"
+          ? "card_direct"
+          : searchParams.intent === "sales_funnel" || searchParams.intent === "card_bundle"
+          ? "sales_funnel"
+          : undefined
+      }
     />
   );
 }
