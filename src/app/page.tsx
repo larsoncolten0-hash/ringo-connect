@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import LandingView from "@/components/landing/LandingView";
 import { getBrandingSettings } from "@/lib/branding";
+import { extractRequestContext } from "@/lib/requestContext";
 
 // Reads the visiting user's own cookie-based session — must never be
 // served from a shared cache, or one visitor's logged-in state (and
@@ -35,7 +37,14 @@ export default async function Home() {
     dashboardHref = userRow?.role === "admin" ? "/admin" : "/dashboard";
   }
 
-  const branding = await getBrandingSettings();
+  const [branding, plansResult] = await Promise.all([
+    getBrandingSettings(),
+    // Public, unauthenticated read — same "plans are publicly readable" RLS
+    // every pricing-facing page already relies on (see /get-started's own
+    // fetch). All 5 plans, in existing-convention price order.
+    supabase.from("plans").select("*").order("price_usd", { ascending: true }),
+  ]);
+  const { country } = extractRequestContext(headers());
 
   return (
     <LandingView
@@ -43,6 +52,8 @@ export default async function Home() {
       dashboardHref={dashboardHref}
       appName={branding.appName}
       logoUrl={branding.logoUrl}
+      plans={plansResult.data || []}
+      isCameroon={country === "CM"}
     />
   );
 }

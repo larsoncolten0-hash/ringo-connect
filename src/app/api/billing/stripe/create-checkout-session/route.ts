@@ -11,11 +11,30 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const { planName, interval = "monthly" } = await request.json();
-  if (!["basic", "pro", "business"].includes(planName)) {
+  // "business" was renamed to "business_pro" (plus the new "business_basic"
+  // added alongside it) by the 2026-10-05 pricing restructure. Both are
+  // real, known plans now — business_basic is rejected explicitly below,
+  // not here, so it gets an honest "not available yet" instead of "Unknown
+  // plan".
+  if (!["basic", "pro", "business_basic", "business_pro"].includes(planName)) {
     return NextResponse.json({ error: "Unknown plan" }, { status: 400 });
   }
   if (interval !== "monthly" && interval !== "yearly") {
     return NextResponse.json({ error: "Invalid billing interval" }, { status: 400 });
+  }
+
+  // FOLLOW-UP (not done here): Business Basic has no Stripe price
+  // configured at all — platform_settings has stripe_price_business_*
+  // columns (now Business Pro's, post-rename) but nothing for Business
+  // Basic, and Stripe isn't in active use today (Fapshi is the only
+  // provider actually processing subscription payments right now). Wiring
+  // this needs a new platform_settings column plus admin UI in
+  // SettingsForm.tsx to set it — a separate task. Rejected explicitly here
+  // rather than falling through to priceIdByPlan below (which has no
+  // "business_basic" entry and would throw) or reusing Business Pro's
+  // price, which would charge the wrong amount.
+  if (planName === "business_basic") {
+    return NextResponse.json({ error: "This plan isn't available for card payment yet." }, { status: 400 });
   }
 
   const settings = await getPlatformSettings();
@@ -26,7 +45,7 @@ export async function POST(request: Request) {
   const priceIdByPlan: Record<string, { monthly: string | null; yearly: string | null }> = {
     basic: { monthly: settings.stripePriceBasic, yearly: settings.stripePriceBasicYearly },
     pro: { monthly: settings.stripePricePro, yearly: settings.stripePriceProYearly },
-    business: { monthly: settings.stripePriceBusiness, yearly: settings.stripePriceBusinessYearly },
+    business_pro: { monthly: settings.stripePriceBusiness, yearly: settings.stripePriceBusinessYearly },
   };
   const priceId = priceIdByPlan[planName][interval as "monthly" | "yearly"];
 

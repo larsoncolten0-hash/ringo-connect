@@ -39,6 +39,7 @@ import IndustryShowcase from "./IndustryShowcase";
 import EcosystemDiagram from "./EcosystemDiagram";
 import IndustriesGrid from "./IndustriesGrid";
 import RestaurantShowcase from "./RestaurantShowcase";
+import PricingSection from "./PricingSection";
 import JourneySteps from "./JourneySteps";
 import NfcQrSection from "./NfcQrSection";
 import AffiliateSection from "./AffiliateSection";
@@ -65,6 +66,8 @@ export default function LandingView({
   dashboardHref,
   appName,
   logoUrl,
+  plans,
+  isCameroon,
 }: {
   isLoggedIn: boolean;
   dashboardHref: string;
@@ -72,6 +75,11 @@ export default function LandingView({
   // comment on why this isn't hardcoded.
   appName: string;
   logoUrl: string;
+  // All 5 plans (free/basic/pro/business_basic/business_pro), for the
+  // #pricing section — fetched server-side in src/app/page.tsx, same
+  // reason appName/logoUrl are props instead of a client-side fetch.
+  plans: any[];
+  isCameroon: boolean;
 }) {
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -119,7 +127,7 @@ export default function LandingView({
     { label: t.landing.navIndustries, href: "#industries" },
     { label: t.landing.navRestaurant, href: "#restaurant" },
     { label: t.landing.navNfc, href: "#nfc" },
-    { label: t.landing.navPricing, href: "/get-started" },
+    { label: t.landing.navPricing, href: "#pricing" },
   ];
 
   return (
@@ -146,9 +154,9 @@ export default function LandingView({
             <a href="#nfc" className="text-sm text-ringo-muted hover:text-ringo-text transition-colors">
               {t.landing.navNfc}
             </a>
-            <Link href="/get-started" className="text-sm text-ringo-muted hover:text-ringo-text transition-colors">
+            <a href="#pricing" className="text-sm text-ringo-muted hover:text-ringo-text transition-colors">
               {t.landing.navPricing}
-            </Link>
+            </a>
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-1.5">
@@ -345,6 +353,18 @@ export default function LandingView({
         </div>
       </section>
 
+      {/* ============ PRICING ============ */}
+      <section id="pricing" className="relative max-w-6xl mx-auto px-5 py-24 sm:py-32 scroll-mt-16">
+        <Reveal className="text-center mb-14 flex flex-col items-center">
+          <Kicker color="#4F46E5">{t.landing.pricingEyebrow}</Kicker>
+          <h2 className="font-display text-3xl sm:text-4xl font-medium tracking-[-0.02em] max-w-lg mx-auto mb-4">{t.landing.pricingTitle}</h2>
+          <p className="text-ringo-muted max-w-md mx-auto">{t.landing.pricingSubtitle}</p>
+        </Reveal>
+        <Reveal delay={0.1}>
+          <PricingSection plans={plans} isCameroon={isCameroon} />
+        </Reveal>
+      </section>
+
       {/* ============ HOW IT WORKS / JOURNEY ============ */}
       <section id="journey" className="relative max-w-6xl mx-auto px-5 py-24 sm:py-32 scroll-mt-16">
         <Reveal className="text-center mb-16 flex flex-col items-center">
@@ -528,7 +548,7 @@ export default function LandingView({
             <h3 className="text-xs font-semibold uppercase tracking-wide text-ringo-muted mb-3">{t.landing.footerProductHeading}</h3>
             <div className="flex flex-col gap-2 text-sm">
               <a href="#features" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.navFeatures}</a>
-              <Link href="/get-started" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.navPricing}</Link>
+              <a href="#pricing" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.navPricing}</a>
               <a href="#nfc" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.navNfc}</a>
               <a href={affiliateWhatsappHref} target="_blank" rel="noopener noreferrer" className="text-ringo-muted hover:text-ringo-text transition-colors">{t.landing.footerAffiliate}</a>
             </div>

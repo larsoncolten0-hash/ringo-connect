@@ -25,7 +25,10 @@ export default function UpgradeModal({
   __previewStep,
   __previewReceipt,
 }: {
-  planName: "basic" | "pro" | "business";
+  // "business" was renamed to "business_pro" (plus the new
+  // "business_basic" added alongside it) by the 2026-10-05 pricing
+  // restructure — see that migration's own header.
+  planName: "basic" | "pro" | "business_basic" | "business_pro";
   priceXaf: number;
   priceUsd: number;
   priceXafYearly: number;

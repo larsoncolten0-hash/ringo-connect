@@ -30,6 +30,7 @@ export default function GetStartedFlow({
   manualPaymentMtnNumber,
   manualPaymentOrangeNumber,
   variant = "standard",
+  preselectedPlan = null,
 }: {
   plans: any[];
   addons: any[];
@@ -44,24 +45,32 @@ export default function GetStartedFlow({
   // shown and editable rather than only captured silently in the
   // background. Everything else about the flow is identical.
   variant?: "standard" | "affiliate";
+  // A specific plan row, resolved server-side from ?plan=<name> when
+  // someone arrives here by tapping a plan on the landing page's #pricing
+  // section (see get-started/page.tsx). Only meaningful on the standard
+  // variant. Jumps straight to the "plan" step with this plan already
+  // selected/highlighted — never skips that step's UI entirely, so they
+  // can still change their mind (pick a different plan, or a different
+  // track) before continuing, per the task this was built from.
+  preselectedPlan?: any | null;
 }) {
   const { t, locale } = useLanguage();
   // Personal vs Enterprise — the very first choice on the standard flow
-  // (see accountType step below). The affiliate variant skips it
-  // entirely and stays exactly as it always has: Enterprise-only, paid,
-  // no free path (accountType just stays null there, and every branch
-  // below that checks it treats null the same as "enterprise").
-  const [step, setStep] = useState<Step>(variant === "standard" ? "accountType" : "category");
-  const [accountType, setAccountType] = useState<AccountType | null>(null);
-  // Only Business shows right now (filtered server-side), so there's
-  // nothing to actually pick on the Enterprise path — auto-select it and
-  // start straight on the info step. The picker UI below stays intact
-  // rather than being ripped out, so re-enabling it later (if more plans
-  // come back) is just reverting these two lines. Personal explicitly
-  // clears this back to null when chosen (see chooseAccountType below) —
-  // it never carries a plan at all, so requested_plan_id ends up null,
-  // same as a free /auth/signup account.
-  const [selectedPlan, setSelectedPlan] = useState<any | null>(plans.length === 1 ? plans[0] : null);
+  // (see accountType step below), UNLESS a specific plan already arrived
+  // pre-selected, in which case that plan's own track decides it and we
+  // start straight on "plan" instead. The affiliate variant skips both of
+  // these entirely and stays exactly as it always has: every non-free
+  // plan offered at once, payment mandatory, no free path (accountType
+  // just stays null there, and trackPlans below falls back to the full
+  // list for that variant).
+  const [step, setStep] = useState<Step>(() => {
+    if (variant !== "standard") return "category";
+    return preselectedPlan ? "plan" : "accountType";
+  });
+  const [accountType, setAccountType] = useState<AccountType | null>(() =>
+    preselectedPlan ? (preselectedPlan.team_enabled ? "enterprise" : "personal") : null
+  );
+  const [selectedPlan, setSelectedPlan] = useState<any | null>(preselectedPlan);
   const [category, setCategory] = useState<CategoryId | null>(null);
   const [extraCategories, setExtraCategories] = useState<CategoryId[]>([]);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
@@ -128,27 +137,46 @@ export default function GetStartedFlow({
   const maxLinks: number | null = selectedPlan?.max_links ?? null;
   const maxProducts: number | null = selectedPlan?.max_products ?? null;
 
+  // The plans actually offered on the "plan" step — filtered to whichever
+  // track was chosen (Personal = !team_enabled, Business = team_enabled;
+  // Business has no free tier at all, confirmed by the pricing migration,
+  // so this filter alone is what keeps Free out of the Business list — no
+  // separate "is this the free plan" check needed). The affiliate variant
+  // never filters at all: every non-free plan is offered together, exactly
+  // as it always has been.
+  const trackPlans = variant === "standard" ? plans.filter((p) => Boolean(p.team_enabled) === (accountType === "enterprise")) : plans;
+
+  // Whether the currently selected plan is free — this, not accountType,
+  // is what actually decides whether payment collection applies below:
+  // Personal now offers Basic/Pro (paid) alongside Free, so "personal"
+  // can no longer stand in for "free" the way it did before this task.
+  const isFreeSelection = !selectedPlan || (Number(selectedPlan.price_usd) === 0 && Number(selectedPlan.price_xaf) === 0);
+
   const selectPlan = (plan: any) => {
     setSelectedPlan(plan);
-    setStep("info");
+    // Standard: plan -> category (the new order this task introduces).
+    // Affiliate: category already happened before plan, same as always —
+    // straight on to info.
+    setStep(variant === "standard" ? "category" : "info");
   };
 
-  // Personal never carries a plan at all (requested_plan_id ends up null
-  // — see createRequest below), so there's nothing to pick: straight to
-  // category. Enterprise restores the auto-selected business plan (in
-  // case someone picked Personal, went back, and changed their mind) and
-  // otherwise behaves exactly like this flow always has.
+  // Resets any previously selected plan — Personal and Business now both
+  // require an explicit plan pick on the very next step ("plan"), so there
+  // is nothing sensible to auto-select here (unlike before this task, when
+  // Enterprise had exactly one plan to auto-select and Personal had none
+  // to pick from at all).
   const chooseAccountType = (type: AccountType) => {
     setAccountType(type);
-    setSelectedPlan(type === "enterprise" && plans.length === 1 ? plans[0] : null);
-    setStep("category");
+    setSelectedPlan(null);
+    setStep("plan");
   };
 
-  // Where "category" continues to once category is picked/skipped —
-  // Personal always goes straight to "info" (no plan to choose); the
-  // Enterprise/affiliate path keeps the existing rule (skip the plan step
-  // only when there's exactly one plan to auto-select).
-  const afterCategoryStep: Step = accountType === "personal" || plans.length === 1 ? "info" : "plan";
+  // Where "category" continues to — standard already resolved a plan
+  // before ever reaching category (accountType -> plan -> category), so
+  // it goes straight to "info". Affiliate keeps its own original order
+  // (category -> plan -> info) untouched — this task only restructures
+  // the standard flow.
+  const afterCategoryStep: Step = variant === "standard" ? "info" : "plan";
 
   const addLink = () => setLinks((prev) => [...prev, { title: "", url: "" }]);
   const updateLink = (i: number, patch: Partial<LinkItem>) =>
@@ -252,11 +280,12 @@ export default function GetStartedFlow({
   };
 
   const handleInfoContinue = () => {
-    if (accountType === "personal") {
-      // Personal is always free — no plan/payment step regardless of
-      // allowPayNow, straight to submission (same request pipeline every
-      // other path uses; requested_plan_id is just null, exactly like a
-      // free /auth/signup account).
+    if (isFreeSelection) {
+      // No plan/payment step regardless of allowPayNow — straight to
+      // submission (same request pipeline every other path uses).
+      // Personal's Free plan is the common case, but this is keyed off
+      // the plan's actual price, not the track — Business has no free
+      // tier to reach this branch through at all.
       submitWithoutPaying();
     } else if (variant === "affiliate") {
       setError("");
@@ -424,7 +453,7 @@ export default function GetStartedFlow({
         {step === "category" && (
           <>
             {variant === "standard" && (
-              <button onClick={() => setStep("accountType")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+              <button onClick={() => setStep("plan")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
                 <ArrowLeft size={15} />
                 {t.getStarted.backButton}
               </button>
@@ -464,7 +493,10 @@ export default function GetStartedFlow({
 
         {step === "plan" && (
           <>
-            <button onClick={() => setStep("category")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+            <button
+              onClick={() => setStep(variant === "standard" ? "accountType" : "category")}
+              className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4"
+            >
               <ArrowLeft size={15} />
               {t.getStarted.backButton}
             </button>
@@ -472,7 +504,7 @@ export default function GetStartedFlow({
             <h1 className="font-display text-xl font-bold text-center mb-1">{t.getStarted.pickPlanTitle}</h1>
             <p className="text-sm text-ringo-muted text-center mb-6">{t.getStarted.pickPlanSubtitle}</p>
 
-            {plans.some((p) => p.price_usd > 0) && (
+            {trackPlans.some((p) => p.price_usd > 0) && (
               <div className="flex items-center justify-center gap-1 bg-ringo-muted/10 rounded-full p-1 mb-5 w-fit mx-auto">
                 {(["monthly", "yearly"] as const).map((iv) => (
                   <button
@@ -489,7 +521,7 @@ export default function GetStartedFlow({
             )}
 
             <div className="flex flex-col gap-3">
-              {plans.map((plan) => {
+              {trackPlans.map((plan) => {
                 const features: string[] = (locale === "fr" ? plan.features_fr : plan.features_en) || [];
                 const rawPrice = isCameroon
                   ? billingInterval === "yearly"
@@ -499,12 +531,15 @@ export default function GetStartedFlow({
                   ? plan.price_usd_yearly
                   : plan.price_usd;
                 const displayPrice = formatPrice(rawPrice, isCameroon ? "XAF" : "USD", locale);
+                const isSelected = selectedPlan?.id === plan.id;
 
                 return (
                   <button
                     key={plan.id}
                     onClick={() => selectPlan(plan)}
-                    className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98]"
+                    className={`text-left rounded-card border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98] ${
+                      isSelected ? "border-ringo-indigo ring-2 ring-ringo-indigo/20" : "border-ringo-border"
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-display text-lg font-bold">{plan.display_name || plan.name}</p>
@@ -512,6 +547,9 @@ export default function GetStartedFlow({
                         {displayPrice}
                       </p>
                     </div>
+                    {plan.max_team_seats != null && (
+                      <p className="text-xs font-medium text-ringo-indigo mb-2">{t.getStarted.seatsCount(plan.max_team_seats)}</p>
+                    )}
                     <ul className="flex flex-col gap-1 mb-4">
                       {features.slice(0, 3).map((f) => (
                         <li key={f} className="flex items-start gap-1.5 text-sm text-ringo-muted">
@@ -520,8 +558,12 @@ export default function GetStartedFlow({
                         </li>
                       ))}
                     </ul>
-                    <span className="block text-center text-sm font-medium py-2.5 rounded-card bg-ringo-indigo text-white">
-                      {t.getStarted.selectButton}
+                    <span
+                      className={`block text-center text-sm font-medium py-2.5 rounded-card ${
+                        isSelected ? "bg-ringo-indigo text-white" : "border border-ringo-border text-ringo-text"
+                      }`}
+                    >
+                      {isSelected ? t.getStarted.selectedLabel : t.getStarted.selectButton}
                     </span>
                   </button>
                 );
@@ -533,7 +575,7 @@ export default function GetStartedFlow({
         {step === "info" && (
           <>
             <button
-              onClick={() => setStep(accountType === "personal" || plans.length === 1 ? "category" : "plan")}
+              onClick={() => setStep(variant === "standard" ? "category" : "plan")}
               className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4"
             >
               <ArrowLeft size={15} />
@@ -833,7 +875,7 @@ export default function GetStartedFlow({
                 {submitting && <Loader2 size={15} className="animate-spin" />}
                 {submitting
                   ? t.getStarted.submitting
-                  : accountType !== "personal" && (variant === "affiliate" || allowPayNow)
+                  : !isFreeSelection && (variant === "affiliate" || allowPayNow)
                   ? t.getStarted.continueButton
                   : t.getStarted.submitButton}
               </button>
@@ -979,18 +1021,17 @@ export default function GetStartedFlow({
               <Check size={28} className="text-ringo-teal" />
             </span>
             <h1 className="font-display text-xl font-bold">{t.getStarted.successTitle}</h1>
-            <p className={`text-sm text-ringo-muted ${paidOnline || accountType === "personal" ? "max-w-xs" : "max-w-sm"}`}>
-              {paidOnline || accountType === "personal"
+            <p className={`text-sm text-ringo-muted ${paidOnline || isFreeSelection ? "max-w-xs" : "max-w-sm"}`}>
+              {paidOnline || isFreeSelection
                 ? t.getStarted.successBody
                 : t.getStarted.successBodyManualPayment(manualPaymentMtnNumber, manualPaymentOrangeNumber, manualPaymentName)}
             </p>
 
             {/* Receipt: plan + any add-ons + total, so the customer walks
                 away with a clear record of what they're being charged for,
-                not just a "thanks" message. Only shown when a plan was
-                actually selected (skipped on plans.length===1 flows that
-                never touched the plan step... but selectedPlan is always
-                set there too, so this effectively always renders). */}
+                not just a "thanks" message. Every path now goes through the
+                "plan" step (standard: accountType -> plan; affiliate:
+                category -> plan), so selectedPlan is always set by here. */}
             {selectedPlan && (
               <div className="w-full rounded-card border border-ringo-border bg-ringo-surface p-4 text-left">
                 <div className="flex items-center justify-between mb-3">

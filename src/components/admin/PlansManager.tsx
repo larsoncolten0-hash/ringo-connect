@@ -35,6 +35,10 @@ export default function PlansManager({ plans }: { plans: any[] }) {
         full_analytics_enabled: plan.full_analytics_enabled,
         badge_removed: plan.badge_removed,
         team_enabled: plan.team_enabled,
+        max_team_seats: toNullableNumber(plan.max_team_seats),
+        commission_rate_override: toNullableNumber(plan.commission_rate_override),
+        commerce_enabled: plan.commerce_enabled,
+        bookings_feature_enabled: plan.bookings_feature_enabled,
         price_usd: Number(plan.price_usd),
         price_xaf: Number(plan.price_xaf),
         price_usd_yearly: Number(plan.price_usd_yearly),
@@ -64,9 +68,9 @@ export default function PlansManager({ plans }: { plans: any[] }) {
         <p className="text-sm text-ringo-muted mt-1">
           Editing here changes what every creator on this plan sees immediately — including price display. The
           name shown here is editable and purely cosmetic; the code in parentheses (
-          <code className="text-xs">free</code>/<code className="text-xs">pro</code>/
-          <code className="text-xs">business</code>) is the internal identifier checkout, renewals, and
-          translations rely on, and can't be changed here. Note: for Stripe subscribers, changing{" "}
+          <code className="text-xs">free</code>/<code className="text-xs">basic</code>/<code className="text-xs">pro</code>/
+          <code className="text-xs">business_basic</code>/<code className="text-xs">business_pro</code>) is the internal
+          identifier checkout, renewals, and translations rely on, and can't be changed here. Note: for Stripe subscribers, changing{" "}
           <code className="text-xs">price_usd</code>/<code className="text-xs">price_usd_yearly</code> here only
           updates the displayed price; the actual amount charged is set by the Stripe Price objects themselves
           (both monthly and yearly Price IDs, in Settings).
@@ -161,6 +165,31 @@ export default function PlansManager({ plans }: { plans: any[] }) {
               </label>
             </div>
 
+            <p className="text-xs text-ringo-muted mb-1.5">Team seats &amp; internal settings</p>
+            <div className="grid sm:grid-cols-2 gap-3 mb-4">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-ringo-muted">Max team seats (blank = no Team Management)</span>
+                <input
+                  value={plan.max_team_seats ?? ""}
+                  onChange={(e) => updateField(plan.id, "max_team_seats", e.target.value)}
+                  placeholder="e.g. 3"
+                  className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-amber-600 dark:text-amber-500 font-medium">
+                  Commission rate override — internal only, never shown to customers
+                </span>
+                <input
+                  value={plan.commission_rate_override ?? ""}
+                  onChange={(e) => updateField(plan.id, "commission_rate_override", e.target.value)}
+                  placeholder="blank = use the global rate"
+                  className="border border-ringo-border rounded-card px-2.5 py-1.5 text-sm bg-ringo-bg text-ringo-text"
+                />
+                <span className="text-[11px] text-ringo-muted">Fraction, e.g. 0.08 = 8%. Applies to music/ticket sales — see Price Controls for the global default.</span>
+              </label>
+            </div>
+
             <p className="text-xs text-ringo-muted mb-1.5">
               Feature list shown on the creator subscription page — one per line, in each language.
             </p>
@@ -192,6 +221,8 @@ export default function PlansManager({ plans }: { plans: any[] }) {
                 { key: "full_analytics_enabled", label: "Full analytics" },
                 { key: "badge_removed", label: "Remove badge" },
                 { key: "team_enabled", label: "Team Management (Enterprise)" },
+                { key: "commerce_enabled", label: "Real ordering & checkout (restaurant/music/tickets)" },
+                { key: "bookings_feature_enabled", label: "Bookings" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 text-sm text-ringo-text">
                   <input

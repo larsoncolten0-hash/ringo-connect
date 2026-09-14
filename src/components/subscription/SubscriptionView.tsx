@@ -8,7 +8,12 @@ import { formatPrice } from "@/lib/currency";
 import { isPaidPlan } from "@/lib/pricing";
 import UpgradeModal from "./UpgradeModal";
 
-const ORDER = ["free", "basic", "pro", "business"];
+// "business" was renamed to "business_pro" (plus the new "business_basic"
+// row added alongside it) by the 2026-10-05 pricing restructure — see that
+// migration's own header. Order matches real price ascending (confirmed
+// against the live plans table: 0/2/3/4/5 USD), which is also the correct
+// upgrade/downgrade ranking this array is used for below.
+const ORDER = ["free", "basic", "pro", "business_basic", "business_pro"];
 
 export default function SubscriptionView({
   plans,
