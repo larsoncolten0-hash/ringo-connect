@@ -141,6 +141,19 @@ export const translations = {
       unsubscribeFromEverything: "Unsubscribe from everything",
     },
     getStarted: {
+      // The very first screen of the standard /get-started flow (never
+      // shown on the affiliate variant, which is Enterprise-only by
+      // design — see GetStartedFlow.tsx's own comment). Picking Enterprise
+      // here is what actually makes the rest of this form behave like it
+      // always has (plan/payment steps, business plan); Personal skips
+      // straight to a free submission with no plan attached at all — see
+      // getRequested_plan_id in GetStartedFlow.tsx.
+      accountTypeTitle: "How will you use Ringo?",
+      accountTypeSubtitle: "You can always upgrade later.",
+      accountTypePersonalLabel: "Personal",
+      accountTypePersonalDesc: "Just for me — free to start, one page for my own links, products, and WhatsApp.",
+      accountTypeEnterpriseLabel: "Enterprise",
+      accountTypeEnterpriseDesc: "For a business with a team — invite staff, assign roles and permissions, and manage it all from one workspace.",
       categoryTitle: "What's your page for?",
       categorySubtitle: "Pick what best describes you — this personalizes your page's defaults. You can change it any time, and add more later.",
       categoryMorePrompt: "+ Add more categories (optional)",
@@ -1772,6 +1785,12 @@ export const translations = {
       unsubscribeFromEverything: "Se désabonner de tout",
     },
     getStarted: {
+      accountTypeTitle: "Comment allez-vous utiliser Ringo ?",
+      accountTypeSubtitle: "Vous pourrez toujours passer à une offre supérieure plus tard.",
+      accountTypePersonalLabel: "Personnel",
+      accountTypePersonalDesc: "Juste pour moi — gratuit pour commencer, une page pour mes propres liens, produits et WhatsApp.",
+      accountTypeEnterpriseLabel: "Entreprise",
+      accountTypeEnterpriseDesc: "Pour une entreprise avec une équipe — invitez du personnel, attribuez des rôles et permissions, et gérez tout depuis un seul espace de travail.",
       categoryTitle: "C'est pour quel genre d'activité ?",
       categorySubtitle: "Choisissez ce qui vous correspond le mieux — cela personnalise les réglages par défaut de votre page. Vous pourrez changer d'avis à tout moment, et en ajouter d'autres plus tard.",
       categoryMorePrompt: "+ Ajouter d'autres catégories (optionnel)",

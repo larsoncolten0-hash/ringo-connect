@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Check, ArrowLeft, Loader2, X } from "lucide-react";
+import { Check, ArrowLeft, Loader2, X, User, Building2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getReferralCode } from "@/lib/referral";
 import LanguageToggle from "@/components/LanguageToggle";
@@ -14,7 +14,8 @@ import SocialIcon from "@/components/SocialIcon";
 import CategoryPicker from "@/components/CategoryPicker";
 import { getCategory, type CategoryId } from "@/lib/categories";
 
-type Step = "category" | "plan" | "info" | "payChoice" | "paying" | "success";
+type Step = "accountType" | "category" | "plan" | "info" | "payChoice" | "paying" | "success";
+type AccountType = "personal" | "enterprise";
 type LinkItem = { title: string; url: string };
 type ProductItem = { name: string; price: string; image_url: string };
 type SocialItem = { platform: string; url: string };
@@ -45,15 +46,24 @@ export default function GetStartedFlow({
   variant?: "standard" | "affiliate";
 }) {
   const { t, locale } = useLanguage();
+  // Personal vs Enterprise — the very first choice on the standard flow
+  // (see accountType step below). The affiliate variant skips it
+  // entirely and stays exactly as it always has: Enterprise-only, paid,
+  // no free path (accountType just stays null there, and every branch
+  // below that checks it treats null the same as "enterprise").
+  const [step, setStep] = useState<Step>(variant === "standard" ? "accountType" : "category");
+  const [accountType, setAccountType] = useState<AccountType | null>(null);
   // Only Business shows right now (filtered server-side), so there's
-  // nothing to actually pick — auto-select it and start straight on the
-  // info step. The picker UI below stays intact rather than being
-  // ripped out, so re-enabling it later (if more plans come back) is
-  // just reverting these two lines.
-  const [step, setStep] = useState<Step>("category");
+  // nothing to actually pick on the Enterprise path — auto-select it and
+  // start straight on the info step. The picker UI below stays intact
+  // rather than being ripped out, so re-enabling it later (if more plans
+  // come back) is just reverting these two lines. Personal explicitly
+  // clears this back to null when chosen (see chooseAccountType below) —
+  // it never carries a plan at all, so requested_plan_id ends up null,
+  // same as a free /auth/signup account.
+  const [selectedPlan, setSelectedPlan] = useState<any | null>(plans.length === 1 ? plans[0] : null);
   const [category, setCategory] = useState<CategoryId | null>(null);
   const [extraCategories, setExtraCategories] = useState<CategoryId[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<any | null>(plans.length === 1 ? plans[0] : null);
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(() =>
     addons.filter((a) => a.required).map((a) => a.id)
@@ -122,6 +132,23 @@ export default function GetStartedFlow({
     setSelectedPlan(plan);
     setStep("info");
   };
+
+  // Personal never carries a plan at all (requested_plan_id ends up null
+  // — see createRequest below), so there's nothing to pick: straight to
+  // category. Enterprise restores the auto-selected business plan (in
+  // case someone picked Personal, went back, and changed their mind) and
+  // otherwise behaves exactly like this flow always has.
+  const chooseAccountType = (type: AccountType) => {
+    setAccountType(type);
+    setSelectedPlan(type === "enterprise" && plans.length === 1 ? plans[0] : null);
+    setStep("category");
+  };
+
+  // Where "category" continues to once category is picked/skipped —
+  // Personal always goes straight to "info" (no plan to choose); the
+  // Enterprise/affiliate path keeps the existing rule (skip the plan step
+  // only when there's exactly one plan to auto-select).
+  const afterCategoryStep: Step = accountType === "personal" || plans.length === 1 ? "info" : "plan";
 
   const addLink = () => setLinks((prev) => [...prev, { title: "", url: "" }]);
   const updateLink = (i: number, patch: Partial<LinkItem>) =>
@@ -225,7 +252,13 @@ export default function GetStartedFlow({
   };
 
   const handleInfoContinue = () => {
-    if (variant === "affiliate") {
+    if (accountType === "personal") {
+      // Personal is always free — no plan/payment step regardless of
+      // allowPayNow, straight to submission (same request pipeline every
+      // other path uses; requested_plan_id is just null, exactly like a
+      // free /auth/signup account).
+      submitWithoutPaying();
+    } else if (variant === "affiliate") {
       setError("");
       if (!fullName.trim() || !whatsapp.trim()) {
         setError(t.getStarted.requiredError);
@@ -353,8 +386,50 @@ export default function GetStartedFlow({
       </div>
 
       <div className="w-full max-w-md">
+        {step === "accountType" && (
+          <>
+            <h1 className="font-display text-xl font-bold text-center mb-1">{t.getStarted.accountTypeTitle}</h1>
+            <p className="text-sm text-ringo-muted text-center mb-6">{t.getStarted.accountTypeSubtitle}</p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => chooseAccountType("personal")}
+                className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98] flex items-start gap-3.5"
+              >
+                <span className="w-10 h-10 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
+                  <User size={18} className="text-ringo-indigo" />
+                </span>
+                <span>
+                  <span className="block font-display text-base font-bold mb-1">{t.getStarted.accountTypePersonalLabel}</span>
+                  <span className="block text-sm text-ringo-muted">{t.getStarted.accountTypePersonalDesc}</span>
+                </span>
+              </button>
+
+              <button
+                onClick={() => chooseAccountType("enterprise")}
+                className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98] flex items-start gap-3.5"
+              >
+                <span className="w-10 h-10 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
+                  <Building2 size={18} className="text-ringo-indigo" />
+                </span>
+                <span>
+                  <span className="block font-display text-base font-bold mb-1">{t.getStarted.accountTypeEnterpriseLabel}</span>
+                  <span className="block text-sm text-ringo-muted">{t.getStarted.accountTypeEnterpriseDesc}</span>
+                </span>
+              </button>
+            </div>
+          </>
+        )}
+
         {step === "category" && (
           <>
+            {variant === "standard" && (
+              <button onClick={() => setStep("accountType")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+                <ArrowLeft size={15} />
+                {t.getStarted.backButton}
+              </button>
+            )}
+
             <h1 className="font-display text-xl font-bold text-center mb-1">{t.getStarted.categoryTitle}</h1>
             <p className="text-sm text-ringo-muted text-center mb-6">{t.getStarted.categorySubtitle}</p>
 
@@ -371,14 +446,14 @@ export default function GetStartedFlow({
 
             <div className="flex flex-col gap-3 mt-6">
               <button
-                onClick={() => setStep(plans.length === 1 ? "info" : "plan")}
+                onClick={() => setStep(afterCategoryStep)}
                 disabled={!category}
                 className="py-3 rounded-card bg-ringo-indigo text-white text-sm font-medium disabled:opacity-40"
               >
                 {t.getStarted.continueButton}
               </button>
               <button
-                onClick={() => setStep(plans.length === 1 ? "info" : "plan")}
+                onClick={() => setStep(afterCategoryStep)}
                 className="text-sm text-ringo-muted hover:text-ringo-text transition-colors"
               >
                 {t.getStarted.categorySkip}
@@ -457,7 +532,10 @@ export default function GetStartedFlow({
 
         {step === "info" && (
           <>
-            <button onClick={() => setStep("plan")} className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+            <button
+              onClick={() => setStep(accountType === "personal" || plans.length === 1 ? "category" : "plan")}
+              className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4"
+            >
               <ArrowLeft size={15} />
               {t.getStarted.backButton}
             </button>
@@ -755,7 +833,7 @@ export default function GetStartedFlow({
                 {submitting && <Loader2 size={15} className="animate-spin" />}
                 {submitting
                   ? t.getStarted.submitting
-                  : variant === "affiliate" || allowPayNow
+                  : accountType !== "personal" && (variant === "affiliate" || allowPayNow)
                   ? t.getStarted.continueButton
                   : t.getStarted.submitButton}
               </button>
@@ -901,8 +979,8 @@ export default function GetStartedFlow({
               <Check size={28} className="text-ringo-teal" />
             </span>
             <h1 className="font-display text-xl font-bold">{t.getStarted.successTitle}</h1>
-            <p className={`text-sm text-ringo-muted ${paidOnline ? "max-w-xs" : "max-w-sm"}`}>
-              {paidOnline
+            <p className={`text-sm text-ringo-muted ${paidOnline || accountType === "personal" ? "max-w-xs" : "max-w-sm"}`}>
+              {paidOnline || accountType === "personal"
                 ? t.getStarted.successBody
                 : t.getStarted.successBodyManualPayment(manualPaymentMtnNumber, manualPaymentOrangeNumber, manualPaymentName)}
             </p>
