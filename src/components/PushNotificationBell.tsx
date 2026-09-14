@@ -23,13 +23,22 @@ export default function PushNotificationBell({ variant = "default" }: { variant?
 
   if (status === "unsupported") return null;
 
-  const label = status === "on" ? t.pushNotifications.enabled : t.pushNotifications.enable;
+  // Once the browser's Notification permission is "denied", clicking
+  // would silently do nothing (requestPermission() never re-prompts) —
+  // disable the button and explain why via the tooltip instead of
+  // leaving it looking clickable.
+  const label =
+    status === "denied"
+      ? t.pushNotifications.permissionDenied
+      : status === "on"
+        ? t.pushNotifications.enabled
+        : t.pushNotifications.enable;
   const Icon = status === "on" ? BellRing : status === "loading" ? Bell : BellOff;
 
   return (
     <button
       onClick={toggle}
-      disabled={busy}
+      disabled={busy || status === "denied"}
       aria-label={label}
       aria-pressed={status === "on"}
       title={label}
