@@ -73,11 +73,20 @@ export default function GetStartedFlow({
   // "card_direct": set from ?card=1 (the landing page's #pricing "Ringo
   // Card" track, PricingSection.tsx) — skips straight to bundlePicker,
   // no question asked, same reasoning preselectedPlan skips straight to
-  // "plan" instead of asking Personal/Business again.
+  // "plan" instead of asking Personal/Business again. Its bundlePicker
+  // back button still goes to accountType — this arrived from the shared
+  // form, so Personal/Business/Ringo Card are all still one back-step
+  // away, same as clicking a different #pricing tab would be.
+  // "card_only": set by the dedicated /get-started-cards link (see that
+  // page and CardsLinkCard.tsx) — same bundlePicker entry as card_direct,
+  // but nothing else on this form is ever shown: that link exists so an
+  // admin/creator can share "just the card" without also handing over the
+  // full Personal/Business signup, so bundlePicker's back button goes
+  // home instead of to accountType.
   // Only meaningful on the standard variant, and only when no specific
   // plan already arrived preselected (that case already has a clearer,
   // more specific starting point).
-  initialIntent?: "sales_funnel" | "card_direct";
+  initialIntent?: "sales_funnel" | "card_direct" | "card_only";
 }) {
   const { t, locale } = useLanguage();
   // Personal vs Enterprise — the very first choice on the standard flow
@@ -92,7 +101,7 @@ export default function GetStartedFlow({
     if (variant !== "standard") return "category";
     if (preselectedPlan) return "plan";
     if (initialIntent === "sales_funnel") return "cardQuestion";
-    if (initialIntent === "card_direct") return "bundlePicker";
+    if (initialIntent === "card_direct" || initialIntent === "card_only") return "bundlePicker";
     return "accountType";
   });
   const [accountType, setAccountType] = useState<AccountType | null>(() =>
@@ -562,13 +571,20 @@ export default function GetStartedFlow({
 
         {step === "bundlePicker" && (
           <>
-            <button
-              onClick={() => setStep(initialIntent === "sales_funnel" ? "cardQuestion" : "accountType")}
-              className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4"
-            >
-              <ArrowLeft size={15} />
-              {t.getStarted.backButton}
-            </button>
+            {initialIntent === "card_only" ? (
+              <Link href="/" className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4">
+                <ArrowLeft size={15} />
+                {t.getStarted.backButton}
+              </Link>
+            ) : (
+              <button
+                onClick={() => setStep(initialIntent === "sales_funnel" ? "cardQuestion" : "accountType")}
+                className="flex items-center gap-1.5 text-sm text-ringo-muted mb-4"
+              >
+                <ArrowLeft size={15} />
+                {t.getStarted.backButton}
+              </button>
+            )}
 
             <h1 className="font-display text-xl font-bold text-center mb-1">Choose your Ringo Card</h1>
             <p className="text-sm text-ringo-muted text-center mb-6">Never lowers an existing higher plan — only adds to it.</p>
