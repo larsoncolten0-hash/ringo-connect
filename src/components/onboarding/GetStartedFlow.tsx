@@ -37,6 +37,13 @@ export default function GetStartedFlow({
   plans: any[];
   addons: any[];
   isCameroon: boolean;
+  // Mirrors the admin "Allow customer to pay now" toggle
+  // (allow_customer_payment_at_signup in platform_settings), but this
+  // component no longer reads it to decide anything: a balance due is
+  // always paid through Fapshi now, on both variants — see
+  // handleInfoContinue. Kept as a prop only so page.tsx doesn't need
+  // reworking; if nothing else in the app starts using it, both the prop
+  // and the underlying setting are safe to retire.
   allowPayNow: boolean;
   manualPaymentName: string;
   manualPaymentMtnNumber: string;
@@ -388,31 +395,31 @@ export default function GetStartedFlow({
 
   const handleInfoContinue = () => {
     if (isFreeSelection) {
-      // No plan/payment step regardless of allowPayNow — straight to
-      // submission (same request pipeline every other path uses).
-      // Personal's Free plan is the common case, but this is keyed off
-      // the plan's actual price, not the track — Business has no free
-      // tier to reach this branch through at all.
+      // No plan/payment step — straight to submission (same request
+      // pipeline every other path uses). Personal's Free plan is the
+      // common case, but this is keyed off the plan's actual price, not
+      // the track — Business has no free tier to reach this branch
+      // through at all.
       submitWithoutPaying();
-    } else if (variant === "affiliate") {
-      setError("");
-      if (!fullName.trim() || !whatsapp.trim()) {
-        setError(t.getStarted.requiredError);
-        return;
-      }
-      // Payment is mandatory here — there's no pay-later choice screen to
-      // show, straight into the payment step.
-      setStep("paying");
-    } else if (allowPayNow) {
-      setError("");
-      if (!fullName.trim() || !whatsapp.trim()) {
-        setError(t.getStarted.requiredError);
-        return;
-      }
-      setStep("payChoice");
-    } else {
-      submitWithoutPaying();
+      return;
     }
+    // Anything with a balance due (a priced plan and/or add-on) must be
+    // paid through Fapshi — no "submit without paying, admin collects
+    // manually" escape hatch for a paid selection on either variant.
+    // Previously the standard variant's own allowPayNow admin toggle
+    // could route a paying customer straight to submitWithoutPaying()
+    // with only a "pay the admin manually later" message; that toggle
+    // still exists (see /admin/settings) but is no longer read here —
+    // every non-free standard signup now goes to "payChoice" the same
+    // way it would have if the toggle were always on.
+    setError("");
+    if (!fullName.trim() || !whatsapp.trim()) {
+      setError(t.getStarted.requiredError);
+      return;
+    }
+    // Affiliate skips straight into the payment step, as it always has;
+    // standard shows the order-summary "payChoice" screen first.
+    setStep(variant === "affiliate" ? "paying" : "payChoice");
   };
 
   const sendPayment = async () => {
@@ -1106,7 +1113,7 @@ export default function GetStartedFlow({
                 {submitting && <Loader2 size={15} className="animate-spin" />}
                 {submitting
                   ? t.getStarted.submitting
-                  : !isFreeSelection && (variant === "affiliate" || allowPayNow)
+                  : !isFreeSelection
                   ? t.getStarted.continueButton
                   : t.getStarted.submitButton}
               </button>
