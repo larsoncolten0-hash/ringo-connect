@@ -43,6 +43,8 @@ import PricingSection from "./PricingSection";
 import JourneySteps from "./JourneySteps";
 import NfcQrSection from "./NfcQrSection";
 import AffiliateSection from "./AffiliateSection";
+import AboutSection from "./AboutSection";
+import PathPickerSection from "./PathPickerSection";
 
 // This homepage is deliberately built only around what's actually shipped
 // in the app today: links/catalog (every category), the Music &
@@ -357,6 +359,22 @@ export default function LandingView({
           </Reveal>
         </div>
       </section>
+
+      {/* ============ ABOUT ============ */}
+      {/* Deliberately its own visual style (cream/black/amber-violet,
+          matching the three static funnel pages below) rather than this
+          page's theme tokens — see AboutSection.tsx. No existing #about
+          nav link or placeholder section was found anywhere on this page
+          (nav, mobile nav, or footer) to fill in instead. Placed directly
+          before PathPickerSection, immediately before Pricing — the two
+          share near-identical cream tones (#F7F2E7/#F1EADA, the same
+          --bg/--bg2 pair the funnel pages use) clearly meant to read as
+          one connected block bridging into Pricing, not a section dropped
+          in isolation elsewhere on the page. */}
+      <AboutSection />
+
+      {/* ============ NOT SURE WHERE TO START? (path picker) ============ */}
+      <PathPickerSection />
 
       {/* ============ PRICING ============ */}
       <section id="pricing" className="relative max-w-6xl mx-auto px-5 py-24 sm:py-32 scroll-mt-16">
