@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ringo Card — Tap. Share. Sell.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F2E7;
+    --bg2: #F1EADA;
+    --ink: #14142B;
+    --muted: #6B6455;
+    --amber: #F2A93B;
+    --amber-ink: #2B1A00;
+    --violet: #6A5AE0;
+    --track: rgba(20,20,43,0.12);
+    --shadow: rgba(20,14,4,0.16);
+    --box-bg: rgba(255,255,255,0.62);
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F2E7; --bg2: #F1EADA; --ink: #14142B; --muted: #6B6455;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #ECE4D3;
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+  }
+  body {
+    min-height: 100dvh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+  }
+
+  .frame {
+    width: 100%; max-width: 430px;
+    height: min(800px, 100dvh - 36px);
+    background: radial-gradient(circle at 50% 28%, var(--bg2) 0%, var(--bg) 62%);
+    border-radius: 30px;
+    box-shadow: 0 30px 80px var(--shadow), 0 0 0 1px rgba(255,255,255,0.06);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress { display: flex; gap: 5px; padding: 16px 18px 0; }
+  .progress .seg { flex: 1; height: 3px; border-radius: 2px; background: var(--track); overflow: hidden; }
+  .progress .seg .fill { height: 100%; width: 0%; background: var(--amber); border-radius: 2px; transition: width .25s ease; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px 4px; color: var(--muted); font-size: 12.5px; font-weight: 600;
+  }
+  .topbar .brand { display: flex; align-items: center; gap: 7px; }
+  .topbar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+  .topbar .count { font-variant-numeric: tabular-nums; opacity: .8; }
+
+  .stage { position: relative; flex: 1; overflow: hidden; }
+  .tapzone { position: absolute; top: 0; bottom: 0; width: 42%; z-index: 6; }
+  .tapzone.left { left: 0; } .tapzone.right { right: 0; }
+
+  .page {
+    position: absolute; inset: 0;
+    padding: 10px 30px 26px;
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+    background: var(--bg);
+    opacity: 0; transform: scale(0.97);
+    transition: opacity .32s ease, transform .32s ease;
+    pointer-events: none;
+  }
+  .page.active { opacity: 1; transform: scale(1); pointer-events: auto; }
+
+  .badge {
+    position: relative; width: 108px; height: 108px; margin-bottom: 26px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    opacity: 0; transform: translateY(10px) scale(0.9);
+    transition: opacity .5s ease .05s, transform .5s cubic-bezier(.2,.8,.2,1) .05s;
+  }
+  .page.active .badge { opacity: 1; transform: translateY(0) scale(1); }
+  .badge .ring { position: absolute; inset: 0; border-radius: 50%; background: var(--ring-color, rgba(242,169,59,0.16)); }
+  .badge .ripple { position: absolute; inset: 0; border-radius: 50%; background: var(--amber); opacity: .3; }
+  @media (prefers-reduced-motion: no-preference) {
+    .page.active .badge.animated .ripple { animation: pulse 2s ease-out infinite; }
+  }
+  @keyframes pulse { 0% { transform: scale(.72); opacity: .45; } 100% { transform: scale(1.85); opacity: 0; } }
+  .badge svg { position: relative; width: 52px; height: 52px; color: var(--icon-color, var(--amber)); }
+
+  .q {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 27px; font-weight: 700; line-height: 1.18; letter-spacing: -0.01em;
+    margin: 0 0 13px; max-width: 15ch;
+    color: var(--ink);
+    opacity: 0; transform: translateY(14px);
+    transition: opacity .5s ease .12s, transform .5s cubic-bezier(.2,.8,.2,1) .12s;
+  }
+  .page.active .q { opacity: 1; transform: translateY(0); }
+
+  .a-box {
+    background: var(--box-bg);
+    border-left: 3px solid var(--page-accent, var(--amber));
+    border-radius: 4px 16px 16px 4px;
+    padding: 16px 18px;
+    box-shadow: 0 10px 28px rgba(20,14,4,0.08);
+    max-width: 33ch;
+    opacity: 0; transform: translateY(18px) scale(0.93) rotate(-1.2deg);
+    transition: opacity .6s cubic-bezier(.16,1,.3,1) .22s,
+                transform .6s cubic-bezier(.16,1,.3,1) .22s;
+  }
+  .page.active .a-box { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+  .a-box.box-dark {
+    background: #14142B;
+    box-shadow: 0 10px 28px rgba(20,14,4,0.14);
+  }
+  .a-box.box-dark { color: inherit; }
+  .a-box.box-dark .a { color: var(--a-text-color, #F7F2E7); }
+  .a-label {
+    font-size: 12.5px; font-weight: 800; color: var(--page-accent, var(--amber));
+    margin: 0 0 6px;
+  }
+  .a {
+    font-size: 16.5px; line-height: 1.65; color: var(--ink); margin: 0; font-weight: 600;
+  }
+
+  .cta-page .q { font-size: 30px; max-width: 12ch; }
+  .cta-row {
+    display: flex; flex-direction: column; gap: 10px; margin-top: 24px; width: 100%;
+    opacity: 0; transform: translateY(14px);
+    transition: opacity .5s ease .28s, transform .5s cubic-bezier(.2,.8,.2,1) .28s;
+  }
+  .page.active .cta-row { opacity: 1; transform: translateY(0); }
+
+  .cta-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--amber); color: var(--amber-ink);
+    font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 16px;
+    padding: 17px 20px; border-radius: 15px; text-decoration: none; border: none; cursor: pointer;
+    box-shadow: 0 14px 30px rgba(242,169,59,0.28);
+  }
+  .cta-btn-secondary {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: rgba(20,14,4,0.045); color: var(--ink);
+    font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 14.5px;
+    padding: 14px 18px; border-radius: 14px; text-decoration: none;
+    border: 1.5px solid rgba(20,14,4,0.14);
+  }
+  .cta-sub { margin-top: 4px; font-size: 12.5px; color: var(--muted); text-align: center; }
+
+  .navbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 22px 22px; gap: 12px; }
+  .nav-btn { font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 600; background: none; border: none; color: var(--muted); cursor: pointer; padding: 10px 6px; }
+  .nav-btn:disabled { visibility: hidden; }
+  .next-pill { font-family: 'Manrope', sans-serif; font-size: 14px; font-weight: 800; background: var(--ink); color: var(--bg); border: none; border-radius: 999px; padding: 13px 24px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame">
+  <div class="progress" id="progress"></div>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>Ringo Card</div>
+    <div class="count" id="count">1 / 13</div>
+  </div>
+  <div class="stage" id="stage">
+    <div class="tapzone left" id="zoneLeft"></div>
+    <div class="tapzone right" id="zoneRight"></div>
+  </div>
+  <div class="navbar">
+    <button class="nav-btn" id="backBtn">Back</button>
+    <button class="next-pill" id="nextBtn">Next</button>
+  </div>
+</div>
+
+<script>
+  // ── Dynamic per-link attribution ──
+  // Reads ?ref=CODE from this page's own URL (the affiliate/admin code the
+  // link was generated with — see SalesFunnelLinkCard.tsx) and uses it to:
+  //   1) carry that ref into the get-started signup link below, and
+  //   2) look up the referrer's own WhatsApp number (via the read-only
+  //      /api/public/card-funnel-referrer endpoint) so the "I have a
+  //      question" button reaches the person who actually shared this
+  //      link, not a generic line. Falls back to the platform default
+  //      number below whenever there's no ref, the lookup fails, or the
+  //      referrer has no whatsapp_number set.
+  const DEFAULT_WHATSAPP_NUMBER = "237694028846";
+  const refCode = new URLSearchParams(window.location.search).get("ref");
+  let SALES_LINK = "https://ringoconnectltd.com/get-started?card=1" + (refCode ? "&ref=" + encodeURIComponent(refCode) : "");
+  let WHATSAPP_NUMBER = DEFAULT_WHATSAPP_NUMBER;
+
+  async function resolveWhatsappNumber() {
+    if (!refCode) return;
+    try {
+      const res = await fetch("/api/public/card-funnel-referrer?ref=" + encodeURIComponent(refCode));
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && typeof data.whatsapp_number === "string" && data.whatsapp_number.trim()) {
+        WHATSAPP_NUMBER = data.whatsapp_number.trim();
+      }
+    } catch {
+      // Network hiccup — keep the default number, nothing else to do.
+    }
+  }
+
+  const ICONS = {
+    tap: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="14" y="30" width="46" height="46" rx="9"/>
+      <circle cx="37" cy="53" r="7"/>
+      <path d="M68 34c7 6 11 13 11 19s-4 13-11 19" opacity=".85"/>
+      <path d="M78 26c11 9 17 18 17 27s-6 18-17 27" opacity=".5"/>
+    </svg>`,
+    value: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="16" y="24" width="52" height="38" rx="8"/>
+      <path d="M16 40h52"/>
+      <circle cx="72" cy="66" r="18" fill="#0B0B24"/>
+      <path d="M64 66l6 6 12-13"/>
+    </svg>`,
+    calendar: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="16" y="22" width="60" height="54" rx="8"/>
+      <path d="M16 38h60"/>
+      <path d="M32 14v14M60 14v14"/>
+      <circle cx="46" cy="58" r="12"/>
+      <path d="M46 52v6l4 4"/>
+    </svg>`,
+    globe: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round">
+      <circle cx="46" cy="50" r="30"/>
+      <path d="M16 50h60"/>
+      <path d="M46 20c11 8 11 42 0 60M46 20c-11 8-11 42 0 60" opacity=".8"/>
+    </svg>`,
+    shop: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 32l6-16h44l6 16"/>
+      <path d="M18 32v10a9 9 0 0018 0 9 9 0 0018 0 9 9 0 0018 0v-10"/>
+      <path d="M24 42v34h44V42"/>
+      <path d="M40 76V56h12v20"/>
+    </svg>`,
+    payment: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="30" y="12" width="36" height="62" rx="9"/>
+      <path d="M30 58h36"/>
+      <circle cx="48" cy="36" r="13"/>
+      <path d="M42 36l4 4 8-9"/>
+    </svg>`,
+    shield: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M50 14l28 10v22c0 20-12 32-28 40-16-8-28-20-28-40V24z"/>
+      <path d="M38 50l9 9 17-19"/>
+    </svg>`,
+    delivery: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="12" y="36" width="42" height="28" rx="5"/>
+      <path d="M54 44h16l12 12v8H54z"/>
+      <circle cx="30" cy="70" r="8"/>
+      <circle cx="72" cy="70" r="8"/>
+    </svg>`,
+    link: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="14" y="34" width="34" height="34" rx="15"/>
+      <rect x="52" y="34" width="34" height="34" rx="15"/>
+      <path d="M40 51h20"/>
+    </svg>`,
+    repeat: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M24 40a24 24 0 0142-15"/>
+      <path d="M76 60a24 24 0 01-42 15"/>
+      <path d="M58 15l8 10-11 4M42 85l-8-10 11-4"/>
+      <circle cx="50" cy="50" r="6" fill="currentColor" stroke="none"/>
+    </svg>`,
+    person: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="18" y="18" width="64" height="64" rx="14"/>
+      <circle cx="50" cy="42" r="12"/>
+      <path d="M28 70c4-12 14-18 22-18s18 6 22 18"/>
+    </svg>`,
+    upgrade: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 78h68"/>
+      <rect x="24" y="56" width="12" height="18"/>
+      <rect x="44" y="44" width="12" height="30"/>
+      <rect x="64" y="28" width="12" height="46"/>
+      <path d="M62 20l14-4 4 14" opacity=".85"/>
+    </svg>`,
+    check: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="50" cy="50" r="34"/>
+      <path d="M35 51l10 11 22-24"/>
+    </svg>`,
+    faq: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 26h64a6 6 0 016 6v30a6 6 0 01-6 6H46l-16 14V68H18a6 6 0 01-6-6V32a6 6 0 016-6z"/>
+      <circle cx="38" cy="48" r="3" fill="currentColor" stroke="none"/>
+      <circle cx="50" cy="48" r="3" fill="currentColor" stroke="none"/>
+      <circle cx="62" cy="48" r="3" fill="currentColor" stroke="none"/>
+    </svg>`
+  };
+
+  const pages = [
+    { intro: true, q: "Got questions? Good — let's answer them.", a: "Here are the 12 things people usually ask before getting their Ringo Card. Tap through — it only takes a minute.", icon: "faq", animated: true, ring: "rgba(242,169,59,0.18)" },
+    { q: "What is the Ringo Card?", a: "It's a smart physical card — you tap it on any phone and it opens your Ringo Connect page instantly. No app needed for the person tapping it. It's like a digital business card that also runs your shop, bookings, or page.", icon: "tap", animated: true, ring: "rgba(242,169,59,0.18)" },
+    { q: "How much is it?", a: "3,500 FCFA — that includes the physical card AND your first month of Ringo Connect Basic (real ordering, bookings, custom page, everything) at no extra cost.", icon: "value", ring: "rgba(242,169,59,0.18)" },
+    { q: "What happens after the 1 month?", a: "Nothing forces you to pay again — your account just continues on our Free plan automatically. If you want to keep the extra features, you can renew Basic anytime for 1,000 FCFA/month, but it's completely your choice.", icon: "calendar", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
+    { q: "Is this only for businesses?", a: "No — anyone can use it. Musicians, restaurants, shops, freelancers, or just you personally as a link-in-bio for your socials and contact info.", icon: "globe", ring: "rgba(242,169,59,0.18)" },
+    { q: "Can I use it for my restaurant, music, or shop?", a: "Yes. Restaurant owners get a real digital menu + ordering system. Musicians get track sales, ticketing, and payouts. Everyone else gets a page, catalog, and booking system.", icon: "shop", ring: "rgba(242,169,59,0.18)" },
+    { q: "How do I pay?", a: "MTN Mobile Money or Orange Money, directly on the site — no card needed, no bank account. You just confirm on your phone.", icon: "payment", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
+    { q: "Is it safe?", a: "You approve the payment yourself on your own phone through MTN/Orange Money's own confirmation prompt — nothing happens without you personally accepting it.", icon: "shield", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
+    { q: "How long until I get the card?", a: "1–3 working days in Yaoundé/Douala, pickup available at Total Jouvance — or delivered to you at your own expense. We also ship to other zones.", icon: "delivery", ring: "rgba(242,169,59,0.18)" },
+    { q: "Can I get just the card, without the subscription?", a: "No — Ringo Connect Cards are linked directly to Ringo Connect profiles, so we don't sell them without a subscription. That's exactly why the card price already includes your first month free.", icon: "link", ring: "rgba(242,169,59,0.18)" },
+    { q: "Do I have to pay 3,500 FCFA every month?", a: "No — 3,500 FCFA is a one-time payment for the card only. After your first month, stay on Free for nothing, or pay 1,000 FCFA/month to keep the extra features. It's your choice.", icon: "repeat", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
+    { q: "Already have a Ringo account?", a: "Yes, you can still buy the card — it just adds the card and extends your account with Basic access. It doesn't create a second account or replace what you already have.", icon: "person", ring: "rgba(242,169,59,0.18)" },
+    { q: "What if I want to upgrade later?", a: "You can upgrade to Pro or a Business plan anytime from your dashboard — the card and this offer don't lock you into Basic forever, it's just where you start.", icon: "upgrade", ring: "rgba(242,169,59,0.18)" },
+    { cta: true, q: "Ready to grab your card?", a: "It'll take you just 2 minutes to fill the form and make your payment directly on the platform.", icon: "check", animated: true, ring: "rgba(242,169,59,0.2)" }
+  ];
+
+  const stage = document.getElementById('stage');
+  const progressEl = document.getElementById('progress');
+  const backBtn = document.getElementById('backBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const countEl = document.getElementById('count');
+  let current = 0;
+
+  async function init() {
+  // Resolve the referrer's WhatsApp number (if any) before building the
+  // CTA page below, so its links are correct from the very first paint.
+  await resolveWhatsappNumber();
+
+  pages.forEach(() => {
+    const seg = document.createElement('div');
+    seg.className = 'seg';
+    seg.innerHTML = '<div class="fill"></div>';
+    progressEl.appendChild(seg);
+  });
+  const segFills = () => document.querySelectorAll('.progress .fill');
+
+  pages.forEach((p, index) => {
+    const isFaq = !p.cta && !p.intro;
+    const div = document.createElement('div');
+    div.className = 'page' + (p.cta ? ' cta-page' : '');
+
+    const badge = document.createElement('div');
+    badge.className = 'badge' + (p.animated ? ' animated' : '');
+    badge.style.setProperty('--ring-color', p.ring || 'rgba(242,169,59,0.18)');
+    badge.style.setProperty('--icon-color', p.iconColor || 'var(--amber)');
+    badge.innerHTML = '<div class="ring"></div>' + (p.animated ? '<div class="ripple"></div>' : '') + ICONS[p.icon];
+    div.appendChild(badge);
+
+    const q = document.createElement('h1');
+    q.className = 'q';
+    q.textContent = p.q;
+    div.appendChild(q);
+
+    const isViolet = p.iconColor === 'var(--violet)';
+    const aBox = document.createElement('div');
+    aBox.className = 'a-box box-dark';
+    aBox.style.setProperty('--page-accent', p.iconColor || 'var(--amber)');
+    aBox.style.setProperty('--a-text-color', isViolet ? '#DCD5FF' : '#FBE7C6');
+    if (isFaq) {
+      const label = document.createElement('div');
+      label.className = 'a-label';
+      label.textContent = 'Answer';
+      aBox.appendChild(label);
+    }
+    const a = document.createElement('p');
+    a.className = 'a';
+    a.textContent = p.a;
+    aBox.appendChild(a);
+    div.appendChild(aBox);
+
+    if (p.cta) {
+      const row = document.createElement('div');
+      row.className = 'cta-row';
+
+      const btn = document.createElement('a');
+      btn.className = 'cta-btn';
+      btn.href = SALES_LINK;
+      btn.target = '_top';
+      btn.textContent = 'Yes, Get My Ringo Card';
+      row.appendChild(btn);
+
+      const waMsg = encodeURIComponent("Hi! I have a question about the Ringo Card before I order 🙂");
+      const waBtn = document.createElement('a');
+      waBtn.className = 'cta-btn-secondary';
+      waBtn.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + waMsg;
+      waBtn.target = '_top';
+      waBtn.textContent = 'Not now, I have a question';
+      row.appendChild(waBtn);
+
+      const sub = document.createElement('p');
+      sub.className = 'cta-sub';
+      sub.textContent = 'Pay by MTN or Orange Money — takes about 2 minutes.';
+      row.appendChild(sub);
+
+      div.appendChild(row);
+    }
+
+    stage.appendChild(div);
+  });
+
+  function render() {
+    document.querySelectorAll('.page').forEach((el, i) => el.classList.toggle('active', i === current));
+    segFills().forEach((fill, i) => { fill.style.width = i <= current ? '100%' : '0%'; });
+    backBtn.disabled = current === 0;
+    nextBtn.textContent = current === pages.length - 1 ? 'Start over' : 'Next';
+    countEl.textContent = (current + 1) + ' / ' + pages.length;
+  }
+  function goNext() { current = current < pages.length - 1 ? current + 1 : 0; render(); }
+  function goBack() { if (current > 0) { current--; render(); } }
+
+  document.getElementById('zoneRight').addEventListener('click', goNext);
+  document.getElementById('zoneLeft').addEventListener('click', goBack);
+  nextBtn.addEventListener('click', goNext);
+  backBtn.addEventListener('click', goBack);
+  document.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') goNext(); if (e.key === 'ArrowLeft') goBack(); });
+
+  let touchStartX = null;
+  stage.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+  stage.addEventListener('touchend', (e) => {
+    if (touchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) { dx < 0 ? goNext() : goBack(); }
+    touchStartX = null;
+  });
+
+  render();
+  }
+
+  init();
+</script>
+</body>
+</html>

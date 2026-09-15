@@ -24,6 +24,17 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
   const [copied, setCopied] = useState(false);
   const link = `${siteUrl.replace(/\/$/, "")}/get-started?intent=sales_funnel&ref=${affiliateCode}`;
 
+  // Second, unrelated link this same card also offers a copy affordance
+  // for: the standalone story-style FAQ funnel page (a plain static file,
+  // not part of the Next.js route tree — see public/card-funnel.html),
+  // meant for pasting into WhatsApp BEFORE someone ever reaches
+  // /get-started. Carries the same affiliate_code as ?ref= so its own
+  // "I have a question" button reaches this person's WhatsApp number
+  // (looked up server-side by GET /api/public/card-funnel-referrer),
+  // instead of a generic line.
+  const [faqCopied, setFaqCopied] = useState(false);
+  const faqLink = `${siteUrl.replace(/\/$/, "")}/card-funnel.html?ref=${affiliateCode}`;
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(link);
@@ -33,6 +44,17 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyFaqLink = async () => {
+    try {
+      await navigator.clipboard.writeText(faqLink);
+    } catch {
+      // Clipboard API can be unavailable — the link is still visible and
+      // selectable by hand.
+    }
+    setFaqCopied(true);
+    setTimeout(() => setFaqCopied(false), 2000);
   };
 
   const shareLink = async () => {
@@ -71,6 +93,26 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
             className="flex items-center justify-center w-10 h-10 shrink-0 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors"
           >
             <Share2 size={15} />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-ringo-border/70">
+        <p className="text-sm font-medium text-ringo-text mb-1">Get my FAQ funnel link</p>
+        <p className="text-xs text-ringo-muted mb-3">
+          A story-style FAQ walkthrough about the Ringo Card — share this on WhatsApp before someone even reaches
+          the sign-up form.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex-1 min-w-0 flex items-center rounded-card border border-ringo-border bg-ringo-bg px-3.5 py-2.5">
+            <p className="text-sm text-ringo-text truncate font-mono">{faqLink}</p>
+          </div>
+          <button
+            onClick={copyFaqLink}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-card bg-ringo-indigo text-white text-sm font-medium hover:bg-ringo-indigo/90 transition-colors shrink-0"
+          >
+            {faqCopied ? <Check size={15} /> : <Copy size={15} />}
+            {faqCopied ? "Copied" : "Copy"}
           </button>
         </div>
       </div>
