@@ -14,18 +14,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Phone and provider are required." }, { status: 400 });
   }
 
-  // The admin toggle and the Fapshi on/off switch both need to be
-  // checked here, server-side — otherwise the toggle only controls
-  // whether the "Pay now" button is shown, not whether this endpoint
-  // actually accepts a payment. A hidden button isn't a real off switch.
-  //
-  // allowCustomerPaymentAtSignup only ever governed the PUBLIC
-  // /get-started form's optional "pay now" choice — it says nothing
-  // about /get-started-affiliate, where paying online isn't an option
-  // among others, it's the whole point of the page. That flow's requests
-  // carry source = 'affiliate' and skip this particular check
-  // accordingly; the actual payments on/off switch (fapshiEnabled)
-  // still applies to both.
+  // allowCustomerPaymentAtSignup no longer gates this endpoint — paying
+  // at signup is mandatory whenever there's a balance due, on both the
+  // standard and affiliate variants (see GetStartedFlow.tsx). Only the
+  // Fapshi on/off switch (fapshiEnabled) can still block a payment here.
   const settings = await getPlatformSettings();
   if (!settings.fapshiEnabled) {
     return NextResponse.json({ error: "Mobile Money payments are currently unavailable." }, { status: 503 });
@@ -41,9 +33,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   if (!signupRequest || signupRequest.status !== "pending") {
     return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
-  }
-  if (signupRequest.source !== "affiliate" && !settings.allowCustomerPaymentAtSignup) {
-    return NextResponse.json({ error: "Paying during signup isn't available right now." }, { status: 403 });
   }
   if (!signupRequest.requested_plan_id) {
     return NextResponse.json({ error: "No plan was selected." }, { status: 400 });
