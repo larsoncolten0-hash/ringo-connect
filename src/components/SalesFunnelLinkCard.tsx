@@ -42,6 +42,13 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
   const [subCopied, setSubCopied] = useState(false);
   const subLink = `${siteUrl.replace(/\/$/, "")}/subscription-funnel.html?ref=${affiliateCode}`;
 
+  // Fourth link: same FAQ format, for business owners/institutions
+  // considering the Business plans. Ends on /get-started?business=1,
+  // which skips straight to the Business plan picker — see
+  // public/business-funnel.html and GetStartedFlow.tsx's initialIntent.
+  const [bizCopied, setBizCopied] = useState(false);
+  const bizLink = `${siteUrl.replace(/\/$/, "")}/business-funnel.html?ref=${affiliateCode}`;
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(link);
@@ -73,6 +80,17 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
     }
     setSubCopied(true);
     setTimeout(() => setSubCopied(false), 2000);
+  };
+
+  const copyBizLink = async () => {
+    try {
+      await navigator.clipboard.writeText(bizLink);
+    } catch {
+      // Clipboard API can be unavailable — the link is still visible and
+      // selectable by hand.
+    }
+    setBizCopied(true);
+    setTimeout(() => setBizCopied(false), 2000);
   };
 
   const shareLink = async () => {
@@ -151,6 +169,26 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
           >
             {subCopied ? <Check size={15} /> : <Copy size={15} />}
             {subCopied ? "Copied" : "Copy"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-ringo-border/70">
+        <p className="text-sm font-medium text-ringo-text mb-1">Get my business funnel link</p>
+        <p className="text-xs text-ringo-muted mb-3">
+          Same FAQ walkthrough, for business owners and institutions — skips straight to the Business Basic/Business
+          Pro plan picker.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex-1 min-w-0 flex items-center rounded-card border border-ringo-border bg-ringo-bg px-3.5 py-2.5">
+            <p className="text-sm text-ringo-text truncate font-mono">{bizLink}</p>
+          </div>
+          <button
+            onClick={copyBizLink}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-card bg-ringo-indigo text-white text-sm font-medium hover:bg-ringo-indigo/90 transition-colors shrink-0"
+          >
+            {bizCopied ? <Check size={15} /> : <Copy size={15} />}
+            {bizCopied ? "Copied" : "Copy"}
           </button>
         </div>
       </div>

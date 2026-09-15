@@ -83,10 +83,24 @@ export default function GetStartedFlow({
   // admin/creator can share "just the card" without also handing over the
   // full Personal/Business signup, so bundlePicker's back button goes
   // home instead of to accountType.
+  // "business_direct": set from ?business=1 (the business FAQ funnel
+  // page, public/business-funnel.html) — mirrors card_direct's own
+  // "skip straight past accountType" behavior, but landing on "plan"
+  // instead of "bundlePicker" since there's no business-specific step
+  // between them. Unlike card_direct, this also has to seed accountType
+  // to "enterprise" below (bundlePicker never reads accountType at all,
+  // so card_direct never needed to) — trackPlans filters the "plan"
+  // step's options by accountType, and that's the only way to land on it
+  // pre-filtered to Business Basic/Business Pro without preselecting one
+  // specific plan. Reuses the same accountType-seeding mechanism
+  // preselectedPlan already uses just below, rather than inventing a new
+  // one. The "plan" step's back button already sends the standard
+  // variant to "accountType" unconditionally (see that step's JSX), so no
+  // further branching was needed there.
   // Only meaningful on the standard variant, and only when no specific
   // plan already arrived preselected (that case already has a clearer,
   // more specific starting point).
-  initialIntent?: "sales_funnel" | "card_direct" | "card_only";
+  initialIntent?: "sales_funnel" | "card_direct" | "card_only" | "business_direct";
 }) {
   const { t, locale } = useLanguage();
   // Personal vs Enterprise — the very first choice on the standard flow
@@ -102,11 +116,14 @@ export default function GetStartedFlow({
     if (preselectedPlan) return "plan";
     if (initialIntent === "sales_funnel") return "cardQuestion";
     if (initialIntent === "card_direct" || initialIntent === "card_only") return "bundlePicker";
+    if (initialIntent === "business_direct") return "plan";
     return "accountType";
   });
-  const [accountType, setAccountType] = useState<AccountType | null>(() =>
-    preselectedPlan ? (preselectedPlan.team_enabled ? "enterprise" : "personal") : null
-  );
+  const [accountType, setAccountType] = useState<AccountType | null>(() => {
+    if (preselectedPlan) return preselectedPlan.team_enabled ? "enterprise" : "personal";
+    if (initialIntent === "business_direct") return "enterprise";
+    return null;
+  });
   const [selectedPlan, setSelectedPlan] = useState<any | null>(preselectedPlan);
   const [category, setCategory] = useState<CategoryId | null>(null);
   const [extraCategories, setExtraCategories] = useState<CategoryId[]>([]);

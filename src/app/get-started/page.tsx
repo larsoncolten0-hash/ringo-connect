@@ -30,7 +30,13 @@ export default async function GetStartedPage({
   // switching to that pricing tab, same reasoning ?plan= already skips
   // straight to a specific highlighted plan instead of asking Personal/
   // Business again.
-  searchParams: { plan?: string; intent?: string; card?: string };
+  // ?business=1 — set by the business FAQ funnel page
+  // (public/business-funnel.html). Same reasoning as ?card=1, mirrored
+  // for the Business track: skips straight to the "plan" step already
+  // filtered to Business Basic/Business Pro, with neither preselected —
+  // see GetStartedFlow.tsx's initialIntent comment for how it lands
+  // there.
+  searchParams: { plan?: string; intent?: string; card?: string; business?: string };
 }) {
   const supabase = createClient();
 
@@ -63,6 +69,8 @@ export default async function GetStartedPage({
       initialIntent={
         searchParams.card === "1"
           ? "card_direct"
+          : searchParams.business === "1"
+          ? "business_direct"
           : searchParams.intent === "sales_funnel" || searchParams.intent === "card_bundle"
           ? "sales_funnel"
           : undefined

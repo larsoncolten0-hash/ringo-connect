@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ringo Connect — For Business</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F2E7; --bg2: #F1EADA; --ink: #14142B; --muted: #6B6455;
+    --amber: #F2A93B; --amber-ink: #2B1A00; --violet: #6A5AE0;
+    --track: rgba(20,20,43,0.12); --shadow: rgba(20,14,4,0.16);
+    --box-bg: rgba(255,255,255,0.62);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; height:100%; background:#ECE4D3; font-family:'Manrope',system-ui,-apple-system,sans-serif; color:var(--ink); }
+  body { min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:18px; }
+  .frame { width:100%; max-width:430px; height:min(800px,100dvh - 36px); background:radial-gradient(circle at 50% 28%, var(--bg2) 0%, var(--bg) 62%); border-radius:30px; box-shadow:0 30px 80px var(--shadow), 0 0 0 1px rgba(255,255,255,0.06); display:flex; flex-direction:column; overflow:hidden; position:relative; }
+  .progress { display:flex; gap:5px; padding:16px 18px 0; }
+  .progress .seg { flex:1; height:3px; border-radius:2px; background:var(--track); overflow:hidden; }
+  .progress .seg .fill { height:100%; width:0%; background:var(--amber); border-radius:2px; transition:width .25s ease; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 18px 4px; color:var(--muted); font-size:12.5px; font-weight:600; }
+  .topbar .brand { display:flex; align-items:center; gap:7px; }
+  .topbar .dot { width:6px; height:6px; border-radius:50%; background:var(--amber); }
+  .topbar .count { font-variant-numeric:tabular-nums; opacity:.8; }
+  .stage { position:relative; flex:1; overflow:hidden; }
+  .tapzone { position:absolute; top:0; bottom:0; width:42%; z-index:6; }
+  .tapzone.left { left:0; } .tapzone.right { right:0; }
+  .page { position:absolute; inset:0; padding:10px 30px 26px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; background:var(--bg); opacity:0; transform:scale(0.97); transition:opacity .32s ease, transform .32s ease; pointer-events:none; }
+  .page.active { opacity:1; transform:scale(1); pointer-events:auto; }
+  .badge { position:relative; width:108px; height:108px; margin-bottom:26px; display:flex; align-items:center; justify-content:center; flex-shrink:0; opacity:0; transform:translateY(10px) scale(0.9); transition:opacity .5s ease .05s, transform .5s cubic-bezier(.2,.8,.2,1) .05s; }
+  .page.active .badge { opacity:1; transform:translateY(0) scale(1); }
+  .badge .ring { position:absolute; inset:0; border-radius:50%; background:var(--ring-color, rgba(242,169,59,0.16)); }
+  .badge .ripple { position:absolute; inset:0; border-radius:50%; background:var(--amber); opacity:.3; }
+  @media (prefers-reduced-motion: no-preference) { .page.active .badge.animated .ripple { animation:pulse 2s ease-out infinite; } }
+  @keyframes pulse { 0%{transform:scale(.72);opacity:.45;} 100%{transform:scale(1.85);opacity:0;} }
+  .badge svg { position:relative; width:52px; height:52px; color:var(--icon-color, var(--amber)); }
+  .q { font-family:'Space Grotesk',system-ui,sans-serif; font-size:27px; font-weight:700; line-height:1.18; letter-spacing:-0.01em; margin:0 0 13px; max-width:15ch; color:var(--ink); opacity:0; transform:translateY(14px); transition:opacity .5s ease .12s, transform .5s cubic-bezier(.2,.8,.2,1) .12s; }
+  .page.active .q { opacity:1; transform:translateY(0); }
+  .a-box { background:var(--box-bg); border-left:3px solid var(--page-accent, var(--amber)); border-radius:4px 16px 16px 4px; padding:16px 18px; box-shadow:0 10px 28px rgba(20,14,4,0.08); max-width:33ch; opacity:0; transform:translateY(18px) scale(0.93) rotate(-1.2deg); transition:opacity .6s cubic-bezier(.16,1,.3,1) .22s, transform .6s cubic-bezier(.16,1,.3,1) .22s; }
+  .page.active .a-box { opacity:1; transform:translateY(0) scale(1) rotate(0deg); }
+  .a-box.box-dark { background:#14142B; box-shadow:0 10px 28px rgba(20,14,4,0.14); }
+  .a-box.box-dark .a { color:var(--a-text-color, #F7F2E7); }
+  .a-label { font-size:12.5px; font-weight:800; color:var(--page-accent, var(--amber)); margin:0 0 6px; }
+  .a { font-size:16.5px; line-height:1.65; color:var(--ink); margin:0; font-weight:600; }
+  .cta-page .q { font-size:30px; max-width:12ch; }
+  .cta-row { position:relative; z-index:10; display:flex; flex-direction:column; gap:10px; margin-top:24px; width:100%; opacity:0; transform:translateY(14px); transition:opacity .5s ease .28s, transform .5s cubic-bezier(.2,.8,.2,1) .28s; }
+  .page.active .cta-row { opacity:1; transform:translateY(0); }
+  .cta-btn { display:flex; align-items:center; justify-content:center; gap:8px; background:var(--amber); color:var(--amber-ink); font-family:'Manrope',sans-serif; font-weight:800; font-size:16px; padding:17px 20px; border-radius:15px; text-decoration:none; border:none; cursor:pointer; box-shadow:0 14px 30px rgba(242,169,59,0.28); }
+  .cta-btn-secondary { display:flex; align-items:center; justify-content:center; gap:6px; background:rgba(20,14,4,0.045); color:var(--ink); font-family:'Manrope',sans-serif; font-weight:700; font-size:14.5px; padding:14px 18px; border-radius:14px; text-decoration:none; border:1.5px solid rgba(20,14,4,0.14); }
+  .cta-sub { margin-top:4px; font-size:12.5px; color:var(--muted); text-align:center; }
+  .navbar { display:flex; align-items:center; justify-content:space-between; padding:6px 22px 22px; gap:12px; }
+  .nav-btn { font-family:'Manrope',sans-serif; font-size:14px; font-weight:600; background:none; border:none; color:var(--muted); cursor:pointer; padding:10px 6px; }
+  .nav-btn:disabled { visibility:hidden; }
+  .next-pill { font-family:'Manrope',sans-serif; font-size:14px; font-weight:800; background:var(--ink); color:var(--bg); border:none; border-radius:999px; padding:13px 24px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame">
+  <div class="progress" id="progress"></div>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>Ringo Business</div>
+    <div class="count" id="count">1 / 14</div>
+  </div>
+  <div class="stage" id="stage">
+    <div class="tapzone left" id="zoneLeft"></div>
+    <div class="tapzone right" id="zoneRight"></div>
+  </div>
+  <div class="navbar">
+    <button class="nav-btn" id="backBtn">Back</button>
+    <button class="next-pill" id="nextBtn">Next</button>
+  </div>
+</div>
+
+<script>
+  // ── Dynamic per-link attribution — same mechanism as the other two funnels ──
+  // Reads ?ref=CODE from this page's own URL and uses it to:
+  //   1) carry that ref into /get-started?business=1 below (skips straight
+  //      to the Business plan picker — see GetStartedFlow.tsx), and
+  //   2) look up the referrer's own WhatsApp number via the SAME
+  //      read-only /api/public/card-funnel-referrer endpoint the other
+  //      two funnels already use — reused as-is, nothing card-specific
+  //      about its actual lookup logic.
+  // Falls back to the platform default number whenever there's no ref, the
+  // lookup fails, or the referrer has no whatsapp_number set.
+  const DEFAULT_WHATSAPP_NUMBER = "237694028846";
+  const refCode = new URLSearchParams(window.location.search).get("ref");
+  let SALES_LINK = "https://ringoconnectltd.com/get-started?business=1" + (refCode ? "&ref=" + encodeURIComponent(refCode) : "");
+  let WHATSAPP_NUMBER = DEFAULT_WHATSAPP_NUMBER;
+
+  async function resolveWhatsappNumber() {
+    if (!refCode) return;
+    try {
+      const res = await fetch("/api/public/card-funnel-referrer?ref=" + encodeURIComponent(refCode));
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && typeof data.whatsapp_number === "string" && data.whatsapp_number.trim()) {
+        WHATSAPP_NUMBER = data.whatsapp_number.trim();
+      }
+    } catch {
+      // Network hiccup — keep the default number, nothing else to do.
+    }
+  }
+
+  const ICONS = {
+    building: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="24" y="18" width="52" height="64" rx="4"/>
+      <path d="M34 30h8M50 30h8M34 44h8M50 44h8M34 58h8M50 58h8"/>
+      <path d="M42 82V66h16v16"/>
+    </svg>`,
+    value: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="16" y="24" width="52" height="38" rx="8"/><path d="M16 40h52"/>
+      <circle cx="72" cy="66" r="18" fill="#0B0B24"/><path d="M64 66l6 6 12-13"/>
+    </svg>`,
+    team: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="38" cy="36" r="12"/><path d="M18 74c3-14 12-20 20-20s17 6 20 20"/>
+      <circle cx="66" cy="40" r="10"/><path d="M50 78c3-11 10-16 16-16s13 5 16 16" opacity=".85"/>
+    </svg>`,
+    shield: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M50 14l28 10v22c0 20-12 32-28 40-16-8-28-20-28-40V24z"/>
+      <path d="M38 50l9 9 17-19"/>
+    </svg>`,
+    person: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="18" y="18" width="64" height="64" rx="14"/>
+      <circle cx="50" cy="42" r="12"/>
+      <path d="M28 70c4-12 14-18 22-18s18 6 22 18"/>
+    </svg>`,
+    shop: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 32l6-16h44l6 16"/><path d="M18 32v10a9 9 0 0018 0 9 9 0 0018 0 9 9 0 0018 0v-10"/>
+      <path d="M24 42v34h44V42"/><path d="M40 76V56h12v20"/>
+    </svg>`,
+    link: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="14" y="34" width="34" height="34" rx="15"/><rect x="52" y="34" width="34" height="34" rx="15"/>
+      <path d="M40 51h20"/>
+    </svg>`,
+    upgrade: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 78h68"/><rect x="24" y="56" width="12" height="18"/><rect x="44" y="44" width="12" height="30"/>
+      <rect x="64" y="28" width="12" height="46"/><path d="M62 20l14-4 4 14" opacity=".85"/>
+    </svg>`,
+    payment: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="30" y="12" width="36" height="62" rx="9"/><path d="M30 58h36"/>
+      <circle cx="48" cy="36" r="13"/><path d="M42 36l4 4 8-9"/>
+    </svg>`,
+    repeat: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M24 40a24 24 0 0142-15"/><path d="M76 60a24 24 0 01-42 15"/>
+      <path d="M58 15l8 10-11 4M42 85l-8-10 11-4"/><circle cx="50" cy="50" r="6" fill="currentColor" stroke="none"/>
+    </svg>`,
+    globe: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round">
+      <circle cx="46" cy="50" r="30"/><path d="M16 50h60"/>
+      <path d="M46 20c11 8 11 42 0 60M46 20c-11 8-11 42 0 60" opacity=".8"/>
+    </svg>`,
+    check: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="50" cy="50" r="34"/><path d="M35 51l10 11 22-24"/>
+    </svg>`,
+    faq: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 26h64a6 6 0 016 6v30a6 6 0 01-6 6H46l-16 14V68H18a6 6 0 01-6-6V32a6 6 0 016-6z"/>
+      <circle cx="38" cy="48" r="3" fill="currentColor" stroke="none"/><circle cx="50" cy="48" r="3" fill="currentColor" stroke="none"/>
+      <circle cx="62" cy="48" r="3" fill="currentColor" stroke="none"/>
+    </svg>`
+  };
+
+  const pages = [
+    { intro: true, q: "Quick questions for business owners", a: "Here's what business owners and institutions usually ask about running their team on Ringo Connect. Tap through — it only takes a minute.", icon: "faq", animated: true, ring: "rgba(242,169,59,0.18)" },
+    { q: "What does Ringo Connect offer a business?", a: "One page for your business, plus a real staff system — invite your team, assign roles, and run orders, bookings, or sales together, not just alone.", icon: "building", animated: true, ring: "rgba(242,169,59,0.18)" },
+    { q: "How much do Business plans cost?", a: "Business Basic is 2,500 FCFA/month (up to 3 staff), Business Pro is 4,000 FCFA/month (up to 7 staff) — both include everything in Pro, plus your team.", icon: "value", ring: "rgba(242,169,59,0.18)" },
+    { q: "How many staff can I add?", a: "Up to 3 on Business Basic, up to 7 on Business Pro. Each staff member gets their own login and a role you assign them.", icon: "team", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
+    { q: "Can I control what each staff member sees?", a: "Yes — you assign specific permissions per role. A Chef sees Kitchen and Orders only, for example, not Sales or Settings.", icon: "shield", ring: "rgba(242,169,59,0.18)" },
+    { q: "Do my staff need their own Ringo account?", a: "Yes, but it's simple — they keep their own personal profile too, and just switch into your business when they're working.", icon: "person", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
+    { q: "Can I run a restaurant with a team on this?", a: "Yes — a real digital menu, kitchen board, order tracking, and staff permissions are all built for exactly this.", icon: "shop", ring: "rgba(242,169,59,0.18)" },
+    { q: "How do I invite my staff?", a: "Send them a secure invite link, or add their details directly — they accept and get access right away.", icon: "link", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
+    { q: "Can staff see my earnings or settings?", a: "No — access is limited to exactly what you assign. Sensitive areas stay owner-only unless you say otherwise.", icon: "shield", ring: "rgba(242,169,59,0.18)" },
+    { q: "What if my team grows?", a: "Upgrade from Business Basic to Business Pro anytime for more seats — no need to start over.", icon: "upgrade", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
+    { q: "Do orders and payments still work the same?", a: "Yes — real ordering, bookings, and checkout work exactly the same. Your staff just help you manage them.", icon: "payment", ring: "rgba(242,169,59,0.18)" },
+    { q: "Can I still use my own personal profile too?", a: "Yes — your personal account and your business are separate. Switch between them anytime from your dashboard.", icon: "repeat", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
+    { q: "Is this only for restaurants?", a: "No — any business or institution with staff can use it: shops, clinics, schools, service businesses, and more.", icon: "globe", ring: "rgba(242,169,59,0.18)" },
+    { cta: true, q: "Ready to set up your team?", a: "It takes just a couple minutes to create your business page and start inviting your staff.", icon: "check", animated: true, ring: "rgba(242,169,59,0.2)" }
+  ];
+
+  const stage = document.getElementById('stage');
+  const progressEl = document.getElementById('progress');
+  const backBtn = document.getElementById('backBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const countEl = document.getElementById('count');
+  let current = 0;
+
+  async function init() {
+  // Resolve the referrer's WhatsApp number (if any) before building the
+  // CTA page below, so its links are correct from the very first paint.
+  await resolveWhatsappNumber();
+
+  pages.forEach(() => {
+    const seg = document.createElement('div');
+    seg.className = 'seg';
+    seg.innerHTML = '<div class="fill"></div>';
+    progressEl.appendChild(seg);
+  });
+  const segFills = () => document.querySelectorAll('.progress .fill');
+
+  pages.forEach((p, index) => {
+    const isFaq = !p.cta && !p.intro;
+    const div = document.createElement('div');
+    div.className = 'page' + (p.cta ? ' cta-page' : '');
+
+    const badge = document.createElement('div');
+    badge.className = 'badge' + (p.animated ? ' animated' : '');
+    badge.style.setProperty('--ring-color', p.ring || 'rgba(242,169,59,0.18)');
+    badge.style.setProperty('--icon-color', p.iconColor || 'var(--amber)');
+    badge.innerHTML = '<div class="ring"></div>' + (p.animated ? '<div class="ripple"></div>' : '') + ICONS[p.icon];
+    div.appendChild(badge);
+
+    const q = document.createElement('h1');
+    q.className = 'q';
+    q.textContent = p.q;
+    div.appendChild(q);
+
+    const isViolet = p.iconColor === 'var(--violet)';
+    const aBox = document.createElement('div');
+    aBox.className = 'a-box box-dark';
+    aBox.style.setProperty('--page-accent', p.iconColor || 'var(--amber)');
+    aBox.style.setProperty('--a-text-color', isViolet ? '#DCD5FF' : '#FBE7C6');
+    if (isFaq) {
+      const label = document.createElement('div');
+      label.className = 'a-label';
+      label.textContent = 'Answer';
+      aBox.appendChild(label);
+    }
+    const a = document.createElement('p');
+    a.className = 'a';
+    a.textContent = p.a;
+    aBox.appendChild(a);
+    div.appendChild(aBox);
+
+    if (p.cta) {
+      const row = document.createElement('div');
+      row.className = 'cta-row';
+
+      const btn = document.createElement('a');
+      btn.className = 'cta-btn';
+      btn.href = SALES_LINK;
+      btn.target = '_top';
+      btn.textContent = 'Yes, Set Up My Business';
+      row.appendChild(btn);
+
+      const waMsg = encodeURIComponent("Hi! I have a question about Ringo Connect for my business before I sign up 🙂");
+      const waBtn = document.createElement('a');
+      waBtn.className = 'cta-btn-secondary';
+      waBtn.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + waMsg;
+      waBtn.target = '_top';
+      waBtn.textContent = 'Not now, I have a question';
+      row.appendChild(waBtn);
+
+      const sub = document.createElement('p');
+      sub.className = 'cta-sub';
+      sub.textContent = 'Pay by MTN or Orange Money — takes about 2 minutes.';
+      row.appendChild(sub);
+
+      div.appendChild(row);
+    }
+
+    stage.appendChild(div);
+  });
+
+  function render() {
+    document.querySelectorAll('.page').forEach((el, i) => el.classList.toggle('active', i === current));
+    segFills().forEach((fill, i) => { fill.style.width = i <= current ? '100%' : '0%'; });
+    backBtn.disabled = current === 0;
+    nextBtn.textContent = current === pages.length - 1 ? 'Start over' : 'Next';
+    countEl.textContent = (current + 1) + ' / ' + pages.length;
+  }
+  function goNext() { current = current < pages.length - 1 ? current + 1 : 0; render(); }
+  function goBack() { if (current > 0) { current--; render(); } }
+
+  document.getElementById('zoneRight').addEventListener('click', goNext);
+  document.getElementById('zoneLeft').addEventListener('click', goBack);
+  nextBtn.addEventListener('click', goNext);
+  backBtn.addEventListener('click', goBack);
+  document.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') goNext(); if (e.key === 'ArrowLeft') goBack(); });
+
+  let touchStartX = null;
+  stage.addEventListener('touchstart', (e) => {
+    if (e.target.closest('a, button')) { touchStartX = null; return; }
+    touchStartX = e.touches[0].clientX;
+  });
+  stage.addEventListener('touchend', (e) => {
+    if (touchStartX === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) { dx < 0 ? goNext() : goBack(); }
+    touchStartX = null;
+  });
+
+  render();
+  }
+
+  init();
+</script>
+</body>
+</html>
