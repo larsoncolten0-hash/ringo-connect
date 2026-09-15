@@ -10,6 +10,7 @@ import LanguageToggle from "@/components/LanguageToggle";
 import { formatPrice } from "@/lib/currency";
 import { detectPlatform } from "@/lib/utils";
 import ImageUploadField from "@/components/editor/ImageUploadField";
+import PhoneCountryInput from "@/components/editor/PhoneCountryInput";
 import SocialIcon from "@/components/SocialIcon";
 import CategoryPicker from "@/components/CategoryPicker";
 import { getCategory, type CategoryId } from "@/lib/categories";
@@ -821,12 +822,16 @@ export default function GetStartedFlow({
 
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium">{t.getStarted.whatsappLabel}</span>
-                <input
+                {/* WhatsApp links only work with the full number including
+                    its country code (see WhatsAppButton.tsx's wa.me
+                    link) — same country-code-dropdown + local-number split
+                    the dashboard's own WhatsAppCard.tsx already uses, so a
+                    number entered here is stored complete from the start
+                    instead of needing to be fixed later in the editor. */}
+                <PhoneCountryInput
                   value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
+                  onChange={setWhatsapp}
                   placeholder={t.getStarted.whatsappPlaceholder}
-                  inputMode="tel"
-                  className="border border-ringo-border rounded-card px-3.5 py-2.5 text-sm bg-ringo-surface"
                 />
               </label>
 
