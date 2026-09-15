@@ -37,6 +37,15 @@ export default async function PublicProfilePage({
 
   if (!profile) return notFound();
 
+  // Only ever used to suppress FanRecognitionHeader for the owner's own
+  // live view (see that component's comment) — this page is already
+  // force-dynamic (see above), so one extra auth read costs nothing this
+  // route doesn't already pay for a signed-in visitor's cookies.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const isOwner = user?.id === profile.user_id;
+
   const { referrer, country, city } = extractRequestContext(headers());
   const clientIp = extractClientIp(headers());
   const userAgent = headers().get("user-agent");
@@ -129,6 +138,12 @@ export default async function PublicProfilePage({
   }
 
   return (
-    <ProfileView profile={publicProfile} pixelsEnabled={pixelsEnabled} pageViewEventId={pageViewEventId} staffBadges={staffBadges} />
+    <ProfileView
+      profile={publicProfile}
+      pixelsEnabled={pixelsEnabled}
+      pageViewEventId={pageViewEventId}
+      staffBadges={staffBadges}
+      isOwner={isOwner}
+    />
   );
 }

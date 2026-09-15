@@ -169,12 +169,26 @@ export async function sendPushToOrderWatcher(admin: any, orderId: string | null 
 // Platform-wide broadcasts — used once, by the admin broadcast tool (see
 // /api/admin/broadcast). Every fan across every creator, or every
 // creator/admin, respectively.
+//
+// Deliberately preference-agnostic beyond the one check below: this is a
+// platform-level message from Ringo Connect itself, not a creator's own
+// Announcement, so it never reads a subscriber's per-category notify_*
+// flags (those gate content FROM a specific creator) and never touches
+// email — push-only and unconditional-within-that is the intended shape
+// for this feature. The one thing it must still respect is
+// community_subscribers.status: someone who unsubscribed/was removed
+// explicitly opted out, and sending them a platform broadcast anyway
+// would be a real trust problem even framed as "from Ringo" rather than
+// the creator — inner-joining on status = 'active' is what keeps that
+// from slipping through even though this query has no other reason to
+// touch community_subscribers at all.
 export async function sendPushToAllSubscribers(admin: any, payload: PushPayload): Promise<void> {
   try {
     const { data: subs } = await admin
       .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth, subscriber_id")
-      .not("subscriber_id", "is", null);
+      .select("id, endpoint, p256dh, auth, subscriber_id, community_subscribers!inner(status)")
+      .not("subscriber_id", "is", null)
+      .eq("community_subscribers.status", "active");
     const bySubscriber = groupByOwner((subs as any[]) || [], "subscriber_id");
     await Promise.all(
       Array.from(bySubscriber.entries()).map(([subscriberId, s]) => deliverAndLog(admin, s, payload, { subscriber_id: subscriberId }))

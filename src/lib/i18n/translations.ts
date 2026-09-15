@@ -67,6 +67,14 @@ export const translations = {
       title: "Stay Connected",
       subtitle: (name: string) => `Follow updates from ${name} — new products, events and announcements.`,
       defaultButtonLabel: "Join Community",
+      // The recognized-returning-fan header widget (FanRecognitionHeader.tsx)
+      // — shown in the page header once this visitor's browser already has
+      // a stored community membership for THIS profile (see
+      // CommunityJoinPage.tsx's localStorage write). Independent of the
+      // "Stay Connected" card above, which still renders as before.
+      fanBadgeLabel: (name: string) => `Guest · ${name}`,
+      fanDropdownSubtitle: (creatorName: string) => `You're a member of ${creatorName}'s community.`,
+      fanShareLabel: "Share this page",
     },
     // The public "Add to Home Screen" card + iOS instructions modal (see
     // AddToHomeScreen.tsx) — entirely separate feature from Community
@@ -1767,6 +1775,9 @@ export const translations = {
       title: "Restez connecté",
       subtitle: (name: string) => `Suivez les actualités de ${name} — nouveaux produits, événements et annonces.`,
       defaultButtonLabel: "Rejoindre la communauté",
+      fanBadgeLabel: (name: string) => `Invité · ${name}`,
+      fanDropdownSubtitle: (creatorName: string) => `Vous faites partie de la communauté de ${creatorName}.`,
+      fanShareLabel: "Partager cette page",
     },
     addToHomeScreen: {
       title: (name: string) => `Gardez ${name} avec vous`,

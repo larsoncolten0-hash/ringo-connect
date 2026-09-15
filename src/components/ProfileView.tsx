@@ -27,6 +27,7 @@ import FeaturedMenuSection from "./restaurant/FeaturedMenuSection";
 import OpeningHoursRow from "./restaurant/OpeningHoursRow";
 import ImageGallery from "./ImageGallery";
 import ShareButton from "./ShareButton";
+import FanRecognitionHeader from "./FanRecognitionHeader";
 import BookingButton from "./BookingButton";
 import AddToHomeScreen from "./AddToHomeScreen";
 import RegisterServiceWorker from "./RegisterServiceWorker";
@@ -37,6 +38,7 @@ export default function ProfileView({
   pixelsEnabled,
   pageViewEventId,
   preview = false,
+  isOwner = false,
   staffBadges = [],
 }: {
   profile: any;
@@ -48,6 +50,13 @@ export default function ProfileView({
   // hides the "copy link" affordance (window.location.href there would be
   // the dashboard's own URL, not the profile's).
   preview?: boolean;
+  // True when the signed-in visitor IS this profile's own owner, viewing
+  // their live page directly (not the dashboard preview, which already
+  // has its own `preview` gate) — computed server-side in
+  // src/app/[username]/page.tsx via auth.getUser(). Only ever suppresses
+  // FanRecognitionHeader below; nothing else on the page currently reads
+  // this.
+  isOwner?: boolean;
   // "Chef at Mama's Kitchen" style pill(s) — one per organization this
   // person is currently active staff at, live-derived server-side (see
   // src/app/[username]/page.tsx). Empty whenever there's nothing to show
@@ -311,7 +320,18 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           // over this share dropdown regardless of the dropdown's own
           // internal z-index, since that only resolves stacking *within*
           // this wrapper's context, not against the sibling.
-          <div className="absolute top-4 right-4 z-20">
+          <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+            {/* Only ever renders for a returning visitor this browser
+                already recognizes as a member of THIS profile's
+                community — see the component's own comment. Sits beside
+                ShareButton rather than replacing it: everyone (recognized
+                or not) keeps the same share affordance they already had. */}
+            <FanRecognitionHeader
+              username={profile.username}
+              creatorName={profile.name || profile.username}
+              accent={accent}
+              isOwner={isOwner}
+            />
             <ShareButton
               accent={accent}
               title={profile.name || profile.username}

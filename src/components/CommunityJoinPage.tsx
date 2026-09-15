@@ -103,6 +103,21 @@ export default function CommunityJoinPage({ profile }: { profile: any }) {
       if (data?.unsubscribe_token) {
         setManageUrl(`${window.location.origin}/community/manage/${data.unsubscribe_token}`);
         setSubscriberToken(data.unsubscribe_token);
+        // Lets FanRecognitionHeader.tsx recognize this visitor's browser
+        // as a member of THIS profile on a future visit — keyed by
+        // username so it's scoped per-profile by construction (joining
+        // creator A's community never makes creator B's page think this
+        // browser already joined). Best-effort: a failed write (private
+        // browsing, storage blocked) just means the header widget won't
+        // show up later, never blocks the join itself.
+        try {
+          localStorage.setItem(
+            `ringo-community-member-${profile.username}`,
+            JSON.stringify({ token: data.unsubscribe_token, name: name.trim() })
+          );
+        } catch {
+          // See comment above — non-critical.
+        }
       }
 
       // Only worth offering the inline prompt when there's a real
