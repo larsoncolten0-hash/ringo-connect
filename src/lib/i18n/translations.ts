@@ -145,6 +145,15 @@ export const translations = {
       contentPrefsTitle: "What would you like to receive?",
       savePreferences: "Save preferences",
       unsubscribeFromEverything: "Unsubscribe from everything",
+      // The inline "Enable Notifications" step shown right after a
+      // successful join (see CommunityJoinPage.tsx) — a distinct screen
+      // between the join form and the final confirmation, not folded into
+      // either one. Its two buttons reuse pushNotifications.promptEnable/
+      // promptDismiss rather than duplicating that copy.
+      notifTitle: (name: string) => `Stay connected with ${name}`,
+      notifBody: "Get notified about announcements, new events, offers, and updates — right on this device.",
+      notifEnabledMessage: "You're all set — notifications are on.",
+      notifFailedMessage: "Couldn't enable notifications right now. No problem — you can try again anytime from Manage preferences.",
     },
     getStarted: {
       // The very first screen of the standard /get-started flow (never
@@ -1815,6 +1824,10 @@ export const translations = {
       contentPrefsTitle: "Que souhaitez-vous recevoir ?",
       savePreferences: "Enregistrer les préférences",
       unsubscribeFromEverything: "Se désabonner de tout",
+      notifTitle: (name: string) => `Restez connecté avec ${name}`,
+      notifBody: "Soyez averti des annonces, nouveaux événements, offres et actualités — directement sur cet appareil.",
+      notifEnabledMessage: "C'est fait — les notifications sont activées.",
+      notifFailedMessage: "Impossible d'activer les notifications pour le moment. Pas de souci — vous pourrez réessayer à tout moment depuis Gérer vos préférences.",
     },
     getStarted: {
       accountTypeTitle: "Comment allez-vous utiliser Ringo ?",
