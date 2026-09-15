@@ -84,7 +84,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
               to: adminEmails,
               subject: `Payment received — ${signupRequest.full_name}`,
               html: emailShell(`
-                <p style="font-size:14px; margin:0 0 16px;"><strong>${signupRequest.full_name}</strong> just paid for their plan at signup — ready for you to review and approve.</p>
+                <p style="font-size:14px; margin:0 0 16px;"><strong>${signupRequest.full_name}</strong> just completed their purchase at signup — ready for you to review and approve.</p>
                 <a href="${siteUrl}/admin/requests/${params.id}" style="display:inline-block; background:#4F46E5; color:#fff; text-decoration:none; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:500;">Review request</a>
               `),
               log: { emailType: "signup_request_paid_admin", resourceType: "signup_request", resourceId: params.id },
@@ -95,7 +95,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
               to: superCreator.email,
               subject: `Payment received — ${signupRequest.full_name}`,
               html: emailShell(`
-                <p style="font-size:14px; margin:0 0 16px;"><strong>${signupRequest.full_name}</strong> (from your affiliate link) just paid for their plan — ready for you to review and approve.</p>
+                <p style="font-size:14px; margin:0 0 16px;"><strong>${signupRequest.full_name}</strong> (from your affiliate link) just completed their purchase — ready for you to review and approve.</p>
                 <a href="${siteUrl}/dashboard/requests/${params.id}" style="display:inline-block; background:#4F46E5; color:#fff; text-decoration:none; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:500;">Review request</a>
               `),
               log: { emailType: "signup_request_paid_referrer", resourceType: "signup_request", resourceId: params.id },

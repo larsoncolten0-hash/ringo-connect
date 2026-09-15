@@ -34,19 +34,30 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (!signupRequest || signupRequest.status !== "pending") {
     return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
   }
-  if (!signupRequest.requested_plan_id) {
-    return NextResponse.json({ error: "No plan was selected." }, { status: 400 });
+
+  // A plan is optional here — the card-only track (/get-started-cards)
+  // never offers one at all, and can still have a balance due from its
+  // priced Ringo Card bundle addon alone. Requiring requested_plan_id
+  // used to reject every addon-only payment with "No plan was selected",
+  // even though GetStartedFlow.tsx already prices plan + addons together
+  // (see its isFreeSelection comment) and only sends a paying customer
+  // here when that combined total is > 0.
+  let plan: { price_xaf: number; price_xaf_yearly: number; name: string } | null = null;
+  if (signupRequest.requested_plan_id) {
+    const { data } = await admin
+      .from("plans")
+      .select("price_xaf, price_xaf_yearly, name")
+      .eq("id", signupRequest.requested_plan_id)
+      .single();
+    if (!data) return NextResponse.json({ error: "Plan not found." }, { status: 404 });
+    plan = data;
   }
 
-  const { data: plan } = await admin
-    .from("plans")
-    .select("price_xaf, price_xaf_yearly, name")
-    .eq("id", signupRequest.requested_plan_id)
-    .single();
-  if (!plan) return NextResponse.json({ error: "Plan not found." }, { status: 404 });
-
-  let amount =
-    signupRequest.requested_interval === "yearly" ? Number(plan.price_xaf_yearly) : Number(plan.price_xaf);
+  let amount = plan
+    ? signupRequest.requested_interval === "yearly"
+      ? Number(plan.price_xaf_yearly)
+      : Number(plan.price_xaf)
+    : 0;
 
   const addonIds: string[] = signupRequest.requested_addon_ids || [];
   if (addonIds.length > 0) {
@@ -65,7 +76,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       medium,
       userId: signupRequest.id,
       externalId: `signup-${signupRequest.id}`,
-      message: `Ringo Connect — ${plan.name} plan (${signupRequest.full_name})`,
+      message: `Ringo Connect — ${plan ? `${plan.name} plan` : "signup"} (${signupRequest.full_name})`,
     });
 
     await admin.from("signup_requests").update({ pending_fapshi_trans_id: result.transId }).eq("id", params.id);
