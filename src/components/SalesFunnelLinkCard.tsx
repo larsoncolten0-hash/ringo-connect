@@ -35,6 +35,13 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
   const [faqCopied, setFaqCopied] = useState(false);
   const faqLink = `${siteUrl.replace(/\/$/, "")}/card-funnel.html?ref=${affiliateCode}`;
 
+  // Third link: the same story-style FAQ format, but for people who just
+  // want the Ringo Connect platform/subscription — no physical card. Ends
+  // on the plain /get-started flow (no ?card=1) — see
+  // public/subscription-funnel.html.
+  const [subCopied, setSubCopied] = useState(false);
+  const subLink = `${siteUrl.replace(/\/$/, "")}/subscription-funnel.html?ref=${affiliateCode}`;
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(link);
@@ -55,6 +62,17 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
     }
     setFaqCopied(true);
     setTimeout(() => setFaqCopied(false), 2000);
+  };
+
+  const copySubLink = async () => {
+    try {
+      await navigator.clipboard.writeText(subLink);
+    } catch {
+      // Clipboard API can be unavailable — the link is still visible and
+      // selectable by hand.
+    }
+    setSubCopied(true);
+    setTimeout(() => setSubCopied(false), 2000);
   };
 
   const shareLink = async () => {
@@ -113,6 +131,26 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
           >
             {faqCopied ? <Check size={15} /> : <Copy size={15} />}
             {faqCopied ? "Copied" : "Copy"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-ringo-border/70">
+        <p className="text-sm font-medium text-ringo-text mb-1">Get my subscription funnel link</p>
+        <p className="text-xs text-ringo-muted mb-3">
+          Same FAQ walkthrough, but for the Ringo Connect platform itself — no physical card, just Personal/Business
+          and Free or a paid plan.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex-1 min-w-0 flex items-center rounded-card border border-ringo-border bg-ringo-bg px-3.5 py-2.5">
+            <p className="text-sm text-ringo-text truncate font-mono">{subLink}</p>
+          </div>
+          <button
+            onClick={copySubLink}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-card bg-ringo-indigo text-white text-sm font-medium hover:bg-ringo-indigo/90 transition-colors shrink-0"
+          >
+            {subCopied ? <Check size={15} /> : <Copy size={15} />}
+            {subCopied ? "Copied" : "Copy"}
           </button>
         </div>
       </div>
