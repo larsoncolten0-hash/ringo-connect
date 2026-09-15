@@ -56,9 +56,18 @@ export default function PushPermissionPrompt({ subscribeUrl, body }: { subscribe
   const enable = async () => {
     setBusy(true);
     try {
-      await subscribeToPush({ subscribeUrl });
+      const result = await subscribeToPush({ subscribeUrl });
+      // Only remembered permanently for a real decision — granted (and
+      // actually subscribed) or explicitly denied. A technical failure
+      // (e.g. this deployment's push setup isn't configured, or the
+      // subscribe request failed) isn't a choice anyone made, so it
+      // shouldn't permanently hide this prompt — it'll ask again next
+      // visit instead of silently going dark forever with nothing
+      // actually turned on.
+      if (result.ok || result.error === "permission_denied") {
+        localStorage.setItem(DISMISS_KEY, "1");
+      }
     } finally {
-      localStorage.setItem(DISMISS_KEY, "1");
       setBusy(false);
       setVisible(false);
     }

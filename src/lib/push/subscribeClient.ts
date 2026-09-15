@@ -20,6 +20,21 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+// Fired on `window` after a subscribe/unsubscribe actually changes the
+// browser's PushManager subscription — usePushToggle.ts listens for this
+// so every mounted toggle (AvatarMenu's account-menu switch,
+// PushNotificationBell.tsx) re-checks and reflects the change immediately.
+// Needed because PushPermissionPrompt.tsx calls subscribeToPush()
+// directly rather than through the hook: without this, granting
+// permission via that banner left every other toggle showing stale "off"
+// state until a full page reload (each usePushToggle instance only ever
+// checked getPushStatus() once, on its own mount).
+export const PUSH_STATUS_CHANGE_EVENT = "ringo:push-status-changed";
+
+function notifyPushStatusChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(PUSH_STATUS_CHANGE_EVENT));
+}
+
 export interface PushStatus {
   // false in unsupported browsers (no Notification/PushManager/SW at
   // all — Firefox/Chrome/Edge/Android all support this; iOS only once
@@ -102,6 +117,7 @@ export async function subscribeToPush({
       const body = await res.json().catch(() => null);
       return { ok: false, error: body?.error || `request_failed_${res.status}` };
     }
+    notifyPushStatusChanged();
     return { ok: true };
   } catch (err: any) {
     return { ok: false, error: err?.message || "subscribe_failed" };
@@ -125,6 +141,7 @@ export async function unsubscribeFromPush(unsubscribeUrl: string): Promise<Subsc
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ endpoint }),
     });
+    if (res.ok) notifyPushStatusChanged();
     return { ok: res.ok };
   } catch (err: any) {
     return { ok: false, error: err?.message || "unsubscribe_failed" };

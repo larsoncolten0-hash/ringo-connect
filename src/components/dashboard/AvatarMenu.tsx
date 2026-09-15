@@ -203,6 +203,9 @@ export default function AvatarMenu({
               </button>
             )
           )}
+          {pushStatus === "error" && (
+            <p className="px-3.5 pb-2 -mt-1 text-xs text-red-500">{t.pushNotifications.errorHint}</p>
+          )}
           {ownProfileId && (
             <button
               onClick={toggleTeamBadges}

@@ -30,9 +30,11 @@ export default function PushNotificationBell({ variant = "default" }: { variant?
   const label =
     status === "denied"
       ? t.pushNotifications.permissionDenied
-      : status === "on"
-        ? t.pushNotifications.enabled
-        : t.pushNotifications.enable;
+      : status === "error"
+        ? t.pushNotifications.errorHint
+        : status === "on"
+          ? t.pushNotifications.enabled
+          : t.pushNotifications.enable;
   const Icon = status === "on" ? BellRing : status === "loading" ? Bell : BellOff;
 
   return (

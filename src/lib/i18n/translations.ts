@@ -110,6 +110,11 @@ export const translations = {
       enabled: "Notifications on",
       hint: "Get notified on this device — no app to install.",
       permissionDenied: "Notifications are blocked — check your browser or phone settings.",
+      // Shown when enable() actually ran and failed for a reason other
+      // than the browser permission being denied (e.g. this deployment's
+      // push setup isn't configured) — distinct from a plain "off" toggle
+      // so it doesn't look like the tap did nothing.
+      errorHint: "Couldn't turn on notifications — please try again in a moment.",
       orderEnable: "Notify me about this order",
       orderEnabled: "We'll notify you ✓",
       // The proactive permission prompt (PushPermissionPrompt.tsx) —
@@ -1799,6 +1804,7 @@ export const translations = {
       enabled: "Notifications activées",
       hint: "Recevez une notification sur cet appareil — aucune application à installer.",
       permissionDenied: "Les notifications sont bloquées — vérifiez les réglages de votre navigateur ou téléphone.",
+      errorHint: "Impossible d'activer les notifications — veuillez réessayer dans un instant.",
       orderEnable: "M'avertir pour cette commande",
       orderEnabled: "Vous serez averti ✓",
       promptTitle: "Activer les notifications",
