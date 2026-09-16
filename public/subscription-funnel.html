@@ -55,6 +55,7 @@
   .nav-btn { font-family:'Manrope',sans-serif; font-size:14px; font-weight:600; background:none; border:none; color:var(--muted); cursor:pointer; padding:10px 6px; }
   .nav-btn:disabled { visibility:hidden; }
   .next-pill { font-family:'Manrope',sans-serif; font-size:14px; font-weight:800; background:var(--ink); color:var(--bg); border:none; border-radius:999px; padding:13px 24px; cursor:pointer; }
+  .lang-btn { font-family:'Manrope',sans-serif; font-size:11.5px; font-weight:800; background:rgba(20,14,4,0.06); color:var(--muted); border:1px solid rgba(20,14,4,0.14); border-radius:999px; padding:5px 10px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -63,7 +64,10 @@
   <div class="progress" id="progress"></div>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>Ringo Connect</div>
-    <div class="count" id="count">1 / 14</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="count" id="count">1 / 14</div>
+      <button class="lang-btn" id="langBtn" aria-label="Switch language">FR</button>
+    </div>
   </div>
   <div class="stage" id="stage">
     <div class="tapzone left" id="zoneLeft"></div>
@@ -104,6 +108,38 @@
       // Network hiccup — keep the default number, nothing else to do.
     }
   }
+
+  // ── Bilingual EN/FR — same "ringo-lang" localStorage key and default-to-French
+  // detection as src/components/LanguageProvider.tsx, so a language choice made
+  // here carries over into the main app (and vice versa) automatically.
+  const LOCALE_KEY = "ringo-lang";
+  function detectLocale() {
+    try {
+      const saved = localStorage.getItem(LOCALE_KEY);
+      if (saved === "en" || saved === "fr") return saved;
+    } catch {}
+    return navigator.language.toLowerCase().startsWith("en") ? "en" : "fr";
+  }
+  let locale = detectLocale();
+
+  const UI = {
+    en: {
+      title: "Ringo Connect — Get Started",
+      back: "Back", next: "Next", startOver: "Start over", answer: "Answer",
+      ctaBtn: "Yes, Let’s Get Started",
+      notNow: "Not now, I have a question",
+      sub: "Free to start — upgrade anytime by MTN or Orange Money.",
+      waMsg: "Hi! I have a question about Ringo Connect before I sign up 🙂"
+    },
+    fr: {
+      title: "Ringo Connect — Commencer",
+      back: "Retour", next: "Suivant", startOver: "Recommencer", answer: "Réponse",
+      ctaBtn: "Oui, je me lance",
+      notNow: "Pas maintenant, j'ai une question",
+      sub: "Gratuit pour commencer — passez à un plan supérieur à tout moment par MTN ou Orange Money.",
+      waMsg: "Bonjour ! J'ai une question sur Ringo Connect avant de m'inscrire 🙂"
+    }
+  };
 
   const ICONS = {
     page: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
@@ -156,19 +192,45 @@
   };
 
   const pages = [
-    { intro: true, q: "Quick questions about Ringo Connect", a: "Here are the 12 things people usually ask before getting started. Tap through — it only takes a minute.", icon: "faq", animated: true, ring: "rgba(242,169,59,0.18)" },
-    { q: "What is Ringo Connect?", a: "One page for your business or personal brand — links, catalog, bookings, and real ordering, all in one place. No website needed.", icon: "page", animated: true, ring: "rgba(242,169,59,0.18)" },
-    { q: "How much does it cost?", a: "You can start completely free. Paid plans start at 1,000 FCFA/month if you want extra features like custom themes, more links, and priority tools.", icon: "value", ring: "rgba(242,169,59,0.18)" },
-    { q: "What do I get for free?", a: "A real page with a link, a catalog item, and social icons — enough to try it out before you commit to anything.", icon: "star", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { q: "Can I actually sell things through it?", a: "Yes — on a paid plan you get real ordering for restaurants, real checkout and ticketing for music/events, and a booking system for any business.", icon: "shop", ring: "rgba(242,169,59,0.18)" },
-    { q: "Do I need to know how to code?", a: "No — you just fill in your info and pick your style. No technical or design skills needed at all.", icon: "check", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { q: "How do I get paid?", a: "Straight to your MTN or Orange Mobile Money — no bank account or card needed on your end.", icon: "payment", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { q: "Can I add staff or team members?", a: "Yes, on our Business plans — invite up to 3 or 7 people, each with their own role and permissions.", icon: "team", ring: "rgba(242,169,59,0.18)" },
-    { q: "What if I want to cancel?", a: "Mobile money plans don't auto-renew — if you don't pay again, your account simply continues on Free. No surprise charges, ever.", icon: "repeat", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { q: "How long does setup take?", a: "A few minutes — pick your category, fill in your info, and your page is live.", icon: "clock", ring: "rgba(242,169,59,0.18)" },
-    { q: "Does this replace my website?", a: "For most small businesses and creators, yes — one link does everything a basic website would, built for sharing on WhatsApp and social media.", icon: "link", ring: "rgba(242,169,59,0.18)" },
-    { q: "Can I upgrade or downgrade later?", a: "Anytime, right from your dashboard — nothing is locked in.", icon: "upgrade", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { cta: true, q: "Ready to get started?", a: "It takes just a couple minutes to set up your page — start free or pick a plan, and you're live.", icon: "check", animated: true, ring: "rgba(242,169,59,0.2)" }
+    { intro: true, icon: "faq", animated: true, ring: "rgba(242,169,59,0.18)",
+      q: { en: "Quick questions about Ringo Connect", fr: "Questions rapides sur Ringo Connect" },
+      a: { en: "Here are the 12 things people usually ask before getting started. Tap through — it only takes a minute.", fr: "Voici les 12 questions qu'on nous pose le plus souvent avant de commencer. Avancez en tapant — ça prend une minute." } },
+    { icon: "page", animated: true, ring: "rgba(242,169,59,0.18)",
+      q: { en: "What is Ringo Connect?", fr: "C'est quoi Ringo Connect ?" },
+      a: { en: "One page for your business or personal brand — links, catalog, bookings, and real ordering, all in one place. No website needed.", fr: "Une seule page pour votre entreprise ou votre marque personnelle — liens, catalogue, réservations et vraies commandes, tout au même endroit. Pas besoin de site web." } },
+    { icon: "value", ring: "rgba(242,169,59,0.18)",
+      q: { en: "How much does it cost?", fr: "Combien ça coûte ?" },
+      a: { en: "You can start completely free. Paid plans start at 1,000 FCFA/month if you want extra features like custom themes, more links, and priority tools.", fr: "Vous pouvez commencer entièrement gratuitement. Les plans payants démarrent à 1 000 FCFA/mois si vous voulez des fonctionnalités en plus comme les thèmes personnalisés, plus de liens et des outils prioritaires." } },
+    { icon: "star", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "What do I get for free?", fr: "Qu'est-ce que j'obtiens gratuitement ?" },
+      a: { en: "A real page with a link, a catalog item, and social icons — enough to try it out before you commit to anything.", fr: "Une vraie page avec un lien, un article de catalogue et des icônes de réseaux sociaux — de quoi essayer avant de vous engager." } },
+    { icon: "shop", ring: "rgba(242,169,59,0.18)",
+      q: { en: "Can I actually sell things through it?", fr: "Puis-je vraiment vendre des choses avec ça ?" },
+      a: { en: "Yes — on a paid plan you get real ordering for restaurants, real checkout and ticketing for music/events, and a booking system for any business.", fr: "Oui — avec un plan payant, vous avez de vraies commandes pour les restaurants, un vrai paiement et billetterie pour la musique/les événements, et un système de réservation pour toute entreprise." } },
+    { icon: "check", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "Do I need to know how to code?", fr: "Dois-je savoir coder ?" },
+      a: { en: "No — you just fill in your info and pick your style. No technical or design skills needed at all.", fr: "Non — vous remplissez juste vos informations et choisissez votre style. Aucune compétence technique ou de design n'est nécessaire." } },
+    { icon: "payment", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "How do I get paid?", fr: "Comment suis-je payé ?" },
+      a: { en: "Straight to your MTN or Orange Mobile Money — no bank account or card needed on your end.", fr: "Directement sur votre Mobile Money MTN ou Orange — pas besoin de compte bancaire ni de carte de votre côté." } },
+    { icon: "team", ring: "rgba(242,169,59,0.18)",
+      q: { en: "Can I add staff or team members?", fr: "Puis-je ajouter du personnel ou des membres d'équipe ?" },
+      a: { en: "Yes, on our Business plans — invite up to 3 or 7 people, each with their own role and permissions.", fr: "Oui, sur nos plans Business — invitez jusqu'à 3 ou 7 personnes, chacune avec son propre rôle et ses permissions." } },
+    { icon: "repeat", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "What if I want to cancel?", fr: "Et si je veux annuler ?" },
+      a: { en: "Mobile money plans don't auto-renew — if you don't pay again, your account simply continues on Free. No surprise charges, ever.", fr: "Les plans par mobile money ne se renouvellent pas automatiquement — si vous ne repayez pas, votre compte continue simplement sur Gratuit. Aucun frais surprise, jamais." } },
+    { icon: "clock", ring: "rgba(242,169,59,0.18)",
+      q: { en: "How long does setup take?", fr: "Combien de temps prend la configuration ?" },
+      a: { en: "A few minutes — pick your category, fill in your info, and your page is live.", fr: "Quelques minutes — choisissez votre catégorie, remplissez vos informations, et votre page est en ligne." } },
+    { icon: "link", ring: "rgba(242,169,59,0.18)",
+      q: { en: "Does this replace my website?", fr: "Est-ce que ça remplace mon site web ?" },
+      a: { en: "For most small businesses and creators, yes — one link does everything a basic website would, built for sharing on WhatsApp and social media.", fr: "Pour la plupart des petites entreprises et créateurs, oui — un seul lien fait tout ce qu'un site web basique ferait, pensé pour être partagé sur WhatsApp et les réseaux sociaux." } },
+    { icon: "upgrade", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "Can I upgrade or downgrade later?", fr: "Puis-je changer de plan plus tard ?" },
+      a: { en: "Anytime, right from your dashboard — nothing is locked in.", fr: "À tout moment, directement depuis votre tableau de bord — rien n'est figé." } },
+    { cta: true, icon: "check", animated: true, ring: "rgba(242,169,59,0.2)",
+      q: { en: "Ready to get started?", fr: "Prêt à commencer ?" },
+      a: { en: "It takes just a couple minutes to set up your page — start free or pick a plan, and you're live.", fr: "Il faut juste quelques minutes pour configurer votre page — commencez gratuitement ou choisissez un plan, et c'est en ligne." } }
   ];
 
   const stage = document.getElementById('stage');
@@ -176,6 +238,7 @@
   const backBtn = document.getElementById('backBtn');
   const nextBtn = document.getElementById('nextBtn');
   const countEl = document.getElementById('count');
+  const langBtn = document.getElementById('langBtn');
   let current = 0;
 
   async function init() {
@@ -191,7 +254,9 @@
   });
   const segFills = () => document.querySelectorAll('.progress .fill');
 
-  pages.forEach((p, index) => {
+  const refs = [];
+
+  pages.forEach((p) => {
     const isFaq = !p.cta && !p.intro;
     const div = document.createElement('div');
     div.className = 'page' + (p.cta ? ' cta-page' : '');
@@ -205,7 +270,6 @@
 
     const q = document.createElement('h1');
     q.className = 'q';
-    q.textContent = p.q;
     div.appendChild(q);
 
     const isViolet = p.iconColor === 'var(--violet)';
@@ -213,17 +277,18 @@
     aBox.className = 'a-box box-dark';
     aBox.style.setProperty('--page-accent', p.iconColor || 'var(--amber)');
     aBox.style.setProperty('--a-text-color', isViolet ? '#DCD5FF' : '#FBE7C6');
+    let label = null;
     if (isFaq) {
-      const label = document.createElement('div');
+      label = document.createElement('div');
       label.className = 'a-label';
-      label.textContent = 'Answer';
       aBox.appendChild(label);
     }
     const a = document.createElement('p');
     a.className = 'a';
-    a.textContent = p.a;
     aBox.appendChild(a);
     div.appendChild(aBox);
+
+    const ref = { p, q, a, label };
 
     if (p.cta) {
       const row = document.createElement('div');
@@ -233,33 +298,52 @@
       btn.className = 'cta-btn';
       btn.href = SALES_LINK;
       btn.target = '_top';
-      btn.textContent = 'Yes, Let’s Get Started';
       row.appendChild(btn);
 
-      const waMsg = encodeURIComponent("Hi! I have a question about Ringo Connect before I sign up 🙂");
       const waBtn = document.createElement('a');
       waBtn.className = 'cta-btn-secondary';
-      waBtn.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + waMsg;
       waBtn.target = '_top';
-      waBtn.textContent = 'Not now, I have a question';
       row.appendChild(waBtn);
 
       const sub = document.createElement('p');
       sub.className = 'cta-sub';
-      sub.textContent = 'Free to start — upgrade anytime by MTN or Orange Money.';
       row.appendChild(sub);
 
       div.appendChild(row);
+      ref.ctaBtn = btn;
+      ref.waBtn = waBtn;
+      ref.sub = sub;
     }
 
+    refs.push(ref);
     stage.appendChild(div);
   });
+
+  function applyLocale() {
+    const ui = UI[locale];
+    document.documentElement.lang = locale;
+    document.title = ui.title;
+    refs.forEach((r) => {
+      r.q.textContent = r.p.q[locale];
+      r.a.textContent = r.p.a[locale];
+      if (r.label) r.label.textContent = ui.answer;
+      if (r.ctaBtn) r.ctaBtn.textContent = ui.ctaBtn;
+      if (r.waBtn) {
+        r.waBtn.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(ui.waMsg);
+        r.waBtn.textContent = ui.notNow;
+      }
+      if (r.sub) r.sub.textContent = ui.sub;
+    });
+    backBtn.textContent = ui.back;
+    nextBtn.textContent = current === pages.length - 1 ? ui.startOver : ui.next;
+    langBtn.textContent = locale === 'en' ? 'FR' : 'EN';
+  }
 
   function render() {
     document.querySelectorAll('.page').forEach((el, i) => el.classList.toggle('active', i === current));
     segFills().forEach((fill, i) => { fill.style.width = i <= current ? '100%' : '0%'; });
     backBtn.disabled = current === 0;
-    nextBtn.textContent = current === pages.length - 1 ? 'Start over' : 'Next';
+    nextBtn.textContent = current === pages.length - 1 ? UI[locale].startOver : UI[locale].next;
     countEl.textContent = (current + 1) + ' / ' + pages.length;
   }
   function goNext() { current = current < pages.length - 1 ? current + 1 : 0; render(); }
@@ -270,6 +354,12 @@
   nextBtn.addEventListener('click', goNext);
   backBtn.addEventListener('click', goBack);
   document.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') goNext(); if (e.key === 'ArrowLeft') goBack(); });
+
+  langBtn.addEventListener('click', () => {
+    locale = locale === 'en' ? 'fr' : 'en';
+    try { localStorage.setItem(LOCALE_KEY, locale); } catch {}
+    applyLocale();
+  });
 
   let touchStartX = null;
   stage.addEventListener('touchstart', (e) => {
@@ -286,6 +376,7 @@
     touchStartX = null;
   });
 
+  applyLocale();
   render();
   }
 

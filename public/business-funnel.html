@@ -55,6 +55,7 @@
   .nav-btn { font-family:'Manrope',sans-serif; font-size:14px; font-weight:600; background:none; border:none; color:var(--muted); cursor:pointer; padding:10px 6px; }
   .nav-btn:disabled { visibility:hidden; }
   .next-pill { font-family:'Manrope',sans-serif; font-size:14px; font-weight:800; background:var(--ink); color:var(--bg); border:none; border-radius:999px; padding:13px 24px; cursor:pointer; }
+  .lang-btn { font-family:'Manrope',sans-serif; font-size:11.5px; font-weight:800; background:rgba(20,14,4,0.06); color:var(--muted); border:1px solid rgba(20,14,4,0.14); border-radius:999px; padding:5px 10px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -63,7 +64,10 @@
   <div class="progress" id="progress"></div>
   <div class="topbar">
     <div class="brand"><span class="dot"></span>Ringo Business</div>
-    <div class="count" id="count">1 / 14</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="count" id="count">1 / 14</div>
+      <button class="lang-btn" id="langBtn" aria-label="Switch language">FR</button>
+    </div>
   </div>
   <div class="stage" id="stage">
     <div class="tapzone left" id="zoneLeft"></div>
@@ -104,6 +108,38 @@
       // Network hiccup — keep the default number, nothing else to do.
     }
   }
+
+  // ── Bilingual EN/FR — same "ringo-lang" localStorage key and default-to-French
+  // detection as src/components/LanguageProvider.tsx, so a language choice made
+  // here carries over into the main app (and vice versa) automatically.
+  const LOCALE_KEY = "ringo-lang";
+  function detectLocale() {
+    try {
+      const saved = localStorage.getItem(LOCALE_KEY);
+      if (saved === "en" || saved === "fr") return saved;
+    } catch {}
+    return navigator.language.toLowerCase().startsWith("en") ? "en" : "fr";
+  }
+  let locale = detectLocale();
+
+  const UI = {
+    en: {
+      title: "Ringo Connect — For Business",
+      back: "Back", next: "Next", startOver: "Start over", answer: "Answer",
+      ctaBtn: "Yes, Set Up My Business",
+      notNow: "Not now, I have a question",
+      sub: "Pay by MTN or Orange Money — takes about 2 minutes.",
+      waMsg: "Hi! I have a question about Ringo Connect for my business before I sign up 🙂"
+    },
+    fr: {
+      title: "Ringo Connect — Pour Entreprises",
+      back: "Retour", next: "Suivant", startOver: "Recommencer", answer: "Réponse",
+      ctaBtn: "Oui, je configure mon entreprise",
+      notNow: "Pas maintenant, j'ai une question",
+      sub: "Payez par MTN ou Orange Money — environ 2 minutes.",
+      waMsg: "Bonjour ! J'ai une question sur Ringo Connect pour mon entreprise avant de m'inscrire 🙂"
+    }
+  };
 
   const ICONS = {
     building: `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
@@ -163,20 +199,48 @@
   };
 
   const pages = [
-    { intro: true, q: "Quick questions for business owners", a: "Here's what business owners and institutions usually ask about running their team on Ringo Connect. Tap through — it only takes a minute.", icon: "faq", animated: true, ring: "rgba(242,169,59,0.18)" },
-    { q: "What does Ringo Connect offer a business?", a: "One page for your business, plus a real staff system — invite your team, assign roles, and run orders, bookings, or sales together, not just alone.", icon: "building", animated: true, ring: "rgba(242,169,59,0.18)" },
-    { q: "How much do Business plans cost?", a: "Business Basic is 2,500 FCFA/month (up to 3 staff), Business Pro is 4,000 FCFA/month (up to 7 staff) — both include everything in Pro, plus your team.", icon: "value", ring: "rgba(242,169,59,0.18)" },
-    { q: "How many staff can I add?", a: "Up to 3 on Business Basic, up to 7 on Business Pro. Each staff member gets their own login and a role you assign them.", icon: "team", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { q: "Can I control what each staff member sees?", a: "Yes — you assign specific permissions per role. A Chef sees Kitchen and Orders only, for example, not Sales or Settings.", icon: "shield", ring: "rgba(242,169,59,0.18)" },
-    { q: "Do my staff need their own Ringo account?", a: "Yes, but it's simple — they keep their own personal profile too, and just switch into your business when they're working.", icon: "person", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { q: "Can I run a restaurant with a team on this?", a: "Yes — a real digital menu, kitchen board, order tracking, and staff permissions are all built for exactly this.", icon: "shop", ring: "rgba(242,169,59,0.18)" },
-    { q: "How do I invite my staff?", a: "Send them a secure invite link, or add their details directly — they accept and get access right away.", icon: "link", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { q: "Can staff see my earnings or settings?", a: "No — access is limited to exactly what you assign. Sensitive areas stay owner-only unless you say otherwise.", icon: "shield", ring: "rgba(242,169,59,0.18)" },
-    { q: "What if my team grows?", a: "Upgrade from Business Basic to Business Pro anytime for more seats — no need to start over.", icon: "upgrade", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { q: "Do orders and payments still work the same?", a: "Yes — real ordering, bookings, and checkout work exactly the same. Your staff just help you manage them.", icon: "payment", ring: "rgba(242,169,59,0.18)" },
-    { q: "Can I still use my own personal profile too?", a: "Yes — your personal account and your business are separate. Switch between them anytime from your dashboard.", icon: "repeat", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)" },
-    { q: "Is this only for restaurants?", a: "No — any business or institution with staff can use it: shops, clinics, schools, service businesses, and more.", icon: "globe", ring: "rgba(242,169,59,0.18)" },
-    { cta: true, q: "Ready to set up your team?", a: "It takes just a couple minutes to create your business page and start inviting your staff.", icon: "check", animated: true, ring: "rgba(242,169,59,0.2)" }
+    { intro: true, icon: "faq", animated: true, ring: "rgba(242,169,59,0.18)",
+      q: { en: "Quick questions for business owners", fr: "Questions rapides pour les chefs d'entreprise" },
+      a: { en: "Here's what business owners and institutions usually ask about running their team on Ringo Connect. Tap through — it only takes a minute.", fr: "Voici ce que les chefs d'entreprise et les institutions demandent le plus souvent sur la gestion de leur équipe avec Ringo Connect. Avancez en tapant — ça prend une minute." } },
+    { icon: "building", animated: true, ring: "rgba(242,169,59,0.18)",
+      q: { en: "What does Ringo Connect offer a business?", fr: "Qu'est-ce que Ringo Connect offre à une entreprise ?" },
+      a: { en: "One page for your business, plus a real staff system — invite your team, assign roles, and run orders, bookings, or sales together, not just alone.", fr: "Une seule page pour votre entreprise, plus un vrai système d'équipe — invitez votre personnel, attribuez des rôles, et gérez les commandes, réservations ou ventes ensemble, pas seul." } },
+    { icon: "value", ring: "rgba(242,169,59,0.18)",
+      q: { en: "How much do Business plans cost?", fr: "Combien coûtent les plans Business ?" },
+      a: { en: "Business Basic is 2,500 FCFA/month (up to 3 staff), Business Pro is 4,000 FCFA/month (up to 7 staff) — both include everything in Pro, plus your team.", fr: "Business Basic coûte 2 500 FCFA/mois (jusqu'à 3 employés), Business Pro coûte 4 000 FCFA/mois (jusqu'à 7 employés) — les deux incluent tout ce qui est dans Pro, plus votre équipe." } },
+    { icon: "team", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "How many staff can I add?", fr: "Combien de membres du personnel puis-je ajouter ?" },
+      a: { en: "Up to 3 on Business Basic, up to 7 on Business Pro. Each staff member gets their own login and a role you assign them.", fr: "Jusqu'à 3 sur Business Basic, jusqu'à 7 sur Business Pro. Chaque membre du personnel a son propre accès et un rôle que vous lui attribuez." } },
+    { icon: "shield", ring: "rgba(242,169,59,0.18)",
+      q: { en: "Can I control what each staff member sees?", fr: "Puis-je contrôler ce que voit chaque membre du personnel ?" },
+      a: { en: "Yes — you assign specific permissions per role. A Chef sees Kitchen and Orders only, for example, not Sales or Settings.", fr: "Oui — vous attribuez des permissions spécifiques par rôle. Un Chef voit uniquement Cuisine et Commandes, par exemple, pas Ventes ou Paramètres." } },
+    { icon: "person", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "Do my staff need their own Ringo account?", fr: "Mon personnel a-t-il besoin de son propre compte Ringo ?" },
+      a: { en: "Yes, but it's simple — they keep their own personal profile too, and just switch into your business when they're working.", fr: "Oui, mais c'est simple — ils gardent aussi leur propre profil personnel, et basculent simplement vers votre entreprise quand ils travaillent." } },
+    { icon: "shop", ring: "rgba(242,169,59,0.18)",
+      q: { en: "Can I run a restaurant with a team on this?", fr: "Puis-je gérer un restaurant avec une équipe sur cette plateforme ?" },
+      a: { en: "Yes — a real digital menu, kitchen board, order tracking, and staff permissions are all built for exactly this.", fr: "Oui — un vrai menu digital, un tableau de cuisine, un suivi des commandes et des permissions du personnel sont tous conçus exactement pour ça." } },
+    { icon: "link", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "How do I invite my staff?", fr: "Comment j'invite mon personnel ?" },
+      a: { en: "Send them a secure invite link, or add their details directly — they accept and get access right away.", fr: "Envoyez-leur un lien d'invitation sécurisé, ou ajoutez leurs informations directement — ils acceptent et obtiennent l'accès immédiatement." } },
+    { icon: "shield", ring: "rgba(242,169,59,0.18)",
+      q: { en: "Can staff see my earnings or settings?", fr: "Le personnel peut-il voir mes revenus ou mes paramètres ?" },
+      a: { en: "No — access is limited to exactly what you assign. Sensitive areas stay owner-only unless you say otherwise.", fr: "Non — l'accès est limité exactement à ce que vous attribuez. Les zones sensibles restent réservées au propriétaire, sauf si vous en décidez autrement." } },
+    { icon: "upgrade", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "What if my team grows?", fr: "Et si mon équipe s'agrandit ?" },
+      a: { en: "Upgrade from Business Basic to Business Pro anytime for more seats — no need to start over.", fr: "Passez de Business Basic à Business Pro à tout moment pour plus de places — pas besoin de tout recommencer." } },
+    { icon: "payment", ring: "rgba(242,169,59,0.18)",
+      q: { en: "Do orders and payments still work the same?", fr: "Les commandes et paiements fonctionnent-ils toujours pareil ?" },
+      a: { en: "Yes — real ordering, bookings, and checkout work exactly the same. Your staff just help you manage them.", fr: "Oui — les vraies commandes, réservations et paiements fonctionnent exactement pareil. Votre personnel vous aide simplement à les gérer." } },
+    { icon: "repeat", ring: "rgba(140,124,247,0.18)", iconColor: "var(--violet)",
+      q: { en: "Can I still use my own personal profile too?", fr: "Puis-je toujours utiliser mon propre profil personnel aussi ?" },
+      a: { en: "Yes — your personal account and your business are separate. Switch between them anytime from your dashboard.", fr: "Oui — votre compte personnel et votre entreprise sont séparés. Basculez entre les deux à tout moment depuis votre tableau de bord." } },
+    { icon: "globe", ring: "rgba(242,169,59,0.18)",
+      q: { en: "Is this only for restaurants?", fr: "C'est seulement pour les restaurants ?" },
+      a: { en: "No — any business or institution with staff can use it: shops, clinics, schools, service businesses, and more.", fr: "Non — toute entreprise ou institution avec du personnel peut l'utiliser : boutiques, cliniques, écoles, entreprises de services, et plus encore." } },
+    { cta: true, icon: "check", animated: true, ring: "rgba(242,169,59,0.2)",
+      q: { en: "Ready to set up your team?", fr: "Prêt à configurer votre équipe ?" },
+      a: { en: "It takes just a couple minutes to create your business page and start inviting your staff.", fr: "Il faut juste quelques minutes pour créer votre page entreprise et commencer à inviter votre personnel." } }
   ];
 
   const stage = document.getElementById('stage');
@@ -184,6 +248,7 @@
   const backBtn = document.getElementById('backBtn');
   const nextBtn = document.getElementById('nextBtn');
   const countEl = document.getElementById('count');
+  const langBtn = document.getElementById('langBtn');
   let current = 0;
 
   async function init() {
@@ -199,7 +264,9 @@
   });
   const segFills = () => document.querySelectorAll('.progress .fill');
 
-  pages.forEach((p, index) => {
+  const refs = [];
+
+  pages.forEach((p) => {
     const isFaq = !p.cta && !p.intro;
     const div = document.createElement('div');
     div.className = 'page' + (p.cta ? ' cta-page' : '');
@@ -213,7 +280,6 @@
 
     const q = document.createElement('h1');
     q.className = 'q';
-    q.textContent = p.q;
     div.appendChild(q);
 
     const isViolet = p.iconColor === 'var(--violet)';
@@ -221,17 +287,18 @@
     aBox.className = 'a-box box-dark';
     aBox.style.setProperty('--page-accent', p.iconColor || 'var(--amber)');
     aBox.style.setProperty('--a-text-color', isViolet ? '#DCD5FF' : '#FBE7C6');
+    let label = null;
     if (isFaq) {
-      const label = document.createElement('div');
+      label = document.createElement('div');
       label.className = 'a-label';
-      label.textContent = 'Answer';
       aBox.appendChild(label);
     }
     const a = document.createElement('p');
     a.className = 'a';
-    a.textContent = p.a;
     aBox.appendChild(a);
     div.appendChild(aBox);
+
+    const ref = { p, q, a, label };
 
     if (p.cta) {
       const row = document.createElement('div');
@@ -241,33 +308,52 @@
       btn.className = 'cta-btn';
       btn.href = SALES_LINK;
       btn.target = '_top';
-      btn.textContent = 'Yes, Set Up My Business';
       row.appendChild(btn);
 
-      const waMsg = encodeURIComponent("Hi! I have a question about Ringo Connect for my business before I sign up 🙂");
       const waBtn = document.createElement('a');
       waBtn.className = 'cta-btn-secondary';
-      waBtn.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + waMsg;
       waBtn.target = '_top';
-      waBtn.textContent = 'Not now, I have a question';
       row.appendChild(waBtn);
 
       const sub = document.createElement('p');
       sub.className = 'cta-sub';
-      sub.textContent = 'Pay by MTN or Orange Money — takes about 2 minutes.';
       row.appendChild(sub);
 
       div.appendChild(row);
+      ref.ctaBtn = btn;
+      ref.waBtn = waBtn;
+      ref.sub = sub;
     }
 
+    refs.push(ref);
     stage.appendChild(div);
   });
+
+  function applyLocale() {
+    const ui = UI[locale];
+    document.documentElement.lang = locale;
+    document.title = ui.title;
+    refs.forEach((r) => {
+      r.q.textContent = r.p.q[locale];
+      r.a.textContent = r.p.a[locale];
+      if (r.label) r.label.textContent = ui.answer;
+      if (r.ctaBtn) r.ctaBtn.textContent = ui.ctaBtn;
+      if (r.waBtn) {
+        r.waBtn.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(ui.waMsg);
+        r.waBtn.textContent = ui.notNow;
+      }
+      if (r.sub) r.sub.textContent = ui.sub;
+    });
+    backBtn.textContent = ui.back;
+    nextBtn.textContent = current === pages.length - 1 ? ui.startOver : ui.next;
+    langBtn.textContent = locale === 'en' ? 'FR' : 'EN';
+  }
 
   function render() {
     document.querySelectorAll('.page').forEach((el, i) => el.classList.toggle('active', i === current));
     segFills().forEach((fill, i) => { fill.style.width = i <= current ? '100%' : '0%'; });
     backBtn.disabled = current === 0;
-    nextBtn.textContent = current === pages.length - 1 ? 'Start over' : 'Next';
+    nextBtn.textContent = current === pages.length - 1 ? UI[locale].startOver : UI[locale].next;
     countEl.textContent = (current + 1) + ' / ' + pages.length;
   }
   function goNext() { current = current < pages.length - 1 ? current + 1 : 0; render(); }
@@ -278,6 +364,12 @@
   nextBtn.addEventListener('click', goNext);
   backBtn.addEventListener('click', goBack);
   document.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') goNext(); if (e.key === 'ArrowLeft') goBack(); });
+
+  langBtn.addEventListener('click', () => {
+    locale = locale === 'en' ? 'fr' : 'en';
+    try { localStorage.setItem(LOCALE_KEY, locale); } catch {}
+    applyLocale();
+  });
 
   let touchStartX = null;
   stage.addEventListener('touchstart', (e) => {
@@ -291,6 +383,7 @@
     touchStartX = null;
   });
 
+  applyLocale();
   render();
   }
 
