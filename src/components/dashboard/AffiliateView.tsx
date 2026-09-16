@@ -432,7 +432,7 @@ function BalanceCard({
     const data = await res.json().catch(() => ({}));
     setRequesting(false);
     if (!res.ok) {
-      setMessage({ type: "error", text: data.error || "Could not request a payout." });
+      setMessage({ type: "error", text: data.code === "demo_payout_disabled" ? t.demo.payoutDisabledBody : data.error || "Could not request a payout." });
       return;
     }
     setMessage({ type: "success", text: t.affiliate.requestSuccess });

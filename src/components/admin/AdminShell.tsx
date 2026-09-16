@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, type LucideIcon } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, type LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
@@ -45,6 +45,7 @@ const NAV_ITEMS: {
   { href: "/admin/music-payouts", label: "Music payouts", icon: Banknote, core: false, countKey: "musicPayouts" },
   { href: "/admin/broadcast", label: "Broadcast", icon: Radio, core: false },
   { href: "/admin/qr-code", label: "QR code", icon: QrCode, core: false },
+  { href: "/admin/demo", label: "Demo link", icon: FlaskConical, core: false },
   { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal, core: true },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, core: false },
   { href: "/admin/branding", label: "Branding", icon: Palette, core: false },

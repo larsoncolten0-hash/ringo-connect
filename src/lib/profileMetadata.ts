@@ -17,7 +17,7 @@ async function getProfileForMetadata(username: string) {
   const supabase = createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("name, username, avatar_url, bio, theme_color, category")
+    .select("name, username, avatar_url, bio, theme_color, category, is_demo")
     .eq("username", username)
     .eq("published", true)
     .single();
@@ -36,6 +36,11 @@ export async function generateMetadata(
   return {
     title: `${displayName} | Ringo Connect`,
     description: profile.bio || `${displayName}'s Ringo Connect profile.`,
+    // Demo accounts (see supabase/migrations/2026-10-13_demo_accounts.sql)
+    // render a real-looking live preview so the "try it" experience feels
+    // real, but must never actually be discoverable — shared by every
+    // public profile route ([username], r/[username], m/[username]).
+    ...(profile.is_demo ? { robots: { index: false, follow: false } } : {}),
     // Powers the browser's "Add to Home Screen"/install prompt on
     // Android/Chrome — see the route handler at
     // src/app/[username]/manifest.webmanifest/route.ts (same pattern

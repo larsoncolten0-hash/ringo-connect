@@ -232,6 +232,14 @@ export default function MusicStorePage({ profile }: { profile: any }) {
         body: JSON.stringify({ phone: phone.trim(), medium }),
       });
       const data = await res.json();
+      if (data.code === "demo_checkout_disabled") {
+        // This IS a real error the fan needs to see — a demo storefront's
+        // "confirmation" screen would otherwise look exactly like a real
+        // pending order, which is precisely what must never happen here.
+        setMmError(t.demo.checkoutDisabledBody);
+        setStep("mm-error");
+        return;
+      }
       if (!res.ok || !data.transId) {
         // Couldn't even start the charge (Fapshi disabled, bad number,
         // etc.) — never trap the fan here. Fall back to the same

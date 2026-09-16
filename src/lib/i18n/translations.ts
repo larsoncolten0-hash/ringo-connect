@@ -1724,6 +1724,38 @@ export const translations = {
         ],
       },
     },
+    // "Try the dashboard" demo accounts — see src/app/demo/page.tsx,
+    // src/app/api/demo/create/route.ts, and every is_demo block point
+    // (checkout, team invites, payout requests, the public profile badge,
+    // the dashboard banner).
+    demo: {
+      pickerTitle: "What kind of business are you exploring?",
+      pickerSubtitle: "Pick what fits best — you'll be able to explore everything either way. This just personalizes your demo page.",
+      pickerMorePrompt: "+ Add more categories (optional)",
+      pickerMoreHint: "Your page fits more than one? Select as many as apply.",
+      continueButton: "Try the Dashboard",
+      startingMessage: "Setting up your demo…",
+      testUserName: "Test User",
+      rateLimited: "Too many demo accounts have been started from this connection recently. Please try again later.",
+      genericError: "Couldn't start your demo. Please try again.",
+      // The persistent dashboard banner (DashboardShell.tsx) + its link
+      // into the real signup flow.
+      dashboardBanner: "You're in Demo Mode — your changes aren't permanent.",
+      dashboardBannerCta: "Sign up to keep them",
+      // Fapshi checkout block (music/ticket orders — see
+      // /api/music/orders/[id]/pay and MusicStorePage.tsx).
+      checkoutDisabledTitle: "This is a demo",
+      checkoutDisabledBody: "Checkout is disabled in demo mode.",
+      // Team invitation block — both "Enter details" and "Invite with
+      // link" methods (see /api/team/invitations and AddTeamMemberModal.tsx).
+      inviteDisabledBody: "Team invitations aren't available in demo mode — sign up to invite real team members.",
+      // Affiliate/music payout-request block (see /api/affiliate/payouts,
+      // /api/music/payouts).
+      payoutDisabledBody: "Payout requests aren't available in demo mode.",
+      // Small badge on the public profile page (ProfileView.tsx) so a real
+      // visitor can never mistake a demo page for a real business.
+      publicBadge: "Demo Account",
+    },
   },
   fr: {
     profilePage: {
@@ -3297,6 +3329,24 @@ export const translations = {
           "Support prioritaire",
         ],
       },
+    },
+    demo: {
+      pickerTitle: "Quel type d'activité souhaitez-vous découvrir ?",
+      pickerSubtitle: "Choisissez ce qui vous correspond le mieux — vous pourrez tout explorer de toute façon. Cela personnalise simplement votre page de démonstration.",
+      pickerMorePrompt: "+ Ajouter d'autres catégories (optionnel)",
+      pickerMoreHint: "Votre page correspond à plus d'une catégorie ? Sélectionnez-en autant que nécessaire.",
+      continueButton: "Essayer le tableau de bord",
+      startingMessage: "Préparation de votre démo…",
+      testUserName: "Utilisateur Test",
+      rateLimited: "Trop de comptes de démonstration ont été créés récemment depuis cette connexion. Veuillez réessayer plus tard.",
+      genericError: "Impossible de démarrer votre démo. Veuillez réessayer.",
+      dashboardBanner: "Vous êtes en Mode Démo — vos modifications ne sont pas permanentes.",
+      dashboardBannerCta: "Inscrivez-vous pour les conserver",
+      checkoutDisabledTitle: "Ceci est une démo",
+      checkoutDisabledBody: "Le paiement est désactivé en mode démo.",
+      inviteDisabledBody: "Les invitations d'équipe ne sont pas disponibles en mode démo — inscrivez-vous pour inviter de vrais membres d'équipe.",
+      payoutDisabledBody: "Les demandes de paiement ne sont pas disponibles en mode démo.",
+      publicBadge: "Compte de démonstration",
     },
   },
 } satisfies Record<Locale, any>;

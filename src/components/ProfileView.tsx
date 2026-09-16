@@ -394,6 +394,21 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           )}
         </h1>
 
+        {/* Demo accounts (see supabase/migrations/2026-10-13_demo_accounts.sql)
+            render a real-looking live preview so the "try it" experience
+            feels real — this badge is what keeps a real visitor from ever
+            mistaking one for an actual business. Deliberately a fixed
+            warning color, not the page's own accent, so it stays visible
+            and unmistakable regardless of the demo's chosen theme. */}
+        {profile.is_demo && (
+          <div
+            className="mt-2 px-3 py-1 rounded-full text-xs font-semibold animate-fade-up"
+            style={{ backgroundColor: "#F59E0B", color: "#111827", animationDelay: "120ms" }}
+          >
+            {t.demo.publicBadge}
+          </div>
+        )}
+
         {profile.bio && (
           <p
             className="text-sm mt-1 text-center max-w-xs animate-fade-up"

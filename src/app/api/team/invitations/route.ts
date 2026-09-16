@@ -66,6 +66,15 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const { supabase, user, access } = auth;
 
+  // Demo accounts (see supabase/migrations/2026-10-13_demo_accounts.sql)
+  // can explore the Team page, roles, and permissions freely, but never
+  // actually send or generate a real invitation — both "Enter details"
+  // and "Invite with link" post here, so this one check covers both.
+  const { data: orgProfile } = await supabase.from("profiles").select("is_demo").eq("id", profileId).maybeSingle();
+  if (orgProfile?.is_demo) {
+    return NextResponse.json({ code: "demo_invite_disabled", error: "Team invitations aren't available in demo mode." }, { status: 403 });
+  }
+
   // Seat cap (2026 pricing restructure — Business Basic = 3, Business Pro =
   // 7). Checked against ACTIVE members only, not other pending invitations —
   // an invitation doesn't reserve a seat, it's just an offer; the seat is

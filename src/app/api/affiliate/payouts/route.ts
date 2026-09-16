@@ -16,6 +16,14 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
+  // Demo accounts (see supabase/migrations/2026-10-13_demo_accounts.sql)
+  // must never end up in a real admin's payout queue expecting a real
+  // Fapshi disbursement.
+  const { data: demoProfile } = await supabase.from("profiles").select("is_demo").eq("user_id", user.id).maybeSingle();
+  if (demoProfile?.is_demo) {
+    return NextResponse.json({ code: "demo_payout_disabled", error: "Payout requests aren't available in demo mode." }, { status: 403 });
+  }
+
   const { currency } = await request.json().catch(() => ({}));
   if (!["XAF", "USD"].includes(currency)) {
     return NextResponse.json({ error: "Unsupported currency." }, { status: 400 });

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { UserPlus, Link2, Copy, Check, Loader2, MessageCircle } from "lucide-react";
 import TeamModal from "@/components/team/TeamModal";
+import { useLanguage } from "@/components/LanguageProvider";
 
 interface RoleOption {
   id: string;
@@ -29,6 +30,7 @@ export default function AddTeamMemberModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const { t } = useLanguage();
   const [step, setStep] = useState<"choose" | "manual" | "link" | "result">("choose");
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [roleId, setRoleId] = useState("");
@@ -80,7 +82,10 @@ export default function AddTeamMemberModal({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Something went wrong.");
+      if (!res.ok) {
+        if (data?.code === "demo_invite_disabled") throw new Error(t.demo.inviteDisabledBody);
+        throw new Error(data?.error || "Something went wrong.");
+      }
 
       setResult({ inviteUrl: data.inviteUrl, roleName: roles.find((r) => r.id === roleId)?.name || "", emailSent: data.emailSent });
       setStep("result");

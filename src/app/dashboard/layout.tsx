@@ -125,6 +125,7 @@ export default async function DashboardLayout({
       ownProfileId={ownProfile?.id ?? null}
       teamBadgesEnabled={ownProfile?.team_badges_enabled ?? true}
       subscriptionBanner={visibleSubscriptionBanner}
+      isDemo={!!ownProfile?.is_demo}
     >
       {children}
     </DashboardShell>

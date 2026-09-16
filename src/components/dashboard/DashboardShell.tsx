@@ -74,6 +74,7 @@ export default function DashboardShell({
   ownProfileId = null,
   teamBadgesEnabled = true,
   subscriptionBanner = null,
+  isDemo = false,
   appName,
   logoUrl,
   children,
@@ -143,6 +144,12 @@ export default function DashboardShell({
   // computed server-side in dashboard/layout.tsx. Null (the common case:
   // Free, Stripe, or a paid-up fixed-duration plan) renders nothing.
   subscriptionBanner?: { state: "expiring_soon" | "grace_period"; daysRemaining: number } | null;
+  // "Try the dashboard" demo accounts (see
+  // supabase/migrations/2026-10-13_demo_accounts.sql) — true for the
+  // signed-in account's own profile, independent of which organization's
+  // workspace is currently active. Renders a persistent, non-dismissible
+  // banner (below) so it can never be missed and forgotten mid-session.
+  isDemo?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -416,6 +423,21 @@ export default function DashboardShell({
                   } — renew now to avoid losing access.`}
             </span>
             <span className="shrink-0 underline underline-offset-2">Renew</span>
+          </Link>
+        )}
+
+        {/* Persistent, non-dismissible — a demo account's changes really
+            aren't permanent (see the cleanup cron), so this must stay
+            visible on every dashboard page for the whole session, not just
+            show once as a toast. */}
+        {isDemo && (
+          <Link
+            href="/auth/signup"
+            className="px-4 lg:px-10 py-2 border-b border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15 flex items-center gap-2 text-xs font-medium transition-colors"
+          >
+            <AlertTriangle size={13} className="shrink-0" />
+            <span className="truncate">{t.demo.dashboardBanner}</span>
+            <span className="shrink-0 underline underline-offset-2">{t.demo.dashboardBannerCta}</span>
           </Link>
         )}
 

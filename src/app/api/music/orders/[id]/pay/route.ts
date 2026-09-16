@@ -27,11 +27,19 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const { data: order } = await admin
     .from("music_orders")
-    .select("id, total, payment_method, payment_status, profiles(username, name, currency)")
+    .select("id, total, payment_method, payment_status, profiles(username, name, currency, is_demo)")
     .eq("id", params.id)
     .single();
 
   if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
+  // Demo accounts (see supabase/migrations/2026-10-13_demo_accounts.sql)
+  // can render a real-looking storefront, but a real Fapshi charge must
+  // never be reachable from one — MusicStorePage.tsx shows a bilingual
+  // "this is a demo" message for this specific code instead of falling
+  // through to its usual declared/pending-confirmation fallback.
+  if ((order.profiles as any)?.is_demo) {
+    return NextResponse.json({ code: "demo_checkout_disabled", error: "Checkout is disabled in demo mode." }, { status: 403 });
+  }
   if (order.payment_status === "paid") {
     return NextResponse.json({ error: "This order has already been paid." }, { status: 400 });
   }
