@@ -546,6 +546,9 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           <div>
             <p className="font-display text-lg font-bold">{t.music.mobileMoneyProcessingTitle}</p>
             <p className="text-sm mt-1.5 max-w-xs" style={{ opacity: 0.65 }}>{t.music.mobileMoneyProcessingBody}</p>
+            <p className="text-xs mt-2 max-w-xs" style={{ opacity: 0.65 }}>
+              {medium === "orange money" ? t.music.orangeDialHint : t.music.mtnDialHint}
+            </p>
           </div>
           <Loader2 size={20} className="animate-spin" style={{ color: accent }} />
         </div>

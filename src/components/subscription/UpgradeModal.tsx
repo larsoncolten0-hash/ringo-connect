@@ -316,7 +316,12 @@ export default function UpgradeModal({
               {step === "card-redirecting" ? t.subscription.redirecting : t.subscription.waitingForConfirmation}
             </p>
             {step === "mm-processing" && (
-              <p className="text-xs text-ringo-muted max-w-[220px]">{t.subscription.checkPhoneDesc}</p>
+              <>
+                <p className="text-xs text-ringo-muted max-w-[220px]">{t.subscription.checkPhoneDesc}</p>
+                <p className="text-xs text-ringo-muted max-w-[220px]">
+                  {medium === "orange money" ? t.subscription.orangeDialHint : t.subscription.mtnDialHint}
+                </p>
+              </>
             )}
           </div>
         )}

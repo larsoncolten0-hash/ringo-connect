@@ -142,6 +142,9 @@ export default function BundlePurchaseModal({
             <Loader2 size={28} className="animate-spin text-ringo-indigo" />
             <p className="text-sm font-medium text-ringo-text">{t.subscription.waitingForConfirmation}</p>
             <p className="text-xs text-ringo-muted max-w-[220px]">{t.subscription.checkPhoneDesc}</p>
+            <p className="text-xs text-ringo-muted max-w-[220px]">
+              {medium === "orange money" ? t.subscription.orangeDialHint : t.subscription.mtnDialHint}
+            </p>
           </div>
         )}
 

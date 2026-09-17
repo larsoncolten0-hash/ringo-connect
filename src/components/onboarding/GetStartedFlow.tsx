@@ -1260,6 +1260,9 @@ export default function GetStartedFlow({
               <div className="flex flex-col items-center text-center gap-3 py-10">
                 <Loader2 size={28} className="animate-spin text-ringo-indigo" />
                 <p className="text-sm text-ringo-muted max-w-xs">{t.getStarted.payWaiting}</p>
+                <p className="text-xs text-ringo-muted max-w-xs">
+                  {payMedium === "orange money" ? t.getStarted.orangeDialHint : t.getStarted.mtnDialHint}
+                </p>
               </div>
             )}
 
