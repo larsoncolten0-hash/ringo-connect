@@ -45,6 +45,7 @@ export default async function DashboardPage() {
       plan={userRow?.plans}
       userId={user.id}
       siteUrl={process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com"}
+      showOnboardingTour={!userRow?.onboarding_completed_at}
     />
   );
 }

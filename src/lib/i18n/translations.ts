@@ -1458,6 +1458,21 @@ export const translations = {
         moreHint: "Your page fits more than one? Select as many as apply.",
         noneSet: "No category set yet.",
       },
+      completion: {
+        title: "Complete your profile",
+        percentLabel: (pct: number) => `${pct}% complete`,
+        addCta: "Add",
+        items: {
+          avatar: "Add a profile photo",
+          bio: "Write a short bio",
+          category: "Choose a category",
+          contact: "Add a way to reach you (WhatsApp, social link, or email)",
+          links: "Add at least one link",
+          catalog: "Add at least one product",
+          menu: "Add at least one menu item",
+          tracks: "Add at least one track or release",
+        },
+      },
       about: {
         title: "About",
         longBio: "Full description",
@@ -1755,6 +1770,36 @@ export const translations = {
       // Small badge on the public profile page (ProfileView.tsx) so a real
       // visitor can never mistake a demo page for a real business.
       publicBadge: "Demo Account",
+    },
+
+    onboarding: {
+      skip: "Skip",
+      back: "Back",
+      next: "Next",
+      finish: "Get started",
+      step: (current: number, total: number) => `${current} of ${total}`,
+      steps: {
+        welcome: {
+          title: "Welcome to Ringo Connect!",
+          body: "Let's take a quick look around your dashboard so you can get the most out of your page.",
+        },
+        profile: {
+          title: "Your profile",
+          body: "This is where your photo, name and bio live — the first thing visitors see.",
+        },
+        sections: {
+          title: "Build your page",
+          body: "Each dropdown below adds something to your page — links, socials, a catalog, and more depending on your category.",
+        },
+        preview: {
+          title: "Live preview",
+          body: "Watch your page update here in real time as you make changes.",
+        },
+        share: {
+          title: "Share your page",
+          body: "Once you're happy with it, share your link with the world — you can always come back and edit later.",
+        },
+      },
     },
   },
   fr: {
@@ -3064,6 +3109,21 @@ export const translations = {
         moreHint: "Votre page correspond à plusieurs catégories ? Sélectionnez-en autant que nécessaire.",
         noneSet: "Aucune catégorie définie pour l'instant.",
       },
+      completion: {
+        title: "Complétez votre profil",
+        percentLabel: (pct: number) => `${pct}% complété`,
+        addCta: "Ajouter",
+        items: {
+          avatar: "Ajoutez une photo de profil",
+          bio: "Rédigez une courte bio",
+          category: "Choisissez une catégorie",
+          contact: "Ajoutez un moyen de vous contacter (WhatsApp, réseau social ou e-mail)",
+          links: "Ajoutez au moins un lien",
+          catalog: "Ajoutez au moins un produit",
+          menu: "Ajoutez au moins un article au menu",
+          tracks: "Ajoutez au moins un titre ou une sortie",
+        },
+      },
       about: {
         title: "À propos",
         longBio: "Description complète",
@@ -3347,6 +3407,36 @@ export const translations = {
       inviteDisabledBody: "Les invitations d'équipe ne sont pas disponibles en mode démo — inscrivez-vous pour inviter de vrais membres d'équipe.",
       payoutDisabledBody: "Les demandes de paiement ne sont pas disponibles en mode démo.",
       publicBadge: "Compte de démonstration",
+    },
+
+    onboarding: {
+      skip: "Passer",
+      back: "Retour",
+      next: "Suivant",
+      finish: "Commencer",
+      step: (current: number, total: number) => `${current} sur ${total}`,
+      steps: {
+        welcome: {
+          title: "Bienvenue sur Ringo Connect !",
+          body: "Faisons un rapide tour de votre tableau de bord pour profiter pleinement de votre page.",
+        },
+        profile: {
+          title: "Votre profil",
+          body: "C'est ici que se trouvent votre photo, votre nom et votre bio — la première chose que voient vos visiteurs.",
+        },
+        sections: {
+          title: "Construisez votre page",
+          body: "Chaque menu déroulant ci-dessous ajoute un élément à votre page — liens, réseaux sociaux, catalogue, et plus selon votre catégorie.",
+        },
+        preview: {
+          title: "Aperçu en direct",
+          body: "Observez votre page se mettre à jour ici en temps réel au fil de vos modifications.",
+        },
+        share: {
+          title: "Partagez votre page",
+          body: "Une fois satisfait du résultat, partagez votre lien avec le monde — vous pourrez toujours revenir modifier plus tard.",
+        },
+      },
     },
   },
 } satisfies Record<Locale, any>;

@@ -6,6 +6,8 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { Accordion, AccordionLinkItem } from "@/components/ui/Accordion";
 import EditorSection from "@/components/dashboard/EditorSection";
 import ProfileHeaderCard from "@/components/editor/ProfileHeaderCard";
+import ProfileCompletionCard from "@/components/editor/ProfileCompletionCard";
+import OnboardingTour from "@/components/editor/OnboardingTour";
 import CategoryCard from "@/components/editor/CategoryCard";
 import MusicSettingsCard from "@/components/editor/MusicSettingsCard";
 import MusicReleasesCard from "@/components/editor/MusicReleasesCard";
@@ -31,11 +33,13 @@ export default function Editor({
   plan,
   userId,
   siteUrl,
+  showOnboardingTour,
 }: {
   profile: any;
   plan: any;
   userId: string;
   siteUrl: string;
+  showOnboardingTour?: boolean;
 }) {
   return (
     // initialProfile seeds the live preview with exactly what's already
@@ -43,6 +47,7 @@ export default function Editor({
     // draft the moment they happen, so LivePreviewPanel always reflects
     // the current on-screen state, saved or not.
     <EditorPreviewProvider initialProfile={profile}>
+      {showOnboardingTour && <OnboardingTour />}
       <EditorCards profile={profile} plan={plan} userId={userId} siteUrl={siteUrl} />
     </EditorPreviewProvider>
   );
@@ -122,6 +127,8 @@ function EditorCards({
           initialIcon512Url={profile.avatar_icon_512_url}
           initialIconMaskable512Url={profile.avatar_icon_maskable_512_url}
         />
+
+        <ProfileCompletionCard />
 
         <Accordion defaultOpenId={initialSection} className="rounded-[20px] border border-ringo-border/60 bg-ringo-surface px-4 sm:px-5">
           <EditorSection id="category" icon={Tag} title={t.editor.category.title}>
