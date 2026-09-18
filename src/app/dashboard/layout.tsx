@@ -4,6 +4,7 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import { getBrandingSettings } from "@/lib/branding";
 import { listUserOrganizations, pickActiveOrganization } from "@/lib/team/access";
+import { getAssociationNavAccess } from "@/lib/association/access";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 
 // Per-creator PWA installability (manifest link, iOS home-screen name/
@@ -83,6 +84,12 @@ export default async function DashboardLayout({
   // half: /dashboard/team's own layout and every /api/team/* route
   // enforce the exact same two conditions server-side.
   const canManageTeam = !!active && active.teamEnabled && (active.isOwner || active.permissions.includes("staff.view"));
+  // Association Program — entirely independent of Team's active-organization
+  // concept (an Association Owner is just the normal profile owner; a
+  // Partner is a totally separate relationship — see the migration's own
+  // header). Always resolved against the signed-in person's OWN profile,
+  // never whichever organization Team has switched into.
+  const canManageAssociation = ownProfile ? await getAssociationNavAccess(user.id, ownProfile.id) : false;
 
   return (
     <DashboardShell
@@ -98,6 +105,7 @@ export default async function DashboardLayout({
       isMusic={profileHasCategory(profile, "music_entertainment")}
       hasTicketing={profileHasTicketing(profile)}
       canManageTeam={canManageTeam}
+      canManageAssociation={canManageAssociation}
       organization={
         active
           ? {

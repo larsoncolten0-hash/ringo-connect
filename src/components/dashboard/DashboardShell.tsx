@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
@@ -69,6 +69,7 @@ export default function DashboardShell({
   isMusic = false,
   hasTicketing = false,
   canManageTeam = false,
+  canManageAssociation = false,
   organization = null,
   organizations = [],
   ownProfileId = null,
@@ -121,6 +122,13 @@ export default function DashboardShell({
   // (RLS + the /api/team/* routes) — this only decides whether the nav
   // item and workspace banner render.
   canManageTeam?: boolean;
+  // Association Program — whether this account can see the Association
+  // nav item: the signed-in person's own profile is an Owner on an
+  // association-enabled plan, or they're an active Partner of at least
+  // one Association. Independent of Team's organization concept entirely
+  // (see src/lib/association/access.ts). Never trusted as the actual
+  // security boundary — same posture as canManageTeam above.
+  canManageAssociation?: boolean;
   // Which organization's workspace this is, and whether the signed-in
   // person is staff there rather than its owner — drives the "WHICH
   // BUSINESS AM I WORKING FOR" banner shown just for staff (an owner's own
@@ -209,6 +217,10 @@ export default function DashboardShell({
     // sees this (e.g. a Manager reviewing the roster), scoped to whichever
     // organization is currently active.
     ...(canManageTeam ? [{ href: "/dashboard/team", label: t.nav.team, icon: UserCog, core: false }] : []),
+    // Association Program — its own top-level entry, gated on
+    // canManageAssociation (Owner or active Partner), never on canManageTeam
+    // or `organization` — the two features are entirely independent.
+    ...(canManageAssociation ? [{ href: "/dashboard/association", label: t.nav.association, icon: Award, core: false }] : []),
     { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard, core: true },
     ...(canApproveRequests
       ? [
