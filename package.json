@@ -13,6 +13,7 @@
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.45.4",
     "clsx": "^2.1.1",
+    "driver.js": "^1.8.0",
     "framer-motion": "^13.1.0",
     "iso-3166-1": "^2.1.1",
     "jsqr": "^1.4.0",

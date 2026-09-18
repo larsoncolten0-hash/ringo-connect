@@ -17,7 +17,9 @@ import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import AppBadgeReset from "@/components/AppBadgeReset";
 import ActivitySignals from "@/components/ActivitySignals";
 import OrgSwitcher, { type OrgOption } from "@/components/dashboard/OrgSwitcher";
+import OnboardingTourController from "@/components/dashboard/OnboardingTourController";
 import { useLanguage } from "@/components/LanguageProvider";
+import type { ProfileForTour } from "@/lib/onboardingTour";
 
 // Where a manual "pull down to check for new activity" gesture actually
 // makes sense: list/overview pages showing something that can genuinely
@@ -76,6 +78,8 @@ export default function DashboardShell({
   teamBadgesEnabled = true,
   subscriptionBanner = null,
   isDemo = false,
+  showOnboardingTour = false,
+  onboardingProfile = null,
   appName,
   logoUrl,
   children,
@@ -158,6 +162,14 @@ export default function DashboardShell({
   // workspace is currently active. Renders a persistent, non-dismissible
   // banner (below) so it can never be missed and forgotten mid-session.
   isDemo?: boolean;
+  // First-login-only onboarding tour (see OnboardingTourController.tsx) —
+  // resolved server-side in dashboard/layout.tsx against the signed-in
+  // person's OWN profile (never completed, never dismissed, and never
+  // while acting as staff inside someone else's organization). Mounted
+  // here rather than on any single page because several of its steps'
+  // targets live on entirely different /dashboard/** pages.
+  showOnboardingTour?: boolean;
+  onboardingProfile?: ProfileForTour | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -543,6 +555,10 @@ export default function DashboardShell({
       </div>
 
       <HelpWidget username={username} email={email} />
+
+      {showOnboardingTour && onboardingProfile && (
+        <OnboardingTourController showOnboardingTour={showOnboardingTour} profile={onboardingProfile} username={username} />
+      )}
     </div>
   );
 }

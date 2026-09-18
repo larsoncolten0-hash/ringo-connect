@@ -7,7 +7,6 @@ import { Accordion, AccordionLinkItem } from "@/components/ui/Accordion";
 import EditorSection from "@/components/dashboard/EditorSection";
 import ProfileHeaderCard from "@/components/editor/ProfileHeaderCard";
 import ProfileCompletionCard from "@/components/editor/ProfileCompletionCard";
-import OnboardingTour from "@/components/editor/OnboardingTour";
 import CategoryCard from "@/components/editor/CategoryCard";
 import MusicSettingsCard from "@/components/editor/MusicSettingsCard";
 import MusicReleasesCard from "@/components/editor/MusicReleasesCard";
@@ -33,13 +32,11 @@ export default function Editor({
   plan,
   userId,
   siteUrl,
-  showOnboardingTour,
 }: {
   profile: any;
   plan: any;
   userId: string;
   siteUrl: string;
-  showOnboardingTour?: boolean;
 }) {
   return (
     // initialProfile seeds the live preview with exactly what's already
@@ -47,7 +44,6 @@ export default function Editor({
     // draft the moment they happen, so LivePreviewPanel always reflects
     // the current on-screen state, saved or not.
     <EditorPreviewProvider initialProfile={profile}>
-      {showOnboardingTour && <OnboardingTour />}
       <EditorCards profile={profile} plan={plan} userId={userId} siteUrl={siteUrl} />
     </EditorPreviewProvider>
   );
@@ -103,7 +99,11 @@ function EditorCards({
   return (
     <div className="max-w-6xl mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
       <div className="max-w-2xl w-full mx-auto lg:mx-0 flex flex-col gap-5">
+        {/* data-tour target for the onboarding tour's final "share your
+            page" step (src/lib/onboardingTour.ts) — plain attribute,
+            additive only. */}
         <a
+          data-tour="view-live-page"
           href={`/${profile.username}`}
           target="_blank"
           className="self-start flex items-center gap-1.5 text-sm font-medium text-ringo-indigo bg-ringo-indigo/10 hover:bg-ringo-indigo/15 transition rounded-full pl-3 pr-3.5 py-1.5"

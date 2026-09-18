@@ -115,7 +115,10 @@ export default function ProfileHeaderCard({
         />
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
+      {/* data-tour target for the onboarding tour's "add your profile
+          photo" step (src/lib/onboardingTour.ts) — a plain HTML attribute
+          with no behavior of its own, additive only. */}
+      <div data-tour="profile-photo" className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
         <ImageUploadField
           value={avatarUrl}
           onChange={(url) => {

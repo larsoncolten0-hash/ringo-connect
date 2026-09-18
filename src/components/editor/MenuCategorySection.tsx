@@ -89,7 +89,9 @@ export default function MenuCategorySection({
             ))}
           </Reorder.Group>
 
-          <button onClick={onAddItem} className="self-start text-xs font-medium text-ringo-indigo px-1 py-1">
+          {/* data-tour target for the onboarding tour's Restaurant-branch
+              step (src/lib/onboardingTour.ts) — plain attribute, additive only. */}
+          <button data-tour="add-menu-item" onClick={onAddItem} className="self-start text-xs font-medium text-ringo-indigo px-1 py-1">
             {t.restaurant.addItem}
           </button>
         </div>

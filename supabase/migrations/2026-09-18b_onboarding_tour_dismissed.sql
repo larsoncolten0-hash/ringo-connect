@@ -1,0 +1,16 @@
+-- Onboarding tour — tracks "dismissed" (skipped) separately from
+-- "completed" (finished every step), per product decision: collapsing
+-- both into the existing single onboarding_completed_at flag would
+-- permanently destroy the distinction between someone who engaged with
+-- the tour and someone who bounced off it immediately — real signal
+-- worth keeping, matching how this codebase already tracks nuanced
+-- status elsewhere (e.g. association_invitations'/organization_invitations'
+-- pending/accepted/revoked/expired) rather than flattening to one boolean.
+--
+-- Both columns gate the tour identically (either one hides it — see
+-- dashboard/page.tsx) — this migration only adds the ability to tell them
+-- apart later, it doesn't change today's user-facing behavior.
+--
+-- Purely additive: one new nullable column, no existing column/row/table
+-- touched.
+alter table users add column if not exists onboarding_dismissed_at timestamptz;
