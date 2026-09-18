@@ -6,6 +6,9 @@ import { useLanguage } from "@/components/LanguageProvider";
 import InvitePartnerModal from "./InvitePartnerModal";
 import AddMemberModal from "./AddMemberModal";
 import AssociationPartnerView from "./AssociationPartnerView";
+import Link from "next/link";
+import ManagedMemberPanel, { MembershipBadge } from "./admin/ManagedMemberPanel";
+import type { ManagedMemberInfo } from "@/lib/association/membershipTypes";
 
 type Tab = "members" | "partners" | "rewards" | "settings" | "activity" | "simulatedTap";
 
@@ -58,6 +61,9 @@ export default function AssociationOwnerView({
   initialSettings,
   initialInvitations,
   isDemo = false,
+  associationId = null,
+  managedMembers = {},
+  membershipAvailable = false,
 }: {
   associationProfileId: string;
   associationName: string;
@@ -73,6 +79,12 @@ export default function AssociationOwnerView({
   // own isDemo prop), since a demo visitor has no physical Ringo Card to
   // actually tap.
   isDemo?: boolean;
+  // Membership (Phase B1). Resolved on the server so a membership-managed member never shows the legacy
+  // Enable/Disable toggle, not even on first paint. All three are optional: without them this view behaves
+  // exactly as it did before Membership existed.
+  associationId?: string | null;
+  managedMembers?: Record<string, ManagedMemberInfo>;
+  membershipAvailable?: boolean;
 }) {
   const { t } = useLanguage();
   const a = t.association;
@@ -83,6 +95,7 @@ export default function AssociationOwnerView({
   const [invitations, setInvitations] = useState(initialInvitations);
   const [showInvite, setShowInvite] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [managed, setManaged] = useState<Record<string, ManagedMemberInfo>>(managedMembers);
 
   const activeMembers = members.filter((m) => m.status === "active").length;
   const activePartners = partners.filter((p) => p.status === "active").length;
@@ -90,6 +103,14 @@ export default function AssociationOwnerView({
   const refreshMembers = async () => {
     const res = await fetch(`/api/association/members?associationProfileId=${associationProfileId}`);
     if (res.ok) setMembers((await res.json()).members || []);
+  };
+  const refreshManaged = async () => {
+    if (!associationId) return;
+    const res = await fetch(`/api/associations/${associationId}/members?managed=1`);
+    if (res.ok) setManaged((await res.json()).managed || {});
+  };
+  const refreshMembersAndManaged = async () => {
+    await Promise.all([refreshMembers(), refreshManaged()]);
   };
   const refreshPartners = async () => {
     const [pRes, iRes] = await Promise.all([
@@ -113,6 +134,15 @@ export default function AssociationOwnerView({
             {a.membersCount(activeMembers, maxMembers)} · {a.partnersCount(activePartners, maxPartners)}
           </p>
         </div>
+        {membershipAvailable && associationId && (
+          <Link
+            href={`/dashboard/association/${associationId}/admin/memberships`}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold border border-ringo-border text-ringo-text hover:border-ringo-indigo transition"
+          >
+            <Award size={15} />
+            {a.membership.navLink}
+          </Link>
+        )}
       </div>
 
       <div className="flex gap-1 border-b border-ringo-border/70 overflow-x-auto no-scrollbar">
@@ -161,7 +191,7 @@ export default function AssociationOwnerView({
           </div>
           <div className="flex flex-col gap-2.5">
             {members.map((m) => (
-              <MemberRowCard key={m.id} member={m} associationProfileId={associationProfileId} onChanged={refreshMembers} a={a} />
+              <MemberRowCard key={m.id} member={m} associationProfileId={associationProfileId} associationId={associationId} managed={managed[m.id]} onChanged={refreshMembersAndManaged} a={a} />
             ))}
             {members.length === 0 && <EmptyState text={a.noMembersYet} />}
           </div>
@@ -257,17 +287,37 @@ function StatusBadge({ status, a }: { status: string; a: any }) {
   return <span className={`text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${styles[status] || ""}`}>{a.statusLabels[status] || status}</span>;
 }
 
-function MemberRowCard({ member, associationProfileId, onChanged, a }: { member: MemberRow; associationProfileId: string; onChanged: () => void; a: any }) {
+function MemberRowCard({
+  member,
+  associationProfileId,
+  associationId,
+  managed,
+  onChanged,
+  a,
+}: {
+  member: MemberRow;
+  associationProfileId: string;
+  associationId: string | null;
+  managed?: ManagedMemberInfo;
+  onChanged: () => void;
+  a: any;
+}) {
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const toggleStatus = async () => {
     setBusy(true);
+    setNotice("");
     try {
-      await fetch(`/api/association/members/${member.id}`, {
+      const res = await fetch(`/api/association/members/${member.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ associationProfileId, status: member.status === "active" ? "disabled" : "active" }),
       });
+      // The database rejects a legacy status change for a member that is managed by Membership (e.g. enrolled in
+      // another tab since this list loaded). Never fail silently: say so, and refresh so the row shows Membership actions.
+      if (!res.ok) setNotice(a.membership.legacyToggleFailed);
       onChanged();
     } finally {
       setBusy(false);
@@ -275,25 +325,53 @@ function MemberRowCard({ member, associationProfileId, onChanged, a }: { member:
   };
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-ringo-border/70 p-3.5">
-      <Avatar url={member.profiles?.avatar_url} name={member.name} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-ringo-text truncate">{member.name}</p>
-        <p className="text-xs text-ringo-muted truncate">
-          {member.phone || "—"}
-          {member.profiles && ` · @${member.profiles.username}`}
-        </p>
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-3 rounded-2xl border border-ringo-border/70 p-3.5">
+        <Avatar url={member.profiles?.avatar_url} name={member.name} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-ringo-text truncate">{member.name}</p>
+          <p className="text-xs text-ringo-muted truncate">
+            {member.phone || "—"}
+            {member.profiles && ` · @${member.profiles.username}`}
+          </p>
+        </div>
+        <span className="text-sm font-semibold text-ringo-indigo shrink-0 tabular-nums">{a.pointsShort(member.points_balance)}</span>
+        {managed && associationId ? (
+          <>
+            <MembershipBadge state={managed.effectiveState} />
+            <button
+              onClick={() => setPanelOpen(true)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium border border-ringo-border text-ringo-text hover:border-ringo-indigo transition shrink-0"
+            >
+              {a.membership.membershipButton}
+            </button>
+          </>
+        ) : (
+          <>
+            <StatusBadge status={member.status} a={a} />
+            <button
+              onClick={toggleStatus}
+              disabled={busy}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10 transition disabled:opacity-60 shrink-0"
+              aria-label={member.status === "active" ? a.disableMemberAction : a.enableMemberAction}
+            >
+              {busy ? <Loader2 size={14} className="animate-spin" /> : member.status === "active" ? <Ban size={14} /> : <Check size={14} />}
+            </button>
+          </>
+        )}
       </div>
-      <span className="text-sm font-semibold text-ringo-indigo shrink-0 tabular-nums">{a.pointsShort(member.points_balance)}</span>
-      <StatusBadge status={member.status} a={a} />
-      <button
-        onClick={toggleStatus}
-        disabled={busy}
-        className="w-8 h-8 rounded-full flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10 transition disabled:opacity-60 shrink-0"
-        aria-label={member.status === "active" ? a.disableMemberAction : a.enableMemberAction}
-      >
-        {busy ? <Loader2 size={14} className="animate-spin" /> : member.status === "active" ? <Ban size={14} /> : <Check size={14} />}
-      </button>
+      {notice && <p className="text-xs text-ringo-coral px-1">{notice}</p>}
+      {panelOpen && managed && associationId && (
+        <ManagedMemberPanel
+          associationId={associationId}
+          memberId={member.id}
+          memberName={member.name}
+          info={managed}
+          canManage
+          onClose={() => setPanelOpen(false)}
+          onChanged={onChanged}
+        />
+      )}
     </div>
   );
 }

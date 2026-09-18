@@ -4,6 +4,8 @@ import { getAssociationAccess } from "@/lib/association/access";
 import AssociationOwnerView from "@/components/association/AssociationOwnerView";
 import AssociationPartnerView from "@/components/association/AssociationPartnerView";
 import AssociationPickView from "@/components/association/AssociationPickView";
+import { getManagedMemberMap } from "@/lib/association/membership";
+import type { ManagedMemberInfo } from "@/lib/association/membershipTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +46,19 @@ export default async function AssociationPage() {
         .order("created_at", { ascending: false }),
     ]);
 
+    // Membership (Phase B1): resolve the Association id and the managed-member map on the server so managed members
+    // never render the legacy toggle, even on first paint. Any failure (or Membership not installed yet) leaves
+    // the view exactly as it was: associationId/managed stay empty.
+    let associationId: string | null = null;
+    let managed: { available: boolean; map: Record<string, ManagedMemberInfo> } = { available: false, map: {} };
+    try {
+      const { data: assoc } = await supabase.from("associations").select("id").eq("legacy_profile_id", ownProfile.id).maybeSingle();
+      associationId = assoc?.id ?? null;
+      if (associationId) managed = await getManagedMemberMap(associationId);
+    } catch {
+      managed = { available: false, map: {} };
+    }
+
     return (
       <AssociationOwnerView
         associationProfileId={ownProfile.id}
@@ -56,6 +71,9 @@ export default async function AssociationPage() {
         initialSettings={settings as any}
         initialInvitations={(invitations || []) as any}
         isDemo={!!ownProfile.is_demo}
+        associationId={associationId}
+        managedMembers={managed.map}
+        membershipAvailable={managed.available}
       />
     );
   }
