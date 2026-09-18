@@ -184,6 +184,8 @@ export const translations = {
       accountTypeEnterpriseDesc: "For a business with a team — invite staff, assign roles and permissions, and manage it all from one workspace.",
       accountTypeCardLabel: "Ringo Card",
       accountTypeCardDesc: "Get a Ringo Physical Card — includes Basic-tier access, no separate plan pick needed.",
+      accountTypeAssociationLabel: "Association Program",
+      accountTypeAssociationDesc: "Run a loyalty points network for your association — Partners, Members, and a rewards catalog, all in one dashboard.",
       categoryTitle: "What's your page for?",
       categorySubtitle: "Pick what best describes you — this personalizes your page's defaults. You can change it any time, and add more later.",
       categoryMorePrompt: "+ Add more categories (optional)",
@@ -768,6 +770,22 @@ export const translations = {
       login: "Log in",
       getStarted: "Get started",
       goToDashboard: "Go to dashboard",
+
+      // "Not sure where to start?" path-picker section (PathPickerSection.tsx).
+      // All four cards now go through here — the original three were
+      // hardcoded English with no bilingual support at all until this was
+      // caught and fixed alongside adding the fourth (Association).
+      pathPickerHeading: "Not sure where to start?",
+      pathPickerSubheading: "Pick whichever sounds like you — takes two minutes either way.",
+      pathPickerCardCta: "See how it works",
+      pathPickerCardTitle: "I want a Ringo Card",
+      pathPickerCardBody: "A physical tap card + your first month included — 3,500 FCFA, everything explained in 2 minutes.",
+      pathPickerPageTitle: "I just want my own page",
+      pathPickerPageBody: "Links, catalog, bookings — start free, upgrade whenever you're ready.",
+      pathPickerBusinessTitle: "I'm running a business or team",
+      pathPickerBusinessBody: "Invite staff, assign roles, manage everything together — built for real teams.",
+      pathPickerAssociationTitle: "I run an association or loyalty program",
+      pathPickerAssociationBody: "Manage Partners and Members, run a points program, and reward loyalty — all from one dashboard.",
 
       // Nav — Features/Industries/Restaurant/NFC scroll to in-page
       // sections (no dead links); Pricing goes to /get-started, which
@@ -1751,6 +1769,17 @@ export const translations = {
     // (checkout, team invites, payout requests, the public profile badge,
     // the dashboard banner).
     demo: {
+      // The new first screen — which demo track — shown before either the
+      // existing category picker (Business) or the Association Program's
+      // own ready screen.
+      trackPickerTitle: "What would you like to try?",
+      trackPickerSubtitle: "Both are real, fully working demos — pick whichever fits what you want to explore.",
+      trackBusinessLabel: "Try a business dashboard",
+      trackBusinessDesc: "A page, catalog, bookings, and more — for a single business or creator.",
+      trackAssociationLabel: "Try the Association Program",
+      trackAssociationDesc: "A loyalty points network with Partners, Members, and a rewards catalog — pre-filled with sample activity.",
+      associationReadySubtitle: "We'll set you up as the Owner, with a few sample Partners, Members, and activity already in place.",
+      backToTrackPicker: "← Choose a different demo",
       pickerTitle: "What kind of business are you exploring?",
       pickerSubtitle: "Pick what fits best — you'll be able to explore everything either way. This just personalizes your demo page.",
       pickerMorePrompt: "+ Add more categories (optional)",
@@ -1771,6 +1800,13 @@ export const translations = {
       // Team invitation block — both "Enter details" and "Invite with
       // link" methods (see /api/team/invitations and AddTeamMemberModal.tsx).
       inviteDisabledBody: "Team invitations aren't available in demo mode — sign up to invite real team members.",
+      // Association Program demo — Partner invitations and Member creation
+      // are both fully disabled (not scoped-to-demo-data) so a visitor
+      // stays inside the pre-seeded, immediately meaningful sample dataset
+      // rather than building their own; signing up for real is the
+      // intended next step for either action.
+      associationInviteDisabledBody: "Partner invitations aren't available in demo mode — sign up to invite real Partners.",
+      associationMemberDisabledBody: "Adding Members isn't available in demo mode — sign up to add real Members.",
       // Affiliate/music payout-request block (see /api/affiliate/payouts,
       // /api/music/payouts).
       payoutDisabledBody: "Payout requests aren't available in demo mode.",
@@ -1929,6 +1965,9 @@ export const translations = {
       tabTapToLog: "Tap to log",
       tabMyLog: "My log",
       tapCardHint: "Tap a Member's card to look up their balance.",
+      tabSimulatedTap: "Simulated Tap (Demo)",
+      simulatedTapBadge: "Simulated tap — demo mode",
+      selectDemoMemberHint: "No physical card in demo mode — select a Member to simulate a tap.",
       tapCardCta: "Tap Member Card",
       momoDisplayLabel: "Pay directly to:",
       processingHint: "Processing…",
@@ -2123,6 +2162,8 @@ export const translations = {
       accountTypeEnterpriseDesc: "Pour une entreprise avec une équipe — invitez du personnel, attribuez des rôles et permissions, et gérez tout depuis un seul espace de travail.",
       accountTypeCardLabel: "Carte Ringo",
       accountTypeCardDesc: "Obtenez une carte physique Ringo — inclut l'accès Basic, sans choix de forfait séparé.",
+      accountTypeAssociationLabel: "Programme Association",
+      accountTypeAssociationDesc: "Gérez un réseau de fidélité par points pour votre association — Partenaires, Membres et catalogue de récompenses, dans un seul tableau de bord.",
       categoryTitle: "C'est pour quel genre d'activité ?",
       categorySubtitle: "Choisissez ce qui vous correspond le mieux — cela personnalise les réglages par défaut de votre page. Vous pourrez changer d'avis à tout moment, et en ajouter d'autres plus tard.",
       categoryMorePrompt: "+ Ajouter d'autres catégories (optionnel)",
@@ -2668,6 +2709,18 @@ export const translations = {
       login: "Se connecter",
       getStarted: "Commencer",
       goToDashboard: "Accéder au tableau de bord",
+
+      pathPickerHeading: "Pas sûr par où commencer ?",
+      pathPickerSubheading: "Choisissez ce qui vous ressemble le plus — ça prend deux minutes dans tous les cas.",
+      pathPickerCardCta: "Voir comment ça marche",
+      pathPickerCardTitle: "Je veux une carte Ringo",
+      pathPickerCardBody: "Une carte physique à toucher + votre premier mois inclus — 3 500 FCFA, tout expliqué en 2 minutes.",
+      pathPickerPageTitle: "Je veux juste ma propre page",
+      pathPickerPageBody: "Liens, catalogue, réservations — gratuit pour commencer, changez d'offre quand vous êtes prêt.",
+      pathPickerBusinessTitle: "Je gère une entreprise ou une équipe",
+      pathPickerBusinessBody: "Invitez du personnel, attribuez des rôles, gérez tout ensemble — conçu pour de vraies équipes.",
+      pathPickerAssociationTitle: "Je gère une association ou un programme de fidélité",
+      pathPickerAssociationBody: "Gérez Partenaires et Membres, animez un programme de points et récompensez la fidélité — depuis un seul tableau de bord.",
 
       navFeatures: "Fonctionnalités",
       navIndustries: "Secteurs",
@@ -3589,6 +3642,14 @@ export const translations = {
       },
     },
     demo: {
+      trackPickerTitle: "Que souhaitez-vous essayer ?",
+      trackPickerSubtitle: "Les deux sont de vraies démos, entièrement fonctionnelles — choisissez celle qui correspond à ce que vous voulez découvrir.",
+      trackBusinessLabel: "Essayer un tableau de bord d'activité",
+      trackBusinessDesc: "Une page, un catalogue, des réservations et plus encore — pour une entreprise ou un créateur.",
+      trackAssociationLabel: "Essayer le Programme Association",
+      trackAssociationDesc: "Un réseau de fidélité par points avec Partenaires, Membres et catalogue de récompenses — pré-rempli avec des données d'exemple.",
+      associationReadySubtitle: "Nous vous installerons comme Propriétaire, avec quelques Partenaires, Membres et activités d'exemple déjà en place.",
+      backToTrackPicker: "← Choisir une autre démo",
       pickerTitle: "Quel type d'activité souhaitez-vous découvrir ?",
       pickerSubtitle: "Choisissez ce qui vous correspond le mieux — vous pourrez tout explorer de toute façon. Cela personnalise simplement votre page de démonstration.",
       pickerMorePrompt: "+ Ajouter d'autres catégories (optionnel)",
@@ -3603,6 +3664,8 @@ export const translations = {
       checkoutDisabledTitle: "Ceci est une démo",
       checkoutDisabledBody: "Le paiement est désactivé en mode démo.",
       inviteDisabledBody: "Les invitations d'équipe ne sont pas disponibles en mode démo — inscrivez-vous pour inviter de vrais membres d'équipe.",
+      associationInviteDisabledBody: "Les invitations de Partenaires ne sont pas disponibles en mode démo — inscrivez-vous pour inviter de vrais Partenaires.",
+      associationMemberDisabledBody: "L'ajout de Membres n'est pas disponible en mode démo — inscrivez-vous pour ajouter de vrais Membres.",
       payoutDisabledBody: "Les demandes de paiement ne sont pas disponibles en mode démo.",
       publicBadge: "Compte de démonstration",
     },
@@ -3753,6 +3816,9 @@ export const translations = {
       tabTapToLog: "Scanner",
       tabMyLog: "Mon journal",
       tapCardHint: "Approchez la carte d'un Membre pour voir son solde.",
+      tabSimulatedTap: "Scan simulé (Démo)",
+      simulatedTapBadge: "Scan simulé — mode démo",
+      selectDemoMemberHint: "Pas de carte physique en mode démo — sélectionnez un Membre pour simuler un scan.",
       tapCardCta: "Scanner la carte du Membre",
       momoDisplayLabel: "Payer directement à :",
       processingHint: "Traitement…",

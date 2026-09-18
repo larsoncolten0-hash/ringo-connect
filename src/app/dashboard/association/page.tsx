@@ -18,7 +18,7 @@ export default async function AssociationPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  const { data: ownProfile } = await supabase.from("profiles").select("id, name, username, avatar_url").eq("user_id", user.id).maybeSingle();
+  const { data: ownProfile } = await supabase.from("profiles").select("id, name, username, avatar_url, is_demo").eq("user_id", user.id).maybeSingle();
   if (!ownProfile) redirect("/dashboard");
 
   const access = await getAssociationAccess(ownProfile.id, user.id);
@@ -55,6 +55,7 @@ export default async function AssociationPage() {
         initialRewards={(rewards || []) as any}
         initialSettings={settings as any}
         initialInvitations={(invitations || []) as any}
+        isDemo={!!ownProfile.is_demo}
       />
     );
   }

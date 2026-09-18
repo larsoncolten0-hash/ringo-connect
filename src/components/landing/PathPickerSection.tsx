@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Manrope } from "next/font/google";
 import { getReferralCode } from "@/lib/referral";
+import { useLanguage } from "@/components/LanguageProvider";
 
 // See AboutSection.tsx's comment on why Manrope is loaded here (scoped,
 // self-hosted via next/font) rather than site-wide or via a <link> tag.
@@ -15,11 +16,14 @@ const AMBER = "#F2A93B";
 const AMBER_INK = "#2B1A00";
 const VIOLET = "#6A5AE0";
 
-const CARDS = [
+// Locale-independent shape only (icon + href + accent) — title/body/CTA
+// all come from translations.ts now (see the component body below). All
+// four cards were previously hardcoded English with no bilingual support
+// at all; caught while adding the fourth (Association Program) and fixed
+// for all four in the same pass rather than leaving three of them broken.
+const CARD_SHAPES = [
   {
     tone: "amber" as const,
-    title: "I want a Ringo Card",
-    body: "A physical tap card + your first month included — 3,500 FCFA, everything explained in 2 minutes.",
     href: "/card-funnel.html",
     svg: (
       <>
@@ -32,8 +36,6 @@ const CARDS = [
   },
   {
     tone: "violet" as const,
-    title: "I just want my own page",
-    body: "Links, catalog, bookings — start free, upgrade whenever you're ready.",
     href: "/subscription-funnel.html",
     svg: (
       <>
@@ -45,8 +47,6 @@ const CARDS = [
   },
   {
     tone: "amber" as const,
-    title: "I'm running a business or team",
-    body: "Invite staff, assign roles, manage everything together — built for real teams.",
     href: "/business-funnel.html",
     svg: (
       <>
@@ -56,19 +56,34 @@ const CARDS = [
       </>
     ),
   },
+  {
+    tone: "amber" as const,
+    href: "/get-started-association",
+    svg: (
+      <>
+        <circle cx="50" cy="34" r="16" />
+        <path d="M50 18l4 10 11 1-8 8 2 11-9-6-9 6 2-11-8-8 11-1z" />
+      </>
+    ),
+  },
 ];
 
-// The three funnel pages are plain static files outside the Next.js app
-// (public/*-funnel.html — see the card/subscription/business funnel
+// The first three destinations are plain static files outside the Next.js
+// app (public/*-funnel.html — see the card/subscription/business funnel
 // tasks), so a captured ?ref= can't be forwarded server-side the way a
 // normal Next.js Link would; it has to be read from wherever
 // ReferralCapture persisted it (localStorage, first-touch — see
-// src/lib/referral.ts) and appended to each href client-side. Read once on
-// mount; getReferralCode() itself is a no-op on the server, so this starts
-// at null and fills in after hydration if a code is actually stored — the
-// same "best-effort, never blocks rendering" pattern getReferralCode()'s
-// own callers use elsewhere (e.g. GetStartedFlow.tsx).
+// src/lib/referral.ts) and appended to each href client-side. The fourth
+// (/get-started-association) is a normal Next.js page — ReferralCapture,
+// mounted globally in the root layout, already covers it without this —
+// but it's forwarded the same way regardless, for consistency with its
+// siblings. Read once on mount; getReferralCode() itself is a no-op on
+// the server, so this starts at null and fills in after hydration if a
+// code is actually stored — the same "best-effort, never blocks
+// rendering" pattern getReferralCode()'s own callers use elsewhere (e.g.
+// GetStartedFlow.tsx).
 export default function PathPickerSection() {
+  const { t } = useLanguage();
   const [ref, setRef] = useState<string | null>(null);
 
   useEffect(() => {
@@ -77,20 +92,27 @@ export default function PathPickerSection() {
 
   const withRef = (href: string) => (ref ? `${href}?ref=${encodeURIComponent(ref)}` : href);
 
+  const cards = [
+    { ...CARD_SHAPES[0], title: t.landing.pathPickerCardTitle, body: t.landing.pathPickerCardBody },
+    { ...CARD_SHAPES[1], title: t.landing.pathPickerPageTitle, body: t.landing.pathPickerPageBody },
+    { ...CARD_SHAPES[2], title: t.landing.pathPickerBusinessTitle, body: t.landing.pathPickerBusinessBody },
+    { ...CARD_SHAPES[3], title: t.landing.pathPickerAssociationTitle, body: t.landing.pathPickerAssociationBody },
+  ];
+
   return (
     <section className={`${manrope.className} relative`} style={{ background: CREAM2, padding: "76px 0" }}>
       <div className="max-w-6xl mx-auto px-5">
         <div className="text-center max-w-[520px] mx-auto mb-11">
           <h2 className="font-display font-bold text-[32px] tracking-[-0.01em] mb-3" style={{ color: INK }}>
-            Not sure where to start?
+            {t.landing.pathPickerHeading}
           </h2>
           <p className="text-base font-medium" style={{ color: MUTED }}>
-            Pick whichever sounds like you — takes two minutes either way.
+            {t.landing.pathPickerSubheading}
           </p>
         </div>
 
-        <div className="grid gap-5 sm:max-w-[400px] sm:mx-auto md:max-w-none md:mx-0 md:grid-cols-3">
-          {CARDS.map((card) => (
+        <div className="grid gap-5 sm:max-w-[400px] sm:mx-auto md:max-w-none md:mx-0 md:grid-cols-2 lg:grid-cols-4">
+          {cards.map((card) => (
             <div key={card.href} className="rounded-[22px] flex flex-col p-6 pt-7 pb-6" style={{ background: INK }}>
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4.5"
@@ -122,7 +144,7 @@ export default function PathPickerSection() {
                 className="flex items-center justify-center gap-1.5 rounded-xl py-3.5 px-4 text-[14.5px] font-extrabold no-underline"
                 style={{ background: AMBER, color: AMBER_INK }}
               >
-                See how it works
+                {t.landing.pathPickerCardCta}
               </a>
             </div>
           ))}

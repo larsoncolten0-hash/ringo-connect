@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Check, ArrowLeft, Loader2, X, User, Building2, Nfc } from "lucide-react";
+import { Check, ArrowLeft, Loader2, X, User, Building2, Nfc, Award } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getReferralCode } from "@/lib/referral";
 import LanguageToggle from "@/components/LanguageToggle";
@@ -701,6 +701,29 @@ export default function GetStartedFlow({
                   </span>
                 </button>
               )}
+
+              {/* Association Program — a fourth top-level choice, but a
+                  plain navigation, not a new step in this state machine:
+                  it's plan-gated, not category-gated (see
+                  src/lib/categories.ts, deliberately untouched), and lives
+                  in its own separate, dedicated flow
+                  (/get-started-association) rather than a branch here.
+                  ?ref= needs no manual forwarding for this internal link —
+                  ReferralCapture (mounted globally in the root layout)
+                  already persists it from whichever page the visitor
+                  arrived on, get-started-association included. */}
+              <Link
+                href="/get-started-association"
+                className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98] flex items-start gap-3.5"
+              >
+                <span className="w-10 h-10 rounded-full bg-ringo-indigo/10 flex items-center justify-center shrink-0">
+                  <Award size={18} className="text-ringo-indigo" />
+                </span>
+                <span>
+                  <span className="block font-display text-base font-bold mb-1">{t.getStarted.accountTypeAssociationLabel}</span>
+                  <span className="block text-sm text-ringo-muted">{t.getStarted.accountTypeAssociationDesc}</span>
+                </span>
+              </Link>
             </div>
           </>
         )}

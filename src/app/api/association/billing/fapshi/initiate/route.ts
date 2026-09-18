@@ -30,6 +30,17 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
+  // Demo accounts get a real, working Association dashboard already
+  // granted at creation time (see /api/demo/create) — there is no reason
+  // for one to ever reach a real payment here, and per the same demo
+  // safety posture as every other real-money flow (music/ticket checkout,
+  // affiliate/music payouts), it must be blocked outright rather than
+  // merely discouraged.
+  const { data: callerProfile } = await supabase.from("profiles").select("is_demo").eq("user_id", user.id).maybeSingle();
+  if (callerProfile?.is_demo) {
+    return NextResponse.json({ code: "demo_checkout_disabled", error: "Checkout is disabled in demo mode." }, { status: 403 });
+  }
+
   const { planName, phone, medium, interval = "monthly" } = await request.json().catch(() => ({}));
 
   if (!phone || !["mobile money", "orange money"].includes(medium)) {

@@ -2,16 +2,26 @@ import { randomUUID } from "crypto";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { extractClientIp } from "@/lib/pixelTracking";
 import { isCategoryId, type CategoryId } from "@/lib/categories";
-import { translations } from "@/lib/i18n/translations";
+import { translations, type Locale } from "@/lib/i18n/translations";
+import { seedDemoAssociation } from "@/lib/association/demoSeed";
 import { NextResponse } from "next/server";
 
-// "Try the dashboard" — creates a fresh, throwaway, isolated Business Pro
-// account with zero signup friction (see src/app/demo/page.tsx). Every
-// visitor gets their OWN account: a real Supabase anonymous auth user (see
+// "Try the dashboard" — creates a fresh, throwaway, isolated demo account
+// with zero signup friction (see src/app/demo/page.tsx). Every visitor
+// gets their OWN account: a real Supabase anonymous auth user (see
 // migration-time coalesce() fix on handle_new_auth_user for why that
 // trigger needed a small change to accept a null email), flagged
 // is_demo = true and set to auto-expire in 7 days (cleaned up by
 // /api/cron/cleanup-demo-accounts).
+//
+// Two tracks, same infrastructure: `track: "business"` (the original,
+// default, unchanged behavior — a category-based Business Pro dashboard)
+// or `track: "association"` (a plan-gated Association Pro account, pre-
+// seeded with sample Partners/Members/activity — see
+// src/lib/association/demoSeed.ts). Reuses this same route, the same rate
+// limit, and the same cleanup cron rather than duplicating any of it —
+// the two tracks only differ in which plan is granted and, for
+// association, an additional seeding step afterward.
 //
 // Uses the cookie-bound server client (not the admin client) for
 // signInAnonymously() specifically, since that's what actually sets the
@@ -20,17 +30,23 @@ import { NextResponse } from "next/server";
 // instead, deliberately not the fresh anonymous session's own RLS-scoped
 // access, so this route (not client-side RLS) is the one place that
 // decides what a demo account starts with.
-const DEMO_PLAN_NAME = "business_pro";
+const DEMO_PLAN_BUSINESS = "business_pro";
+const DEMO_PLAN_ASSOCIATION = "association_pro";
 const DEMO_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
+  const track: "business" | "association" = body?.track === "association" ? "association" : "business";
   const category: CategoryId | null = isCategoryId(body?.category) ? body.category : null;
-  const locale = body?.locale === "fr" ? "fr" : "en";
+  const locale: Locale = body?.locale === "fr" ? "fr" : "en";
 
-  if (!category) {
+  // A category is only meaningful for the Business track — Association
+  // Program is plan-gated, not category-gated (see src/lib/categories.ts,
+  // deliberately untouched by that decision), so it has no category step
+  // in the demo picker at all.
+  if (track === "business" && !category) {
     return NextResponse.json({ code: "invalid_category", error: "A category is required." }, { status: 400 });
   }
 
@@ -72,10 +88,11 @@ export async function POST(request: Request) {
   }
 
   const userId = signInData.user.id;
+  const planName = track === "association" ? DEMO_PLAN_ASSOCIATION : DEMO_PLAN_BUSINESS;
 
-  const { data: plan } = await admin.from("plans").select("id").eq("name", DEMO_PLAN_NAME).single();
+  const { data: plan } = await admin.from("plans").select("id").eq("name", planName).single();
   if (!plan) {
-    console.error("demo/create: business_pro plan not found");
+    console.error(`demo/create: ${planName} plan not found`);
     // The auth user + trigger-created rows already exist at this point —
     // clean up rather than leave an orphaned, mis-configured account
     // behind.
@@ -86,18 +103,36 @@ export async function POST(request: Request) {
   const demoExpiresAt = new Date(Date.now() + DEMO_DURATION_MS).toISOString();
   const displayName = translations[locale].demo.testUserName;
 
-  const [{ error: usersUpdateError }, { error: profileUpdateError }] = await Promise.all([
+  const [{ error: usersUpdateError }, { data: updatedProfile, error: profileUpdateError }] = await Promise.all([
     admin.from("users").update({ plan_id: plan.id }).eq("id", userId),
     admin
       .from("profiles")
+      // category stays null for the Association track — see the
+      // track-gate above.
       .update({ category, is_demo: true, demo_expires_at: demoExpiresAt, name: displayName })
-      .eq("user_id", userId),
+      .eq("user_id", userId)
+      .select("id")
+      .single(),
   ]);
 
   if (usersUpdateError || profileUpdateError) {
     console.error("demo/create: profile setup failed:", usersUpdateError?.message, profileUpdateError?.message);
     await admin.auth.admin.deleteUser(userId).catch(() => {});
     return NextResponse.json({ code: "generic_error", error: "Could not start your demo." }, { status: 500 });
+  }
+
+  if (track === "association" && updatedProfile) {
+    // Best-effort — a seeding failure should never fail the whole demo
+    // creation (the account itself is already valid and usable, just
+    // starting empty instead of pre-populated). Logged for investigation,
+    // never surfaced to the visitor.
+    await seedDemoAssociation(admin, {
+      associationProfileId: updatedProfile.id,
+      demoExpiresAt,
+      locale,
+    }).catch((err) => {
+      console.error("demo/create: association seeding failed:", err?.message || err);
+    });
   }
 
   // Recorded only after everything above succeeded — the cap counts real

@@ -5,8 +5,9 @@ import { UserPlus, Award, Loader2, Copy, Check, Ban, Download, Settings2 } from 
 import { useLanguage } from "@/components/LanguageProvider";
 import InvitePartnerModal from "./InvitePartnerModal";
 import AddMemberModal from "./AddMemberModal";
+import AssociationPartnerView from "./AssociationPartnerView";
 
-type Tab = "members" | "partners" | "rewards" | "settings" | "activity";
+type Tab = "members" | "partners" | "rewards" | "settings" | "activity" | "simulatedTap";
 
 interface PartnerRow {
   id: string;
@@ -56,6 +57,7 @@ export default function AssociationOwnerView({
   initialRewards,
   initialSettings,
   initialInvitations,
+  isDemo = false,
 }: {
   associationProfileId: string;
   associationName: string;
@@ -66,6 +68,11 @@ export default function AssociationOwnerView({
   initialRewards: RewardRow[];
   initialSettings: { points_per_amount: number; amount_unit: number; default_momo_number: string | null } | null;
   initialInvitations: InvitationRow[];
+  // "Try the Association Program" demo accounts only — adds a demo-only
+  // tab hosting the simulated tap-to-log flow (see AssociationPartnerView's
+  // own isDemo prop), since a demo visitor has no physical Ringo Card to
+  // actually tap.
+  isDemo?: boolean;
 }) {
   const { t } = useLanguage();
   const a = t.association;
@@ -124,7 +131,22 @@ export default function AssociationOwnerView({
         <TabButton active={tab === "settings"} onClick={() => setTab("settings")}>
           {a.tabSettings}
         </TabButton>
+        {isDemo && (
+          <TabButton active={tab === "simulatedTap"} onClick={() => setTab("simulatedTap")}>
+            {a.tabSimulatedTap}
+          </TabButton>
+        )}
       </div>
+
+      {tab === "simulatedTap" && isDemo && (
+        <AssociationPartnerView
+          associationProfileId={associationProfileId}
+          associationName={associationName}
+          partnerProfileId={associationProfileId}
+          momoNumber={initialSettings?.default_momo_number ?? null}
+          isDemo
+        />
+      )}
 
       {tab === "members" && (
         <div className="flex flex-col gap-3">

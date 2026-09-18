@@ -73,7 +73,12 @@ export default function AssociationPaymentModal({
         body: JSON.stringify({ planName, phone, medium, interval }),
       });
       const data = await res.json();
-      if (!res.ok || !data.transId) throw new Error(data.error || t.association.genericError);
+      if (!res.ok || !data.transId) {
+        // Same demo-safety posture as every other real-money flow (music/
+        // ticket checkout, affiliate/music payouts) — a demo account's
+        // "success" screen would otherwise look identical to a real one.
+        throw new Error(data.code === "demo_checkout_disabled" ? t.demo.checkoutDisabledBody : data.error || t.association.genericError);
+      }
       pollAttempts.current = 0;
       pollStatus(data.transId);
     } catch (err: any) {

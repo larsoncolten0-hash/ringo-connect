@@ -45,6 +45,19 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const { supabase } = auth;
 
+  // Demo accounts: Member creation is fully disabled (not scoped to
+  // demo-only data), same product decision as Partner invitations above —
+  // a demo visitor explores the pre-seeded sample Members only. Unlike
+  // Partner invitations, this one has no external-account risk (a Member
+  // is never a real profile), but the decision is the same regardless:
+  // the pre-seeded dataset IS the demo experience, not a starting point to
+  // build on. Unconditional (not gated on isOwner vs isAdmin) — same
+  // posture as every other existing is_demo block in this codebase.
+  const { data: ownerProfile } = await supabase.from("profiles").select("is_demo").eq("id", associationProfileId).maybeSingle();
+  if (ownerProfile?.is_demo) {
+    return NextResponse.json({ code: "demo_association_member_disabled", error: "Adding Members isn't available in demo mode." }, { status: 403 });
+  }
+
   // Soft-block only, per the product decision — never a hard/silent
   // failure. `member_limit_reached` is the code the UI must map to a
   // message offering BOTH resolutions from that decision (upgrade to the

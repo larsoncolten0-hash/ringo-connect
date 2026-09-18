@@ -20,11 +20,20 @@ export default function AssociationPartnerView({
   associationName,
   partnerProfileId,
   momoNumber,
+  isDemo = false,
 }: {
   associationProfileId: string;
   associationName: string;
   partnerProfileId: string;
   momoNumber: string | null;
+  // Demo mode has no physical Ringo Card to tap — see the "SIMULATED TAP"
+  // product decision. Only ever true when the CALLER is this demo
+  // Association's own Owner exploring their own account (rendered as a
+  // tab inside AssociationOwnerView, never for a real Partner) — so
+  // logging a purchase/redemption this way correctly attributes
+  // partner_profile_id: null, exactly like the Owner logging directly
+  // already works today.
+  isDemo?: boolean;
 }) {
   const { t } = useLanguage();
   const a = t.association;
@@ -36,6 +45,15 @@ export default function AssociationPartnerView({
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [history, setHistory] = useState<any[] | null>(null);
+  const [demoMembers, setDemoMembers] = useState<{ id: string; name: string; points_balance: number }[] | null>(null);
+
+  useEffect(() => {
+    if (isDemo && demoMembers === null) {
+      fetch(`/api/association/members?associationProfileId=${associationProfileId}`)
+        .then((r) => r.json())
+        .then((d) => setDemoMembers(d.members || []));
+    }
+  }, [isDemo, demoMembers, associationProfileId]);
 
   useEffect(() => {
     if (tab === "history" && history === null) {
@@ -128,6 +146,15 @@ export default function AssociationPartnerView({
     setStage("idle");
   };
 
+  // Simulated tap — skips the physical card entirely and goes straight to
+  // "found" with the picked Member's already-known data. Everything
+  // downstream (amount/rewards/success, the actual tap/earn and
+  // tap/redeem calls) is identical to the real flow.
+  const selectDemoMember = (m: { id: string; name: string; points_balance: number }) => {
+    setMember({ id: m.id, name: m.name, pointsBalance: m.points_balance });
+    setStage("found");
+  };
+
   return (
     <div className="max-w-md flex flex-col gap-5">
       <div>
@@ -150,9 +177,34 @@ export default function AssociationPartnerView({
         </button>
       </div>
 
+      {tab === "tap" && isDemo && (
+        <span className="self-center text-[10px] font-semibold uppercase tracking-wide bg-amber-500/10 text-amber-600 px-2.5 py-1 rounded-full">
+          {a.simulatedTapBadge}
+        </span>
+      )}
+
       {tab === "tap" && (
         <div className="rounded-2xl border border-ringo-border/70 p-6 flex flex-col items-center text-center gap-3">
-          {stage === "idle" && (
+          {stage === "idle" && isDemo && (
+            <>
+              <p className="text-sm text-ringo-muted">{a.selectDemoMemberHint}</p>
+              <div className="w-full flex flex-col gap-2">
+                {(demoMembers || []).map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => selectDemoMember(m)}
+                    className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-card border border-ringo-border text-left hover:border-ringo-indigo transition"
+                  >
+                    <span className="text-sm text-ringo-text">{m.name}</span>
+                    <span className="text-xs font-semibold text-ringo-indigo shrink-0">{a.pointsShort(m.points_balance)}</span>
+                  </button>
+                ))}
+                {demoMembers === null && <Loader2 size={18} className="animate-spin text-ringo-muted mx-auto" />}
+              </div>
+            </>
+          )}
+
+          {stage === "idle" && !isDemo && (
             <>
               <Nfc size={32} className="text-ringo-indigo" />
               <p className="text-sm text-ringo-muted">{a.tapCardHint}</p>

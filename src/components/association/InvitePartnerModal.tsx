@@ -59,7 +59,10 @@ export default function InvitePartnerModal({
         body: JSON.stringify({ associationProfileId, method: "link", inviteeProfileId: selected.id, inviteeUsername: selected.username }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error((a.errors as Record<string, string>)[data.code] || data.error || a.genericError);
+      if (!res.ok) {
+        if (data.code === "demo_association_invite_disabled") throw new Error(t.demo.associationInviteDisabledBody);
+        throw new Error((a.errors as Record<string, string>)[data.code] || data.error || a.genericError);
+      }
       setInviteUrl(data.inviteUrl);
       onInvited();
     } catch (err: any) {

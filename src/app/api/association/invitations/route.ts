@@ -54,6 +54,18 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const { supabase, user } = auth;
 
+  // Demo accounts: Partner invitations are fully disabled (not scoped to
+  // demo-only data) — a demo visitor explores the pre-seeded sample
+  // Partners/Members only. Same "not scoped, fully blocked" treatment as
+  // the existing checkout/payout demo blocks, and for the same structural
+  // reason Team invitations are demo-blocked: this would notify and could
+  // bind a REAL external Ringo account into a demo Association that
+  // vanishes in 7 days.
+  const { data: ownerProfile } = await supabase.from("profiles").select("is_demo").eq("id", associationProfileId).maybeSingle();
+  if (ownerProfile?.is_demo) {
+    return NextResponse.json({ code: "demo_association_invite_disabled", error: "Partner invitations aren't available in demo mode." }, { status: 403 });
+  }
+
   if (inviteeProfileId === associationProfileId) {
     return NextResponse.json({ code: "invite_self", error: "An Association can't invite its own profile as a Partner." }, { status: 400 });
   }
