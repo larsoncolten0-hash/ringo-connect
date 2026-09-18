@@ -52,7 +52,9 @@ export default function CommunitySettingsCard({
   return (
     <EditorCard icon={Users} title={t.community.title} action={<SavedPulse visible={pulse.visible} label={t.editor.saved} />}>
       <div className="flex flex-col gap-4">
-        <label className="flex items-center justify-between gap-3 cursor-pointer">
+        {/* data-tour target for the onboarding tour's "turn on Community"
+            step (src/lib/onboardingTour.ts) — plain attribute, additive only. */}
+        <label data-tour="community-toggle" className="flex items-center justify-between gap-3 cursor-pointer">
           <span>
             <span className="block text-sm font-medium text-ringo-text">{t.community.enableLabel}</span>
             <span className="block text-xs text-ringo-muted mt-0.5">{t.community.enableHint}</span>

@@ -31,7 +31,7 @@ export default async function DashboardLayout({
 
   const { data: userRow } = await supabase
     .from("users")
-    .select("email, role, can_approve_requests, plan_expires_at, payment_provider, plans(name)")
+    .select("email, role, can_approve_requests, plan_expires_at, payment_provider, plans(name), onboarding_completed_at, onboarding_dismissed_at")
     .eq("id", user.id)
     .single();
 
@@ -91,6 +91,14 @@ export default async function DashboardLayout({
   // never whichever organization Team has switched into.
   const canManageAssociation = ownProfile ? await getAssociationNavAccess(user.id, ownProfile.id) : false;
 
+  // Onboarding tour — gated on the signed-in person's own account state
+  // (never completed AND never dismissed), and never shown while acting as
+  // staff inside someone else's organization: the tour is about setting up
+  // YOUR OWN page, which has nothing to do with whichever business's
+  // workspace is currently active. Same "staff never sees this" reasoning
+  // as visibleSubscriptionBanner above.
+  const showOnboardingTour = !isActingAsStaff && !userRow?.onboarding_completed_at && !userRow?.onboarding_dismissed_at;
+
   return (
     <DashboardShell
       userId={user.id}
@@ -134,6 +142,17 @@ export default async function DashboardLayout({
       teamBadgesEnabled={ownProfile?.team_badges_enabled ?? true}
       subscriptionBanner={visibleSubscriptionBanner}
       isDemo={!!ownProfile?.is_demo}
+      showOnboardingTour={showOnboardingTour}
+      onboardingProfile={
+        showOnboardingTour && ownProfile
+          ? {
+              category: ownProfile.category,
+              categories: ownProfile.categories,
+              community_enabled: ownProfile.community_enabled,
+              bookings_enabled: ownProfile.bookings_enabled,
+            }
+          : null
+      }
     >
       {children}
     </DashboardShell>

@@ -106,7 +106,10 @@ export default function LinksCard({
       action={
         <>
           <SavedPulse visible={pulse.visible} label={t.editor.saved} />
+          {/* data-tour target for the onboarding tour's default-category
+              step (src/lib/onboardingTour.ts) — plain attribute, additive only. */}
           <button
+            data-tour="add-link"
             onClick={addLink}
             disabled={limitReached}
             className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white disabled:opacity-40 transition hover:brightness-110 active:scale-[0.97]"

@@ -84,8 +84,10 @@ export default function TracksCard({
     <EditorCard
       icon={Music}
       title={title}
+      // data-tour target for the onboarding tour's Music-branch step
+      // (src/lib/onboardingTour.ts) — plain attribute, additive only.
       action={
-        <button onClick={addTrack} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
+        <button data-tour="add-track" onClick={addTrack} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
           {t.music.addTrack}
         </button>
       }

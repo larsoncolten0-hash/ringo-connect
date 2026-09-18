@@ -1817,26 +1817,50 @@ export const translations = {
 
     onboarding: {
       skip: "Skip",
+      goThere: "Go there →",
       back: "Back",
       next: "Next",
       finish: "Get started",
       step: (current: number, total: number) => `${current} of ${total}`,
+      // Rebuilt as a real spotlight tour (driver.js) — each key below maps
+      // to one genuine on-page target (see src/lib/onboardingTour.ts and
+      // the matching data-tour attribute in the component it points at),
+      // not a passive descriptive slide. "welcome" and "installApp" are
+      // the two exceptions with no page element to spotlight (a centered
+      // intro, and a custom modal reusing AddToHomeScreenMenuItem
+      // respectively).
       steps: {
         welcome: {
           title: "Welcome to Ringo Connect!",
-          body: "Let's take a quick look around your dashboard so you can get the most out of your page.",
+          body: "Let's get your page ready — this will only take a minute.",
         },
-        profile: {
-          title: "Your profile",
-          body: "This is where your photo, name and bio live — the first thing visitors see.",
+        profilePhoto: {
+          title: "Add your profile photo",
+          body: "A photo makes your page feel real and trustworthy — tap below to add yours.",
         },
-        sections: {
-          title: "Build your page",
-          body: "Each dropdown below adds something to your page — links, socials, a catalog, and more depending on your category.",
+        menuItem: {
+          title: "Add your first menu item",
+          body: "Show visitors what you're serving — add at least one item to get started.",
         },
-        preview: {
-          title: "Live preview",
-          body: "Watch your page update here in real time as you make changes.",
+        uploadTrack: {
+          title: "Upload your first track",
+          body: "Share your music — upload a track so fans can start listening.",
+        },
+        addLink: {
+          title: "Add your first link",
+          body: "Link out to WhatsApp, Instagram, your store — whatever matters most.",
+        },
+        community: {
+          title: "Turn on Community",
+          body: "Let fans follow you and get notified whenever you post something new.",
+        },
+        bookings: {
+          title: "Turn on Bookings",
+          body: "Let people book appointments or reservations directly from your page.",
+        },
+        installApp: {
+          title: "Install the app",
+          body: "Add Ringo Connect to your home screen — it's how push notifications actually reach you reliably.",
         },
         share: {
           title: "Share your page",
@@ -3672,6 +3696,7 @@ export const translations = {
 
     onboarding: {
       skip: "Passer",
+      goThere: "Y aller →",
       back: "Retour",
       next: "Suivant",
       finish: "Commencer",
@@ -3679,19 +3704,35 @@ export const translations = {
       steps: {
         welcome: {
           title: "Bienvenue sur Ringo Connect !",
-          body: "Faisons un rapide tour de votre tableau de bord pour profiter pleinement de votre page.",
+          body: "Préparons votre page — cela ne prendra qu'une minute.",
         },
-        profile: {
-          title: "Votre profil",
-          body: "C'est ici que se trouvent votre photo, votre nom et votre bio — la première chose que voient vos visiteurs.",
+        profilePhoto: {
+          title: "Ajoutez votre photo de profil",
+          body: "Une photo rend votre page plus authentique et rassurante — appuyez ci-dessous pour ajouter la vôtre.",
         },
-        sections: {
-          title: "Construisez votre page",
-          body: "Chaque menu déroulant ci-dessous ajoute un élément à votre page — liens, réseaux sociaux, catalogue, et plus selon votre catégorie.",
+        menuItem: {
+          title: "Ajoutez votre premier article au menu",
+          body: "Montrez aux visiteurs ce que vous proposez — ajoutez au moins un article pour commencer.",
         },
-        preview: {
-          title: "Aperçu en direct",
-          body: "Observez votre page se mettre à jour ici en temps réel au fil de vos modifications.",
+        uploadTrack: {
+          title: "Téléversez votre premier titre",
+          body: "Partagez votre musique — téléversez un titre pour que vos fans puissent l'écouter.",
+        },
+        addLink: {
+          title: "Ajoutez votre premier lien",
+          body: "Renvoyez vers WhatsApp, Instagram, votre boutique — ce qui compte le plus pour vous.",
+        },
+        community: {
+          title: "Activez la Communauté",
+          body: "Laissez vos fans vous suivre et être notifiés à chaque nouveauté.",
+        },
+        bookings: {
+          title: "Activez les Réservations",
+          body: "Laissez les visiteurs réserver un rendez-vous ou une table directement depuis votre page.",
+        },
+        installApp: {
+          title: "Installez l'application",
+          body: "Ajoutez Ringo Connect à votre écran d'accueil — c'est ce qui permet aux notifications de vous parvenir de façon fiable.",
         },
         share: {
           title: "Partagez votre page",

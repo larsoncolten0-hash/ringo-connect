@@ -107,7 +107,9 @@ export default function BookingSettingsCard({
   return (
     <EditorCard icon={CalendarCheck} title={t.bookings.settingsTitle} action={<SavedPulse visible={pulse.visible} label={t.editor.saved} />}>
       <div className="flex flex-col gap-4">
-        <label className="flex items-center justify-between gap-3 cursor-pointer">
+        {/* data-tour target for the onboarding tour's "turn on Bookings"
+            step (src/lib/onboardingTour.ts) — plain attribute, additive only. */}
+        <label data-tour="bookings-toggle" className="flex items-center justify-between gap-3 cursor-pointer">
           <span>
             <span className="block text-sm font-medium text-ringo-text">{t.bookings.enableLabel}</span>
             <span className="block text-xs text-ringo-muted mt-0.5">{t.bookings.enableHint}</span>
