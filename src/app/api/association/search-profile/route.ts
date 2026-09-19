@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAssociationAccessJson } from "@/lib/association/access";
 import { createAdminClient } from "@/lib/supabase/server";
+import { isActiveDemoProfile } from "@/lib/association/demoProfile";
 
 // GET /api/association/search-profile?associationProfileId=...&q=...
 //
@@ -30,15 +31,25 @@ export async function GET(request: Request) {
   // normal RLS, which is exactly why the admin client is needed here.
   const admin = createAdminClient();
 
+  // In a DEMO Association the search only ever returns ACTIVE demo profiles (is_demo = true with an unexpired
+  // demo_expires_at, server clock), so a demo Owner can neither enumerate nor invite a real Ringo user. The
+  // restriction applies whenever the Association is flagged demo, even if its own window is over (fail-safe).
+  // Non-demo Associations behave exactly as before.
+  const { data: assocProfile } = await admin.from("profiles").select("is_demo").eq("id", associationProfileId).maybeSingle();
+  const demoOnly = assocProfile?.is_demo === true;
+
   // Matches by username (ilike, case-insensitive) or by an exact phone
   // number against profile_phone_numbers — a partial phone match isn't
   // useful here (numbers aren't a "search as you type" field the way a
   // username is), so phone only ever matches the full number typed in.
+  let usernameQuery = admin.from("profiles").select("id, username, name, avatar_url").ilike("username", `%${q}%`);
+  const now = new Date();
+  if (demoOnly) usernameQuery = usernameQuery.eq("is_demo", true).gt("demo_expires_at", now.toISOString());
   const [{ data: byUsername }, { data: byPhone }] = await Promise.all([
-    admin.from("profiles").select("id, username, name, avatar_url").ilike("username", `%${q}%`).limit(8),
+    usernameQuery.limit(8),
     admin
       .from("profile_phone_numbers")
-      .select("profile_id, profiles(id, username, name, avatar_url)")
+      .select("profile_id, profiles(id, username, name, avatar_url, is_demo, demo_expires_at)")
       .eq("phone_number", q)
       .limit(8),
   ]);
@@ -47,7 +58,8 @@ export async function GET(request: Request) {
   for (const p of byUsername || []) results.set(p.id, p);
   for (const row of byPhone || []) {
     const p = (row as any).profiles;
-    if (p) results.set(p.id, p);
+    if (!p || (demoOnly && !isActiveDemoProfile(p, now))) continue;
+    results.set(p.id, { id: p.id, username: p.username, name: p.name, avatar_url: p.avatar_url });
   }
 
   return NextResponse.json({ profiles: Array.from(results.values()).slice(0, 8) });

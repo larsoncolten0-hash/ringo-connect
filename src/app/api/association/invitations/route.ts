@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAssociationAccessJson, countActiveAssociationPartners } from "@/lib/association/access";
 import { generateToken, invitationExpiryDate, buildInvitationUrl, DEFAULT_INVITATION_TTL_DAYS } from "@/lib/association/tokens";
 import { createAdminClient } from "@/lib/supabase/server";
+import { isActiveDemoProfile } from "@/lib/association/demoProfile";
 
 // GET /api/association/invitations?associationProfileId=... — every
 // invitation for this Association, newest first. Owner only.
@@ -54,16 +55,21 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const { supabase, user } = auth;
 
-  // Demo accounts: Partner invitations are fully disabled (not scoped to
-  // demo-only data) — a demo visitor explores the pre-seeded sample
-  // Partners/Members only. Same "not scoped, fully blocked" treatment as
-  // the existing checkout/payout demo blocks, and for the same structural
-  // reason Team invitations are demo-blocked: this would notify and could
-  // bind a REAL external Ringo account into a demo Association that
-  // vanishes in 7 days.
-  const { data: ownerProfile } = await supabase.from("profiles").select("is_demo").eq("id", associationProfileId).maybeSingle();
+  // Demo accounts: a demo Association may invite ONLY another ACTIVE demo profile (is_demo = true and an
+  // unexpired demo_expires_at), and only while the Association itself is an active demo. This keeps the
+  // original protection — a demo Association vanishes in 7 days, so it must never notify or bind a REAL
+  // external Ringo account — while letting a tester link a second, throwaway demo account in as a Partner to
+  // exercise the real Partner dashboard. Fails closed: an invitee whose profile can't be resolved, whose flag is
+  // anything other than exactly true, or whose demo window is missing or over, is refused. The flags are read
+  // on the server (the invitee with the service-role client) and compared with the server's clock; nothing
+  // comes from the request.
+  const { data: ownerProfile } = await supabase.from("profiles").select("is_demo, demo_expires_at").eq("id", associationProfileId).maybeSingle();
   if (ownerProfile?.is_demo) {
-    return NextResponse.json({ code: "demo_association_invite_disabled", error: "Partner invitations aren't available in demo mode." }, { status: 403 });
+    const { data: inviteeFlags } = await createAdminClient().from("profiles").select("is_demo, demo_expires_at").eq("id", inviteeProfileId).maybeSingle();
+    const now = new Date();
+    if (!isActiveDemoProfile(ownerProfile, now) || !isActiveDemoProfile(inviteeFlags, now)) {
+      return NextResponse.json({ code: "demo_association_invite_disabled", error: "Partner invitations aren't available in demo mode." }, { status: 403 });
+    }
   }
 
   if (inviteeProfileId === associationProfileId) {

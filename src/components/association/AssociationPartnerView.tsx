@@ -21,6 +21,7 @@ export default function AssociationPartnerView({
   partnerProfileId,
   momoNumber,
   isDemo = false,
+  demoCodeEntry = false,
 }: {
   associationProfileId: string;
   associationName: string;
@@ -34,6 +35,11 @@ export default function AssociationPartnerView({
   // partner_profile_id: null, exactly like the Owner logging directly
   // already works today.
   isDemo?: boolean;
+  // Demo/test only. True only when BOTH this Partner's own profile and the Association's profile are demo
+  // accounts (computed on the server in dashboard/association/page.tsx; /api/association/tap/demo-lookup
+  // re-checks it and fails closed). Shows a browser-only stand-in for the physical card — a member's demo
+  // card code — next to the real NFC button, which is unchanged.
+  demoCodeEntry?: boolean;
 }) {
   const { t } = useLanguage();
   const a = t.association;
@@ -46,6 +52,7 @@ export default function AssociationPartnerView({
   const [successMessage, setSuccessMessage] = useState("");
   const [history, setHistory] = useState<any[] | null>(null);
   const [demoMembers, setDemoMembers] = useState<{ id: string; name: string; points_balance: number }[] | null>(null);
+  const [demoCode, setDemoCode] = useState("");
 
   useEffect(() => {
     if (isDemo && demoMembers === null) {
@@ -88,6 +95,26 @@ export default function AssociationPartnerView({
       setStage("found");
     } catch (err) {
       setError(err instanceof RingoCardError ? a.nfcErrors[err.code] || a.genericError : (err as Error).message || a.genericError);
+      setStage("error");
+    }
+  };
+
+  const lookupDemoCode = async () => {
+    setStage("scanning");
+    setError("");
+    try {
+      const res = await fetch("/api/association/tap/demo-lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ associationProfileId, code: demoCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error((a.errors as Record<string, string>)[data.code] || data.error || a.genericError);
+      setMember(data.member);
+      setDemoCode("");
+      setStage("found");
+    } catch (err) {
+      setError((err as Error).message || a.genericError);
       setStage("error");
     }
   };
@@ -217,6 +244,33 @@ export default function AssociationPartnerView({
                   <p className="text-xs text-ringo-muted">
                     {a.momoDisplayLabel} <span className="font-mono text-ringo-text">{momoNumber}</span>
                   </p>
+                </div>
+              )}
+              {demoCodeEntry && (
+                <div className="w-full rounded-card border border-amber-500/40 bg-amber-500/5 p-3 flex flex-col gap-2 text-left mt-2">
+                  <span className="self-start text-[10px] font-semibold uppercase tracking-wide bg-amber-500/10 text-amber-600 px-2.5 py-1 rounded-full">
+                    {a.simulatedTapBadge}
+                  </span>
+                  <p className="text-xs text-ringo-muted">{a.demoCodeBanner}</p>
+                  <label className="flex flex-col gap-1 text-xs text-ringo-muted">
+                    {a.demoCodeLabel}
+                    <input
+                      value={demoCode}
+                      onChange={(e) => setDemoCode(e.target.value)}
+                      maxLength={8}
+                      autoComplete="off"
+                      placeholder={a.demoCodePlaceholder}
+                      className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text font-mono"
+                    />
+                  </label>
+                  <p className="text-[11px] text-ringo-muted">{a.demoCodeHint}</p>
+                  <button
+                    onClick={lookupDemoCode}
+                    disabled={demoCode.trim().length !== 8}
+                    className="w-full py-2.5 rounded-card border border-ringo-border text-ringo-text text-sm font-medium disabled:opacity-60"
+                  >
+                    {a.demoCodeCta}
+                  </button>
                 </div>
               )}
             </>
