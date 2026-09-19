@@ -2,6 +2,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { sendAnnouncementToSubscribers } from "@/lib/community/send";
 import { isEmailProviderConfigured } from "@/lib/email/provider";
 import { NextResponse } from "next/server";
+import { isCommunityEnabled } from "@/lib/community/enabled";
 
 // Owner-authenticated. The one-shot "📣 Notify community" action on a
 // product (see ProductRow.tsx) — re-reads the CURRENTLY SAVED product row
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
   if (!profile) {
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
-  if (!profile.community_enabled) {
+  if (!isCommunityEnabled(profile)) {
     return NextResponse.json({ error: "Turn Community on in Settings first." }, { status: 400 });
   }
 

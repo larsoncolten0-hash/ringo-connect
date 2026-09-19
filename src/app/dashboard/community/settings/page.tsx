@@ -9,12 +9,6 @@ export default async function CommunitySettingsPage() {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com";
 
   return (
-    <CommunitySettingsCard
-      profileId={profile.id}
-      username={profile.username}
-      siteUrl={siteUrl}
-      initialEnabled={!!profile.community_enabled}
-      initialLabel={profile.community_label}
-    />
+    <CommunitySettingsCard username={profile.username} siteUrl={siteUrl} />
   );
 }

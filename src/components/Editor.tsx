@@ -10,6 +10,7 @@ import ProfileCompletionCard from "@/components/editor/ProfileCompletionCard";
 import CategoryCard from "@/components/editor/CategoryCard";
 import MusicSettingsCard from "@/components/editor/MusicSettingsCard";
 import MusicReleasesCard from "@/components/editor/MusicReleasesCard";
+import { isCommunityEnabled } from "@/lib/community/enabled";
 import PinnedSpotlightCard from "@/components/editor/PinnedSpotlightCard";
 import RestaurantSettingsCard from "@/components/editor/RestaurantSettingsCard";
 import MenuCard from "@/components/editor/MenuCard";
@@ -250,7 +251,7 @@ function EditorCards({
                 catalogLocked={catalogLocked}
                 maxProducts={plan?.max_products ?? null}
                 initialCurrency={profile.currency || "USD"}
-                communityEnabled={!!profile.community_enabled}
+                communityEnabled={isCommunityEnabled(profile)}
               />
             </EditorCardBareGroup>
           </EditorSection>

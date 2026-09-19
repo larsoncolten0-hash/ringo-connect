@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CommunityJoinPage from "@/components/CommunityJoinPage";
+import { isCommunityEnabled } from "@/lib/community/enabled";
 
 // The dedicated "Join Community" surface — reached from the public
 // profile's Stay Connected section (see ProfileView.tsx). Its own route
@@ -18,7 +19,7 @@ export default async function CommunityJoinRoute({ params }: { params: { usernam
     .eq("published", true)
     .single();
 
-  if (!profile || !profile.community_enabled) return notFound();
+  if (!profile || !isCommunityEnabled(profile)) return notFound();
 
   return <CommunityJoinPage profile={profile} />;
 }

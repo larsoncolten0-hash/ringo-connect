@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { sendPushAndBellToUser } from "@/lib/push/withBell";
 import { dashboardSubscriberLink } from "@/lib/notificationLinks";
 import { NextResponse } from "next/server";
+import { isCommunityEnabled } from "@/lib/community/enabled";
 
 // Public, unauthenticated by design — a visitor joining a community has no
 // Ringo account (same reasoning as /api/bookings and /api/orders). There
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
   if (!profile) {
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
-  if (profile.community_enabled !== true) {
+  if (!isCommunityEnabled(profile)) {
     return NextResponse.json({ error: "This profile isn't accepting new subscribers right now." }, { status: 400 });
   }
 

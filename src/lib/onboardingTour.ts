@@ -1,4 +1,5 @@
 import { profileHasCategory } from "@/lib/categories";
+import { isCommunityEnabled } from "@/lib/community/enabled";
 
 // The onboarding tour's step model and step-list construction — kept
 // separate from OnboardingTourController.tsx (the React/driver.js side)
@@ -79,7 +80,9 @@ export function buildOnboardingSteps(profile: ProfileForTour, canInstallApp: boo
   else if (profileHasCategory(profile, "music_entertainment")) steps.push(UPLOAD_TRACK_STEP);
   else steps.push(ADD_LINK_STEP);
 
-  if (!profile.community_enabled) steps.push(COMMUNITY_STEP);
+  // Community is always on (see src/lib/community/enabled.ts) — there is no
+  // longer a toggle to point at, so this step is never included.
+  if (!isCommunityEnabled(profile)) steps.push(COMMUNITY_STEP);
   if (!profile.bookings_enabled) steps.push(BOOKINGS_STEP);
   if (canInstallApp) steps.push(INSTALL_APP_STEP);
 

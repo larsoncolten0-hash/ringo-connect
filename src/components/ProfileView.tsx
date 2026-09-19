@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Script from "next/script";
 import { AnimatePresence, motion } from "framer-motion";
-import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck, Bell } from "lucide-react";
+import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
@@ -30,6 +30,7 @@ import ShareButton from "./ShareButton";
 import FanRecognitionHeader from "./FanRecognitionHeader";
 import BookingButton from "./BookingButton";
 import AddToHomeScreen from "./AddToHomeScreen";
+import ConnectButton from "./connect/ConnectButton";
 import RegisterServiceWorker from "./RegisterServiceWorker";
 import AppBadgeReset from "./AppBadgeReset";
 
@@ -930,31 +931,22 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             />
           )}
 
-          {/* "Stay Connected" — the community/audience opt-in teaser. Only
-              rendered once the owner has turned it on (Dashboard →
-              Community → Settings); links to the dedicated join page
-              rather than opening a modal here, the same reasoning
-              BookingButton uses for /[username]/book. */}
-          {profile.community_enabled && (
-            <div
-              className={`text-center p-5 ${radiusClass}`}
-              style={{ border: `1px solid ${contentBorderTint}`, backgroundColor: hexToRgba(contentTextColor, 0.03) }}
-            >
-              <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ opacity: 0.5 }}>
-                {t.communitySection.title}
-              </p>
-              <p className="text-sm mt-1.5 mb-4" style={{ opacity: 0.75 }}>
-                {t.communitySection.subtitle(profile.name || profile.username)}
-              </p>
-              <a
-                href={`/${profile.username}/community`}
-                className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium transition hover:brightness-95 active:scale-[0.98] ${radiusClass}`}
-                style={linkButtonStyle}
-              >
-                <Bell size={15} />
-                {profile.community_label?.trim() || t.communitySection.defaultButtonLabel}
-              </a>
-            </div>
+          {/* "＋ Connect" — the universal customer ↔ profile action (see
+              src/components/connect/). Always shown, independent of
+              profiles.community_enabled; the legacy Community join page
+              (/[username]/community) still exists for old shared links but
+              is no longer linked from here. Hidden for the owner viewing
+              their own live page; inert inside the dashboard preview. */}
+          {!isOwner && (
+            <ConnectButton
+              profile={{ id: profile.id, name: profile.name || profile.username }}
+              accent={accent}
+              radiusClass={radiusClass}
+              buttonStyle={linkButtonStyle}
+              borderTint={contentBorderTint}
+              textColor={contentTextColor}
+              preview={preview}
+            />
           )}
 
           {/* "Add to Home Screen" — entirely separate feature from Stay
