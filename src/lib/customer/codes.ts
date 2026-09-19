@@ -78,9 +78,10 @@ export async function issueLoginCode(
     email: string;
     ipHash: string | null;
     language: "en" | "fr";
-    name: string;
-    phone: string;
-    profileId: string;
+    // null for a plain sign-in code (My Ringo sign-in has no profile/form).
+    name: string | null;
+    phone: string | null;
+    profileId: string | null;
     marketingConsent: boolean;
     source: string;
   }

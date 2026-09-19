@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import QrCodeResult from "@/components/admin/QrCodeResult";
 import { getCategory } from "@/lib/categories";
+import { isReservedUsername } from "@/lib/reservedUsernames";
 
 type UsernameStatus = "idle" | "checking" | "available" | "taken";
 type ChargeStatus = "idle" | "sending" | "pending" | "success" | "failed";
@@ -111,6 +112,7 @@ export default function RequestReview({
     }
     setUsernameStatus("checking");
     const timer = setTimeout(async () => {
+      if (isReservedUsername(username)) return setUsernameStatus("taken");
       const { data } = await supabase.from("profiles").select("id").eq("username", username.toLowerCase()).maybeSingle();
       setUsernameStatus(data ? "taken" : "available");
     }, 400);

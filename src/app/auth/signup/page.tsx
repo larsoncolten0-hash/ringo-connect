@@ -10,6 +10,7 @@ import AuthShell from "@/components/auth/AuthShell";
 import FormField from "@/components/auth/FormField";
 import SubmitButton from "@/components/auth/SubmitButton";
 import FormBanner from "@/components/auth/FormBanner";
+import { isReservedUsername } from "@/lib/reservedUsernames";
 import CategoryPicker from "@/components/CategoryPicker";
 import type { CategoryId } from "@/lib/categories";
 
@@ -69,6 +70,7 @@ function SignupForm() {
     setUsernameStatus("checking");
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
+      if (isReservedUsername(username)) return setUsernameStatus("taken");
       const { data } = await supabase.from("profiles").select("id").eq("username", username).maybeSingle();
       setUsernameStatus(data ? "taken" : "available");
     }, 400);

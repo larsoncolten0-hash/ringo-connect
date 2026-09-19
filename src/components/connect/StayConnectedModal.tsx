@@ -343,6 +343,11 @@ export default function StayConnectedModal({
                   <p className="mt-1.5 text-sm text-ringo-muted">{t.connect.successBody(profile.name)}</p>
                 </div>
                 <ConnectedNotificationsPrompt profileName={profile.name} accent={accent} onDone={onClose} />
+                {/* A plain link, never an automatic redirect — browsing on
+                    this profile stays undisturbed. */}
+                <a href="/my-ringo" className="text-sm font-medium hover:underline" style={{ color: accent }}>
+                  {t.myRingo.openMyRingo} →
+                </a>
               </div>
             )}
           </motion.div>

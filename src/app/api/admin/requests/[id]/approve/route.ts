@@ -5,6 +5,7 @@ import { getCategory, isCategoryId, sanitizeCategoryIds } from "@/lib/categories
 import { sendPushAndBellToAdmins } from "@/lib/push/withBell";
 import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
 import { NextResponse } from "next/server";
+import { isReservedUsername } from "@/lib/reservedUsernames";
 import { notifyUser } from "@/lib/notifications";
 import { emailShell } from "@/lib/email/emailShell";
 import { sendEmail } from "@/lib/email/provider";
@@ -49,7 +50,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
     .select("id")
     .eq("username", username.toLowerCase())
     .maybeSingle();
-  if (existingProfile) {
+  // A reserved system-route name (e.g. my-ringo) is unavailable exactly like a taken one.
+  if (existingProfile || isReservedUsername(username)) {
     return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
   }
 
