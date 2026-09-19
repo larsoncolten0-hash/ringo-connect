@@ -46,12 +46,15 @@ export default function StayConnectedModal({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // The typed email already has a Ringo account, so we fell back to a sign-in code.
+  const [existingAccount, setExistingAccount] = useState(false);
 
   useEffect(() => {
     if (open) {
       setStep(initialStep);
       setError("");
       setCode("");
+      setExistingAccount(false);
     }
   }, [open, initialStep]);
 
@@ -118,6 +121,55 @@ export default function StayConnectedModal({
     }
   };
 
+  // The normal path for a NEW customer: one request creates the account, starts the
+  // session and connects — no email, no code. Only when the email already belongs to
+  // an existing account (never signed into from the form alone) do we fall back to
+  // the emailed-code sign-in.
+  const submitForm = async () => {
+    setError("");
+    if (!name.trim()) return setError(t.connect.nameRequired);
+    if (!PHONE_RE.test(phone.trim())) return setError(t.connect.phoneInvalid);
+    if (!EMAIL_RE.test(email.trim())) return setError(t.connect.emailInvalid);
+
+    let fallBackToCode = false;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/customer/connect/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profile_id: profile.id,
+          name: name.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          marketing_consent: marketing,
+          website: honeypot,
+          language: locale,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        if (!data?.connected) return setError(t.connect.genericError);
+        onConnected();
+        return setStep("done");
+      }
+      if (res.status === 409 && data?.error === "account_exists") {
+        // No `return` here: the fallback below must still run after `finally`.
+        fallBackToCode = true;
+      } else {
+        setError(errorMessage(data?.error));
+      }
+    } catch {
+      setError(t.connect.genericError);
+    } finally {
+      setBusy(false);
+    }
+    if (fallBackToCode) {
+      setExistingAccount(true);
+      await sendCode();
+    }
+  };
+
   const confirmCode = async () => {
     setError("");
     if (!/^\d{6}$/.test(code.trim())) return setError(t.connect.codeInvalid);
@@ -179,7 +231,7 @@ export default function StayConnectedModal({
                 className="flex flex-col gap-4"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (!busy) sendCode();
+                  if (!busy) submitForm();
                 }}
               >
                 <div className="pr-8">
@@ -278,6 +330,7 @@ export default function StayConnectedModal({
               >
                 <div className="pr-8">
                   <h2 className="text-xl font-semibold">{t.connect.codeTitle}</h2>
+                  {existingAccount && <p className="mt-1.5 text-sm font-medium text-ringo-text">{t.myRingo.account.existingAccountNote}</p>}
                   <p className="mt-1.5 text-sm text-ringo-muted">{t.connect.codeBody(email.trim())}</p>
                 </div>
 

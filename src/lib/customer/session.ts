@@ -33,6 +33,8 @@ export type CustomerIdentity = {
   phone: string | null;
   avatar_url: string | null;
   preferred_language: "en" | "fr" | null;
+  // null = the customer typed this email but has not confirmed it (optional).
+  email_verified_at: string | null;
 };
 
 export async function createCustomerSession(admin: any, customerId: string, userAgent: string | null) {
@@ -107,7 +109,7 @@ export async function getCustomerFromCookie(): Promise<{ customer: CustomerIdent
 
   const { data: customer } = await admin
     .from("ringo_customers")
-    .select("id, name, email, phone, avatar_url, preferred_language")
+    .select("id, name, email, phone, avatar_url, preferred_language, email_verified_at")
     .eq("id", session.customer_id)
     .maybeSingle();
   if (!customer) return null;

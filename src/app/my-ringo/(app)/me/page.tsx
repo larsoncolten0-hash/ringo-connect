@@ -13,6 +13,7 @@ export default async function MyRingoMePage() {
         phone: customer.phone,
         avatarUrl: customer.avatar_url,
         preferredLanguage: customer.preferred_language,
+        emailConfirmed: !!customer.email_verified_at,
       }}
     />
   );

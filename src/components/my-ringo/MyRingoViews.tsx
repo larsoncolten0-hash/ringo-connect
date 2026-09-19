@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, History, Link2, MessageCircle, Music, User } from "lucide-react";
+import { BadgeCheck, ChevronRight, History, Link2, MailQuestion, MessageCircle, Music, User } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import type { MyConnection } from "@/lib/customer/connections";
 import type { ActivityItem, LibraryTrack } from "@/lib/customer/activity";
@@ -11,6 +11,7 @@ import ConnectionCard from "./ConnectionCard";
 import CustomerAvatar from "./CustomerAvatar";
 import EmptyState from "./EmptyState";
 import SignOutButton from "./SignOutButton";
+import ConfirmEmailDialog from "./ConfirmEmailDialog";
 import DisconnectDialog from "./DisconnectDialog";
 import InstallCard from "./InstallCard";
 import MyMusicList, { PlayAllBar } from "./MyMusicList";
@@ -220,9 +221,19 @@ export function InboxView() {
 export function MeView({
   customer,
 }: {
-  customer: { name: string; email: string; phone: string | null; avatarUrl: string | null; preferredLanguage: "en" | "fr" | null };
+  customer: {
+    name: string;
+    email: string;
+    phone: string | null;
+    avatarUrl: string | null;
+    preferredLanguage: "en" | "fr" | null;
+    emailConfirmed: boolean;
+  };
 }) {
   const { t } = useLanguage();
+  const router = useRouter();
+  const [emailConfirmed, setEmailConfirmed] = useState(customer.emailConfirmed);
+  const [confirmingEmail, setConfirmingEmail] = useState(false);
   const languageName = customer.preferredLanguage === "en" ? "English" : customer.preferredLanguage === "fr" ? "Français" : null;
 
   const rows = [
@@ -249,6 +260,39 @@ export function MeView({
           </div>
         ))}
       </dl>
+
+      {/* Confirming the email is OPTIONAL — the account works the same either way. */}
+      {emailConfirmed ? (
+        <p className="flex items-center gap-2 rounded-2xl bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-600">
+          <BadgeCheck size={16} /> {t.myRingo.account.emailConfirmed}
+        </p>
+      ) : (
+        <div className="flex flex-col gap-3 rounded-2xl border border-ringo-border/70 bg-ringo-surface p-4 sm:flex-row sm:items-center">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ringo-muted/15 text-ringo-muted">
+            <MailQuestion size={18} />
+          </span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-ringo-text">{t.myRingo.account.emailNotConfirmed}</p>
+            <p className="mt-0.5 text-xs text-ringo-muted">{t.myRingo.account.optionalNote}</p>
+          </div>
+          <button
+            onClick={() => setConfirmingEmail(true)}
+            className="rounded-xl bg-ringo-indigo px-4 py-2.5 text-sm font-semibold text-white transition active:scale-[0.98]"
+          >
+            {t.myRingo.account.confirmEmail}
+          </button>
+        </div>
+      )}
+      {confirmingEmail && (
+        <ConfirmEmailDialog
+          email={customer.email}
+          onClose={() => setConfirmingEmail(false)}
+          onConfirmed={() => {
+            setEmailConfirmed(true);
+            router.refresh();
+          }}
+        />
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-ringo-text">{t.myRingo.appSection}</h2>

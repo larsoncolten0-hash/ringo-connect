@@ -14,7 +14,16 @@ export default async function MyRingoAppLayout({ children }: { children: React.R
   // customer moves around My Ringo.
   return (
     <MusicPlayerProvider>
-      <MyRingoShell customer={{ name: customer.name, avatarUrl: customer.avatar_url }}>{children}</MyRingoShell>
+      <MyRingoShell
+        customer={{
+          name: customer.name,
+          avatarUrl: customer.avatar_url,
+          email: customer.email,
+          emailConfirmed: !!customer.email_verified_at,
+        }}
+      >
+        {children}
+      </MyRingoShell>
     </MusicPlayerProvider>
   );
 }

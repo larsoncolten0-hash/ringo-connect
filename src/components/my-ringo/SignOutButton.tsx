@@ -3,11 +3,9 @@
 import { useState } from "react";
 import { Loader2, LogOut } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
-import { clearAll } from "./player/offlineStore";
+import { signOutCustomer } from "./signOut";
 
-// Uses the EXISTING /api/customer/logout route (revokes this device's
-// session and clears the cookie). A full navigation afterwards, not a client
-// transition, so no cached My Ringo page stays in the router cache.
+// Uses the EXISTING /api/customer/logout route (see signOut.ts).
 export default function SignOutButton() {
   const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
@@ -15,19 +13,7 @@ export default function SignOutButton() {
   const logout = async () => {
     if (busy) return;
     setBusy(true);
-    try {
-      // Saved-for-offline audio belongs to this customer's session: wipe it so a
-      // shared device keeps nothing behind.
-      // (Capped at 3s so a stuck storage call can never block signing out.)
-      await Promise.race([clearAll().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 3000))]);
-      await fetch("/api/customer/logout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-    } finally {
-      window.location.replace("/my-ringo/signin");
-    }
+    await signOutCustomer();
   };
 
   return (

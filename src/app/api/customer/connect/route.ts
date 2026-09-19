@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   if (!profile) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
 
   const result = await connectCustomerToProfile(admin, {
-    customer: session.customer,
+    customer: { ...session.customer, emailConfirmed: !!session.customer.email_verified_at },
     profile,
     // Only an explicit `true` counts; anything else is "no consent".
     marketingConsent: body?.marketing_consent === true,

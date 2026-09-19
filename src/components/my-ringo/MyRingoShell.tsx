@@ -6,17 +6,18 @@ import { Home, Link2, Music, MessageCircle, Receipt, User } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import LanguageToggle from "@/components/LanguageToggle";
 import { usePlayer } from "./player/MusicPlayerProvider";
-import CustomerAvatar from "./CustomerAvatar";
+import AccountMenu from "./AccountMenu";
 
 // The My Ringo chrome — deliberately its OWN navigation, separate from the
 // creator dashboard's shell/tab bar (nothing is shared or imported from
-// there). Bottom tab bar on phones, a slim sidebar from `sm` up. Receives
-// only the customer's display name and avatar — never email/phone or any id.
+// there). Bottom tab bar on phones, a slim sidebar from `sm` up. Receives only
+// what the avatar menu shows about the customer themself (name, avatar, email and
+// whether it's confirmed) — never phone or any id.
 export default function MyRingoShell({
   customer,
   children,
 }: {
-  customer: { name: string; avatarUrl: string | null };
+  customer: { name: string; avatarUrl: string | null; email: string; emailConfirmed: boolean };
   children: React.ReactNode;
 }) {
   const { t } = useLanguage();
@@ -61,10 +62,7 @@ export default function MyRingoShell({
         <div className="mt-auto mb-2 px-1">
           <LanguageToggle />
         </div>
-        <Link href="/my-ringo/me" className="flex items-center gap-2.5 rounded-xl p-2 hover:bg-ringo-muted/10 transition">
-          <CustomerAvatar name={customer.name} avatarUrl={customer.avatarUrl} className="w-9 h-9 text-xs" />
-          <span className="truncate text-sm font-medium">{customer.name}</span>
-        </Link>
+        <AccountMenu customer={customer} variant="side" />
       </aside>
 
       {/* Mobile top bar */}
@@ -74,9 +72,7 @@ export default function MyRingoShell({
         </Link>
         <div className="flex items-center gap-1">
           <LanguageToggle />
-          <Link href="/my-ringo/me" aria-label={t.myRingo.nav.me}>
-            <CustomerAvatar name={customer.name} avatarUrl={customer.avatarUrl} className="w-8 h-8 text-[11px]" />
-          </Link>
+          <AccountMenu customer={customer} variant="top" />
         </div>
       </header>
 

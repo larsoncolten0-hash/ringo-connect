@@ -154,3 +154,24 @@ export async function verifyLoginCode(admin: any, email: string, code: string): 
     language: row.out_language ?? null,
   };
 }
+
+/**
+ * Account creation sends no email, so there is no code to rate-limit — but a
+ * form that mints accounts needs the same brakes. This writes an already-consumed
+ * ledger row so checkStartRateLimits (per-email and per-IP, per hour) counts
+ * registrations exactly like code requests. No schema change; the row can never
+ * be redeemed (consumed, and its hash matches nothing).
+ */
+export async function recordRegistrationAttempt(admin: any, input: { email: string; ipHash: string | null; language: "en" | "fr" }) {
+  const now = new Date().toISOString();
+  const { error } = await admin.from("customer_login_codes").insert({
+    email: input.email,
+    code_hash: "registration",
+    expires_at: now,
+    consumed_at: now,
+    ip_hash: input.ipHash,
+    language: input.language,
+    pending_source: "register",
+  });
+  if (error) console.error("recordRegistrationAttempt failed:", error.message);
+}
