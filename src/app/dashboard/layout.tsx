@@ -5,6 +5,7 @@ import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import { getBrandingSettings } from "@/lib/branding";
 import { listUserOrganizations, pickActiveOrganization } from "@/lib/team/access";
 import { getAssociationNavAccess } from "@/lib/association/access";
+import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 
 // Per-creator PWA installability (manifest link, iOS home-screen name/
@@ -91,6 +92,14 @@ export default async function DashboardLayout({
   // never whichever organization Team has switched into.
   const canManageAssociation = ownProfile ? await getAssociationNavAccess(user.id, ownProfile.id) : false;
 
+  // Ringo Loyalty — available on every plan (no plan gate). Shown when the active organization's
+  // category offers loyalty AND the viewer is its owner or holds a loyalty permission. Only a UX
+  // gate: /dashboard/loyalty/** and /api/loyalty/** each re-check on the server.
+  const canUseLoyalty =
+    !!active &&
+    getLoyaltyOptions(active.profile).availability !== "hidden" &&
+    (active.isOwner || active.permissions.includes("loyalty.scan") || active.permissions.includes("loyalty.manage"));
+
   // Onboarding tour — gated on the signed-in person's own account state
   // (never completed AND never dismissed), and never shown while acting as
   // staff inside someone else's organization: the tour is about setting up
@@ -114,6 +123,7 @@ export default async function DashboardLayout({
       hasTicketing={profileHasTicketing(profile)}
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
+      canUseLoyalty={canUseLoyalty}
       organization={
         active
           ? {

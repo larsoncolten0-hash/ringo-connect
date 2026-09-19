@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Loader2, Check, X } from "lucide-react";
 import { PERMISSION_GROUPS, type Permission } from "@/lib/team/permissions";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export interface RoleRow {
   id: string;
@@ -120,6 +121,7 @@ function RoleForm({
   onCancel: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState(existing?.name || "");
   const [selected, setSelected] = useState<Set<Permission>>(new Set(existing?.permissions || []));
   const [saving, setSaving] = useState(false);
@@ -169,7 +171,7 @@ function RoleForm({
       <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-1">
         {PERMISSION_GROUPS.map((group) => (
           <div key={group.label}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ringo-muted mb-1">{group.label}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ringo-muted mb-1">{group.labelKey === "loyalty" ? t.loyalty.permissionGroup : group.label}</p>
             <div className="flex flex-wrap gap-1.5">
               {group.permissions.map((p) => {
                 const active = selected.has(p);

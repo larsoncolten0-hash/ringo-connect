@@ -16,6 +16,8 @@ import DisconnectDialog from "./DisconnectDialog";
 import InstallCard from "./InstallCard";
 import MyMusicList, { PlayAllBar } from "./MyMusicList";
 import NotificationsCard from "./NotificationsCard";
+import LoyaltyTiles from "./loyalty/LoyaltyTiles";
+import { isLoyaltyKind, loyaltyKindLabel } from "./loyalty/activityText";
 
 // Client views for the My Ringo pages. Each page (a server component)
 // authorizes via the customer session, fetches only that customer's own
@@ -38,10 +40,13 @@ export function HomeView({
   customer,
   connections,
   activity,
+  rewardsReady = 0,
 }: {
   customer: { name: string; avatarUrl: string | null };
   connections: MyConnection[];
   activity: ActivityItem[];
+  // Rewards waiting for this customer (Ringo Loyalty), read on the server.
+  rewardsReady?: number;
 }) {
   const { t, locale } = useLanguage();
   const dateLocale = locale === "fr" ? "fr-FR" : "en-US";
@@ -59,6 +64,8 @@ export function HomeView({
       </section>
 
       <InstallCard compact />
+
+      <LoyaltyTiles rewardsReady={rewardsReady} />
 
       <section>
         <div className="mb-3 flex items-center justify-between">
@@ -96,13 +103,15 @@ export function HomeView({
           // purchases, orders, bookings that belong to this customer).
           <ul className="overflow-hidden rounded-2xl border border-ringo-border/70 bg-ringo-surface">
             {activity.slice(0, HOME_ACTIVITY).map((item) => {
-              const label = {
-                connected: t.myRingo.activity.connected,
-                disconnected: t.myRingo.activity.disconnected,
-                music_order: t.myRingo.activity.musicPurchase,
-                restaurant_order: t.myRingo.activity.restaurantOrder,
-                booking: t.myRingo.activity.booking,
-              }[item.kind];
+              const label = isLoyaltyKind(item.kind)
+                ? loyaltyKindLabel(t, item.kind)
+                : {
+                    connected: t.myRingo.activity.connected,
+                    disconnected: t.myRingo.activity.disconnected,
+                    music_order: t.myRingo.activity.musicPurchase,
+                    restaurant_order: t.myRingo.activity.restaurantOrder,
+                    booking: t.myRingo.activity.booking,
+                  }[item.kind];
               return (
                 <li key={item.id} className="border-b border-ringo-border/60 last:border-0">
                   {/* Opens the Activity page scrolled to (and highlighting) this exact entry. */}
@@ -293,6 +302,8 @@ export function MeView({
           }}
         />
       )}
+
+      <LoyaltyTiles showTitle />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-ringo-text">{t.myRingo.appSection}</h2>

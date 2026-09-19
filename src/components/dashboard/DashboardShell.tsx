@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award, Gift } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
@@ -72,6 +72,7 @@ export default function DashboardShell({
   hasTicketing = false,
   canManageTeam = false,
   canManageAssociation = false,
+  canUseLoyalty = false,
   organization = null,
   organizations = [],
   ownProfileId = null,
@@ -133,6 +134,10 @@ export default function DashboardShell({
   // (see src/lib/association/access.ts). Never trusted as the actual
   // security boundary — same posture as canManageTeam above.
   canManageAssociation?: boolean;
+  // Ringo Loyalty nav item. Available on every plan; computed in dashboard/layout.tsx from the
+  // active organization's category and the viewer's loyalty permissions. UX only: the pages and
+  // /api/loyalty/* enforce access themselves.
+  canUseLoyalty?: boolean;
   // Which organization's workspace this is, and whether the signed-in
   // person is staff there rather than its owner — drives the "WHICH
   // BUSINESS AM I WORKING FOR" banner shown just for staff (an owner's own
@@ -218,6 +223,8 @@ export default function DashboardShell({
     // Same "always visible" reasoning as Bookings above — every category
     // can build a community, so this isn't gated either.
     { href: "/dashboard/community", label: t.nav.community, icon: Users, core: true },
+    // Org-aware (resolves the active organization), so unlike Music/Tickets/Bookings it is safe to show staff.
+    ...(canUseLoyalty ? [{ href: "/dashboard/loyalty", label: t.nav.loyalty, icon: Gift, core: false }] : []),
     // Ringo Card Writer — every creator can own a physical Ringo Card
     // regardless of category, so (like Bookings/Community) this is never
     // gated. See src/app/dashboard/ringo-card/page.tsx.

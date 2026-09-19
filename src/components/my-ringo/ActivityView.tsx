@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarCheck, ChevronRight, History, Link2, Music, Unlink, Utensils } from "lucide-react";
+import { CalendarCheck, ChevronRight, Gift, History, Link2, Music, Package, RotateCcw, TrendingUp, Unlink, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import type { ActivityItem } from "@/lib/customer/activity";
 import EmptyState from "./EmptyState";
+import { isLoyaltyKind, loyaltyKindLabel, loyaltyLine } from "./loyalty/activityText";
 
 // The customer's history, grouped by day. Every row is a real record the
 // server resolved as belonging to THIS customer (see listActivity) — nothing
@@ -20,6 +21,13 @@ const ICONS: Record<ActivityItem["kind"], LucideIcon> = {
   music_order: Music,
   restaurant_order: Utensils,
   booking: CalendarCheck,
+  // Ringo Loyalty events (same feed, same row layout)
+  loyalty_progress: TrendingUp,
+  loyalty_correction: RotateCcw,
+  reward_unlocked: Gift,
+  reward_redeemed: Gift,
+  package_activated: Package,
+  package_used: Package,
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -78,13 +86,15 @@ export default function ActivityView({ items }: { items: ActivityItem[] }) {
   }
 
   const kindLabel = (item: ActivityItem) =>
-    ({
-      connected: a.connected,
-      disconnected: a.disconnected,
-      music_order: a.musicPurchase,
-      restaurant_order: a.restaurantOrder,
-      booking: a.booking,
-    })[item.kind];
+    isLoyaltyKind(item.kind)
+      ? loyaltyKindLabel(t, item.kind)
+      : {
+          connected: a.connected,
+          disconnected: a.disconnected,
+          music_order: a.musicPurchase,
+          restaurant_order: a.restaurantOrder,
+          booking: a.booking,
+        }[item.kind];
 
   return (
     <div>
@@ -106,6 +116,7 @@ export default function ActivityView({ items }: { items: ActivityItem[] }) {
                 {group.items.map((item) => {
                   const Icon = ICONS[item.kind];
                   const isOrder = item.kind === "music_order" || item.kind === "restaurant_order";
+                  const summaryText = item.summary ?? loyaltyLine(t, locale, item);
                   const body = (
                     <div className="flex items-start gap-3 px-4 py-3.5">
                       <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-ringo-indigo/10 text-ringo-indigo">
@@ -123,10 +134,10 @@ export default function ActivityView({ items }: { items: ActivityItem[] }) {
                             </p>
                           )}
                         </div>
-                        {(item.summary || item.orderNumber != null) && (
+                        {(summaryText || item.orderNumber != null) && (
                           <p className="mt-1 truncate text-xs text-ringo-muted">
-                            {item.orderNumber != null && `${a.orderNumber(item.orderNumber)}${item.summary ? " · " : ""}`}
-                            {item.summary}
+                            {item.orderNumber != null && `${a.orderNumber(item.orderNumber)}${summaryText ? " · " : ""}`}
+                            {summaryText}
                           </p>
                         )}
                         {(item.status || item.paymentStatus) && (

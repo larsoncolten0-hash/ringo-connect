@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { resolveOwnedOrderIds } from "@/lib/customer/orderLinks";
+import { listLoyaltyFeed } from "@/lib/loyalty/customerFeed";
 
 // Everything here takes `customer` from the server-side customer session
 // (requireCustomer()) and only ever returns records explicitly linked to them
@@ -114,7 +115,33 @@ export async function listMusicLibrary(customer: Customer): Promise<LibraryTrack
 // ACTIVITY — connections + music orders + restaurant orders + bookings.
 // ---------------------------------------------------------------------
 
-export type ActivityKind = "connected" | "disconnected" | "music_order" | "restaurant_order" | "booking";
+export type ActivityKind =
+  | "connected"
+  | "disconnected"
+  | "music_order"
+  | "restaurant_order"
+  | "booking"
+  // Ringo Loyalty (see src/lib/loyalty/customerFeed.ts). Rendered from structured data + translations.
+  | "loyalty_progress"
+  | "loyalty_correction"
+  | "reward_unlocked"
+  | "reward_redeemed"
+  | "package_activated"
+  | "package_used";
+
+// Structured facts for a loyalty event; the wording is built client-side from translations so it
+// is English or French to match the customer's language.
+export type LoyaltyFeedInfo = {
+  type?: "visits" | "spend" | "points";
+  actionKey?: string;
+  progress?: number | null;
+  target?: number | null;
+  currency?: string | null;
+  rewardTitle?: string;
+  packageName?: string;
+  remaining?: number | null;
+  endsAt?: string | null;
+};
 
 export type ActivityItem = {
   id: string;
@@ -130,6 +157,7 @@ export type ActivityItem = {
   // An EXISTING receipt / tracking page for that record (public by its own
   // unguessable id, and only ever surfaced here for records the customer owns).
   href?: string | null;
+  loyalty?: LoyaltyFeedInfo;
 };
 
 const summarize = (names: (string | null | undefined)[]) => {
@@ -234,6 +262,14 @@ export async function listActivity(customer: Customer, limit = 100): Promise<Act
       status: b.status,
       href: null,
     });
+  }
+
+  // Ringo Loyalty events join the same feed. Additive and isolated: if the loyalty tables are
+  // unavailable for any reason, the rest of the feed is returned exactly as before.
+  try {
+    items.push(...(await listLoyaltyFeed(customer.id)));
+  } catch (err) {
+    console.error("customer activity loyalty events failed:", (err as any)?.message ?? "unknown error");
   }
 
   return items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, limit);

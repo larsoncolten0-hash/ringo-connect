@@ -50,6 +50,9 @@ export const PERMISSIONS = [
   "admissions.manage",
   "reports.view",
   "analytics.view",
+  "loyalty.scan",
+  "loyalty.manage",
+  "loyalty.reverse",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -68,7 +71,9 @@ export function sanitizePermissions(input: unknown): Permission[] {
 
 // Grouped for the permission-editor UI (RolePermissionsEditor) — display
 // order and section labels, not a security boundary.
-export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
+// `labelKey` (optional) names a group whose heading is translated (English + French) instead of using
+// the plain `label`; only the Loyalty group uses it today, every other group is unchanged.
+export const PERMISSION_GROUPS: { label: string; labelKey?: "loyalty"; permissions: Permission[] }[] = [
   { label: "Orders", permissions: ["orders.view", "orders.create", "orders.update", "orders.cancel"] },
   { label: "Menu", permissions: ["menu.view", "menu.manage"] },
   { label: "Kitchen", permissions: ["kitchen.view", "kitchen.update"] },
@@ -83,6 +88,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
   { label: "Transport & Delivery", permissions: ["routes.view", "routes.manage", "deliveries.view", "deliveries.manage"] },
   { label: "Admissions", permissions: ["admissions.view", "admissions.manage"] },
   { label: "Reports", permissions: ["reports.view", "analytics.view"] },
+  { label: "Loyalty", labelKey: "loyalty", permissions: ["loyalty.scan", "loyalty.manage", "loyalty.reverse"] },
 ];
 
 export interface RoleTemplate {
