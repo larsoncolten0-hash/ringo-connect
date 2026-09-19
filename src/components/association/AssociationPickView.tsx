@@ -12,14 +12,14 @@ export default function AssociationPickView({
   options,
   partnerProfileId,
 }: {
-  options: { associationProfileId: string; name: string; avatarUrl: string | null }[];
+  options: { associationProfileId: string; name: string; avatarUrl: string | null; demoCodeEntry?: boolean }[];
   partnerProfileId: string;
 }) {
   const { t } = useLanguage();
-  const [selected, setSelected] = useState<{ associationProfileId: string; name: string } | null>(null);
+  const [selected, setSelected] = useState<{ associationProfileId: string; name: string; demoCodeEntry?: boolean } | null>(null);
 
   if (selected) {
-    return <AssociationPartnerView associationProfileId={selected.associationProfileId} associationName={selected.name} partnerProfileId={partnerProfileId} momoNumber={null} />;
+    return <AssociationPartnerView associationProfileId={selected.associationProfileId} associationName={selected.name} partnerProfileId={partnerProfileId} momoNumber={null} demoCodeEntry={!!selected.demoCodeEntry} />;
   }
 
   return (

@@ -4,6 +4,9 @@ import { getAssociationAccess } from "@/lib/association/access";
 import AssociationOwnerView from "@/components/association/AssociationOwnerView";
 import AssociationPartnerView from "@/components/association/AssociationPartnerView";
 import AssociationPickView from "@/components/association/AssociationPickView";
+import { getManagedMemberMap } from "@/lib/association/membership";
+import { isActiveDemoProfile } from "@/lib/association/demoProfile";
+import type { ManagedMemberInfo } from "@/lib/association/membershipTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +21,7 @@ export default async function AssociationPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  const { data: ownProfile } = await supabase.from("profiles").select("id, name, username, avatar_url, is_demo").eq("user_id", user.id).maybeSingle();
+  const { data: ownProfile } = await supabase.from("profiles").select("id, name, username, avatar_url, is_demo, demo_expires_at").eq("user_id", user.id).maybeSingle();
   if (!ownProfile) redirect("/dashboard");
 
   const access = await getAssociationAccess(ownProfile.id, user.id);
@@ -44,6 +47,19 @@ export default async function AssociationPage() {
         .order("created_at", { ascending: false }),
     ]);
 
+    // Membership (Phase B1): resolve the Association id and the managed-member map on the server so managed members
+    // never render the legacy toggle, even on first paint. Any failure (or Membership not installed yet) leaves
+    // the view exactly as it was: associationId/managed stay empty.
+    let associationId: string | null = null;
+    let managed: { available: boolean; map: Record<string, ManagedMemberInfo> } = { available: false, map: {} };
+    try {
+      const { data: assoc } = await supabase.from("associations").select("id").eq("legacy_profile_id", ownProfile.id).maybeSingle();
+      associationId = assoc?.id ?? null;
+      if (associationId) managed = await getManagedMemberMap(associationId);
+    } catch {
+      managed = { available: false, map: {} };
+    }
+
     return (
       <AssociationOwnerView
         associationProfileId={ownProfile.id}
@@ -56,6 +72,9 @@ export default async function AssociationPage() {
         initialSettings={settings as any}
         initialInvitations={(invitations || []) as any}
         isDemo={!!ownProfile.is_demo}
+        associationId={associationId}
+        managedMembers={managed.map}
+        membershipAvailable={managed.available}
       />
     );
   }
@@ -67,7 +86,7 @@ export default async function AssociationPage() {
   // side effect of the underlying join-table design.
   const { data: partnerLinks } = await supabase
     .from("association_partners")
-    .select("association_profile_id, momo_number, profiles!association_partners_association_profile_id_fkey(name, username, avatar_url)")
+    .select("association_profile_id, momo_number, profiles!association_partners_association_profile_id_fkey(name, username, avatar_url, is_demo, demo_expires_at)")
     .eq("partner_profile_id", ownProfile.id)
     .eq("status", "active");
 
@@ -82,6 +101,7 @@ export default async function AssociationPage() {
         associationName={assoc?.name || assoc?.username}
         partnerProfileId={ownProfile.id}
         momoNumber={link.momo_number}
+        demoCodeEntry={isActiveDemoProfile(ownProfile) && isActiveDemoProfile(assoc)}
       />
     );
   }
@@ -90,7 +110,12 @@ export default async function AssociationPage() {
     <AssociationPickView
       options={partnerLinks.map((l) => {
         const assoc = l.profiles as any;
-        return { associationProfileId: l.association_profile_id, name: assoc?.name || assoc?.username, avatarUrl: assoc?.avatar_url };
+        return {
+          associationProfileId: l.association_profile_id,
+          name: assoc?.name || assoc?.username,
+          avatarUrl: assoc?.avatar_url,
+          demoCodeEntry: isActiveDemoProfile(ownProfile) && isActiveDemoProfile(assoc),
+        };
       })}
       partnerProfileId={ownProfile.id}
     />
