@@ -13,7 +13,7 @@ import EmptyState from "./EmptyState";
 import SignOutButton from "./SignOutButton";
 import DisconnectDialog from "./DisconnectDialog";
 import InstallCard from "./InstallCard";
-import MyMusicList from "./MyMusicList";
+import MyMusicList, { PlayAllBar } from "./MyMusicList";
 import NotificationsCard from "./NotificationsCard";
 
 // Client views for the My Ringo pages. Each page (a server component)
@@ -198,7 +198,10 @@ export function MusicView({ tracks }: { tracks: LibraryTrack[] }) {
       {tracks.length === 0 ? (
         <EmptyState icon={Music} title={t.myRingo.music.emptyTitle} body={t.myRingo.music.emptyBody} />
       ) : (
-        <MyMusicList tracks={tracks} />
+        <>
+          <PlayAllBar tracks={tracks} />
+          <MyMusicList tracks={tracks} />
+        </>
       )}
     </div>
   );

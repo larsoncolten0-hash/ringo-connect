@@ -1,139 +1,67 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useRef, useState } from "react";
-import { Download, Loader2, Music, Pause, Play } from "lucide-react";
+import { useState } from "react";
+import { Download, Loader2, Pause, Play, Shuffle } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import type { LibraryTrack } from "@/lib/customer/activity";
+import { usePlayer } from "./player/MusicPlayerProvider";
+import { Cover } from "./player/PlayerBits";
 
-// The customer's purchased tracks. Playing and downloading go through the
-// EXISTING /api/music/tracks/[id]/audio route — the same call the store's
-// own order confirmation makes — which re-verifies, server-side, that the
-// order is PAID and contains this track, and returns only a short-lived
-// (10 minute) signed URL. Nothing here holds or builds a permanent audio URL,
-// and the 10-second preview mechanism on artist pages is not involved.
-
-// A silent, zero-length WAV. Playing it INSIDE the tap "unlocks" the audio
-// element: Safari and every iOS browser only let an element start playback
-// while a tap is being handled, and fetching the signed URL first means the real
-// play() happens after that moment has passed. Once the element has been started
-// by a tap, setting a new source and playing it afterwards is allowed.
-const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
-
+// The customer's purchased tracks. PLAYBACK is handled by the shared My Ringo
+// player (queue, next/previous, shuffle, repeat, background playback — see
+// ./player); tapping a track queues the whole list starting there. Both play
+// and download use the EXISTING /api/music/tracks/[id]/audio route, which
+// re-verifies on the server that the order is PAID and contains the track and
+// returns only a short-lived signed URL. Nothing here holds a permanent audio
+// URL, and the 10-second preview on artist pages is not involved.
 export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
   const { t, locale } = useLanguage();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  // Which track's signed URL is currently loaded in the element, so a second
-  // tap after a blocked attempt can call play() synchronously inside the tap.
-  const loadedKeyRef = useRef<string | null>(null);
-  const [playingKey, setPlayingKey] = useState<string | null>(null);
-  const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [error, setError] = useState<{ key: string; message: string } | null>(null);
-
-  useEffect(() => {
-    const audio = new Audio();
-    audio.onended = () => setPlayingKey(null);
-    audio.onerror = () => {
-      // The browser could not load/decode the source — logged so a failure is
-      // diagnosable (MediaError codes: 1 aborted, 2 network, 3 decode, 4 unsupported).
-      if (audio.src && !audio.src.startsWith("data:")) console.error("My Music audio error, code:", audio.error?.code);
-      loadedKeyRef.current = null;
-    };
-    audioRef.current = audio;
-    return () => {
-      audio.pause();
-      audio.src = "";
-    };
-  }, []);
-
-  const signedUrl = async (track: LibraryTrack, download: boolean) => {
-    try {
-      const res = await fetch(`/api/music/tracks/${track.trackId}/audio?order=${encodeURIComponent(track.orderId)}`, {
-        headers: download ? { "x-download": "1" } : undefined,
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) console.error("My Music: audio access refused:", res.status, data?.error);
-      return res.ok && typeof data?.url === "string" ? (data.url as string) : null;
-    } catch (err) {
-      console.error("My Music: audio request failed:", err);
-      return null;
-    }
-  };
-
-  const togglePlay = async (track: LibraryTrack) => {
-    const audio = audioRef.current;
-    if (!audio || busyKey) return;
-    setError(null);
-
-    if (playingKey === track.key) {
-      audio.pause();
-      setPlayingKey(null);
-      return;
-    }
-
-    // Already loaded from an earlier attempt that the browser blocked: play()
-    // right here, synchronously inside this tap.
-    if (loadedKeyRef.current === track.key && audio.src && !audio.src.startsWith("data:")) {
-      try {
-        await audio.play();
-        setPlayingKey(track.key);
-        return;
-      } catch (err) {
-        console.error("My Music playback failed (retry):", (err as any)?.name, (err as any)?.message);
-        loadedKeyRef.current = null;
-      }
-    }
-
-    // Unlock the element inside this tap (see SILENT_WAV), then fetch the URL.
-    audio.src = SILENT_WAV;
-    audio.play().catch(() => {});
-
-    setBusyKey(track.key);
-    const url = await signedUrl(track, false);
-    setBusyKey(null);
-    if (!url) return setError({ key: track.key, message: t.myRingo.library.playFailed });
-
-    audio.src = url;
-    loadedKeyRef.current = track.key;
-    try {
-      await audio.play();
-      setPlayingKey(track.key);
-    } catch (err) {
-      // If the browser still blocked it, the signed URL stays loaded so the
-      // next tap can start it immediately.
-      console.error("My Music playback failed:", (err as any)?.name, (err as any)?.message);
-      setError({ key: track.key, message: t.myRingo.library.playFailed });
-    }
-  };
+  const player = usePlayer();
+  const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const download = async (track: LibraryTrack) => {
-    if (busyKey) return;
-    setError(null);
-    setBusyKey(`${track.key}:dl`);
-    const url = await signedUrl(track, true);
-    setBusyKey(null);
-    if (!url) return setError({ key: track.key, message: t.myRingo.library.downloadFailed });
-    window.open(url, "_blank");
+    if (downloadingKey) return;
+    setDownloadError(null);
+    setDownloadingKey(track.key);
+    try {
+      const res = await fetch(`/api/music/tracks/${track.trackId}/audio?order=${encodeURIComponent(track.orderId)}`, {
+        headers: { "x-download": "1" },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || typeof data?.url !== "string") {
+        console.error("My Music: download refused:", res.status, data?.error);
+        return setDownloadError(track.key);
+      }
+      window.open(data.url, "_blank");
+    } catch (err) {
+      console.error("My Music: download request failed:", err);
+      setDownloadError(track.key);
+    } finally {
+      setDownloadingKey(null);
+    }
   };
 
   const dateLocale = locale === "fr" ? "fr-FR" : "en-US";
 
   return (
     <ul className="flex flex-col gap-2.5">
-      {tracks.map((track) => {
-        const playing = playingKey === track.key;
+      {tracks.map((track, index) => {
+        const isCurrent = player.current?.key === track.key;
+        const playing = isCurrent && player.playing;
+        const loading = isCurrent && player.loading;
         return (
-          <li key={track.key} className="rounded-2xl border border-ringo-border/70 bg-ringo-surface p-3.5">
+          <li
+            key={track.key}
+            className={`rounded-2xl border bg-ringo-surface p-3.5 transition-colors ${
+              isCurrent ? "border-ringo-indigo/40" : "border-ringo-border/70"
+            }`}
+          >
             <div className="flex items-center gap-3.5">
-              {track.coverUrl ? (
-                <img src={track.coverUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover bg-ringo-muted/10" />
-              ) : (
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-ringo-indigo/10 text-ringo-indigo">
-                  <Music size={22} />
-                </span>
-              )}
+              <Cover url={track.coverUrl} className="h-14 w-14 shrink-0 rounded-xl" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-ringo-text">{track.title}</p>
+                <p className={`truncate text-sm font-semibold ${isCurrent ? "text-ringo-indigo" : "text-ringo-text"}`}>{track.title}</p>
                 <p className="truncate text-xs text-ringo-muted">{track.artistName}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
@@ -150,37 +78,61 @@ export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
                 {track.canDownload && (
                   <button
                     onClick={() => download(track)}
-                    disabled={!!busyKey}
+                    disabled={!!downloadingKey}
                     aria-label={`${t.myRingo.library.download}: ${track.title}`}
                     className="flex h-10 w-10 items-center justify-center rounded-full text-ringo-muted transition hover:bg-ringo-muted/10 disabled:opacity-50"
                   >
-                    {busyKey === `${track.key}:dl` ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
+                    {downloadingKey === track.key ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
                   </button>
                 )}
                 <button
-                  onClick={() => togglePlay(track)}
-                  disabled={!!busyKey && busyKey !== track.key}
-                  aria-label={`${playing ? t.myRingo.library.pause : t.myRingo.library.play}: ${track.title}`}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-ringo-indigo text-white transition active:scale-95 disabled:opacity-50"
+                  onClick={() => (isCurrent ? player.toggle() : player.playQueue(tracks, index))}
+                  aria-label={`${playing ? t.myRingo.player.pause : t.myRingo.player.play}: ${track.title}`}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-ringo-indigo text-white transition active:scale-95"
                 >
-                  {busyKey === track.key ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : playing ? (
-                    <Pause size={18} />
-                  ) : (
-                    <Play size={18} className="translate-x-px" />
-                  )}
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : playing ? <Pause size={18} /> : <Play size={18} className="translate-x-px" />}
                 </button>
               </div>
             </div>
-            {error?.key === track.key && (
+            {downloadError === track.key && (
               <p role="alert" className="mt-2 text-xs text-red-600">
-                {error.message}
+                {t.myRingo.library.downloadFailed}
+              </p>
+            )}
+            {isCurrent && player.error && (
+              <p role="alert" className="mt-2 text-xs text-red-600">
+                {t.myRingo.library.playFailed}
               </p>
             )}
           </li>
         );
       })}
     </ul>
+  );
+}
+
+// "Play all" / "Shuffle" for the whole library — sits above the list.
+export function PlayAllBar({ tracks }: { tracks: LibraryTrack[] }) {
+  const { t } = useLanguage();
+  const player = usePlayer();
+  if (tracks.length === 0) return null;
+
+  return (
+    <div className="mb-4 flex gap-2.5">
+      <button
+        onClick={() => player.playQueue(tracks, 0, { shuffle: false })}
+        className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-ringo-indigo px-4 py-3 text-sm font-semibold text-white transition active:scale-[0.98]"
+      >
+        <Play size={16} className="translate-x-px" />
+        {t.myRingo.player.playAll}
+      </button>
+      <button
+        onClick={() => player.playQueue(tracks, Math.floor(Math.random() * tracks.length), { shuffle: true })}
+        className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-ringo-border bg-ringo-surface px-4 py-3 text-sm font-semibold text-ringo-text transition hover:bg-ringo-muted/10 active:scale-[0.98]"
+      >
+        <Shuffle size={16} />
+        {t.myRingo.player.shuffleAll}
+      </button>
+    </div>
   );
 }

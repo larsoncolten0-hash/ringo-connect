@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, Link2, Music, MessageCircle, Receipt, User } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import LanguageToggle from "@/components/LanguageToggle";
+import { usePlayer } from "./player/MusicPlayerProvider";
 import CustomerAvatar from "./CustomerAvatar";
 
 // The My Ringo chrome — deliberately its OWN navigation, separate from the
@@ -20,6 +21,7 @@ export default function MyRingoShell({
 }) {
   const { t } = useLanguage();
   const pathname = usePathname();
+  const { current: nowPlaying } = usePlayer();
 
   const items = [
     { href: "/my-ringo", label: t.myRingo.nav.home, Icon: Home, exact: true },
@@ -78,7 +80,11 @@ export default function MyRingoShell({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:ml-60 sm:max-w-none sm:px-8 sm:pb-10 sm:pt-8">
+      <main
+        className={`mx-auto w-full max-w-3xl px-4 pt-5 sm:ml-60 sm:max-w-none sm:px-8 sm:pt-8 ${
+          nowPlaying ? "pb-44 sm:pb-28" : "pb-28 sm:pb-10"
+        }`}
+      >
         <div className="mx-auto w-full max-w-3xl">{children}</div>
       </main>
 
