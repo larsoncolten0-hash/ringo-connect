@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MAX_PREVIEW_SECONDS } from "@/lib/previewLimit";
 
 // Shared by MusicSection and PinnedSpotlight, both of which can show a
 // track's Play button — lifted up to ProfileView so only one instance of
@@ -45,6 +46,28 @@ export function useTrackPlayback() {
     audio.src = src;
     setProgress(0);
     audio.ontimeupdate = () => {
+      if (isProtected) {
+        // Unpurchased music is capped at MAX_PREVIEW_SECONDS no matter how
+        // long the stored preview clip is — clips generated before the limit
+        // was tightened from 30s can still be longer than that. This is the
+        // player respecting the rule (the real protection is that the full
+        // file is only ever served through the paid-order signed-URL route).
+        //
+        // `timeupdate` only fires ~4x/second, so the cut-off sits a little
+        // under the limit: playback stops between (limit - 0.3s) and the
+        // limit, never past it. Clips that are already ~10s long (everything
+        // generated now) are left to end naturally.
+        if (audio.duration > MAX_PREVIEW_SECONDS + 0.5 && audio.currentTime >= MAX_PREVIEW_SECONDS - 0.3) {
+          audio.pause();
+          audio.currentTime = 0;
+          setPlayingId(null);
+          setProgress(0);
+          return;
+        }
+        const length = Math.min(audio.duration || MAX_PREVIEW_SECONDS, MAX_PREVIEW_SECONDS);
+        setProgress(audio.currentTime / length);
+        return;
+      }
       setProgress(audio.duration ? audio.currentTime / audio.duration : 0);
     };
     audio.onended = () => {

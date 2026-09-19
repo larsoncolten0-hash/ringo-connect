@@ -17,8 +17,11 @@
 // exactly this, ships real TS types, and is what every "impossible to
 // generate a preview clip" failure up to now was actually caused by.
 import { Mp3Encoder } from "@breezystack/lamejs";
+import { MAX_PREVIEW_SECONDS } from "@/lib/previewLimit";
 
-export const MAX_PREVIEW_SECONDS = 30;
+// Defined in previewLimit.ts (10 seconds) so the public player can read it
+// without importing this file's MP3 encoder; re-exported for existing callers.
+export { MAX_PREVIEW_SECONDS };
 
 function floatTo16BitPCM(input: Float32Array): Int16Array {
   const output = new Int16Array(input.length);

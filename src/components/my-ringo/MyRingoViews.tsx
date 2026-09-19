@@ -1,13 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronRight, History, Link2, MessageCircle, Music, User } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import type { MyConnection } from "@/lib/customer/connections";
+import type { ActivityItem, LibraryTrack } from "@/lib/customer/activity";
 import ConnectionCard from "./ConnectionCard";
 import CustomerAvatar from "./CustomerAvatar";
 import EmptyState from "./EmptyState";
 import SignOutButton from "./SignOutButton";
+import DisconnectDialog from "./DisconnectDialog";
+import InstallCard from "./InstallCard";
+import MyMusicList from "./MyMusicList";
+import NotificationsCard from "./NotificationsCard";
 
 // Client views for the My Ringo pages. Each page (a server component)
 // authorizes via the customer session, fetches only that customer's own
@@ -29,9 +36,11 @@ function PageTitle({ title, subtitle }: { title: string; subtitle?: string }) {
 export function HomeView({
   customer,
   connections,
+  activity,
 }: {
   customer: { name: string; avatarUrl: string | null };
   connections: MyConnection[];
+  activity: ActivityItem[];
 }) {
   const { t, locale } = useLanguage();
   const dateLocale = locale === "fr" ? "fr-FR" : "en-US";
@@ -47,6 +56,8 @@ export function HomeView({
           <p className="mt-1 text-sm text-ringo-muted">{t.myRingo.homeSubtitle}</p>
         </div>
       </section>
+
+      <InstallCard compact />
 
       <section>
         <div className="mb-3 flex items-center justify-between">
@@ -69,21 +80,40 @@ export function HomeView({
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-ringo-text">{t.myRingo.home.recentActivity}</h2>
-        {connections.length === 0 ? (
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ringo-text">{t.myRingo.home.recentActivity}</h2>
+          {activity.length > 0 && (
+            <Link href="/my-ringo/activity" className="text-xs font-medium text-ringo-indigo hover:underline">
+              {t.myRingo.home.viewAll}
+            </Link>
+          )}
+        </div>
+        {activity.length === 0 ? (
           <EmptyState icon={History} title={t.myRingo.home.activityEmpty} />
         ) : (
-          // Real data only: the only activity that exists for a customer today
-          // is their own connections.
+          // Real records only — the same feed as the Activity page (connections,
+          // purchases, orders, bookings that belong to this customer).
           <ul className="overflow-hidden rounded-2xl border border-ringo-border/70 bg-ringo-surface">
-            {connections.slice(0, HOME_ACTIVITY).map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-3 border-b border-ringo-border/60 px-4 py-3 last:border-0">
-                <p className="truncate text-sm text-ringo-text">{t.myRingo.home.activityConnected(c.profile.name)}</p>
-                <span className="shrink-0 text-xs text-ringo-muted" suppressHydrationWarning>
-                  {new Date(c.connectedAt).toLocaleDateString(dateLocale, { day: "numeric", month: "short" })}
-                </span>
-              </li>
-            ))}
+            {activity.slice(0, HOME_ACTIVITY).map((item) => {
+              const label = {
+                connected: t.myRingo.activity.connected,
+                disconnected: t.myRingo.activity.disconnected,
+                music_order: t.myRingo.activity.musicPurchase,
+                restaurant_order: t.myRingo.activity.restaurantOrder,
+                booking: t.myRingo.activity.booking,
+              }[item.kind];
+              return (
+                <li key={item.id} className="flex items-center justify-between gap-3 border-b border-ringo-border/60 px-4 py-3 last:border-0">
+                  <p className="truncate text-sm text-ringo-text">
+                    {label}
+                    {item.profile ? ` · ${item.profile.name}` : ""}
+                  </p>
+                  <span className="shrink-0 text-xs text-ringo-muted" suppressHydrationWarning>
+                    {new Date(item.at).toLocaleDateString(dateLocale, { day: "numeric", month: "short" })}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -93,6 +123,7 @@ export function HomeView({
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {[
             { href: "/my-ringo/connections", label: t.myRingo.home.qaConnections, Icon: Link2 },
+            { href: "/my-ringo/activity", label: t.myRingo.nav.activity, Icon: History },
             { href: "/my-ringo/me", label: t.myRingo.home.qaMe, Icon: User },
           ].map(({ href, label, Icon }) => (
             <Link
@@ -115,31 +146,53 @@ export function HomeView({
 
 export function ConnectionsView({ connections }: { connections: MyConnection[] }) {
   const { t } = useLanguage();
+  const router = useRouter();
+  // Local copy so a disconnected profile leaves the list immediately; the
+  // server (router.refresh) stays the source of truth.
+  const [list, setList] = useState(connections);
+  const [confirming, setConfirming] = useState<MyConnection | null>(null);
+
   return (
     <div>
       <PageTitle
         title={t.myRingo.connections.title}
-        subtitle={connections.length > 0 ? t.myRingo.connections.count(connections.length) : undefined}
+        subtitle={list.length > 0 ? t.myRingo.connections.count(list.length) : undefined}
       />
-      {connections.length === 0 ? (
+      {list.length === 0 ? (
         <EmptyState icon={Link2} title={t.myRingo.connections.emptyTitle} body={t.myRingo.connections.emptyBody} />
       ) : (
         <div className="flex flex-col gap-2.5">
-          {connections.map((c) => (
-            <ConnectionCard key={c.id} connection={c} showDate />
+          {list.map((c) => (
+            <ConnectionCard key={c.id} connection={c} showDate onDisconnect={setConfirming} />
           ))}
         </div>
+      )}
+
+      {confirming && (
+        <DisconnectDialog
+          profile={{ id: confirming.profile.id, name: confirming.profile.name }}
+          onClose={() => setConfirming(null)}
+          onDisconnected={(profileId) => {
+            setList((prev) => prev.filter((c) => c.profile.id !== profileId));
+            setConfirming(null);
+            router.refresh();
+          }}
+        />
       )}
     </div>
   );
 }
 
-export function MusicView() {
+export function MusicView({ tracks }: { tracks: LibraryTrack[] }) {
   const { t } = useLanguage();
   return (
     <div>
-      <PageTitle title={t.myRingo.music.title} />
-      <EmptyState icon={Music} title={t.myRingo.music.emptyTitle} body={t.myRingo.music.emptyBody} />
+      <PageTitle title={t.myRingo.music.title} subtitle={tracks.length > 0 ? t.myRingo.library.subtitle(tracks.length) : undefined} />
+      {tracks.length === 0 ? (
+        <EmptyState icon={Music} title={t.myRingo.music.emptyTitle} body={t.myRingo.music.emptyBody} />
+      ) : (
+        <MyMusicList tracks={tracks} />
+      )}
     </div>
   );
 }
@@ -186,6 +239,12 @@ export function MeView({
           </div>
         ))}
       </dl>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-ringo-text">{t.myRingo.appSection}</h2>
+        <InstallCard />
+        <NotificationsCard />
+      </section>
 
       <SignOutButton />
     </div>

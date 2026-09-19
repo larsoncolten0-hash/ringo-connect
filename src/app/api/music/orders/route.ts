@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
 import { sendPushAndBellToUser } from "@/lib/push/withBell";
+import { linkOrderToSessionCustomer } from "@/lib/customer/orderLinks";
 import { dashboardMusicOrderLink } from "@/lib/notificationLinks";
 import { NextResponse } from "next/server";
 
@@ -353,6 +354,9 @@ export async function POST(request: Request) {
     body: `${customerName} ordered ${itemSummary}`,
     url: dashboardMusicOrderLink(order.id),
   });
+
+  // If a Ringo customer is signed in, remember this order as theirs (session-derived; a guest checkout is unchanged).
+  await linkOrderToSessionCustomer("music_order", order.id);
 
   return NextResponse.json({ id: order.id, order_number: order.order_number });
 }

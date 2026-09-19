@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { sendBookingReceivedEmail } from "@/lib/email/sendBookingReceivedEmail";
 import { sendPushAndBellToUser } from "@/lib/push/withBell";
 import { dashboardBookingLink } from "@/lib/notificationLinks";
+import { linkOrderToSessionCustomer } from "@/lib/customer/orderLinks";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — a visitor booking a profile has no
@@ -147,6 +148,9 @@ export async function POST(request: Request) {
       console.error(`booking request email threw for booking ${booking.id}:`, err);
     }
   }
+
+  // If a Ringo customer is signed in, remember this booking as theirs (session-derived; a guest booking is unchanged).
+  await linkOrderToSessionCustomer("booking", booking.id);
 
   return NextResponse.json({ id: booking.id });
 }

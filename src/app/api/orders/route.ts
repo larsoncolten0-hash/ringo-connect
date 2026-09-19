@@ -4,6 +4,7 @@ import { sendRestaurantOrderReceiptEmail } from "@/lib/email/sendRestaurantOrder
 import { sendPushAndBellToUsers } from "@/lib/push/withBell";
 import { dashboardOrderLink } from "@/lib/notificationLinks";
 import { getOrgNotificationAudience } from "@/lib/team/notificationAudience";
+import { linkOrderToSessionCustomer } from "@/lib/customer/orderLinks";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — guest ordering, no Ringo account
@@ -186,6 +187,9 @@ export async function POST(request: Request) {
       })
       .eq("id", customer.id);
   }
+
+  // If a Ringo customer is signed in, remember this order as theirs (session-derived; a guest order is unchanged).
+  await linkOrderToSessionCustomer("restaurant_order", order.id);
 
   return NextResponse.json({ id: order.id, order_number: order.order_number });
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Link2, Music, MessageCircle, User } from "lucide-react";
+import { Home, Link2, Music, MessageCircle, Receipt, User } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import CustomerAvatar from "./CustomerAvatar";
 
@@ -24,6 +24,7 @@ export default function MyRingoShell({
     { href: "/my-ringo", label: t.myRingo.nav.home, Icon: Home, exact: true },
     { href: "/my-ringo/connections", label: t.myRingo.nav.connections, Icon: Link2, exact: false },
     { href: "/my-ringo/music", label: t.myRingo.nav.music, Icon: Music, exact: false },
+    { href: "/my-ringo/activity", label: t.myRingo.nav.activity, Icon: Receipt, exact: false },
     { href: "/my-ringo/inbox", label: t.myRingo.nav.inbox, Icon: MessageCircle, exact: false },
     { href: "/my-ringo/me", label: t.myRingo.nav.me, Icon: User, exact: false },
   ];
@@ -88,7 +89,7 @@ export default function MyRingoShell({
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition ${
+                  className={`flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition ${
                     active ? "text-ringo-indigo" : "text-ringo-muted"
                   }`}
                 >

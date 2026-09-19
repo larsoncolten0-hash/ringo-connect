@@ -44,7 +44,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
     .filter((e: any) => e.status !== "draft")
     .filter((e: any) => eventHasTickets(e, e.event_ticket_types));
 
-  // A song for sale shows a play button for its 30-second preview (or the
+  // A song for sale shows a play button for its 10-second preview (or the
   // full audio_url, for a track that isn't protected/gated) right on its
   // store card — same rule useTrackPlayback already enforces elsewhere
   // (Latest Music, Pinned Spotlight): a protected track can only ever
@@ -735,7 +735,7 @@ function StoreCard({
   accent: string;
   ctaLabel: string;
   onAdd: () => void;
-  // Play button for a 30-second preview clip — only songs carry one
+  // Play button for a 10-second preview clip — only songs carry one
   // (releases are a bundle of tracks, not a single audio file to play).
   hasPreview?: boolean;
   isPlaying?: boolean;
