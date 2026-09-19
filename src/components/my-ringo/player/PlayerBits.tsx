@@ -19,3 +19,9 @@ export function Cover({ url, className }: { url: string | null; className: strin
     </span>
   );
 }
+
+export function formatBytes(bytes: number) {
+  if (!isFinite(bytes) || bytes <= 0) return "0 MB";
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2, LogOut } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { clearAll } from "./player/offlineStore";
 
 // Uses the EXISTING /api/customer/logout route (revokes this device's
 // session and clears the cookie). A full navigation afterwards, not a client
@@ -15,6 +16,10 @@ export default function SignOutButton() {
     if (busy) return;
     setBusy(true);
     try {
+      // Saved-for-offline audio belongs to this customer's session: wipe it so a
+      // shared device keeps nothing behind.
+      // (Capped at 3s so a stuck storage call can never block signing out.)
+      await Promise.race([clearAll().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 3000))]);
       await fetch("/api/customer/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

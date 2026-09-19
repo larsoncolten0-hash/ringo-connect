@@ -1,4 +1,5 @@
 import type { LibraryTrack } from "@/lib/customer/activity";
+import { getObjectUrl, peekObjectUrl } from "./offlineStore";
 
 // The My Ringo music engine — plain TypeScript, no React. One <audio> element
 // for the whole app, a play queue, shuffle/repeat, background-friendly track
@@ -21,6 +22,13 @@ const URL_TTL_MS = 9 * 60 * 1000;
 const PREFS_KEY = "ringo-player-prefs";
 
 export type RepeatMode = "off" | "all" | "one";
+
+// Where a saved-for-offline copy of a track comes from (injectable for tests).
+export type OfflineSource = {
+  peek: (key: string) => string | null;
+  get: (key: string) => Promise<string | null>;
+};
+const defaultOffline: OfflineSource = { peek: peekObjectUrl, get: getObjectUrl };
 
 export type PlayerSnapshot = {
   current: LibraryTrack | null;
@@ -62,7 +70,7 @@ function fisherYates<T>(items: T[]) {
   return items;
 }
 
-export function createPlayerEngine(onChange: () => void, onTime: () => void) {
+export function createPlayerEngine(onChange: () => void, onTime: () => void, offline: OfflineSource = defaultOffline) {
   const audio = new Audio();
   audio.preload = "auto";
   const prefs = loadPrefs();
@@ -82,6 +90,7 @@ export function createPlayerEngine(onChange: () => void, onTime: () => void) {
   let loadedAt = 0;
   let refreshed = false; // one automatic fresh-URL retry per load
   let unlocked = false;
+  let usingOffline = false; // the loaded source is a saved (blob:) copy, which never expires
   let pendingSeek: (() => void) | null = null; // resume-position listener of the load in flight
   const urls = new Map<string, { url: string; at: number }>();
 
@@ -131,7 +140,11 @@ export function createPlayerEngine(onChange: () => void, onTime: () => void) {
     const np = peekNext();
     if (np == null) return;
     const track = s.queue[s.order[np]];
-    if (track && !freshUrl(track.key)) void fetchUrl(track);
+    if (!track || offline.peek(track.key) || freshUrl(track.key)) return;
+    // A saved copy needs no network; otherwise get the signed URL ready.
+    void offline.get(track.key).then((u) => {
+      if (!u && !freshUrl(track.key)) void fetchUrl(track);
+    });
   }
 
   // ---- OS media controls -------------------------------------------------
@@ -191,7 +204,7 @@ export function createPlayerEngine(onChange: () => void, onTime: () => void) {
   // IMPORTANT: when triggered by a tap, everything up to the first `await` runs
   // synchronously inside that tap — the cached path calls audio.play() there, and
   // the uncached path unlocks the element there — which is what mobile Safari needs.
-  async function loadAt(pos: number, opts: { startAt?: number; isRefresh?: boolean } = {}) {
+  async function loadAt(pos: number, opts: { startAt?: number; isRefresh?: boolean; skipOffline?: boolean } = {}) {
     const myToken = ++token;
     if (pendingSeek) {
       audio.removeEventListener("loadedmetadata", pendingSeek);
@@ -206,14 +219,17 @@ export function createPlayerEngine(onChange: () => void, onTime: () => void) {
     updateMediaMetadata(track);
     onChange();
 
-    let url = freshUrl(track.key);
+    // Prefer a copy saved on this device (works with no connection); fall back
+    // to the paid-order signed URL. `skipOffline` is used when a saved copy
+    // failed to play, so a bad file can't trap the track.
+    let url = (!opts.skipOffline && offline.peek(track.key)) || freshUrl(track.key);
     if (!url) {
       if (!unlocked) {
         audio.src = SILENT_WAV;
         audio.play().catch(() => {});
         unlocked = true;
       }
-      url = await fetchUrl(track);
+      url = (!opts.skipOffline ? await offline.get(track.key) : null) || (await fetchUrl(track));
       if (myToken !== token) return;
       if (!url) {
         s.loading = false;
@@ -225,6 +241,7 @@ export function createPlayerEngine(onChange: () => void, onTime: () => void) {
     }
 
     audio.src = url;
+    usingOffline = url.startsWith("blob:");
     loadedAt = Date.now();
     const startAt = opts.startAt || 0;
     if (startAt > 0) {
@@ -280,7 +297,7 @@ export function createPlayerEngine(onChange: () => void, onTime: () => void) {
     if (!refreshed) {
       refreshed = true;
       urls.delete(track.key);
-      void loadAt(s.pos, { startAt: audio.currentTime, isRefresh: true });
+      void loadAt(s.pos, { startAt: audio.currentTime, isRefresh: true, skipOffline: usingOffline });
       return;
     }
     s.loading = false;
@@ -358,7 +375,7 @@ export function createPlayerEngine(onChange: () => void, onTime: () => void) {
     }
     // Nothing loaded yet, a failed load, or a URL that has likely expired while
     // paused: fetch a fresh one and resume where we were.
-    if (isSilent() || !audio.src || s.error || Date.now() - loadedAt > URL_TTL_MS) {
+    if (isSilent() || !audio.src || s.error || (!usingOffline && Date.now() - loadedAt > URL_TTL_MS)) {
       void loadAt(s.pos, { startAt: isSilent() ? 0 : audio.currentTime });
       return;
     }
