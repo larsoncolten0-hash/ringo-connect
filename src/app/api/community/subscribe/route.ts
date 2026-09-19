@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendPushToUser } from "@/lib/push/send";
+import { sendPushAndBellToUser } from "@/lib/push/withBell";
 import { dashboardSubscriberLink } from "@/lib/notificationLinks";
 import { NextResponse } from "next/server";
 
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
   // existing email receipt here to mirror; a new subscriber is still
   // exactly the kind of "someone did a thing on my page" event the
   // creator dashboard's push notifications are for.
-  await sendPushToUser(admin, profile.user_id, {
+  await sendPushAndBellToUser(admin, profile.user_id, {
     category: "community_subscriber_new",
     title: "New community subscriber",
     body: `${name} just joined your community.`,

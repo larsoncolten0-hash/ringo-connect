@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
-import { sendPushToUser } from "@/lib/push/send";
+import { sendPushAndBellToUser } from "@/lib/push/withBell";
 import { dashboardMusicOrderLink } from "@/lib/notificationLinks";
 import { NextResponse } from "next/server";
 
@@ -347,7 +347,7 @@ export async function POST(request: Request) {
   // the equivalent note on /api/bookings' notification call: `music_orders`
   // has no staff RLS policy at all today (only "music_orders owner all"),
   // so a staff member notified here couldn't actually open the order.
-  await sendPushToUser(admin, profile.user_id, {
+  await sendPushAndBellToUser(admin, profile.user_id, {
     category: "order_new",
     title: "New order",
     body: `${customerName} ordered ${itemSummary}`,

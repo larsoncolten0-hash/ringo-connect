@@ -3,6 +3,7 @@ import { notifyAdmins, notifyUser } from "@/lib/notifications";
 import { emailShell } from "@/lib/email/emailShell";
 import { sendEmail } from "@/lib/email/provider";
 import { sendPushToAdmins } from "@/lib/push/send";
+import { sendPushAndBellToAdmins } from "@/lib/push/withBell";
 import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
 import { applyCardBundleGrant } from "@/lib/cardBundle";
 
@@ -98,7 +99,7 @@ export async function applySuccessfulPayment({
   await notifyPaymentSucceeded({ userId: tx.user_id, planDisplayName: plan.display_name || plan.name, amount: tx.amount, currency: tx.currency });
   if (wasOnFreePlan) {
     const { data: buyerProfile } = await admin.from("profiles").select("name, username").eq("user_id", tx.user_id).maybeSingle();
-    await sendPushToAdmins(admin, {
+    await sendPushAndBellToAdmins(admin, {
       category: "member_paid_new",
       title: "New paid member",
       body: `${buyerProfile?.name || buyerProfile?.username || "A new member"} joined on the ${tx.plan_name} plan.`,

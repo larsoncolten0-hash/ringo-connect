@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus, type FapshiStatus } from "@/lib/fapshi";
 import { getMusicPayoutSettings, getEffectiveMusicCommissionRate } from "@/lib/musicPayoutSettings";
 import { sendMusicOrderReceiptEmail } from "@/lib/email/sendMusicOrderReceipt";
-import { sendPushToUser } from "@/lib/push/send";
+import { sendPushAndBellToUser } from "@/lib/push/withBell";
 import { formatPrice } from "@/lib/currency";
 
 // Shared by /api/music/orders/[id]/pay-status (the short active-polling
@@ -95,7 +95,7 @@ export async function checkAndConfirmFapshiOrder(
       // own cash/card sale — they already know), this path confirms an
       // automatic Mobile Money payment the artist wasn't watching, so a
       // push here is the actual "you got paid" moment for them.
-      await sendPushToUser(admin, profile.user_id, {
+      await sendPushAndBellToUser(admin, profile.user_id, {
         category: "payment_received",
         title: "Payment received",
         body: `You received ${formatPrice(gross, profile.currency || "XAF")} for a sale.`,

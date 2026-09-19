@@ -85,7 +85,10 @@ self.addEventListener("push", (event) => {
 // one; only open a new tab/window when Ringo isn't open at all.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  // Payload URLs are usually root-relative ("/dashboard/..."), but
+  // client.url is always absolute — resolve first so the exact-match check
+  // below can actually match, and so navigate()/openWindow() get a full URL.
+  const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {

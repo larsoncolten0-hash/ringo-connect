@@ -48,13 +48,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
       type: "verification_rejected",
       title: "Verification request update",
       body: "Your verification request wasn't approved this time — you can review your details and try again.",
-      link: "/dashboard",
+      link: "/dashboard?verification=open",
     }),
     sendPushToUser(admin, reqRow.user_id, {
       category: "verification_rejected",
       title: "Verification request update",
       body: "Your verification request wasn't approved this time — you can review your details and try again.",
-      url: "/dashboard",
+      url: "/dashboard?verification=open",
     }),
   ]);
 

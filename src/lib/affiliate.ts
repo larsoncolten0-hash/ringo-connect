@@ -1,6 +1,6 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getAffiliateSettings } from "@/lib/affiliateSettings";
-import { sendPushToUser } from "@/lib/push/send";
+import { sendPushAndBellToUser } from "@/lib/push/withBell";
 import { formatPrice } from "@/lib/currency";
 
 export type CurrencyTotals = { pending: number; available: number; requested: number; paid: number };
@@ -311,7 +311,7 @@ export async function markPayoutPaid(payoutId: string, opts: { adminId: string; 
 
   // The single shared choke point for both the Fapshi-automated and
   // manual-admin "mark paid" paths — see this function's own callers.
-  await sendPushToUser(admin, payout?.affiliate_user_id, {
+  await sendPushAndBellToUser(admin, payout?.affiliate_user_id, {
     category: "payout_paid",
     title: "Payout sent",
     body: `Your ${formatPrice(payout.amount, payout.currency)} payout from Ringo Connect has been sent.`,

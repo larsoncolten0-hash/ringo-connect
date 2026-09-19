@@ -75,13 +75,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
       type: "support_reply",
       title: "New reply from Ringo support",
       body: text.slice(0, 140),
-      link: "/dashboard",
+      link: "/dashboard?support=open",
     }),
     sendPushToUser(admin, conversation.user_id, {
       category: "support_reply",
       title: "New reply from Ringo support",
       body: text.slice(0, 140),
-      url: "/dashboard",
+      url: "/dashboard?support=open",
     }),
   ]);
 

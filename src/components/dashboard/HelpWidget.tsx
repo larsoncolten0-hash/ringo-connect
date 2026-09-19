@@ -37,6 +37,18 @@ export default function HelpWidget({ username, email }: { username: string; emai
   const listRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
+  // Deep link from a support-reply notification (`?support=open`): open the
+  // chat panel straight away, then strip the param so a refresh doesn't
+  // reopen it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("support") !== "open") return;
+    setOpen(true);
+    params.delete("support");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {

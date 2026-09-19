@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
 import { sendRestaurantOrderReceiptEmail } from "@/lib/email/sendRestaurantOrderReceipt";
-import { sendPushToUsers } from "@/lib/push/send";
+import { sendPushAndBellToUsers } from "@/lib/push/withBell";
 import { dashboardOrderLink } from "@/lib/notificationLinks";
 import { getOrgNotificationAudience } from "@/lib/team/notificationAudience";
 import { NextResponse } from "next/server";
@@ -155,7 +155,7 @@ export async function POST(request: Request) {
   // owner-only until their own staff RLS exists (see the matching TODO on
   // those routes' equivalent notification calls).
   const notifyUserIds = await getOrgNotificationAudience(profile.id, ["orders.view", "kitchen.view"]);
-  await sendPushToUsers(admin, notifyUserIds, {
+  await sendPushAndBellToUsers(admin, notifyUserIds, {
     category: "order_new",
     title: "New order",
     // Business name included so this reads unambiguously for someone who's

@@ -1,4 +1,4 @@
-import { sendPushToUser } from "./send";
+import { sendPushAndBellToUser } from "./withBell";
 import { formatPrice } from "@/lib/currency";
 
 // The affiliate commission itself is created entirely inside Postgres —
@@ -25,7 +25,7 @@ export async function notifyAffiliateCommissionIfAny(admin: any, paymentTransact
 
     if (!commission) return;
 
-    await sendPushToUser(admin, commission.affiliate_user_id, {
+    await sendPushAndBellToUser(admin, commission.affiliate_user_id, {
       category: "affiliate_commission_earned",
       title: "New affiliate commission",
       body: `You earned ${formatPrice(commission.amount, commission.currency)} from someone who signed up with your code.`,

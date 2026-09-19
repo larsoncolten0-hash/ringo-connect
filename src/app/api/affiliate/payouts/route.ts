@@ -1,6 +1,6 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requestAffiliatePayout } from "@/lib/affiliate";
-import { sendPushToAdmins } from "@/lib/push/send";
+import { sendPushAndBellToAdmins } from "@/lib/push/withBell";
 import { formatPrice } from "@/lib/currency";
 import { NextResponse } from "next/server";
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     // Admin client, not the request-scoped `supabase` above — an
     // affiliate's own session has no RLS access to the admin roster or to
     // other users' push_subscriptions rows.
-    await sendPushToAdmins(createAdminClient(), {
+    await sendPushAndBellToAdmins(createAdminClient(), {
       category: "payout_requested",
       title: "Affiliate payout requested",
       body: `A ${formatPrice(payout?.amount, payout?.currency || currency)} payout was requested.`,

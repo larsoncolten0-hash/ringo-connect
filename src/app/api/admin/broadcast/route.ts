@@ -1,6 +1,7 @@
 import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendPushToAllSubscribers, sendPushToAllUsers } from "@/lib/push/send";
+import { bellToAllUsers } from "@/lib/push/withBell";
 import { NextResponse } from "next/server";
 
 // A platform-wide push, sent by the super admin — "message notifications
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
   const payload = { category: "platform_broadcast", title, body: message, url };
 
   if (audience === "users") {
-    await sendPushToAllUsers(adminClient, payload);
+    await Promise.all([sendPushToAllUsers(adminClient, payload), bellToAllUsers(adminClient, payload)]);
   } else {
     await sendPushToAllSubscribers(adminClient, payload);
   }

@@ -2,7 +2,7 @@ import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assert
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus } from "@/lib/fapshi";
 import { getCategory, isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
-import { sendPushToAdmins } from "@/lib/push/send";
+import { sendPushAndBellToAdmins } from "@/lib/push/withBell";
 import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
 import { NextResponse } from "next/server";
 import { notifyUser } from "@/lib/notifications";
@@ -293,11 +293,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 
   if (isPaidPlan && paymentTransactionId) {
-    await sendPushToAdmins(adminClient, {
+    await sendPushAndBellToAdmins(adminClient, {
       category: "member_paid_new",
       title: "New paid member",
       body: `${fullName} joined on the ${plan.name} plan.`,
-      url: "/admin/requests",
+      url: `/admin/requests/${params.id}`,
     });
     await notifyAffiliateCommissionIfAny(adminClient, paymentTransactionId);
   }

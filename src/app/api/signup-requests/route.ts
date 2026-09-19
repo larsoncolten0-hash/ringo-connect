@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
-import { sendPushToAdmins } from "@/lib/push/send";
+import { sendPushAndBellToAdmins } from "@/lib/push/withBell";
 import { NextResponse } from "next/server";
 
 // Public, unauthenticated by design — this is the whole point of the
@@ -74,11 +74,11 @@ export async function POST(request: Request) {
   // attempt the instant someone starts one — including ones that are
   // abandoned or fail — not just the ones that actually go through.
   if (!body.pending_online_payment) {
-    await sendPushToAdmins(admin, {
+    await sendPushAndBellToAdmins(admin, {
       category: "signup_request_new",
       title: "New signup request",
       body: `${body.full_name.trim()} submitted a request to join Ringo Connect.`,
-      url: "/admin/requests",
+      url: `/admin/requests/${data.id}`,
     });
   }
 

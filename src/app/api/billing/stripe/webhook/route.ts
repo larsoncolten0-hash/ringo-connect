@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getPlatformSettings } from "@/lib/platformSettings";
-import { sendPushToAdmins } from "@/lib/push/send";
+import { sendPushAndBellToAdmins } from "@/lib/push/withBell";
 import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
 import { NextResponse } from "next/server";
 
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
       // too), this is unambiguously a brand-new paid signup, no "was this
       // actually their first paid plan" check needed.
       const { data: buyerProfile } = await admin.from("profiles").select("name, username").eq("user_id", userId).maybeSingle();
-      await sendPushToAdmins(admin, {
+      await sendPushAndBellToAdmins(admin, {
         category: "member_paid_new",
         title: "New paid member",
         body: `${buyerProfile?.name || buyerProfile?.username || "A new member"} joined on the ${planName} plan.`,

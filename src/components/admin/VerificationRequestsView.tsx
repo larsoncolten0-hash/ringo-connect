@@ -17,6 +17,25 @@ export default function VerificationRequestsView({ initialRequests }: { initialR
   const [requests, setRequests] = useState(initialRequests);
   const [tab, setTab] = useState<Tab>("pending");
   const [actingId, setActingId] = useState<string | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
+
+  // Deep link from a notification (`?r=<requestId>`): jump to the tab that
+  // holds that request, scroll to it, and ring it briefly. Plain DOM APIs
+  // rather than useSearchParams, same reasoning as HighlightOnArrival.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("r");
+    if (!id) return;
+    const target = initialRequests.find((r) => r.id === id);
+    if (target) setTab(target.status as Tab);
+    setFocusId(id);
+    const scroll = setTimeout(() => document.getElementById(`verification-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 150);
+    const clear = setTimeout(() => setFocusId(null), 3000);
+    return () => {
+      clearTimeout(scroll);
+      clearTimeout(clear);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const poll = async () => {
@@ -88,7 +107,13 @@ export default function VerificationRequestsView({ initialRequests }: { initialR
             const name = r.username ? `@${r.username}` : r.email || "Unknown";
             const initial = (r.username || r.email || "?")[0]?.toUpperCase();
             return (
-              <div key={r.id} className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-4 border-b border-ringo-border/60 last:border-0">
+              <div
+                id={`verification-${r.id}`}
+                key={r.id}
+                className={`flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-4 border-b border-ringo-border/60 last:border-0 transition-colors ${
+                  focusId === r.id ? "bg-ringo-indigo/10" : ""
+                }`}
+              >
                 <span className="w-9 h-9 rounded-full flex items-center justify-center bg-ringo-indigo text-white text-xs font-medium shrink-0">
                   {initial}
                 </span>

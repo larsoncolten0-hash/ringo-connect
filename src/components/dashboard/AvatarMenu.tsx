@@ -54,6 +54,18 @@ export default function AvatarMenu({
   const [badgesSaving, setBadgesSaving] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Deep link from a "verification rejected" notification
+  // (`?verification=open`): open the request modal straight away so they
+  // can resubmit, then strip the param. Skipped for already-verified users.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("verification") !== "open") return;
+    if (!isVerified) setShowVerification(true);
+    params.delete("verification");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
+  }, [isVerified]);
+
   // Applies immediately, same "no Save button" posture as the Sound
   // effects/Push toggles right below it — "profiles update by owner or
   // admin" RLS already lets the owner write their own row directly, no API

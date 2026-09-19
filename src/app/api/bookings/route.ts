@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendBookingReceivedEmail } from "@/lib/email/sendBookingReceivedEmail";
-import { sendPushToUser } from "@/lib/push/send";
+import { sendPushAndBellToUser } from "@/lib/push/withBell";
 import { dashboardBookingLink } from "@/lib/notificationLinks";
 import { NextResponse } from "next/server";
 
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
   // staff member notified here couldn't actually open the booking anyway.
   // Revisit once bookings gets organization-aware staff access (see the
   // matching gap noted on requireOwnProfile in src/lib/bookingAuth.ts).
-  await sendPushToUser(admin, profile.user_id, {
+  await sendPushAndBellToUser(admin, profile.user_id, {
     category: "booking_new",
     title: "New booking request",
     body: serviceNameSnapshot ? `${customerName} requested ${serviceNameSnapshot}` : `${customerName} sent you a booking request`,
