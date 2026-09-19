@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import SectionTabs from "@/components/dashboard/SectionTabs";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
@@ -54,19 +55,9 @@ export default function MembershipAdminView({
         </p>
       </div>
 
-      <div className="flex gap-1 border-b border-ringo-border/70 overflow-x-auto no-scrollbar">
-        {tabs
-          .filter((x) => x.show)
-          .map((x) => (
-            <button
-              key={x.id}
-              onClick={() => setTab(x.id)}
-              className={`px-3.5 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition ${tab === x.id ? "border-ringo-indigo text-ringo-indigo" : "border-transparent text-ringo-muted"}`}
-            >
-              {x.label}
-            </button>
-          ))}
-      </div>
+      <SectionTabs
+        tabs={tabs.filter((x) => x.show).map((x) => ({ label: x.label, active: tab === x.id, onSelect: () => setTab(x.id) }))}
+      />
 
       {!enabled && tab !== "settings" && <p className="text-sm text-ringo-muted rounded-2xl border border-dashed border-ringo-border p-4">{m.errors.membership_not_enabled}</p>}
 

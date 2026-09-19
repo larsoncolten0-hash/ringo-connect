@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Gift, LayoutGrid, ListChecks, Package, ScanLine, Settings2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import SectionTabs from "@/components/dashboard/SectionTabs";
 
 // Header + tab bar for /dashboard/loyalty/**. Which tabs show mirrors what each page (and the
 // API behind it) actually allows: scan/activity need loyalty.scan; packages and program setup
@@ -46,23 +46,7 @@ export default function LoyaltyShell({
         </div>
       ) : (
         <>
-          <div className="no-scrollbar flex gap-1 overflow-x-auto border-b border-ringo-border pb-0.5">
-            {tabs.map((tab) => {
-              const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
-              return (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
-                  className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3.5 py-2.5 text-sm font-medium transition-colors ${
-                    active ? "border-ringo-indigo text-ringo-indigo" : "border-transparent text-ringo-muted hover:text-ringo-text"
-                  }`}
-                >
-                  <tab.icon size={15} />
-                  {tab.label}
-                </Link>
-              );
-            })}
-          </div>
+          <SectionTabs tabs={tabs} isActive={(href, exact) => (exact ? pathname === href : pathname.startsWith(href))} />
           <div className="mt-5">{children}</div>
         </>
       )}

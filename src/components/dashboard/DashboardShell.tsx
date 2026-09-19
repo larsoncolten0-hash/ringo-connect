@@ -520,17 +520,21 @@ export default function DashboardShell({
             secondary items stay out of this dock entirely — they live in
             MobileMoreMenu's hamburger, kept deliberately separate. */}
         <nav
-          className="lg:hidden fixed bottom-3 inset-x-3 z-40 mx-auto flex max-w-[420px] items-center justify-around gap-0.5 overflow-x-auto rounded-[28px] border border-ringo-border/60 bg-ringo-surface/75 px-1.5 py-1.5 shadow-[0_10px_28px_-10px_rgba(15,23,42,0.2)] backdrop-blur-2xl no-scrollbar"
+          className="lg:hidden fixed bottom-3 inset-x-3 z-40 mx-auto flex max-w-[420px] items-center gap-0.5 rounded-[28px] border border-ringo-border/60 bg-ringo-surface/75 px-1.5 py-1.5 shadow-[0_10px_28px_-10px_rgba(15,23,42,0.2)] backdrop-blur-2xl"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
           {mobileTabItems.map(({ href, label, icon: Icon, exact }) => {
             const active = isActive(href, exact);
             return (
-              <Link key={href} href={href} className="relative shrink-0">
+              // flex-1 + min-w-0: the 5 tabs share the dock's width equally
+              // instead of each sizing to its label plus fixed padding, so
+              // the last one (Subscription) is always on screen — no
+              // horizontal scrolling to discover it.
+              <Link key={href} href={href} className="relative flex-1 min-w-0">
                 <motion.span
                   whileTap={{ scale: 0.92 }}
                   transition={{ type: "spring", stiffness: 600, damping: 32 }}
-                  className="relative flex flex-col items-center gap-0.5 rounded-full px-4 py-1.5 text-[11px] font-medium"
+                  className="relative flex flex-col items-center gap-0.5 rounded-full px-1 py-1.5 text-[11px] font-medium"
                 >
                   {active && (
                     <motion.span
@@ -550,7 +554,7 @@ export default function DashboardShell({
                         className={active ? "text-ringo-indigo" : "text-ringo-muted"}
                       />
                     </motion.span>
-                    <span className={`transition-colors duration-150 ${active ? "text-ringo-indigo" : "text-ringo-muted"}`}>
+                    <span className={`max-w-full truncate transition-colors duration-150 ${active ? "text-ringo-indigo" : "text-ringo-muted"}`}>
                       {label}
                     </span>
                   </span>

@@ -7,6 +7,7 @@ import InvitePartnerModal from "./InvitePartnerModal";
 import AddMemberModal from "./AddMemberModal";
 import AssociationPartnerView from "./AssociationPartnerView";
 import Link from "next/link";
+import SectionTabs from "@/components/dashboard/SectionTabs";
 import ManagedMemberPanel, { MembershipBadge } from "./admin/ManagedMemberPanel";
 import type { ManagedMemberInfo } from "@/lib/association/membershipTypes";
 
@@ -145,28 +146,18 @@ export default function AssociationOwnerView({
         )}
       </div>
 
-      <div className="flex gap-1 border-b border-ringo-border/70 overflow-x-auto no-scrollbar">
-        <TabButton active={tab === "members"} onClick={() => setTab("members")}>
-          {a.tabMembers}
-        </TabButton>
-        <TabButton active={tab === "partners"} onClick={() => setTab("partners")}>
-          {a.tabPartners}
-        </TabButton>
-        <TabButton active={tab === "rewards"} onClick={() => setTab("rewards")}>
-          {a.tabRewards}
-        </TabButton>
-        <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
-          {a.tabActivity}
-        </TabButton>
-        <TabButton active={tab === "settings"} onClick={() => setTab("settings")}>
-          {a.tabSettings}
-        </TabButton>
-        {isDemo && (
-          <TabButton active={tab === "simulatedTap"} onClick={() => setTab("simulatedTap")}>
-            {a.tabSimulatedTap}
-          </TabButton>
-        )}
-      </div>
+      <SectionTabs
+        tabs={(
+          [
+            { id: "members", label: a.tabMembers },
+            { id: "partners", label: a.tabPartners },
+            { id: "rewards", label: a.tabRewards },
+            { id: "activity", label: a.tabActivity },
+            { id: "settings", label: a.tabSettings },
+            ...(isDemo ? [{ id: "simulatedTap", label: a.tabSimulatedTap }] : []),
+          ] as { id: Tab; label: string }[]
+        ).map((x) => ({ label: x.label, active: tab === x.id, onSelect: () => setTab(x.id) }))}
+      />
 
       {tab === "simulatedTap" && isDemo && (
         <AssociationPartnerView
