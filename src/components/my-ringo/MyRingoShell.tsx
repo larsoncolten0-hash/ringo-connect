@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import LanguageToggle from "@/components/LanguageToggle";
 import { usePlayer } from "./player/MusicPlayerProvider";
 import AccountMenu from "./AccountMenu";
+import BrandLogo from "@/components/BrandLogo";
 
 // The My Ringo chrome — deliberately its OWN navigation, separate from the
 // creator dashboard's shell/tab bar (nothing is shared or imported from
@@ -38,7 +39,8 @@ export default function MyRingoShell({
     <div className="min-h-screen bg-ringo-bg text-ringo-text">
       {/* Desktop / tablet sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-ringo-border/70 bg-ringo-surface p-4 sm:flex">
-        <Link href="/my-ringo" className="mb-6 px-2 font-display text-lg font-bold tracking-tight">
+        <Link href="/my-ringo" className="mb-6 flex items-center gap-2 px-2 font-display text-lg font-bold tracking-tight">
+          <BrandLogo variant="symbol" height={26} />
           {t.myRingo.title}
         </Link>
         <nav aria-label={t.myRingo.nav.label} className="flex flex-col gap-1">
@@ -67,7 +69,8 @@ export default function MyRingoShell({
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-ringo-border/70 bg-ringo-surface/90 px-4 backdrop-blur sm:hidden">
-        <Link href="/my-ringo" className="font-display text-base font-bold tracking-tight">
+        <Link href="/my-ringo" className="flex items-center gap-2 font-display text-base font-bold tracking-tight">
+          <BrandLogo variant="symbol" height={24} />
           {t.myRingo.title}
         </Link>
         <div className="flex items-center gap-1">

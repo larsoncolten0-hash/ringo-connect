@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     title: "Ringo Connect — Your Digital Identity. Your Business. Your Ringo.",
     description:
       "Create your digital identity with Ringo. Share your links, showcase products and services, connect with customers, and grow your presence — all in one place.",
-    images: ["/logo.png"],
+    images: [{ url: "/brand/ringo-og.png", width: 1200, height: 630, alt: "Ringo Connect" }],
   },
 };
 

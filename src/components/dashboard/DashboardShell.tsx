@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award, Gift } from "lucide-react";
@@ -280,9 +281,19 @@ export default function DashboardShell({
           inside this layout, so this never re-mounts between pages. */}
       <aside className="hidden lg:flex flex-col justify-between border-r border-ringo-border/70 bg-ringo-surface/40 p-5 h-screen sticky top-0">
         <div>
-          <Link href="/" className="flex items-center gap-2.5 px-1">
-            <Image src={logoUrl} alt={appName} width={30} height={30} className="rounded-[9px] object-contain shadow-[0_2px_8px_-2px_rgba(79,70,229,0.4)]" />
-            <span className="font-display font-semibold text-[15px] text-ringo-text tracking-[-0.01em]">{appName}</span>
+          <Link href="/" className="flex items-center px-1 text-ringo-text">
+            <BrandLogo
+              logoUrl={logoUrl}
+              appName={appName}
+              variant="full"
+              height={28}
+              legacy={
+                <span className="flex items-center gap-2.5">
+                  <Image src={logoUrl} alt={appName} width={30} height={30} className="rounded-[9px] object-contain shadow-[0_2px_8px_-2px_rgba(79,70,229,0.4)]" />
+                  <span className="font-display font-semibold text-[15px] text-ringo-text tracking-[-0.01em]">{appName}</span>
+                </span>
+              }
+            />
           </Link>
           {/* Signature: a quiet gradient line — same brand signal as the
               animated rings on the auth pages, at rest for a daily-use screen. */}
@@ -390,7 +401,13 @@ export default function DashboardShell({
               currentOrgId={organization?.profileId}
             />
             <Link href="/" className="flex items-center gap-2 lg:hidden shrink-0">
-              <Image src={logoUrl} alt={appName} width={26} height={26} className="rounded-lg object-contain" />
+              <BrandLogo
+                logoUrl={logoUrl}
+                appName={appName}
+                variant="symbol"
+                height={26}
+                legacy={<Image src={logoUrl} alt={appName} width={26} height={26} className="rounded-lg object-contain" />}
+              />
             </Link>
             {currentLabel && (
               <h1 className="hidden sm:block text-[15px] font-semibold text-ringo-text truncate">{currentLabel}</h1>

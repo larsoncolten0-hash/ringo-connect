@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBrandingSettings } from "@/lib/branding";
+import { DEFAULT_BRANDING, DEFAULT_APP_ICONS } from "@/lib/brandingDefaults";
 import { NextResponse } from "next/server";
 
 // The admin console's own Web App Manifest — same "Add to Home Screen"
@@ -37,7 +38,7 @@ export async function GET() {
     // setting too. The logo is still the platform's own, though.
     background_color: "#0B1023",
     theme_color: "#0B1023",
-    icons: [{ src: branding.logoUrl, sizes: "512x512", type: "image/png" }],
+    icons: branding.logoUrl === DEFAULT_BRANDING.logoUrl ? DEFAULT_APP_ICONS : [{ src: branding.logoUrl, sizes: "512x512", type: "image/png" }],
   };
 
   return NextResponse.json(manifest, {

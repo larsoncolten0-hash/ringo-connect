@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
 import { DEFAULT_BRANDING } from "@/lib/brandingDefaults";
 
 // Every page that renders this has "use client" at the top (login,
@@ -47,9 +48,20 @@ export default function AuthShell({
     <div className="min-h-screen grid lg:grid-cols-[42%_1fr]">
       {/* Brand panel */}
       <div className="hidden lg:flex relative flex-col justify-between bg-[#0B1023] text-white p-10 overflow-hidden">
-        <Link href="/" className="flex items-center gap-2.5 relative z-10">
-          <Image src={logoUrl} alt="" width={28} height={28} className="rounded-md object-contain" />
-          <span className="font-display font-medium text-lg">{appName}</span>
+        <Link href="/" className="flex items-center relative z-10">
+          <BrandLogo
+            logoUrl={logoUrl}
+            appName={appName}
+            variant="full"
+            tone="dark"
+            height={32}
+            legacy={
+              <span className="flex items-center gap-2.5">
+                <Image src={logoUrl} alt="" width={28} height={28} className="rounded-md object-contain" />
+                <span className="font-display font-medium text-lg">{appName}</span>
+              </span>
+            }
+          />
         </Link>
 
         {/* Signature: pulsing signal rings + orbiting node — the "ring" in Ringo */}
@@ -78,9 +90,19 @@ export default function AuthShell({
       {/* Form panel */}
       <div className="flex flex-col justify-center px-6 py-12 sm:px-12">
         <div className="w-full max-w-sm mx-auto">
-          <Link href="/" className="lg:hidden flex items-center gap-2 mb-8">
-            <Image src={logoUrl} alt="" width={26} height={26} className="rounded-md object-contain" />
-            <span className="font-display font-medium text-ringo-text">{appName}</span>
+          <Link href="/" className="lg:hidden flex items-center mb-8 text-ringo-text">
+            <BrandLogo
+              logoUrl={logoUrl}
+              appName={appName}
+              variant="full"
+              height={26}
+              legacy={
+                <span className="flex items-center gap-2">
+                  <Image src={logoUrl} alt="" width={26} height={26} className="rounded-md object-contain" />
+                  <span className="font-display font-medium text-ringo-text">{appName}</span>
+                </span>
+              }
+            />
           </Link>
           <p className="text-xs font-medium tracking-wide uppercase text-ringo-indigo mb-2">
             {eyebrow}

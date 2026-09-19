@@ -6,10 +6,12 @@
 // mechanism only, not redesigning content. Moved out of the now-retired
 // src/lib/email.ts into its own file under email/ alongside provider.ts,
 // renderReceiptEmail.ts, and renderAnnouncementEmail.ts.
+import { emailLogoImg } from "@/lib/email/emailLogo";
+
 export function emailShell(bodyHtml: string) {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #0f172a;">
-      <p style="font-weight: 600; font-size: 16px; letter-spacing: -0.01em; margin: 0 0 24px;">Ringo Connect</p>
+      ${emailLogoImg("margin: 0 0 24px;")}
       ${bodyHtml}
       <p style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
         Ringo Connect — link-in-bio &amp; social commerce.

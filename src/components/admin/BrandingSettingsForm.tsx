@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, Upload, Palette } from "lucide-react";
+import { Loader2, Upload, Palette, RotateCcw } from "lucide-react";
 import SaveButton, { type SaveState } from "@/components/dashboard/SaveButton";
 import type { BrandingSettings } from "@/lib/branding";
+import { DEFAULT_BRANDING } from "@/lib/brandingDefaults";
 
 // /admin/branding — the admin-facing form for src/lib/branding.ts's
 // singleton row. Logo/favicon go through /api/admin/branding/upload
@@ -17,6 +18,11 @@ export default function BrandingSettingsForm({ initial }: { initial: BrandingSet
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState<"logo" | "favicon" | null>(null);
+  // Logo/favicon the admin has removed this session: shown as the bundled
+  // default immediately, and sent as `null` on Save — which clears the stored
+  // upload in branding_settings (see updateBrandingSettings), rather than
+  // saving the default's path as if it were a custom upload.
+  const [removed, setRemoved] = useState<{ logoUrl?: boolean; faviconUrl?: boolean }>({});
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
 
@@ -33,7 +39,9 @@ export default function BrandingSettingsForm({ initial }: { initial: BrandingSet
       const res = await fetch("/api/admin/branding/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Upload failed.");
-      set(kind === "logo" ? "logoUrl" : "faviconUrl", data.url);
+      const key = kind === "logo" ? "logoUrl" : "faviconUrl";
+      set(key, data.url);
+      setRemoved((r) => ({ ...r, [key]: false }));
     } catch (err: any) {
       setError(err?.message || "Upload failed. Try again.");
     } finally {
@@ -48,7 +56,11 @@ export default function BrandingSettingsForm({ initial }: { initial: BrandingSet
       const res = await fetch("/api/admin/branding", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          logoUrl: removed.logoUrl ? null : values.logoUrl,
+          faviconUrl: removed.faviconUrl ? null : values.faviconUrl,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Could not save.");
@@ -65,6 +77,7 @@ export default function BrandingSettingsForm({ initial }: { initial: BrandingSet
             }
           : values
       );
+      setRemoved({});
       setSaveState("success");
       setTimeout(() => setSaveState("idle"), 2000);
     } catch (err: any) {
@@ -112,6 +125,14 @@ export default function BrandingSettingsForm({ initial }: { initial: BrandingSet
             uploading={uploading === "logo"}
             inputRef={logoInputRef}
             onPick={(file) => upload("logo", file)}
+            onRemove={
+              values.logoUrl !== DEFAULT_BRANDING.logoUrl
+                ? () => {
+                    set("logoUrl", DEFAULT_BRANDING.logoUrl);
+                    setRemoved((r) => ({ ...r, logoUrl: true }));
+                  }
+                : undefined
+            }
           />
           <LogoUpload
             label="Favicon / app icon"
@@ -120,6 +141,14 @@ export default function BrandingSettingsForm({ initial }: { initial: BrandingSet
             uploading={uploading === "favicon"}
             inputRef={faviconInputRef}
             onPick={(file) => upload("favicon", file)}
+            onRemove={
+              values.faviconUrl !== DEFAULT_BRANDING.faviconUrl
+                ? () => {
+                    set("faviconUrl", DEFAULT_BRANDING.faviconUrl);
+                    setRemoved((r) => ({ ...r, faviconUrl: true }));
+                  }
+                : undefined
+            }
           />
         </div>
       </Section>
@@ -216,6 +245,7 @@ function LogoUpload({
   uploading,
   inputRef,
   onPick,
+  onRemove,
 }: {
   label: string;
   hint: string;
@@ -223,11 +253,13 @@ function LogoUpload({
   uploading: boolean;
   inputRef: React.RefObject<HTMLInputElement>;
   onPick: (file: File) => void;
+  // Only passed while a custom upload is in place — resets to the default.
+  onRemove?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium text-ringo-text">{label}</span>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="w-14 h-14 rounded-xl border border-ringo-border bg-ringo-bg overflow-hidden flex items-center justify-center shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value} alt="" className="w-full h-full object-contain" />
@@ -241,6 +273,17 @@ function LogoUpload({
           {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
           {uploading ? "Uploading…" : "Upload"}
         </button>
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={uploading}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-card border border-ringo-border text-ringo-muted hover:border-ringo-coral hover:text-ringo-coral transition-colors disabled:opacity-60"
+          >
+            <RotateCcw size={13} />
+            Remove
+          </button>
+        )}
         <input
           ref={inputRef}
           type="file"

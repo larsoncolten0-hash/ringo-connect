@@ -4,6 +4,8 @@
 // creator's own message) since a receipt is Ringo Connect confirming a
 // transaction actually happened, not a message from the business itself.
 // See src/lib/email/provider.ts for how this HTML actually gets sent.
+import { emailLogoImg } from "@/lib/email/emailLogo";
+
 export function renderReceiptEmail({
   heading,
   subheading,
@@ -44,7 +46,7 @@ export function renderReceiptEmail({
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#FFFFFF;border-radius:16px;overflow:hidden;">
             <tr>
               <td style="padding:28px 28px 20px;text-align:center;">
-                <div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#9CA3AF;margin-bottom:10px;">Ringo Connect</div>
+                ${emailLogoImg("margin:0 auto 14px;")}
                 <div style="font-size:18px;font-weight:700;color:#111827;">${esc(heading)}</div>
                 ${subheading ? `<div style="font-size:13px;color:#6B7280;margin-top:4px;">${esc(subheading)}</div>` : ""}
               </td>

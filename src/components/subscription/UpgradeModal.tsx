@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Smartphone, CreditCard, Loader2, CheckCircle2, X, ArrowLeft, Hash, CalendarDays, Copy, Check } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import BrandLogo from "@/components/BrandLogo";
 import { formatPrice } from "@/lib/currency";
 
 type Method = "mobile_money" | "card";
@@ -342,12 +343,9 @@ export default function UpgradeModal({
                 real payment confirmation: what was bought, how, and a
                 reference they can quote if they ever need support. */}
             <div className="w-full rounded-card border border-ringo-border bg-ringo-bg text-left overflow-hidden">
-              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-ringo-border">
-                <img src="/logo.png" alt="" className="w-6 h-6 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-ringo-text truncate">Ringo Connect</p>
-                  <p className="text-[11px] text-ringo-muted">{t.subscription.receiptTitle}</p>
-                </div>
+              <div className="flex flex-col items-start gap-1.5 px-4 py-3 border-b border-ringo-border">
+                <BrandLogo variant="full" height={22} />
+                <p className="text-[11px] text-ringo-muted">{t.subscription.receiptTitle}</p>
               </div>
 
               <div className="px-4 py-3 flex flex-col gap-2.5">

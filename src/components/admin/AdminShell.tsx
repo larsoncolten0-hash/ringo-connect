@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
+import { hasCustomLogo } from "@/lib/brandingDefaults";
 import { usePathname } from "next/navigation";
 import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, type LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -100,12 +102,24 @@ export default function AdminShell({
   const SidebarContent = (
     <>
       <div>
-        <Link href="/admin" className="flex items-center gap-2.5 px-1 mb-1">
-          <Image src={logoUrl} alt="" width={26} height={26} className="rounded-md object-contain" />
-          <div className="leading-tight">
-            <p className="font-display font-medium text-white text-sm">{appName}</p>
-            <p className="text-[10px] uppercase tracking-wider text-white/40">Admin console</p>
-          </div>
+        <Link href="/admin" className="flex flex-col items-start gap-1.5 px-1 mb-1 text-white">
+          <BrandLogo
+            logoUrl={logoUrl}
+            appName={appName}
+            variant="full"
+            tone="dark"
+            height={24}
+            legacy={
+              <span className="flex items-center gap-2.5">
+                <Image src={logoUrl} alt="" width={26} height={26} className="rounded-md object-contain" />
+                <div className="leading-tight">
+                  <p className="font-display font-medium text-white text-sm">{appName}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-white/40">Admin console</p>
+                </div>
+              </span>
+            }
+          />
+          {!hasCustomLogo(logoUrl) && <p className="text-[10px] uppercase tracking-wider text-white/40">Admin console</p>}
         </Link>
         {/* Same three-color signature as everywhere else, but as a thin
             accent under a dark header instead of a full gradient line —
@@ -201,7 +215,13 @@ export default function AdminShell({
         <div className="flex items-center gap-1 min-w-0">
           <AdminMoreMenu items={moreItems} isActive={isActive} />
           <Link href="/admin" className="flex items-center gap-2 min-w-0">
-            <Image src={logoUrl} alt="" width={22} height={22} className="rounded-md shrink-0 object-contain" />
+            <BrandLogo
+              logoUrl={logoUrl}
+              appName={appName}
+              variant="symbol"
+              height={22}
+              legacy={<Image src={logoUrl} alt="" width={22} height={22} className="rounded-md shrink-0 object-contain" />}
+            />
             <span className="font-display font-medium text-white text-sm truncate">Admin</span>
           </Link>
         </div>

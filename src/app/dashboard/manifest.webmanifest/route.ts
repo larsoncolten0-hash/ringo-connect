@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getBrandingSettings } from "@/lib/branding";
+import { DEFAULT_BRANDING, DEFAULT_APP_ICONS } from "@/lib/brandingDefaults";
 import { NextResponse } from "next/server";
 
 // The dashboard's own Web App Manifest — same "Add to Home Screen"
@@ -45,7 +46,9 @@ export async function GET() {
         { src: profile.avatar_url, sizes: "192x192", type: "image/png" },
         { src: profile.avatar_url, sizes: "512x512", type: "image/png" },
       ]
-    : [{ src: branding.logoUrl, sizes: "512x512", type: "image/png" }];
+    : branding.logoUrl === DEFAULT_BRANDING.logoUrl
+      ? DEFAULT_APP_ICONS
+      : [{ src: branding.logoUrl, sizes: "512x512", type: "image/png" }];
 
   const manifest = {
     id: "/dashboard",

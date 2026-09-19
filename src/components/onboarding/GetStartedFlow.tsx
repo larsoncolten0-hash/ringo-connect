@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
 import { Check, ArrowLeft, Loader2, X, User, Building2, Nfc, Award } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getReferralCode } from "@/lib/referral";
@@ -547,9 +547,8 @@ export default function GetStartedFlow({
   return (
     <div className="min-h-screen bg-ringo-bg text-ringo-text flex flex-col items-center px-4 py-10">
       <div className="w-full max-w-md flex items-center justify-between mb-8">
-        <Link href="/" className="flex items-center gap-2">
-          <Image src="/logo.png" alt="" width={26} height={26} className="rounded-md" />
-          <span className="font-display font-medium">Ringo Connect</span>
+        <Link href="/" className="flex items-center">
+          <BrandLogo variant="full" height={26} />
         </Link>
         <LanguageToggle />
       </div>

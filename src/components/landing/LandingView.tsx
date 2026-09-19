@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
 import {
   ArrowRight,
   Mail,
@@ -147,9 +148,19 @@ export default function LandingView({
           the header out of, so page content doesn't jump under it. */}
       <header className="fixed top-0 inset-x-0 z-40 h-16 flex items-center bg-ringo-bg/80 backdrop-blur-md border-b border-ringo-border">
         <div className="max-w-6xl mx-auto w-full flex items-center justify-between px-5">
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <Image src={logoUrl} alt={appName} width={26} height={26} className="rounded-md object-contain" />
-            <span className="hidden sm:inline font-display font-medium text-ringo-text">{appName}</span>
+          <Link href="/" className="flex items-center shrink-0 text-ringo-text">
+            <BrandLogo
+              logoUrl={logoUrl}
+              appName={appName}
+              variant="responsive"
+              height={26}
+              legacy={
+                <span className="flex items-center gap-2">
+                  <Image src={logoUrl} alt={appName} width={26} height={26} className="rounded-md object-contain" />
+                  <span className="hidden sm:inline font-display font-medium text-ringo-text">{appName}</span>
+                </span>
+              }
+            />
           </Link>
 
           <nav className="hidden lg:flex items-center gap-7" aria-label="Main">
@@ -560,9 +571,19 @@ export default function LandingView({
       <footer className="border-t border-ringo-border">
         <div className="max-w-6xl mx-auto px-5 py-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Image src={logoUrl} alt="" width={22} height={22} className="rounded-md object-contain" />
-              <span className="font-display font-medium text-sm">{appName}</span>
+            <div className="flex items-center mb-3 text-sm">
+              <BrandLogo
+                logoUrl={logoUrl}
+                appName={appName}
+                variant="full"
+                height={24}
+                legacy={
+                  <span className="flex items-center gap-2">
+                    <Image src={logoUrl} alt="" width={22} height={22} className="rounded-md object-contain" />
+                    <span className="font-display font-medium text-sm">{appName}</span>
+                  </span>
+                }
+              />
             </div>
             <p className="text-sm text-ringo-muted leading-relaxed">{t.landing.footerTagline}</p>
           </div>

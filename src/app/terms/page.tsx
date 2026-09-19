@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
 
 export const metadata = { title: "Terms of Service — Ringo Connect" };
 
@@ -13,9 +13,8 @@ export default function TermsPage() {
     <div className="min-h-screen bg-ringo-bg text-ringo-text">
       <header className="border-b border-ringo-border">
         <div className="max-w-3xl mx-auto flex items-center px-5 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Ringo Connect" width={24} height={24} className="rounded-md" />
-            <span className="font-display font-medium">Ringo Connect</span>
+          <Link href="/" className="flex items-center">
+            <BrandLogo variant="full" height={24} />
           </Link>
         </div>
       </header>
