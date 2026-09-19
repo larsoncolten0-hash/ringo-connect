@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Link2, Music, MessageCircle, Receipt, User } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import LanguageToggle from "@/components/LanguageToggle";
 import CustomerAvatar from "./CustomerAvatar";
 
 // The My Ringo chrome — deliberately its OWN navigation, separate from the
@@ -55,7 +56,10 @@ export default function MyRingoShell({
             );
           })}
         </nav>
-        <Link href="/my-ringo/me" className="mt-auto flex items-center gap-2.5 rounded-xl p-2 hover:bg-ringo-muted/10 transition">
+        <div className="mt-auto mb-2 px-1">
+          <LanguageToggle />
+        </div>
+        <Link href="/my-ringo/me" className="flex items-center gap-2.5 rounded-xl p-2 hover:bg-ringo-muted/10 transition">
           <CustomerAvatar name={customer.name} avatarUrl={customer.avatarUrl} className="w-9 h-9 text-xs" />
           <span className="truncate text-sm font-medium">{customer.name}</span>
         </Link>
@@ -66,9 +70,12 @@ export default function MyRingoShell({
         <Link href="/my-ringo" className="font-display text-base font-bold tracking-tight">
           {t.myRingo.title}
         </Link>
-        <Link href="/my-ringo/me" aria-label={t.myRingo.nav.me}>
-          <CustomerAvatar name={customer.name} avatarUrl={customer.avatarUrl} className="w-8 h-8 text-[11px]" />
-        </Link>
+        <div className="flex items-center gap-1">
+          <LanguageToggle />
+          <Link href="/my-ringo/me" aria-label={t.myRingo.nav.me}>
+            <CustomerAvatar name={customer.name} avatarUrl={customer.avatarUrl} className="w-8 h-8 text-[11px]" />
+          </Link>
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-5 sm:ml-60 sm:max-w-none sm:px-8 sm:pb-10 sm:pt-8">

@@ -103,14 +103,21 @@ export function HomeView({
                 booking: t.myRingo.activity.booking,
               }[item.kind];
               return (
-                <li key={item.id} className="flex items-center justify-between gap-3 border-b border-ringo-border/60 px-4 py-3 last:border-0">
-                  <p className="truncate text-sm text-ringo-text">
-                    {label}
-                    {item.profile ? ` · ${item.profile.name}` : ""}
-                  </p>
-                  <span className="shrink-0 text-xs text-ringo-muted" suppressHydrationWarning>
-                    {new Date(item.at).toLocaleDateString(dateLocale, { day: "numeric", month: "short" })}
-                  </span>
+                <li key={item.id} className="border-b border-ringo-border/60 last:border-0">
+                  {/* Opens the Activity page scrolled to (and highlighting) this exact entry. */}
+                  <Link
+                    href={`/my-ringo/activity#activity-${item.id}`}
+                    className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-ringo-muted/[0.05]"
+                  >
+                    <p className="truncate text-sm text-ringo-text">
+                      {label}
+                      {item.profile ? ` · ${item.profile.name}` : ""}
+                    </p>
+                    <span className="flex shrink-0 items-center gap-1.5 text-xs text-ringo-muted" suppressHydrationWarning>
+                      {new Date(item.at).toLocaleDateString(dateLocale, { day: "numeric", month: "short" })}
+                      <ChevronRight size={14} />
+                    </span>
+                  </Link>
                 </li>
               );
             })}

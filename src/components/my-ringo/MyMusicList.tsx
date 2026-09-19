@@ -12,9 +12,20 @@ import type { LibraryTrack } from "@/lib/customer/activity";
 // order is PAID and contains this track, and returns only a short-lived
 // (10 minute) signed URL. Nothing here holds or builds a permanent audio URL,
 // and the 10-second preview mechanism on artist pages is not involved.
+
+// A silent, zero-length WAV. Playing it INSIDE the tap "unlocks" the audio
+// element: Safari and every iOS browser only let an element start playback
+// while a tap is being handled, and fetching the signed URL first means the real
+// play() happens after that moment has passed. Once the element has been started
+// by a tap, setting a new source and playing it afterwards is allowed.
+const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+
 export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
   const { t, locale } = useLanguage();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Which track's signed URL is currently loaded in the element, so a second
+  // tap after a blocked attempt can call play() synchronously inside the tap.
+  const loadedKeyRef = useRef<string | null>(null);
   const [playingKey, setPlayingKey] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<{ key: string; message: string } | null>(null);
@@ -22,6 +33,12 @@ export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
   useEffect(() => {
     const audio = new Audio();
     audio.onended = () => setPlayingKey(null);
+    audio.onerror = () => {
+      // The browser could not load/decode the source — logged so a failure is
+      // diagnosable (MediaError codes: 1 aborted, 2 network, 3 decode, 4 unsupported).
+      if (audio.src && !audio.src.startsWith("data:")) console.error("My Music audio error, code:", audio.error?.code);
+      loadedKeyRef.current = null;
+    };
     audioRef.current = audio;
     return () => {
       audio.pause();
@@ -30,11 +47,17 @@ export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
   }, []);
 
   const signedUrl = async (track: LibraryTrack, download: boolean) => {
-    const res = await fetch(`/api/music/tracks/${track.trackId}/audio?order=${encodeURIComponent(track.orderId)}`, {
-      headers: download ? { "x-download": "1" } : undefined,
-    });
-    const data = await res.json().catch(() => null);
-    return res.ok && typeof data?.url === "string" ? (data.url as string) : null;
+    try {
+      const res = await fetch(`/api/music/tracks/${track.trackId}/audio?order=${encodeURIComponent(track.orderId)}`, {
+        headers: download ? { "x-download": "1" } : undefined,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) console.error("My Music: audio access refused:", res.status, data?.error);
+      return res.ok && typeof data?.url === "string" ? (data.url as string) : null;
+    } catch (err) {
+      console.error("My Music: audio request failed:", err);
+      return null;
+    }
   };
 
   const togglePlay = async (track: LibraryTrack) => {
@@ -48,16 +71,37 @@ export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
       return;
     }
 
+    // Already loaded from an earlier attempt that the browser blocked: play()
+    // right here, synchronously inside this tap.
+    if (loadedKeyRef.current === track.key && audio.src && !audio.src.startsWith("data:")) {
+      try {
+        await audio.play();
+        setPlayingKey(track.key);
+        return;
+      } catch (err) {
+        console.error("My Music playback failed (retry):", (err as any)?.name, (err as any)?.message);
+        loadedKeyRef.current = null;
+      }
+    }
+
+    // Unlock the element inside this tap (see SILENT_WAV), then fetch the URL.
+    audio.src = SILENT_WAV;
+    audio.play().catch(() => {});
+
     setBusyKey(track.key);
     const url = await signedUrl(track, false);
     setBusyKey(null);
     if (!url) return setError({ key: track.key, message: t.myRingo.library.playFailed });
 
     audio.src = url;
+    loadedKeyRef.current = track.key;
     try {
       await audio.play();
       setPlayingKey(track.key);
-    } catch {
+    } catch (err) {
+      // If the browser still blocked it, the signed URL stays loaded so the
+      // next tap can start it immediately.
+      console.error("My Music playback failed:", (err as any)?.name, (err as any)?.message);
       setError({ key: track.key, message: t.myRingo.library.playFailed });
     }
   };

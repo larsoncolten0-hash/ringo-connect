@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarCheck, ChevronRight, History, Link2, Music, Unlink, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -44,6 +45,20 @@ function Chip({ tone, children }: { tone: string; children: React.ReactNode }) {
 export default function ActivityView({ items }: { items: ActivityItem[] }) {
   const { t, locale } = useLanguage();
   const a = t.myRingo.activity;
+
+  // Arriving from Home's Recent Activity (#activity-<id>): scroll to that entry
+  // and highlight it briefly. Plain DOM APIs, same approach as HighlightOnArrival.
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash.startsWith("activity-")) return;
+    const el = document.getElementById(hash);
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    setHighlightId(hash);
+    const timer = setTimeout(() => setHighlightId(null), 2500);
+    return () => clearTimeout(timer);
+  }, []);
   const dateLocale = locale === "fr" ? "fr-FR" : "en-US";
   const dayKey = (iso: string) => new Date(iso).toDateString();
 
@@ -134,7 +149,13 @@ export default function ActivityView({ items }: { items: ActivityItem[] }) {
                     </div>
                   );
                   return (
-                    <li key={item.id} className="border-b border-ringo-border/60 last:border-0">
+                    <li
+                      key={item.id}
+                      id={`activity-${item.id}`}
+                      className={`scroll-mt-20 border-b border-ringo-border/60 transition-colors duration-700 last:border-0 ${
+                        highlightId === `activity-${item.id}` ? "bg-ringo-indigo/10" : ""
+                      }`}
+                    >
                       {item.href ? (
                         <Link href={item.href} className="block transition hover:bg-ringo-muted/[0.05]">
                           {body}
