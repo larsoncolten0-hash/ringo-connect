@@ -19,7 +19,7 @@ export default async function RestaurantOrderRoute({
   searchParams,
 }: {
   params: { username: string };
-  searchParams: { table?: string };
+  searchParams: { table?: string; add?: string };
 }) {
   const supabase = createClient();
 
@@ -50,5 +50,5 @@ export default async function RestaurantOrderRoute({
     table = tableRow;
   }
 
-  return <RestaurantOrderPage profile={profile} table={table} />;
+  return <RestaurantOrderPage profile={profile} table={table} addItemId={searchParams.add || null} />;
 }

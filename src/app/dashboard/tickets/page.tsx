@@ -17,5 +17,12 @@ export default async function TicketsPage() {
     .eq("profile_id", profile.id)
     .order("sort_order");
 
-  return <TicketsEventsList profileId={profile.id} initialEvents={events || []} />;
+  return (
+    <TicketsEventsList
+      profileId={profile.id}
+      initialEvents={events || []}
+      shareProfile={{ username: profile.username, category: profile.category, categories: profile.categories }}
+      siteUrl={process.env.NEXT_PUBLIC_SITE_URL}
+    />
+  );
 }

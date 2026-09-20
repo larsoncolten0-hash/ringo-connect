@@ -15,7 +15,7 @@ import { getBookingConfig, type BookingFieldConfig } from "@/lib/categories";
 // own accent) just without a cart step. POSTs to /api/bookings, which is
 // the only thing that ever writes a real `bookings` row — nothing here is
 // a confirmed booking, only a request (see the confirmation copy below).
-export default function BookingPage({ profile }: { profile: any }) {
+export default function BookingPage({ profile, initialServiceId = "" }: { profile: any; initialServiceId?: string }) {
   const { t, locale } = useLanguage();
   const accent = profile.theme_color || "#D4A954";
   const config = getBookingConfig(profile.category);
@@ -31,7 +31,7 @@ export default function BookingPage({ profile }: { profile: any }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [serviceId, setServiceId] = useState("");
+  const [serviceId, setServiceId] = useState(initialServiceId);
   const [message, setMessage] = useState("");
   const [consentEmail, setConsentEmail] = useState(false);
   const [consentWhatsapp, setConsentWhatsapp] = useState(false);

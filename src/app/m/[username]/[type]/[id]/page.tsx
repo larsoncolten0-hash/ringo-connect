@@ -1,11 +1,43 @@
+import type { Metadata, ResolvingMetadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { generateMetadata as generateProfileMetadata } from "@/lib/profileMetadata";
 import { notFound } from "next/navigation";
 import { profileHasTicketing } from "@/lib/categories";
 import ItemDetailPage from "@/components/music/ItemDetailPage";
 import ProductDetailView from "@/components/catalog/ProductDetailView";
 
 // See src/app/[username]/page.tsx's own comment.
-export { generateMetadata, generateViewport } from "@/lib/profileMetadata";
+export { generateViewport } from "@/lib/profileMetadata";
+
+// The profile's own metadata (PWA manifest, theme color...) with this item's name and picture
+// swapped in, so a shared song / EP / ticket / merch link previews as THAT item.
+export async function generateMetadata(
+  { params }: { params: { username: string; type: string; id: string } },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const base = await generateProfileMetadata({ params }, parent);
+  if (!VALID_TYPES.includes(params.type as ItemType)) return base;
+  const supabase = createClient();
+  const table = { track: "tracks", release: "music_releases", merch: "products", ticket: "events" }[params.type as ItemType];
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select(`name, username, ${table}(*)`)
+    .eq("username", params.username)
+    .eq("published", true)
+    .single();
+  const item = ((profile as any)?.[table] || []).find((x: any) => x.id === params.id);
+  if (!item) return base;
+  const name = item.title || item.name;
+  if (!name) return base;
+  const title = `${name} — ${(profile as any).name || (profile as any).username}`;
+  const image = item.cover_image_url || item.image_urls?.[0] || item.image_url;
+  return {
+    ...base,
+    title,
+    description: item.description || base.description,
+    openGraph: { ...base.openGraph, title, ...(image ? { images: [image] } : {}) },
+  };
+}
 
 // One detail page shared by all four sellable item kinds — a song, an
 // EP/Album, a merch item, or a ticket — reached by tapping the

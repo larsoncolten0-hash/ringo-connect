@@ -5,12 +5,24 @@ import { useRouter } from "next/navigation";
 import { Plus, MapPin, Calendar, Ticket } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import ItemShareButton, { ItemShareProvider } from "@/components/dashboard/ItemShareButton";
 
 // Tickets' own top-level dashboard page — create an event here, then land
 // straight on its full management page (basics, ticket types, Gate
 // Access, Check-in) rather than editing inline in a list row, unlike the
 // old EventsCard/EventRow this replaces.
-export default function TicketsEventsList({ profileId, initialEvents }: { profileId: string; initialEvents: any[] }) {
+export default function TicketsEventsList({
+  profileId,
+  initialEvents,
+  shareProfile,
+  siteUrl,
+}: {
+  profileId: string;
+  initialEvents: any[];
+  // Lets each published event be shared as its own ticket page.
+  shareProfile?: { username: string; category?: string | null; categories?: string[] | null };
+  siteUrl?: string;
+}) {
   const supabase = createClient();
   const router = useRouter();
   const { t, locale } = useLanguage();
@@ -70,10 +82,10 @@ export default function TicketsEventsList({ profileId, initialEvents }: { profil
               ? (event.event_ticket_types as any[]).reduce((sum, tt) => sum + (tt.sold_quantity || 0), 0)
               : event.tickets_sold || 0;
             return (
+              <div key={event.id} className="flex items-stretch gap-2">
               <button
-                key={event.id}
                 onClick={() => router.push(`/dashboard/tickets/${event.id}`)}
-                className="text-left rounded-card border border-ringo-border/70 bg-ringo-surface p-4 flex items-center justify-between gap-3 transition hover:border-ringo-indigo/50"
+                className="flex-1 min-w-0 text-left rounded-card border border-ringo-border/70 bg-ringo-surface p-4 flex items-center justify-between gap-3 transition hover:border-ringo-indigo/50"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ringo-text truncate">{event.title || t.music.untitledEvent}</p>
@@ -103,6 +115,14 @@ export default function TicketsEventsList({ profileId, initialEvents }: { profil
                   {statusLabel[event.status || "published"]}
                 </span>
               </button>
+              {shareProfile && event.status !== "draft" && (
+                <div className="flex items-center rounded-card border border-ringo-border/70 bg-ringo-surface px-2">
+                  <ItemShareProvider profile={shareProfile} siteUrl={siteUrl}>
+                    <ItemShareButton kind="event" id={event.id} title={event.title || ""} imageUrl={event.image_url} />
+                  </ItemShareProvider>
+                </div>
+              )}
+              </div>
             );
           })}
         </div>

@@ -2,6 +2,7 @@ import { sendEmail } from "@/lib/email/provider";
 import { renderAnnouncementEmail } from "@/lib/email/renderAnnouncementEmail";
 import { sendPushToSubscriber } from "@/lib/push/send";
 import { notifyCustomer } from "@/lib/customer/inbox";
+import { itemPath } from "@/lib/deepLinks";
 
 // Shared by both send paths — the owner's manual "Send Announcement" and
 // the one-shot /api/community/notify product action — so there is exactly
@@ -70,15 +71,21 @@ export async function sendAnnouncementToSubscribers(
   const alreadySent = new Set((existingLogs || []).filter((l: any) => l.status === "sent").map((l: any) => l.subscriber_id));
   const toSend = recipients.filter((r: any) => !alreadySent.has(r.id));
 
+  // Straight to the exact item when the announcement points at one (see lib/deepLinks.ts);
+  // the profile-level links below are the fallback when there is no item id.
+  const deepLink = (kind: "product" | "track" | "event") =>
+    announcement.link_ref_id ? `${siteUrl()}${itemPath(profile, kind, announcement.link_ref_id)}` : null;
   const ctaUrl =
     announcement.link_type === "custom"
       ? announcement.link_url
       : announcement.link_type === "product" && announcement.link_ref_id
-      ? `${siteUrl()}/${profile.username}#merch`
+      ? deepLink("product") ?? `${siteUrl()}/${profile.username}#merch`
       : announcement.link_type === "booking"
       ? `${siteUrl()}/${profile.username}/book`
-      : announcement.link_type === "music" || announcement.link_type === "event"
-      ? `${siteUrl()}/${profile.username}`
+      : announcement.link_type === "music"
+      ? deepLink("track") ?? `${siteUrl()}/${profile.username}`
+      : announcement.link_type === "event"
+      ? deepLink("event") ?? `${siteUrl()}/${profile.username}`
       : null;
 
   let sentCount = alreadySent.size;

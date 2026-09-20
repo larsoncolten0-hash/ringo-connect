@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Minus, ShoppingCart, X, Check, Loader2, BellRing } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -20,7 +20,17 @@ type Step = "menu" | "checkout" | "confirmation";
 // (guest ordering); everything the server actually trusts is re-derived
 // from menu_items in /api/orders, never taken from this component's own
 // state — see that route's comments.
-export default function RestaurantOrderPage({ profile, table }: { profile: any; table: { id: string; label: string } | null }) {
+export default function RestaurantOrderPage({
+  profile,
+  table,
+  addItemId = null,
+}: {
+  profile: any;
+  table: { id: string; label: string } | null;
+  // A shared dish link (/r/[username]?add=<id>, from the dish page) arrives with that dish
+  // already in the cart.
+  addItemId?: string | null;
+}) {
   const { t, locale } = useLanguage();
   const accent = profile.theme_color || "#1F9D55";
   const currency = profile.currency || "USD";
@@ -74,6 +84,21 @@ export default function RestaurantOrderPage({ profile, table }: { profile: any; 
       return [...prev, { menuItemId: item.id, name: item.name, price: Number(item.price), quantity: 1, notes: "" }];
     });
   };
+  const addedFromLink = useRef(false);
+  useEffect(() => {
+    if (!addItemId || addedFromLink.current) return;
+    addedFromLink.current = true;
+    const item = items.find((i) => i.id === addItemId);
+    if (item && item.available !== false) addToCart(item);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("add");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+    } catch {
+      // Cosmetic only: a refresh would add the dish once more.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const changeQty = (idx: number, delta: number) => {
     setCart((prev) => {
       const next = [...prev];

@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "@/components/editor/EditorCard";
 import EmptyState from "@/components/editor/EmptyState";
 import SavedPulse, { useSavedPulse } from "@/components/editor/SavedPulse";
+import ItemShareButton, { ItemShareProvider } from "@/components/dashboard/ItemShareButton";
 
 // Same "type things, then click Save" pattern as every other dashboard
 // card (see WhatsAppCard/AboutCard) — nothing here writes to Supabase
@@ -188,6 +189,9 @@ export default function BookingSettingsCard({
           {services.map((s) => (
             <div key={s.id} className="flex items-center gap-2 border border-ringo-border rounded-card px-3 py-2">
               <span className="flex-1 text-sm text-ringo-text truncate">{s.name}</span>
+              <ItemShareProvider profile={{ username }} siteUrl={siteUrl}>
+                <ItemShareButton kind="service" id={s.id} title={s.name || ""} />
+              </ItemShareProvider>
               <button
                 onClick={() => removeService(s.id)}
                 aria-label={t.editor.delete}

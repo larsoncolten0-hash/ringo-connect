@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Disc3, ChevronDown, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import EditorCard from "./EditorCard";
 import ImageUploadField from "./ImageUploadField";
 import { useEditorPreview } from "./EditorPreviewContext";
@@ -107,6 +108,7 @@ export default function MusicReleasesCard({
                   </p>
                   <p className="text-xs text-ringo-muted truncate">{tracks.length} {t.music.tracksCount}</p>
                 </button>
+                <ItemShareButton kind="release" id={release.id} title={release.title || ""} imageUrl={release.cover_image_url} />
                 <ChevronDown size={16} className={`shrink-0 text-ringo-muted transition-transform ${expanded ? "rotate-180" : ""}`} onClick={() => setExpandedId(expanded ? null : release.id)} />
                 <button onClick={() => deleteRelease(release.id)} className="shrink-0 text-ringo-muted hover:text-red-500 p-1">
                   <X size={14} />

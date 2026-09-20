@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion";
 import { GripVertical, ChevronDown, Lock } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import ImageUploadField from "./ImageUploadField";
 import AudioUploadField from "./AudioUploadField";
 import ProtectedAudioUploadField from "./ProtectedAudioUploadField";
@@ -78,6 +79,7 @@ export default function TrackRow({
           <p className="text-xs text-ringo-muted truncate">{track.duration || ""}</p>
         </button>
 
+        <ItemShareButton kind="track" id={track.id} title={track.title || ""} imageUrl={track.cover_image_url} />
         <ChevronDown
           size={16}
           className={`shrink-0 text-ringo-muted transition-transform ${expanded ? "rotate-180" : ""}`}

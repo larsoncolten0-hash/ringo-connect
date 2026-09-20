@@ -22,6 +22,7 @@ export default function CommunityAnnouncementComposer({
   products,
   tracks,
   events,
+  prefill,
 }: {
   profileId: string;
   userId: string;
@@ -29,6 +30,8 @@ export default function CommunityAnnouncementComposer({
   products: any[];
   tracks: any[];
   events: any[];
+  // From a "Share to community" button on an item: its own link, name and photo.
+  prefill?: { link?: string; title?: string; image?: string } | null;
 }) {
   const { t } = useLanguage();
   const router = useRouter();
@@ -37,11 +40,11 @@ export default function CommunityAnnouncementComposer({
 
   const [id, setId] = useState<string | null>(announcement?.id || null);
   const [status, setStatus] = useState<string>(announcement?.status || "draft");
-  const [title, setTitle] = useState(announcement?.title || "");
+  const [title, setTitle] = useState(announcement?.title || prefill?.title || "");
   const [message, setMessage] = useState(announcement?.message || "");
-  const [imageUrl, setImageUrl] = useState<string | null>(announcement?.image_url || null);
-  const [linkType, setLinkType] = useState(announcement?.link_type || "none");
-  const [linkUrl, setLinkUrl] = useState(announcement?.link_url || "");
+  const [imageUrl, setImageUrl] = useState<string | null>(announcement?.image_url || prefill?.image || null);
+  const [linkType, setLinkType] = useState(announcement?.link_type || (prefill?.link ? "custom" : "none"));
+  const [linkUrl, setLinkUrl] = useState(announcement?.link_url || prefill?.link || "");
   const [linkRefId, setLinkRefId] = useState(announcement?.link_ref_id || "");
   // Which channels this announcement goes out on. Drafts saved before the picker existed
   // (channels NULL) default to email + push, which is what they did.

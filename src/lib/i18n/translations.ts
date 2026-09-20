@@ -138,6 +138,16 @@ export const translations = {
     // own confirmation step. Dashboard-side copy (Overview/Subscribers/
     // Announcements/Settings) lives under `community` instead.
     // Push notifications sent to a Ringo customer's My Ringo devices for events that are not
+    // Dashboard "Share" control on each item a creator adds (merch, song, EP/album, event, menu
+    // item, service): shares that item's own page.
+    itemShare: {
+      share: "Share this item",
+      copyLink: "Copy link",
+      linkCopied: "Link copied",
+      whatsapp: "Share on WhatsApp",
+      moreOptions: "More options…",
+      toCommunity: "Share to community",
+    },
     // loyalty (loyalty wording lives under loyalty.notify).
     customerPush: {
       bookingConfirmed: {
@@ -1380,6 +1390,8 @@ export const translations = {
       deliveryFeeLine: "Delivery fee",
       totalLabel: "Total",
       backToMenu: "Back to menu",
+      viewFullMenu: "View full menu",
+      prepTimeAbout: (n: number) => `Ready in about ${n} min`,
       statusPending: "Order received — waiting for confirmation.",
       statusAccepted: "Your order has been accepted.",
       statusPreparing: "Your order is being prepared.",
@@ -2966,6 +2978,15 @@ export const translations = {
       promptBodyDashboard: "Soyez averti dès qu'une réservation, commande, vente ou un nouvel abonné arrive — directement sur cet appareil.",
       promptBodyAdmin: "Soyez averti des nouveaux membres payants, demandes d'inscription et demandes de paiement — directement sur cet appareil.",
     },
+    // Bouton « Partager » du tableau de bord sur chaque élément ajouté (merch, titre, EP/album, événement, plat, service) : partage la page propre de cet élément.
+    itemShare: {
+      share: "Partager cet élément",
+      copyLink: "Copier le lien",
+      linkCopied: "Lien copié",
+      whatsapp: "Partager sur WhatsApp",
+      moreOptions: "Plus d'options…",
+      toCommunity: "Partager à la communauté",
+    },
     // Notifications push envoyées aux appareils My Ringo d'un client Ringo pour les événements hors fidélité (les textes de fidélité sont dans loyalty.notify).
     customerPush: {
       bookingConfirmed: {
@@ -4157,6 +4178,8 @@ export const translations = {
       deliveryFeeLine: "Frais de livraison",
       totalLabel: "Total",
       backToMenu: "Retour au menu",
+      viewFullMenu: "Voir tout le menu",
+      prepTimeAbout: (n: number) => `Prêt en environ ${n} min`,
       statusPending: "Commande reçue — en attente de confirmation.",
       statusAccepted: "Votre commande a été acceptée.",
       statusPreparing: "Votre commande est en préparation.",

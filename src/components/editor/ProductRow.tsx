@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion";
 import { GripVertical, ChevronDown, ImagePlus, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import { formatPrice } from "@/lib/currency";
 import ImageGalleryUploadField from "./ImageGalleryUploadField";
 
@@ -111,6 +112,9 @@ export default function ProductRow({
           <p className="text-xs text-ringo-muted truncate">{product.price ? formatPrice(product.price, currency) : ""}</p>
         </button>
 
+        {product.available !== false && (
+          <ItemShareButton kind="product" id={product.id} title={product.name || ""} imageUrl={product.image_urls?.[0] || product.image_url} />
+        )}
         <ChevronDown
           size={16}
           className={`shrink-0 text-ringo-muted transition-transform ${expanded ? "rotate-180" : ""}`}

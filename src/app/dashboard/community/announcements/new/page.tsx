@@ -3,7 +3,7 @@ import CommunityAnnouncementComposer from "@/components/dashboard/CommunityAnnou
 
 export const dynamic = "force-dynamic";
 
-export default async function CommunityAnnouncementComposerPage({ searchParams }: { searchParams: { id?: string } }) {
+export default async function CommunityAnnouncementComposerPage({ searchParams }: { searchParams: { id?: string; link?: string; title?: string; image?: string } }) {
   const { supabase, user, profile } = await requireOwnProfile();
 
   let announcement = null;
@@ -16,6 +16,17 @@ export default async function CommunityAnnouncementComposerPage({ searchParams }
       .single();
     announcement = data;
   }
+
+  // A "Share to community" button on an item passes its link, name and photo. Only http(s)
+  // links are accepted; everything is length-limited and stays editable in the composer.
+  const safeUrl = (v?: string) => (v && v.length <= 2000 && /^https?:\/\//i.test(v) ? v : undefined);
+  const prefill = !announcement
+    ? {
+        link: safeUrl(searchParams.link),
+        title: searchParams.title?.slice(0, 200),
+        image: safeUrl(searchParams.image),
+      }
+    : null;
 
   const [{ data: products }, { data: tracks }, { data: events }] = await Promise.all([
     supabase.from("products").select("id, name").eq("profile_id", profile.id).order("sort_order"),
@@ -31,6 +42,7 @@ export default async function CommunityAnnouncementComposerPage({ searchParams }
       products={products || []}
       tracks={tracks || []}
       events={events || []}
+      prefill={prefill}
     />
   );
 }

@@ -26,6 +26,7 @@ import PixelsCard from "@/components/editor/PixelsCard";
 import { EditorCardBareGroup } from "@/components/editor/EditorCard";
 import { EditorPreviewProvider, useEditorPreview } from "@/components/editor/EditorPreviewContext";
 import LivePreviewPanel from "@/components/editor/LivePreviewPanel";
+import { ItemShareProvider } from "@/components/dashboard/ItemShareButton";
 import { getCategory, getMusicRole, profileHasCategory, profileHasTicketing } from "@/lib/categories";
 
 export default function Editor({
@@ -98,6 +99,7 @@ function EditorCards({
   const initialSection = searchParams.get("section");
 
   return (
+    <ItemShareProvider profile={draft as any} siteUrl={siteUrl}>
     <div className="max-w-6xl mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
       <div className="max-w-2xl w-full mx-auto lg:mx-0 flex flex-col gap-5">
         {/* data-tour target for the onboarding tour's final "share your
@@ -302,5 +304,6 @@ function EditorCards({
 
       <LivePreviewPanel />
     </div>
+    </ItemShareProvider>
   );
 }
