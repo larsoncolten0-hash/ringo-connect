@@ -3,8 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, Check, Loader2, ChevronsUpDown, ChevronRight, type LucideIcon } from "lucide-react";
-import { useLanguage } from "@/components/LanguageProvider";
+import { Menu, X, Check, Loader2, ChevronsUpDown, type LucideIcon } from "lucide-react";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
 import { useOrgSwitch } from "@/lib/team/useOrgSwitch";
 import { orgDisplayName, orgDisplaySubtitle, type OrgOption } from "@/lib/team/orgDisplay";
@@ -22,9 +21,8 @@ import { orgDisplayName, orgDisplaySubtitle, type OrgOption } from "@/lib/team/o
 // only — not the header this hamburger lives in — and doubles as the
 // "tap outside to close" target, since the panel itself has no document
 // click-outside listener of its own.
-// How many of a section's own pages the menu previews before "See more".
-const PREVIEW_COUNT = 2;
-
+// Sections only: each section's own pages are surfaced as preview cards on the section's
+// first page (see OverviewSection), not listed here.
 export default function MobileMoreMenu({
   items,
   label,
@@ -32,10 +30,7 @@ export default function MobileMoreMenu({
   organizations = [],
   currentOrgId,
 }: {
-  // `children` = the section's own pages: the first PREVIEW_COUNT show under
-  // it in the menu, with a "See more" link to the section itself when there
-  // are more than that.
-  items: { href: string; label: string; icon: LucideIcon; exact?: boolean; children?: { href: string; label: string; icon: LucideIcon }[] }[];
+  items: { href: string; label: string; icon: LucideIcon; exact?: boolean }[];
   label: string;
   isActive: (href: string, exact?: boolean) => boolean;
   // The mobile equivalent of the desktop sidebar's OrgSwitcher — only
@@ -47,7 +42,6 @@ export default function MobileMoreMenu({
   currentOrgId?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const { t } = useLanguage();
   const { switchTo, switchingTo } = useOrgSwitch();
   const showSwitcher = organizations.length > 1 && !!currentOrgId;
 
@@ -116,10 +110,8 @@ export default function MobileMoreMenu({
                 </div>
               )}
               <nav className="flex flex-col px-5 py-3" aria-label={label}>
-              {items.map(({ href, label: itemLabel, icon: Icon, exact, children }) => {
+              {items.map(({ href, label: itemLabel, icon: Icon, exact }) => {
                 const active = isActive(href, exact);
-                const preview = (children || []).slice(0, PREVIEW_COUNT);
-                const hasMore = (children || []).length > PREVIEW_COUNT;
                 return (
                   <div key={href} className="border-b border-ringo-border/60 last:border-0">
                     <Link
@@ -132,33 +124,6 @@ export default function MobileMoreMenu({
                       <Icon size={17} strokeWidth={active ? 2.3 : 2} />
                       {itemLabel}
                     </Link>
-                    {preview.length > 0 && (
-                      <div className="flex flex-col pb-2 pl-[29px]">
-                        {preview.map(({ href: childHref, label: childLabel, icon: ChildIcon }) => (
-                          <Link
-                            key={childHref}
-                            href={childHref}
-                            onClick={() => setOpen(false)}
-                            className={`flex items-center gap-2.5 py-1.5 text-[13px] transition-colors ${
-                              isActive(childHref) ? "text-ringo-indigo font-medium" : "text-ringo-muted hover:text-ringo-text"
-                            }`}
-                          >
-                            <ChildIcon size={14} />
-                            {childLabel}
-                          </Link>
-                        ))}
-                        {hasMore && (
-                          <Link
-                            href={href}
-                            onClick={() => setOpen(false)}
-                            className="flex items-center gap-1 py-1.5 text-xs font-semibold text-ringo-indigo"
-                          >
-                            {t.nav.seeMore}
-                            <ChevronRight size={13} />
-                          </Link>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })}

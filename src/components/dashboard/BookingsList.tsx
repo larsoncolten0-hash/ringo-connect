@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Inbox, Clock, CheckCircle2, ListChecks, ChevronLeft, ChevronRight } from "lucide-react";
+import { Inbox, Clock, CheckCircle2, ListChecks, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import StatCard from "@/components/analytics/StatCard";
 import EmptyState from "@/components/editor/EmptyState";
 import { BOOKING_STATUS_COLOR } from "@/lib/bookingStatus";
+import OverviewSection from "@/components/dashboard/OverviewSection";
 
 export default function BookingsList({
   bookings,
@@ -16,6 +17,8 @@ export default function BookingsList({
   pendingCount,
   confirmedCount,
   completedCount,
+  servicesCount,
+  username,
 }: {
   bookings: any[];
   bookingsEnabled: boolean;
@@ -25,6 +28,8 @@ export default function BookingsList({
   pendingCount: number;
   confirmedCount: number;
   completedCount: number;
+  servicesCount: number;
+  username: string;
 }) {
   const { t, locale } = useLanguage();
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -47,6 +52,18 @@ export default function BookingsList({
           </Link>
         </div>
       )}
+
+      <OverviewSection title={t.bookings.settingsTab} icon={Settings} href="/dashboard/bookings/settings">
+        <div className="flex flex-col gap-1.5 text-sm">
+          <p className={`font-medium ${bookingsEnabled ? "text-ringo-teal" : "text-ringo-muted"}`}>
+            {bookingsEnabled ? t.bookings.overviewSettingsOn : t.bookings.overviewSettingsOff}
+          </p>
+          <p className="text-ringo-muted">{t.bookings.overviewServices(servicesCount)}</p>
+          <p className="text-ringo-muted truncate">
+            {t.bookings.overviewBookingPage}: <span className="text-ringo-text">/{username}/book</span>
+          </p>
+        </div>
+      </OverviewSection>
 
       <div className="rounded-card border border-ringo-border/70 bg-ringo-surface shadow-[0_1px_2px_rgba(15,23,42,0.04)] overflow-hidden">
         {bookings.length === 0 ? (

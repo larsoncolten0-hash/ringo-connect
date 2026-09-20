@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award, Gift, ClipboardList, ChefHat, Table2, TrendingUp, Wallet, Settings } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award, Gift } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
@@ -197,13 +197,8 @@ export default function DashboardShell({
     // is org-aware (resolves the active organization, not just an owned
     // profile) and RestaurantTabs filters its own sub-nav to the viewer's
     // actual permissions — see that component's own comment.
-    // `children` = the section's own sub-pages (mirroring RestaurantTabs/
-    // MusicTabs/BookingsTabs) — the hamburger menu previews the first few
-    // under the section with a "See more" link. Restaurant's sub-pages are
-    // permission-filtered per staff role inside RestaurantTabs, which this
-    // shell can't see, so staff get just the section link (no preview)
-    // rather than links to pages they may not be allowed to open; an owner
-    // has every permission, so their preview is always accurate.
+    // The hamburger lists sections only; a section's own pages are reached
+    // from its first page (preview cards with "See more") and its tab strip.
     ...(isRestaurant
       ? [
           {
@@ -211,15 +206,6 @@ export default function DashboardShell({
             label: t.nav.restaurant,
             icon: UtensilsCrossed,
             core: false,
-            children: organization?.isStaff
-              ? []
-              : [
-                  { href: "/dashboard/restaurant/orders", label: t.restaurant.ordersLabel, icon: ClipboardList },
-                  { href: "/dashboard/restaurant/kitchen", label: t.restaurant.kitchenTitle, icon: ChefHat },
-                  { href: "/dashboard/restaurant/tables", label: t.restaurant.tablesTitle, icon: Table2 },
-                  { href: "/dashboard/restaurant/sales", label: t.restaurant.salesTitle, icon: TrendingUp },
-                  { href: "/dashboard/restaurant/customers", label: t.restaurant.customersTitle, icon: Users },
-                ],
           },
         ]
       : []),
@@ -243,12 +229,6 @@ export default function DashboardShell({
             label: t.nav.musicSales,
             icon: Music2,
             core: false,
-            children: [
-              { href: "/dashboard/music/orders", label: t.restaurant.ordersLabel, icon: ClipboardList },
-              { href: "/dashboard/music/sales", label: t.restaurant.salesTitle, icon: TrendingUp },
-              { href: "/dashboard/music/customers", label: t.restaurant.customersTitle, icon: Users },
-              { href: "/dashboard/music/earnings", label: t.music.earningsTab, icon: Wallet },
-            ],
           },
         ]
       : []),
@@ -267,7 +247,6 @@ export default function DashboardShell({
             label: t.nav.bookings,
             icon: CalendarCheck,
             core: false,
-            children: [{ href: "/dashboard/bookings/settings", label: t.bookings.settingsTab, icon: Settings }],
           },
         ]
       : []),

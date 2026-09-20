@@ -12,7 +12,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: { p
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
 
-  const [{ data: bookings, count }, { count: pendingCount }, { count: confirmedCount }, { count: completedCount }] =
+  const [{ data: bookings, count }, { count: pendingCount }, { count: confirmedCount }, { count: completedCount }, { count: servicesCount }] =
     await Promise.all([
       supabase
         .from("bookings")
@@ -23,6 +23,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: { p
       supabase.from("bookings").select("id", { count: "exact", head: true }).eq("profile_id", profile.id).eq("status", "pending"),
       supabase.from("bookings").select("id", { count: "exact", head: true }).eq("profile_id", profile.id).eq("status", "confirmed"),
       supabase.from("bookings").select("id", { count: "exact", head: true }).eq("profile_id", profile.id).eq("status", "completed"),
+      supabase.from("booking_services").select("id", { count: "exact", head: true }).eq("profile_id", profile.id),
     ]);
 
   return (
@@ -35,6 +36,8 @@ export default async function BookingsPage({ searchParams }: { searchParams: { p
       pendingCount={pendingCount ?? 0}
       confirmedCount={confirmedCount ?? 0}
       completedCount={completedCount ?? 0}
+      servicesCount={servicesCount ?? 0}
+      username={profile.username}
     />
   );
 }

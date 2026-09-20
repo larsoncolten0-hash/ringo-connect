@@ -1,10 +1,17 @@
 "use client";
 
-import Link from "next/link";
+import { ClipboardList, TrendingUp, Users, Wallet } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { STATUS_COLOR } from "@/lib/orderStatus";
+import OverviewSection from "@/components/dashboard/OverviewSection";
 
+export type MusicSalesSnapshot = { todayRevenue: number; last7Revenue: number; prev7Revenue: number; last7Orders: number };
+export type MusicRankedCustomer = { name: string; amount: number };
+export type MusicEarningsSnapshot = { currency: string; available: number; pending: number; paid: number };
+
+// The Sales section's first page: the headline numbers, then a preview card for each of the
+// section's other pages (Orders, Sales, Customers, Earnings), each with a "See more" link.
 export default function MusicOverview({
   artistName,
   currency,
@@ -17,6 +24,10 @@ export default function MusicOverview({
   bestSellingSong,
   bestSellingRelease,
   bestSellingMerch,
+  salesSnapshot,
+  topFans,
+  topSupporters,
+  earnings,
 }: {
   artistName: string;
   currency: string;
@@ -29,6 +40,11 @@ export default function MusicOverview({
   bestSellingSong: string | null;
   bestSellingRelease: string | null;
   bestSellingMerch: string | null;
+  salesSnapshot: MusicSalesSnapshot;
+  topFans: MusicRankedCustomer[];
+  topSupporters: MusicRankedCustomer[];
+  // Null when earnings can't be read (nothing to preview, so the card is hidden).
+  earnings: MusicEarningsSnapshot[] | null;
 }) {
   const { t, locale } = useLanguage();
   const bestSellers = [
@@ -36,6 +52,11 @@ export default function MusicOverview({
     bestSellingRelease && { label: t.music.bestSellingRelease, value: bestSellingRelease },
     bestSellingMerch && { label: t.music.bestSellingMerch, value: bestSellingMerch },
   ].filter(Boolean) as { label: string; value: string }[];
+
+  const trendPct =
+    salesSnapshot.prev7Revenue > 0
+      ? Math.round(((salesSnapshot.last7Revenue - salesSnapshot.prev7Revenue) / salesSnapshot.prev7Revenue) * 100)
+      : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -62,13 +83,7 @@ export default function MusicOverview({
         <p className="text-lg font-bold text-ringo-text">{totalItemsSold}</p>
       </div>
 
-      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-ringo-text">{t.music.recentOrdersMusic}</h2>
-          <Link href="/dashboard/music/orders" className="text-xs font-medium text-ringo-indigo">
-            {t.restaurant.ordersLabel}
-          </Link>
-        </div>
+      <OverviewSection title={t.music.recentOrdersMusic} icon={ClipboardList} href="/dashboard/music/orders">
         {recentOrders.length === 0 && <p className="text-sm text-ringo-muted">{t.restaurant.noOrdersYet}</p>}
         <div className="flex flex-col gap-2">
           {recentOrders.map((o: any) => (
@@ -84,19 +99,101 @@ export default function MusicOverview({
             </div>
           ))}
         </div>
-      </div>
+      </OverviewSection>
 
-      {bestSellers.length > 0 && (
-        <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5">
-          <div className="flex flex-col gap-1.5">
-            {bestSellers.map((b) => (
-              <div key={b.label} className="flex items-center justify-between text-sm">
-                <span className="text-ringo-muted">{b.label}</span>
-                <span className="text-ringo-text font-medium">{b.value}</span>
+      <OverviewSection title={t.restaurant.salesTitle} icon={TrendingUp} href="/dashboard/music/sales">
+        {totalOrders === 0 && salesSnapshot.last7Revenue === 0 ? (
+          <p className="text-sm text-ringo-muted">{t.music.overviewNoSalesYet}</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: t.music.overviewToday, value: formatPrice(salesSnapshot.todayRevenue, currency, locale) },
+                { label: t.music.overviewLast7Days, value: formatPrice(salesSnapshot.last7Revenue, currency, locale) },
+                {
+                  label: t.music.overviewAvgOrder,
+                  value: formatPrice(salesSnapshot.last7Orders > 0 ? salesSnapshot.last7Revenue / salesSnapshot.last7Orders : 0, currency, locale),
+                },
+              ].map((m) => (
+                <div key={m.label}>
+                  <p className="text-xs text-ringo-muted mb-0.5">{m.label}</p>
+                  <p className="text-sm font-bold text-ringo-text" suppressHydrationWarning>
+                    {m.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {trendPct !== null && (
+              <p className={`text-xs font-medium ${trendPct >= 0 ? "text-ringo-teal" : "text-red-500"}`}>{t.music.overviewTrend(trendPct)}</p>
+            )}
+            {bestSellers.length > 0 && (
+              <div className="flex flex-col gap-1.5 pt-3 border-t border-ringo-border/50">
+                {bestSellers.map((b) => (
+                  <div key={b.label} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-ringo-muted">{b.label}</span>
+                    <span className="text-ringo-text font-medium text-right truncate">{b.value}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        </div>
+        )}
+      </OverviewSection>
+
+      <OverviewSection title={t.restaurant.customersTitle} icon={Users} href="/dashboard/music/customers">
+        {topFans.length === 0 && topSupporters.length === 0 ? (
+          <p className="text-sm text-ringo-muted">{t.music.overviewNoCustomers}</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              { title: t.music.overviewTopFans, rows: topFans },
+              { title: t.music.overviewTopSupporters, rows: topSupporters },
+            ]
+              .filter((g) => g.rows.length > 0)
+              .map((g) => (
+                <div key={g.title}>
+                  <p className="text-xs text-ringo-muted mb-1.5">{g.title}</p>
+                  {g.rows.map((r, i) => (
+                    <div key={`${r.name}-${i}`} className="flex items-center justify-between gap-3 text-sm py-1">
+                      <span className="text-ringo-text truncate">
+                        {i + 1}. {r.name}
+                      </span>
+                      <span className="text-ringo-text font-medium shrink-0" suppressHydrationWarning>
+                        {formatPrice(r.amount, currency, locale)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+          </div>
+        )}
+      </OverviewSection>
+
+      {earnings && (
+        <OverviewSection title={t.music.earningsTab} icon={Wallet} href="/dashboard/music/earnings">
+          {earnings.length === 0 ? (
+            <p className="text-sm text-ringo-muted">{t.music.overviewNoEarnings}</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {earnings.map((e) => (
+                <div key={e.currency} className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: t.music.overviewAvailable, value: e.available },
+                    { label: t.music.overviewPending, value: e.pending },
+                    { label: t.music.overviewPaidOut, value: e.paid },
+                  ].map((m) => (
+                    <div key={m.label}>
+                      <p className="text-xs text-ringo-muted mb-0.5">{m.label}</p>
+                      <p className="text-sm font-bold text-ringo-text" suppressHydrationWarning>
+                        {formatPrice(m.value, e.currency, locale)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </OverviewSection>
       )}
     </div>
   );
