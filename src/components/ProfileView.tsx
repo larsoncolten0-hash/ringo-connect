@@ -32,6 +32,7 @@ import BookingButton from "./BookingButton";
 import AddToHomeScreen from "./AddToHomeScreen";
 import ConnectButton from "./connect/ConnectButton";
 import RegisterServiceWorker from "./RegisterServiceWorker";
+import CatalogSection from "@/components/catalog/CatalogSection";
 import AppBadgeReset from "./AppBadgeReset";
 
 export default function ProfileView({
@@ -767,143 +768,25 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           )}
 
           {catalogProducts.length > 0 && (
-            <div id="merch" className="flex flex-col gap-3 scroll-mt-6">
-              <button
-                onClick={() => setShowCatalog((v) => !v)}
-                className={`flex items-center justify-between p-3.5 transition active:scale-[0.98] ${radiusClass}`}
-                style={{
-                  border: `1px solid ${contentBorderTint}`,
-                  backgroundColor: showCatalog ? hexToRgba(accent, 0.08) : "transparent",
-                }}
-              >
-                <span className={`flex items-center gap-2 ${isMusic ? "text-base font-bold" : "text-sm font-semibold"}`}>
-                  <ShoppingBag size={isMusic ? 17 : 16} style={{ color: accent }} />
-                  {catalogLabel}
-                  <span style={{ opacity: 0.5 }}>({profile.products.length})</span>
-                </span>
-                <ChevronDown
-                  size={16}
-                  className={`transition-transform ${showCatalog ? "rotate-180" : ""}`}
-                  style={{ opacity: 0.6 }}
-                />
-              </button>
-
-              <AnimatePresence initial={false}>
-                {showCatalog && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25, ease: "easeInOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="grid grid-cols-2 gap-3">
-                      {catalogProducts
-                        .sort((a: any, b: any) => a.sort_order - b.sort_order)
-                        .map((product: any) => (
-                          <div
-                            key={product.id}
-                            className={`overflow-hidden transition hover:-translate-y-0.5 ${radiusClass}`}
-                            style={{ border: `1px solid ${contentBorderTint}` }}
-                          >
-                            {isMusic ? (
-                              // Every Music merch item gets a detail page
-                              // (see ItemDetailPage.tsx's merch branch) —
-                              // the photo itself is clickable there,
-                              // independent of the Buy Now CTA below.
-                              <a href={`/m/${profile.username}/merch/${product.id}`} aria-label={product.name}>
-                                <ImageGallery
-                                  images={product.image_urls?.length ? product.image_urls : [product.image_url]}
-                                  alt={product.name}
-                                  className="w-full aspect-square"
-                                  imgClassName="object-cover"
-                                />
-                              </a>
-                            ) : (
-                              <ImageGallery
-                                images={product.image_urls?.length ? product.image_urls : [product.image_url]}
-                                alt={product.name}
-                                className="w-full aspect-square"
-                                imgClassName="object-cover"
-                              />
-                            )}
-                            <div className="p-3">
-                              <p className="text-sm font-semibold truncate">{product.name}</p>
-                              {product.price && (
-                                <p
-                                  className="text-sm font-bold mt-0.5"
-                                  style={{ color: accent }}
-                                  suppressHydrationWarning
-                                >
-                                  {formatPrice(product.price, profile.currency)}
-                                </p>
-                              )}
-                              {isMusic ? (
-                                // Opens the merch item's own detail page
-                                // (/m/[username]/merch/[id]) instead of
-                                // buying immediately — that page shows the
-                                // full gallery/description and resolves the
-                                // actual CTA (the creator's landing link, or
-                                // real in-house checkout when there isn't
-                                // one), same priority this card used to
-                                // apply directly.
-                                <a
-                                  href={`/m/${profile.username}/merch/${product.id}`}
-                                  onClick={() =>
-                                    logClick("product", product.id, {
-                                      name: product.name,
-                                      price: product.price ? Number(product.price) : null,
-                                      currency: profile.currency,
-                                    })
-                                  }
-                                  className="flex items-center justify-center gap-1.5 text-xs font-semibold py-2 mt-2.5 rounded-full transition hover:brightness-95 active:scale-[0.97]"
-                                  style={{ backgroundColor: accent, color: "#171009" }}
-                                >
-                                  <ShoppingCart size={13} />
-                                  {t.music.buyNowLabel}
-                                </a>
-                              ) : (
-                                // Full-width, stacked CTAs — the old side-by-side
-                                // tiny icon buttons were cramped on a phone-width
-                                // half-grid card; a real tap target beats a
-                                // compact one here.
-                                <div className="flex flex-col gap-1.5 mt-2.5">
-                                  {product.landing_url && (
-                                    <a
-                                      href={product.landing_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={() =>
-                                        logClick("product", product.id, {
-                                          name: product.name,
-                                          price: product.price ? Number(product.price) : null,
-                                          currency: profile.currency,
-                                        })
-                                      }
-                                      className={`flex items-center justify-center gap-1.5 text-xs font-medium py-2 transition hover:brightness-95 active:scale-[0.97] ${radiusClass}`}
-                                      style={{ border: `1px solid ${borderTint}` }}
-                                    >
-                                      <ExternalLink size={12} />
-                                      {t.profilePage.viewDetails}
-                                    </a>
-                                  )}
-                                  <WhatsAppButton
-                                    number={profile.whatsapp_number}
-                                    message={product.whatsapp_message || `Hi, I'm interested in ${product.name}`}
-                                    radiusClass={radiusClass}
-                                    buttonStyle={linkButtonStyle}
-                                    onClick={() => logClick("whatsapp", product.id, { name: product.name })}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <CatalogSection
+              label={catalogLabel}
+              products={catalogProducts}
+              username={profile.username}
+              currency={profile.currency || "USD"}
+              isMusic={isMusic}
+              accent={accent}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              squareCorners={profile.button_radius === "square"}
+              preview={preview}
+              onOpen={(product) =>
+                logClick("product", product.id, {
+                  name: product.name,
+                  price: product.price ? Number(product.price) : null,
+                  currency: profile.currency,
+                })
+              }
+            />
           )}
 
           {hasTicketing && (

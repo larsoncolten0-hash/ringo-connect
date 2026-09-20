@@ -79,7 +79,6 @@ export default function ItemDetailPage({
       <div className="max-w-md mx-auto px-4 py-5">
         {type === "track" && <TrackDetail item={item} accent={accent} currency={currency} locale={locale} username={username} t={t} playingId={playingId} togglePlay={togglePlay} whatsappNumber={cleanNumber} />}
         {type === "release" && <ReleaseDetail item={item} tracks={profile.tracks || []} accent={accent} currency={currency} locale={locale} username={username} t={t} playingId={playingId} togglePlay={togglePlay} />}
-        {type === "merch" && <MerchDetail item={item} accent={accent} currency={currency} locale={locale} username={username} t={t} whatsappNumber={cleanNumber} />}
         {type === "ticket" && <TicketDetail item={item} accent={accent} currency={currency} locale={locale} username={username} t={t} whatsappNumber={cleanNumber} />}
       </div>
     </div>
@@ -242,78 +241,6 @@ function ReleaseDetail({ item, tracks, accent, currency, locale, username, t, pl
         <p className="text-sm text-center py-2" style={{ opacity: 0.5 }}>
           {t.music.detailNotForSale}
         </p>
-      )}
-    </div>
-  );
-}
-
-function MerchDetail({ item, accent, currency, locale, username, t, whatsappNumber }: any) {
-  const soldOut = item.inventory_count === 0;
-
-  return (
-    <div className="flex flex-col gap-4">
-      {item.image_urls?.length || item.image_url ? (
-        <ImageGallery
-          images={item.image_urls?.length ? item.image_urls : [item.image_url]}
-          alt={item.name}
-          className="w-full aspect-square rounded-2xl"
-          imgClassName="object-cover"
-        />
-      ) : (
-        <CoverImage src={null} icon={ShoppingBag} accent={accent} />
-      )}
-
-      <div>
-        <p className="font-display text-xl font-bold">{item.name}</p>
-        {item.price != null && (
-          <p className="text-lg font-bold mt-0.5" style={{ color: accent }} suppressHydrationWarning>
-            {formatPrice(item.price, currency, locale)}
-          </p>
-        )}
-      </div>
-
-      {item.description && (
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ opacity: 0.5 }}>
-            {t.music.detailAboutHeading}
-          </p>
-          <p className="text-sm" style={{ opacity: 0.8 }}>{item.description}</p>
-        </div>
-      )}
-
-      {soldOut ? (
-        <p className="text-sm text-center py-3 font-semibold rounded-full" style={{ backgroundColor: "#F3F4F6", opacity: 0.6 }}>
-          {t.music.soldOut}
-        </p>
-      ) : item.landing_url ? (
-        <a
-          href={item.landing_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white"
-          style={{ backgroundColor: accent }}
-        >
-          <ExternalLink size={15} />
-          {t.music.buyNowLabel}
-        </a>
-      ) : (
-        <Link
-          href={`/m/${username}?add=merch:${item.id}`}
-          className="flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white"
-          style={{ backgroundColor: accent }}
-        >
-          <ShoppingCart size={15} />
-          {t.music.shopMerch}
-        </Link>
-      )}
-
-      {whatsappNumber && (
-        <WhatsAppButton
-          number={whatsappNumber}
-          message={item.whatsapp_message || `Hi, I'm interested in ${item.name}`}
-          radiusClass="rounded-full"
-          buttonStyle={{ border: "1px solid #E5E7EB" }}
-        />
       )}
     </div>
   );

@@ -12,6 +12,13 @@ export const translations = {
       linksHeading: "Links",
       catalogHeading: "Catalog",
       viewDetails: "View details",
+      // Premium catalog cards + product detail page (src/components/catalog/).
+      viewItem: "View",
+      readMore: "Read more",
+      showLess: "Show less",
+      youMayAlsoLike: "You may also like",
+      onlyFewLeft: (n: number) => `Only ${n} left`,
+      photosCount: (n: number) => `${n} photos`,
       verifiedBadge: "Verified",
       // "Chef at Mama's Kitchen" — the public staff-role badge (see
       // ProfileView.tsx). One function, not two separate strings either
@@ -2822,6 +2829,12 @@ export const translations = {
       linksHeading: "Liens",
       catalogHeading: "Catalogue",
       viewDetails: "Voir les détails",
+      viewItem: "Voir",
+      readMore: "Lire la suite",
+      showLess: "Réduire",
+      youMayAlsoLike: "Vous aimerez aussi",
+      onlyFewLeft: (n: number) => `Plus que ${n} en stock`,
+      photosCount: (n: number) => `${n} photos`,
       verifiedBadge: "Certifié",
       staffBadge: (role: string, org: string) => `${role} chez ${org}`,
       share: "Partager",

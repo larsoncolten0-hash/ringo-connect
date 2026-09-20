@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { profileHasTicketing } from "@/lib/categories";
 import ItemDetailPage from "@/components/music/ItemDetailPage";
+import ProductDetailView from "@/components/catalog/ProductDetailView";
 
 // See src/app/[username]/page.tsx's own comment.
 export { generateMetadata, generateViewport } from "@/lib/profileMetadata";
@@ -55,6 +56,18 @@ export default async function ItemDetailRoute({
         (profile.events || []).find((e: any) => e.id === params.id && e.status !== "draft");
 
   if (!item) return notFound();
+
+  // Merch gets the same premium product page every other category's catalog
+  // items have (see components/catalog/ProductDetailView) — with the
+  // storefront-checkout hand-off it always had; songs, EPs/albums and
+  // tickets keep their own pages.
+  if (type === "merch") {
+    const related = (profile.products || [])
+      .filter((p: any) => p.id !== item.id && p.available !== false)
+      .sort((a: any, b: any) => a.sort_order - b.sort_order)
+      .slice(0, 8);
+    return <ProductDetailView profile={profile} product={item} related={related} isMusic />;
+  }
 
   return <ItemDetailPage profile={profile} type={type} item={item} />;
 }
