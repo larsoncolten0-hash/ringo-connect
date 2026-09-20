@@ -21,17 +21,26 @@ export type MyConnection = {
  * published, since their public page would 404.
  */
 export async function listActiveConnections(customerId: string, limit = 100): Promise<MyConnection[]> {
+  return listConnectionsByStatus(customerId, "active", limit);
+}
+
+/** Connections the customer disconnected from, so they can reconnect in one tap. Same rules as above. */
+export async function listDisconnectedConnections(customerId: string, limit = 100): Promise<MyConnection[]> {
+  return listConnectionsByStatus(customerId, "disconnected", limit);
+}
+
+async function listConnectionsByStatus(customerId: string, status: "active" | "disconnected", limit: number): Promise<MyConnection[]> {
   const { data, error } = await createAdminClient()
     .from("customer_connections")
     .select("id, is_favorite, connected_at, profiles!inner(id, name, username, avatar_url, category, published)")
     .eq("customer_id", customerId)
-    .eq("status", "active")
+    .eq("status", status)
     .eq("profiles.published", true)
     .order("connected_at", { ascending: false })
     .limit(limit);
 
   if (error) {
-    console.error("listActiveConnections failed:", error.message);
+    console.error("listConnectionsByStatus failed:", error.message);
     return [];
   }
 

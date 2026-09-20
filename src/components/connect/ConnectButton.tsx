@@ -48,16 +48,31 @@ export default function ConnectButton({
   useEffect(() => {
     if (preview) return;
     let cancelled = false;
-    fetch(`/api/customer/me?profile_id=${encodeURIComponent(profile.id)}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => {
-        if (cancelled) return;
-        setAuthenticated(d?.authenticated === true);
-        setStatus(d?.connected === true ? "connected" : "out");
-      })
-      .catch(() => !cancelled && setStatus("out"));
+    const load = () =>
+      fetch(`/api/customer/me?profile_id=${encodeURIComponent(profile.id)}`, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (cancelled) return;
+          setAuthenticated(d?.authenticated === true);
+          setStatus(d?.connected === true ? "connected" : "out");
+        })
+        .catch(() => !cancelled && setStatus("out"));
+    load();
+    // Re-check when the page is shown again from the back/forward cache or the tab regains
+    // focus: after disconnecting in My Ringo and coming back to this profile, the button must
+    // show "Connect" again instead of a stale "Connected".
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) load();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    window.addEventListener("pageshow", onShow);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
+      window.removeEventListener("pageshow", onShow);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [profile.id, preview]);
 

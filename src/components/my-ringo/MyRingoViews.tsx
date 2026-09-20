@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, ChevronRight, History, Link2, MailQuestion, MessageCircle, Music, User } from "lucide-react";
+import { BadgeCheck, ChevronRight, History, Link2, Loader2, MailQuestion, MessageCircle, Music, User } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import type { MyConnection } from "@/lib/customer/connections";
 import type { ActivityItem, LibraryTrack } from "@/lib/customer/activity";
@@ -161,12 +161,68 @@ export function HomeView({
   );
 }
 
-export function ConnectionsView({ connections }: { connections: MyConnection[] }) {
+// A profile the customer disconnected from, with a one-tap Reconnect. Uses the same
+// signed-in connect route as the public profile's Connect button (customer comes from the
+// session cookie, never from the browser).
+function PreviousConnectionRow({ connection, onReconnected }: { connection: MyConnection; onReconnected: (c: MyConnection) => void }) {
+  const { t } = useLanguage();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const { profile } = connection;
+
+  const reconnect = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/customer/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile_id: profile.id }),
+      });
+      if (res.status === 401) return window.location.replace("/my-ringo/signin");
+      if (!res.ok) return setError(t.myRingo.connections.reconnectFailed);
+      onReconnected(connection);
+    } catch {
+      setError(t.myRingo.connections.reconnectFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-ringo-border/70 bg-ringo-surface p-3.5">
+      <div className="flex items-center gap-3">
+        <CustomerAvatar name={profile.name} avatarUrl={profile.avatarUrl} className="w-10 h-10 text-sm" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-ringo-text">{profile.name}</p>
+          <p className="truncate text-xs text-ringo-muted">@{profile.username}</p>
+        </div>
+        <button
+          type="button"
+          onClick={reconnect}
+          disabled={busy}
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-ringo-indigo px-3.5 py-2 text-xs font-semibold text-white transition active:scale-95 disabled:opacity-60"
+        >
+          {busy && <Loader2 size={13} className="animate-spin" />}
+          {busy ? t.myRingo.connections.reconnecting : t.myRingo.connections.reconnect}
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 text-xs text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function ConnectionsView({ connections, previous = [] }: { connections: MyConnection[]; previous?: MyConnection[] }) {
   const { t } = useLanguage();
   const router = useRouter();
   // Local copy so a disconnected profile leaves the list immediately; the
   // server (router.refresh) stays the source of truth.
   const [list, setList] = useState(connections);
+  const [previousList, setPreviousList] = useState(previous);
   const [confirming, setConfirming] = useState<MyConnection | null>(null);
 
   return (
@@ -191,10 +247,31 @@ export function ConnectionsView({ connections }: { connections: MyConnection[] }
           onClose={() => setConfirming(null)}
           onDisconnected={(profileId) => {
             setList((prev) => prev.filter((c) => c.profile.id !== profileId));
+            setPreviousList((prev) => [confirming, ...prev.filter((c) => c.profile.id !== profileId)]);
             setConfirming(null);
             router.refresh();
           }}
         />
+      )}
+
+      {previousList.length > 0 && (
+        <div className="mt-8">
+          <h2 className="mb-1 text-sm font-semibold text-ringo-text">{t.myRingo.connections.previousTitle}</h2>
+          <p className="mb-3 text-xs text-ringo-muted">{t.myRingo.connections.previousBody}</p>
+          <div className="flex flex-col gap-2.5">
+            {previousList.map((c) => (
+              <PreviousConnectionRow
+                key={c.id}
+                connection={c}
+                onReconnected={(done) => {
+                  setPreviousList((prev) => prev.filter((p) => p.profile.id !== done.profile.id));
+                  setList((prev) => [{ ...done, connectedAt: new Date().toISOString() }, ...prev]);
+                  router.refresh();
+                }}
+              />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

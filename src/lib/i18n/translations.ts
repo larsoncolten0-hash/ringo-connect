@@ -658,6 +658,11 @@ export const translations = {
         statusConnected: "Connected",
         favorite: "Favorite",
         connectedOn: (date: string) => `Connected ${date}`,
+        previousTitle: "Previously connected",
+        previousBody: "You disconnected from these profiles. Reconnect anytime, or open their profile link and tap Connect.",
+        reconnect: "Reconnect",
+        reconnecting: "Connecting…",
+        reconnectFailed: "Couldn't reconnect. Please try again.",
       },
       music: {
         title: "My Music",
@@ -3464,6 +3469,11 @@ export const translations = {
         statusConnected: "Connecté",
         favorite: "Favori",
         connectedOn: (date: string) => `Connecté le ${date}`,
+        previousTitle: "Anciennes connexions",
+        previousBody: "Vous vous êtes déconnecté de ces profils. Reconnectez-vous à tout moment, ou ouvrez leur lien de profil et touchez Se connecter.",
+        reconnect: "Se reconnecter",
+        reconnecting: "Connexion…",
+        reconnectFailed: "Impossible de se reconnecter. Veuillez réessayer.",
       },
       music: {
         title: "Ma musique",
