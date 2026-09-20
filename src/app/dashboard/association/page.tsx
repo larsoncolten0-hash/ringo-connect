@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import { getAssociationAccess } from "@/lib/association/access";
 import AssociationOwnerView from "@/components/association/AssociationOwnerView";
 import AssociationPartnerView from "@/components/association/AssociationPartnerView";
@@ -15,6 +16,7 @@ export const dynamic = "force-dynamic";
 // organization concept — see src/lib/association/access.ts's own note on
 // why these two features are entirely independent).
 export default async function AssociationPage() {
+  if (!ASSOCIATION_PUBLIC) redirect("/dashboard");
   const supabase = createClient();
   const {
     data: { user },

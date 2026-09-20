@@ -4,6 +4,7 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import { getBrandingSettings } from "@/lib/branding";
 import { listUserOrganizations, pickActiveOrganization } from "@/lib/team/access";
+import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import { getAssociationNavAccess } from "@/lib/association/access";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
@@ -90,7 +91,7 @@ export default async function DashboardLayout({
   // Partner is a totally separate relationship — see the migration's own
   // header). Always resolved against the signed-in person's OWN profile,
   // never whichever organization Team has switched into.
-  const canManageAssociation = ownProfile ? await getAssociationNavAccess(user.id, ownProfile.id) : false;
+  const canManageAssociation = ASSOCIATION_PUBLIC && ownProfile ? await getAssociationNavAccess(user.id, ownProfile.id) : false;
 
   // Ringo Loyalty — available on every plan (no plan gate). Shown when the active organization's
   // category offers loyalty AND the viewer is its owner or holds a loyalty permission. Only a UX

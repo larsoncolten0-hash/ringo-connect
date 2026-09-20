@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, RefreshCw, ShieldCheck, X } from "lucide-react";
+import { Loader2, RefreshCw, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { api } from "@/components/loyalty/format";
 
@@ -54,16 +54,6 @@ export default function MyQrView({ svg }: { svg: string | null }) {
           </p>
         )}
         <p className="text-xs text-ringo-muted">{q.tip}</p>
-      </section>
-
-      <section className="flex gap-3 rounded-2xl border border-ringo-border/70 bg-ringo-surface p-4">
-        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
-          <ShieldCheck size={18} />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-ringo-text">{q.privacyTitle}</p>
-          <p className="mt-1 text-sm text-ringo-muted">{q.privacyBody}</p>
-        </div>
       </section>
 
       <div aria-live="polite" role="status">

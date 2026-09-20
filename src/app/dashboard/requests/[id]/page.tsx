@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import RequestReview from "@/components/admin/RequestReview";
+import { publicPlans } from "@/lib/association/publicVisibility";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function DashboardRequestDetailPage({ params }: { params: {
   return (
     <RequestReview
       request={signupRequest}
-      plans={plans || []}
+      plans={publicPlans(plans)}
       addons={addons || []}
       basePath="/dashboard/requests"
       canDelete={reviewer.isAdmin}

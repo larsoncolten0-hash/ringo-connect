@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { extractClientIp } from "@/lib/pixelTracking";
 import { isCategoryId, type CategoryId } from "@/lib/categories";
 import { translations, type Locale } from "@/lib/i18n/translations";
+import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import { seedDemoAssociation } from "@/lib/association/demoSeed";
 import { NextResponse } from "next/server";
 
@@ -38,7 +39,7 @@ const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const track: "business" | "association" = body?.track === "association" ? "association" : "business";
+  const track: "business" | "association" = ASSOCIATION_PUBLIC && body?.track === "association" ? "association" : "business";
   const category: CategoryId | null = isCategoryId(body?.category) ? body.category : null;
   const locale: Locale = body?.locale === "fr" ? "fr" : "en";
 

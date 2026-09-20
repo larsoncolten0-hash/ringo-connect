@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Manrope } from "next/font/google";
 import { getReferralCode } from "@/lib/referral";
 import { useLanguage } from "@/components/LanguageProvider";
+import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 
 // See AboutSection.tsx's comment on why Manrope is loaded here (scoped,
 // self-hosted via next/font) rather than site-wide or via a <link> tag.
@@ -96,7 +97,9 @@ export default function PathPickerSection() {
     { ...CARD_SHAPES[0], title: t.landing.pathPickerCardTitle, body: t.landing.pathPickerCardBody },
     { ...CARD_SHAPES[1], title: t.landing.pathPickerPageTitle, body: t.landing.pathPickerPageBody },
     { ...CARD_SHAPES[2], title: t.landing.pathPickerBusinessTitle, body: t.landing.pathPickerBusinessBody },
-    { ...CARD_SHAPES[3], title: t.landing.pathPickerAssociationTitle, body: t.landing.pathPickerAssociationBody },
+    ...(ASSOCIATION_PUBLIC
+      ? [{ ...CARD_SHAPES[3], title: t.landing.pathPickerAssociationTitle, body: t.landing.pathPickerAssociationBody }]
+      : []),
   ];
 
   return (
@@ -111,7 +114,7 @@ export default function PathPickerSection() {
           </p>
         </div>
 
-        <div className="grid gap-5 sm:max-w-[400px] sm:mx-auto md:max-w-none md:mx-0 md:grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-5 sm:max-w-[400px] sm:mx-auto md:max-w-none md:mx-0 md:grid-cols-2 ${cards.length > 3 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
           {cards.map((card) => (
             <div key={card.href} className="rounded-[22px] flex flex-col p-6 pt-7 pb-6" style={{ background: INK }}>
               <div

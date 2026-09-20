@@ -8,6 +8,7 @@ import SubmitButton from "@/components/auth/SubmitButton";
 import CategoryPicker from "@/components/CategoryPicker";
 import { useLanguage } from "@/components/LanguageProvider";
 import type { CategoryId } from "@/lib/categories";
+import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 
 type Track = "business" | "association" | null;
 
@@ -22,7 +23,7 @@ type Track = "business" | "association" | null;
 // immediately meaningful, see src/lib/association/demoSeed.ts).
 export default function DemoPage() {
   const { t, locale } = useLanguage();
-  const [track, setTrack] = useState<Track>(null);
+  const [track, setTrack] = useState<Track>(ASSOCIATION_PUBLIC ? null : "business");
   const [category, setCategory] = useState<CategoryId>("restaurant_food");
   const [extraCategories, setExtraCategories] = useState<CategoryId[]>([]);
   const [loading, setLoading] = useState(false);
@@ -132,9 +133,11 @@ export default function DemoPage() {
           {t.demo.continueButton}
         </SubmitButton>
       </form>
-      <button onClick={() => setTrack(null)} className="w-full text-center text-xs text-ringo-muted hover:text-ringo-text transition mt-3">
-        {t.demo.backToTrackPicker}
-      </button>
+      {ASSOCIATION_PUBLIC && (
+        <button onClick={() => setTrack(null)} className="w-full text-center text-xs text-ringo-muted hover:text-ringo-text transition mt-3">
+          {t.demo.backToTrackPicker}
+        </button>
+      )}
     </AuthShell>
   );
 }

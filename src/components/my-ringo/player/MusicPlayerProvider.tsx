@@ -39,6 +39,7 @@ export type PlayerApi = PlayerSnapshot & {
   toggleShuffle: () => void;
   cycleRepeat: () => void;
   setVolume: (v: number) => void;
+  sourceUrl: () => string | null;
 };
 
 const PlayerContext = createContext<PlayerApi | null>(null);
@@ -88,6 +89,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       toggleShuffle: () => engineRef.current?.toggleShuffle(),
       cycleRepeat: () => engineRef.current?.cycleRepeat(),
       setVolume: (v: number) => engineRef.current?.setVolume(v),
+      sourceUrl: () => engineRef.current?.sourceUrl() ?? null,
     }),
     []
   );

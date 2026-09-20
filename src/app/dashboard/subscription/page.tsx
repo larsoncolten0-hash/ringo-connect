@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getPlatformSettings } from "@/lib/platformSettings";
 import SubscriptionView from "@/components/subscription/SubscriptionView";
+import { publicPlans } from "@/lib/association/publicVisibility";
 
 // See src/app/admin/settings/page.tsx for why this matters — especially
 // here, since showing a stale plan/payment status after an upgrade or
@@ -45,7 +46,7 @@ export default async function SubscriptionPage({
 
   return (
     <SubscriptionView
-      plans={plans || []}
+      plans={publicPlans(plans, (userRow?.plans as any)?.name)}
       currentPlan={(userRow?.plans as any)?.name ?? "free"}
       currentInterval={userRow?.billing_interval === "yearly" ? "yearly" : "monthly"}
       paymentProvider={userRow?.payment_provider ?? null}

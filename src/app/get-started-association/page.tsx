@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import { createClient } from "@/lib/supabase/server";
 import { getPlatformSettings } from "@/lib/platformSettings";
 import AssociationGetStartedFlow from "@/components/association/AssociationGetStartedFlow";
@@ -11,6 +13,7 @@ export const dynamic = "force-dynamic";
 // (see the migration's own PAYMENT NOTE) — no Stripe/card branching needed
 // here at all, unlike the main Subscription page.
 export default async function GetStartedAssociationPage() {
+  if (!ASSOCIATION_PUBLIC) notFound();
   const supabase = createClient();
   const {
     data: { user },

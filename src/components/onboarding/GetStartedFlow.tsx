@@ -9,6 +9,7 @@ import { getReferralCode } from "@/lib/referral";
 import LanguageToggle from "@/components/LanguageToggle";
 import { formatPrice } from "@/lib/currency";
 import { detectPlatform } from "@/lib/utils";
+import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import ImageUploadField from "@/components/editor/ImageUploadField";
 import PhoneCountryInput from "@/components/editor/PhoneCountryInput";
 import SocialIcon from "@/components/SocialIcon";
@@ -711,6 +712,7 @@ export default function GetStartedFlow({
                   ReferralCapture (mounted globally in the root layout)
                   already persists it from whichever page the visitor
                   arrived on, get-started-association included. */}
+              {ASSOCIATION_PUBLIC && (
               <Link
                 href="/get-started-association"
                 className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98] flex items-start gap-3.5"
@@ -723,6 +725,7 @@ export default function GetStartedFlow({
                   <span className="block text-sm text-ringo-muted">{t.getStarted.accountTypeAssociationDesc}</span>
                 </span>
               </Link>
+              )}
             </div>
           </>
         )}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { extractRequestContext } from "@/lib/requestContext";
 import { getPlatformSettings } from "@/lib/platformSettings";
+import { publicPlans } from "@/lib/association/publicVisibility";
 import GetStartedFlow from "@/components/onboarding/GetStartedFlow";
 
 // The dedicated landing/checkout page for partnered affiliate marketers'
@@ -19,7 +20,7 @@ export default async function GetStartedAffiliatePage() {
   // Free is excluded — payment is mandatory on this page, and there's
   // nothing to charge for a $0 plan (see the "nothing to pay" guard in
   // /api/signup-requests/[id]/pay).
-  const { data: plans } = await supabase
+  const { data: allPlans } = await supabase
     .from("plans")
     .select("*")
     .neq("name", "free")
@@ -53,7 +54,7 @@ export default async function GetStartedAffiliatePage() {
 
   return (
     <GetStartedFlow
-      plans={plans || []}
+      plans={publicPlans(allPlans)}
       addons={addons || []}
       isCameroon={country === "CM"}
       allowPayNow={true}

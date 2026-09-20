@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import LandingView from "@/components/landing/LandingView";
+import { publicPlans } from "@/lib/association/publicVisibility";
 import { getBrandingSettings } from "@/lib/branding";
 import { extractRequestContext } from "@/lib/requestContext";
 
@@ -62,7 +63,7 @@ export default async function Home() {
       dashboardHref={dashboardHref}
       appName={branding.appName}
       logoUrl={branding.logoUrl}
-      plans={plansResult.data || []}
+      plans={publicPlans(plansResult.data)}
       bundleAddons={bundleAddonsResult.data || []}
       isCameroon={country === "CM"}
     />

@@ -475,6 +475,10 @@ export function createPlayerEngine(onChange: () => void, onTime: () => void, off
       currentTime: isSilent() ? 0 : audio.currentTime || 0,
       duration: !isSilent() && isFinite(audio.duration) ? audio.duration : 0,
     }),
+    // The loaded source (a blob: saved copy or the signed URL) — lets the
+    // waveform read the same file the player already resolved, without asking
+    // the server for another signed URL.
+    sourceUrl: (): string | null => (isSilent() || !audio.src ? null : audio.src),
     playQueue,
     toggle,
     next,

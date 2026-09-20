@@ -2,11 +2,11 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from "react";
-import { ArrowDownToLine, Check, Download, HardDriveDownload, Loader2, Pause, Play, Shuffle, WifiOff } from "lucide-react";
+import { Check, Download, HardDriveDownload, Loader2, Pause, Play, Shuffle, WifiOff } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import type { LibraryTrack } from "@/lib/customer/activity";
 import { usePlayer } from "./player/MusicPlayerProvider";
-import { Cover, formatBytes } from "./player/PlayerBits";
+import { Cover } from "./player/PlayerBits";
 import { useOffline } from "./player/useOffline";
 
 // The customer's purchased tracks. PLAYBACK is handled by the shared My Ringo
@@ -25,6 +25,9 @@ export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
   const offline = useOffline();
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  // Briefly shows a check on the download button once the file has been
+  // handed to the browser, so it never looks like "nothing happened".
+  const [downloadedKey, setDownloadedKey] = useState<string | null>(null);
 
   // Keep only files that belong to THIS customer's library on the device. (Skipped
   // for an empty list so a transient load problem can never wipe saved music.)
@@ -46,7 +49,21 @@ export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
         console.error("My Music: download refused:", res.status, data?.error);
         return setDownloadError(track.key);
       }
-      window.open(data.url, "_blank");
+      // The signed URL carries a Content-Disposition: attachment header (the
+      // route signs it with the download flag), so navigating to it saves the
+      // file to the device. This has to be an anchor click rather than
+      // window.open: browsers block a window opened after an awaited request
+      // (it is no longer inside the tap that started it), which is why the
+      // button used to do nothing.
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.download = `${track.title}.mp3`;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setDownloadedKey(track.key);
+      setTimeout(() => setDownloadedKey((k) => (k === track.key ? null : k)), 2500);
     } catch (err) {
       console.error("My Music: download request failed:", err);
       setDownloadError(track.key);
@@ -93,11 +110,6 @@ export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
                     <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
                       {t.myRingo.library.paid}
                     </span>
-                    {saved && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-ringo-indigo/10 px-2 py-0.5 text-[11px] font-medium text-ringo-indigo">
-                        <ArrowDownToLine size={10} /> {t.myRingo.offline.saved}
-                      </span>
-                    )}
                     <span className="text-[11px] text-ringo-muted" suppressHydrationWarning>
                       {t.myRingo.library.purchasedOn(
                         new Date(track.purchasedAt).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" })
@@ -135,7 +147,7 @@ export default function MyMusicList({ tracks }: { tracks: LibraryTrack[] }) {
                       aria-label={`${t.myRingo.library.download}: ${track.title}`}
                       className="flex h-10 w-10 items-center justify-center rounded-full text-ringo-muted transition hover:bg-ringo-muted/10 disabled:opacity-40"
                     >
-                      {downloadingKey === track.key ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
+                      {downloadingKey === track.key ? <Loader2 size={17} className="animate-spin" /> : downloadedKey === track.key ? <Check size={17} className="text-emerald-600" /> : <Download size={17} />}
                     </button>
                   )}
                   <button
@@ -206,7 +218,7 @@ export function PlayAllBar({ tracks }: { tracks: LibraryTrack[] }) {
       {offline.supported && savable.length > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-ringo-border/70 bg-ringo-surface px-3.5 py-2.5">
           <p className="min-w-0 text-xs text-ringo-muted">
-            {offline.savedCount > 0 ? t.myRingo.offline.summary(offline.savedCount, formatBytes(offline.totalBytes)) : t.myRingo.offline.save}
+            {t.myRingo.offline.save}
           </p>
           <div className="flex shrink-0 items-center gap-1.5">
             {offline.savedCount > 0 && (

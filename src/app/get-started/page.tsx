@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { extractRequestContext } from "@/lib/requestContext";
 import { getPlatformSettings } from "@/lib/platformSettings";
 import GetStartedFlow from "@/components/onboarding/GetStartedFlow";
+import { publicPlans } from "@/lib/association/publicVisibility";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +44,11 @@ export default async function GetStartedPage({
   // All 5 plans now (free/basic/pro/business_basic/business_pro) — this
   // used to be filtered to the Business plan alone while the rest of this
   // flow had nowhere to offer them; that's exactly what this task restores.
-  const { data: plans } = await supabase.from("plans").select("*").order("price_usd", { ascending: true });
+  const { data: allPlans } = await supabase.from("plans").select("*").order("price_usd", { ascending: true });
 
-  const preselectedPlan = searchParams.plan ? (plans || []).find((p) => p.name === searchParams.plan) || null : null;
+  const plans = publicPlans(allPlans);
+
+  const preselectedPlan = searchParams.plan ? plans.find((p) => p.name === searchParams.plan) || null : null;
 
   const { data: addons } = await supabase
     .from("addons")
@@ -58,7 +61,7 @@ export default async function GetStartedPage({
 
   return (
     <GetStartedFlow
-      plans={plans || []}
+      plans={plans}
       addons={addons || []}
       isCameroon={country === "CM"}
       allowPayNow={settings.allowCustomerPaymentAtSignup}
