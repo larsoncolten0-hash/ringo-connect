@@ -16,6 +16,7 @@ import { getPushStatus, subscribeToPush } from "@/lib/push/subscribeClient";
 type Prefs = {
   email_updates: boolean;
   whatsapp_updates: boolean;
+  push_updates: boolean;
   notify_products: boolean;
   notify_music: boolean;
   notify_events: boolean;
@@ -167,7 +168,11 @@ export default function CommunityManagePage({ params }: { params: { token: strin
                 {t.communityJoin.consentWhatsapp}
                 <input type="checkbox" checked={prefs.whatsapp_updates} onChange={() => toggle("whatsapp_updates")} className="w-4 h-4" />
               </label>
-              {pushStatus !== "unsupported" && (
+              <label className="flex items-center justify-between gap-3 text-sm cursor-pointer">
+                {t.communityJoin.consentPush}
+                <input type="checkbox" checked={prefs.push_updates} onChange={() => toggle("push_updates")} className="w-4 h-4" />
+              </label>
+              {prefs.push_updates && pushStatus !== "unsupported" && (
                 <div className="flex items-center justify-between gap-3 text-sm pt-0.5">
                   {t.pushNotifications.hint}
                   <button

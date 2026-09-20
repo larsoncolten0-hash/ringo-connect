@@ -39,12 +39,13 @@ export async function POST(_request: Request, { params }: { params: { id: string
 
   const { data: profile } = await admin.from("profiles").select("*").eq("id", announcement.profile_id).single();
 
-  const { recipientCount, sentCount, failedCount } = await sendAnnouncementToSubscribers(admin, announcement, profile);
+  const { recipientCount, sentCount, failedCount, emailChannel } = await sendAnnouncementToSubscribers(admin, announcement, profile);
 
   // recipientCount > 0 but nothing actually went out (most commonly: no
   // email provider configured yet) — surface that as a real failure, never
   // as a quiet "sent to 0."
-  const finalStatus = recipientCount > 0 && sentCount === 0 ? "failed" : "sent";
+  // A push-only announcement never "fails" just because nobody has push turned on yet.
+  const finalStatus = emailChannel && recipientCount > 0 && sentCount === 0 ? "failed" : "sent";
 
   await admin
     .from("community_announcements")
@@ -57,5 +58,5 @@ export async function POST(_request: Request, { params }: { params: { id: string
     })
     .eq("id", announcement.id);
 
-  return NextResponse.json({ status: finalStatus, recipientCount, sentCount, failedCount, providerConfigured: isEmailProviderConfigured() });
+  return NextResponse.json({ status: finalStatus, recipientCount, sentCount, failedCount, providerConfigured: emailChannel ? isEmailProviderConfigured() : true });
 }

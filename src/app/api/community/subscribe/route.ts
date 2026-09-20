@@ -33,6 +33,7 @@ export async function POST(request: Request) {
   // phone were merely filled in (see the migration's header note).
   const consentEmail = body?.consent_email === true;
   const consentWhatsapp = body?.consent_whatsapp === true;
+  const consentPush = body?.consent_push === true;
   const source =
     typeof body?.source === "string" &&
     ["ringo_profile", "qr_code", "nfc", "product", "music", "event", "restaurant", "other"].includes(body.source)
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   if (!email || !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
   }
-  if (!consentEmail && !consentWhatsapp) {
+  if (!consentEmail && !consentWhatsapp && !consentPush) {
     return NextResponse.json({ error: "Pick at least one way to hear from you." }, { status: 400 });
   }
 
@@ -118,15 +119,17 @@ export async function POST(request: Request) {
     url: dashboardSubscriberLink(subscriberId),
   });
 
-  await admin.from("community_subscription_preferences").upsert(
-    {
-      subscriber_id: subscriberId,
-      email_updates: consentEmail,
-      whatsapp_updates: consentWhatsapp,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "subscriber_id" }
-  );
+  const prefsRow = {
+    subscriber_id: subscriberId,
+    email_updates: consentEmail,
+    whatsapp_updates: consentWhatsapp,
+    updated_at: new Date().toISOString(),
+  };
+  const { error: prefsError } = await admin
+    .from("community_subscription_preferences")
+    .upsert({ ...prefsRow, push_updates: consentPush }, { onConflict: "subscriber_id" });
+  // push_updates column not created yet (migration pending): save the rest as before.
+  if (prefsError) await admin.from("community_subscription_preferences").upsert(prefsRow, { onConflict: "subscriber_id" });
 
   const { data: subscriber } = await admin
     .from("community_subscribers")

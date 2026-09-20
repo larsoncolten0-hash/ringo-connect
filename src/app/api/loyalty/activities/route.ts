@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   // recipient is the customer resolved from the verified connection, never from the request. Best
   // effort: this never throws and can never change the result above.
   await notifyAfterRecord(
-    { customerId: conn.customerId, profileId: access.profile.id, businessName: access.profile.name ?? access.profile.username, programId: body.program_id, result },
+    { customerId: conn.customerId, profileId: access.profile.id, businessName: access.profile.name ?? access.profile.username, programId: body.program_id, quantity, result },
     access.admin
   );
 

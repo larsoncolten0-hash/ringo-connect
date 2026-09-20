@@ -3,12 +3,13 @@
 // /api/customer/connect/verify (existing customer proving the email with a code).
 //
 // RULES (approved Phase 2 decisions — see the Connect design thread):
-//  * Connect alone writes ONLY ringo_customers / customer_sessions /
-//    customer_connections. It never touches community_subscribers.
-//  * Only an explicit marketing tick may create a community_subscribers
-//    row, and only when NONE already exists for that profile + email.
-//    A pre-existing legacy row is left completely untouched: not
-//    reactivated, not edited, not linked, not treated as consent.
+//  * Connecting makes the customer a member of that creator's community (a
+//    community_subscribers row, linked from customer_connections), so the creator
+//    can reach them with community push. Membership alone grants NO email/WhatsApp
+//    consent: only an explicit marketing tick turns email_updates on, and only once
+//    the email is confirmed. Push reaches the customer's own My Ringo devices.
+//  * A pre-existing row that is unsubscribed/removed is never reactivated, and a
+//    row is never edited or treated as consent beyond the rules above.
 //  * Marketing consent (customer_connections.marketing_consent) is
 //    independent of connection status and defaults to false.
 //  * An existing customer's saved name/phone are never overwritten.
@@ -190,31 +191,66 @@ export async function connectCustomerToProfile(
     }
   }
 
-  // Legacy community step — ONLY on an explicit tick, and only once the email is
-  // confirmed (otherwise the tick stays on the connection and is applied by
-  // syncMarketingSubscribers when the customer confirms). Community is always on
-  // for every profile, but that never subscribes anyone by itself.
-  if (input.marketingConsent && !existingSubscriberId && customer.emailConfirmed) {
-    await createCommunitySubscriberIfNoneExists(admin, { connectionId, customer, profileId: profile.id });
+  // Community membership: every connected customer is on the creator's community list.
+  // Email updates are ON only for an explicit tick on a confirmed email (an unconfirmed
+  // tick stays on the connection and is applied by syncMarketingSubscribers later).
+  const emailUpdates = input.marketingConsent && customer.emailConfirmed;
+  if (!existingSubscriberId) {
+    await ensureCommunityMember(admin, { connectionId, customer, profileId: profile.id, emailUpdates });
+  } else if (emailUpdates) {
+    await admin
+      .from("community_subscription_preferences")
+      .update({ email_updates: true, updated_at: now })
+      .eq("subscriber_id", existingSubscriberId);
   }
 
   return { ok: true };
 }
 
-async function createCommunitySubscriberIfNoneExists(
+async function ensureCommunityMember(
   admin: any,
-  input: { connectionId: string; customer: { name: string; email: string; phone: string | null }; profileId: string }
+  input: {
+    connectionId: string;
+    customer: { name: string; email: string; phone: string | null };
+    profileId: string;
+    emailUpdates: boolean;
+  }
 ) {
-  // Any existing legacy row (any status) => hands off entirely. Matched
-  // with LIKE wildcards escaped so `_`/`%` in an address can't match a
+  // Matched with LIKE wildcards escaped so `_`/`%` in an address can't match a
   // DIFFERENT person's row.
-  const { data: legacy } = await admin
+  const { data: existing } = await admin
     .from("community_subscribers")
-    .select("id")
+    .select("id, status")
     .eq("profile_id", input.profileId)
     .ilike("email", escapeLike(input.customer.email))
     .maybeSingle();
-  if (legacy) return;
+
+  const link = (subscriberId: string) =>
+    admin
+      .from("customer_connections")
+      .update({ community_subscriber_id: subscriberId, updated_at: new Date().toISOString() })
+      .eq("id", input.connectionId);
+
+  if (existing) {
+    // Someone who unsubscribed or was removed stays that way. An active row not yet
+    // tied to another connection (e.g. this customer's own row from before a
+    // disconnect/reconnect) is re-linked so community push reaches them again.
+    if (existing.status !== "active") return;
+    const { data: taken } = await admin
+      .from("customer_connections")
+      .select("id")
+      .eq("community_subscriber_id", existing.id)
+      .neq("id", input.connectionId)
+      .limit(1);
+    if (!taken || taken.length === 0) await link(existing.id);
+    if (input.emailUpdates) {
+      await admin
+        .from("community_subscription_preferences")
+        .update({ email_updates: true, updated_at: new Date().toISOString() })
+        .eq("subscriber_id", existing.id);
+    }
+    return;
+  }
 
   const { data: created, error } = await admin
     .from("community_subscribers")
@@ -227,8 +263,7 @@ async function createCommunitySubscriberIfNoneExists(
     })
     .select("id")
     .single();
-  // 23505 = a legacy row appeared in parallel (unique profile+email index):
-  // same outcome as "already exists" — leave it alone.
+  // 23505 = a row appeared in parallel (unique profile+email index): leave it alone.
   if (error || !created) {
     if (error?.code !== "23505") console.error("community_subscribers insert failed:", error?.message);
     return;
@@ -236,13 +271,11 @@ async function createCommunitySubscriberIfNoneExists(
 
   await admin.from("community_subscription_preferences").insert({
     subscriber_id: created.id,
-    email_updates: true,
+    email_updates: input.emailUpdates,
     whatsapp_updates: false,
+    push_updates: true,
   });
-  await admin
-    .from("customer_connections")
-    .update({ community_subscriber_id: created.id, updated_at: new Date().toISOString() })
-    .eq("id", input.connectionId);
+  await link(created.id);
 }
 
 export type CreateCustomerResult =
@@ -294,10 +327,9 @@ export async function createUnconfirmedCustomer(
 }
 
 /**
- * Called when a customer confirms their email. Any connection where they ticked
- * marketing but no community_subscribers row could be created yet (unconfirmed
- * email) now gets one — still only where NO legacy row already exists for that
- * profile + email, exactly as at connect time.
+ * Called when a customer confirms their email. Connections where they ticked
+ * marketing now get email updates switched on for their community row (created
+ * here if it is somehow missing), exactly as at connect time.
  */
 export async function syncMarketingSubscribers(
   admin: any,
@@ -305,13 +337,19 @@ export async function syncMarketingSubscribers(
 ): Promise<void> {
   const { data: connections } = await admin
     .from("customer_connections")
-    .select("id, profile_id")
+    .select("id, profile_id, community_subscriber_id")
     .eq("customer_id", customer.id)
     .eq("status", "active")
-    .eq("marketing_consent", true)
-    .is("community_subscriber_id", null);
+    .eq("marketing_consent", true);
 
   for (const c of connections || []) {
-    await createCommunitySubscriberIfNoneExists(admin, { connectionId: c.id, customer, profileId: c.profile_id });
+    if (c.community_subscriber_id) {
+      await admin
+        .from("community_subscription_preferences")
+        .update({ email_updates: true, updated_at: new Date().toISOString() })
+        .eq("subscriber_id", c.community_subscriber_id);
+    } else {
+      await ensureCommunityMember(admin, { connectionId: c.id, customer, profileId: c.profile_id, emailUpdates: true });
+    }
   }
 }

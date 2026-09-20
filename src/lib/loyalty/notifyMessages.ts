@@ -10,6 +10,7 @@ import { translations, type Locale } from "@/lib/i18n/translations";
 // here is, or can be turned into, marketing.
 
 export type LoyaltyMessage =
+  | { kind: "recorded"; business: string; actionKey: string; quantity: number; progress: number | null; target: number | null }
   | { kind: "near"; remaining: 1 | 2; business: string; actionKey: string }
   | { kind: "unlocked"; business: string; reward: string }
   | { kind: "redeemed"; business: string; reward: string }
@@ -51,6 +52,14 @@ function words(locale: Locale, key: string) {
 export function buildPush(msg: LoyaltyMessage, locale: Locale): { category: LoyaltyPushCategory; title: string; body: string } {
   const n = translations[locale].loyalty.notify.push;
   switch (msg.kind) {
+    case "recorded": {
+      const w = words(locale, msg.actionKey);
+      return {
+        category: "loyalty_progress",
+        title: n.recorded.title(msg.business),
+        body: n.recorded.body(msg.quantity, msg.quantity === 1 ? w.one : w.many, msg.progress, msg.target),
+      };
+    }
     case "near":
       return msg.remaining === 2
         ? { category: "loyalty_progress", title: n.near2.title, body: n.near2.body(words(locale, msg.actionKey).many, msg.business) }

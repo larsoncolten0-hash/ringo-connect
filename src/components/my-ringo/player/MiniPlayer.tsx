@@ -4,6 +4,7 @@ import { Loader2, Pause, Play, SkipForward } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { usePlayer, usePlayerTime } from "./MusicPlayerProvider";
 import { Cover } from "./PlayerBits";
+import { usePlayerTheme } from "./playerTheme";
 
 // The persistent "now playing" bar. On phones it floats just above the bottom
 // tab bar; from `sm` up it sits along the bottom edge next to the sidebar.
@@ -12,6 +13,7 @@ export default function MiniPlayer() {
   const { t } = useLanguage();
   const p = usePlayer();
   const { currentTime, duration } = usePlayerTime();
+  const { theme } = usePlayerTheme();
   const track = p.current;
   if (!track) return null;
 
@@ -21,7 +23,7 @@ export default function MiniPlayer() {
     <div
       role="region"
       aria-label={t.myRingo.player.nowPlaying}
-      className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 px-3 sm:bottom-0 sm:left-60 sm:px-6 sm:pb-4"
+      className={`${theme === "dark" ? "dark " : ""}fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 px-3 sm:bottom-0 sm:left-60 sm:px-6 sm:pb-4`}
     >
       <div className="relative mx-auto max-w-3xl overflow-hidden rounded-2xl border border-ringo-border/70 bg-ringo-surface/95 shadow-[0_8px_30px_-6px_rgba(15,23,42,0.25)] backdrop-blur">
         <div className="absolute inset-x-0 top-0 h-0.5 bg-ringo-muted/15" aria-hidden="true">

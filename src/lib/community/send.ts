@@ -1,6 +1,7 @@
 import { sendEmail } from "@/lib/email/provider";
 import { renderAnnouncementEmail } from "@/lib/email/renderAnnouncementEmail";
 import { sendPushToSubscriber } from "@/lib/push/send";
+import { sendPushToCustomer } from "@/lib/customer/push";
 
 // Shared by both send paths — the owner's manual "Send Announcement" and
 // the one-shot /api/community/notify product action — so there is exactly
@@ -9,7 +10,7 @@ import { sendPushToSubscriber } from "@/lib/push/send";
 // pass the admin client, since this reads across the community_* tables,
 // not just the caller's own already-scoped rows.
 //
-// v1 only ever sends email — WhatsApp is stored in the schema
+// Email and push are sendable (the creator picks per announcement). WhatsApp is stored in the schema
 // (community_subscription_preferences.whatsapp_updates,
 // community_announcements.audience 'whatsapp') for a real future
 // integration, but is never surfaced as a sendable audience today (see the
@@ -33,12 +34,18 @@ export async function sendAnnouncementToSubscribers(
   admin: any,
   announcement: any,
   profile: any
-): Promise<{ recipientCount: number; sentCount: number; failedCount: number }> {
+): Promise<{ recipientCount: number; sentCount: number; failedCount: number; emailChannel: boolean }> {
+  // Channels the creator picked for THIS announcement. NULL (announcements written before
+  // the channel picker existed) keeps the old behaviour: email per `audience`, plus push.
+  const picked: string[] | null = Array.isArray(announcement.channels) ? announcement.channels : null;
+  const emailChannel = picked ? picked.includes("email") : true;
+  const pushChannel = picked ? picked.includes("push") : true;
+
   const notifyColumn = NOTIFY_COLUMN[announcement.notification_category] || "notify_announcements";
 
   if (announcement.audience === "whatsapp") {
     // No real WhatsApp send infra — never silently "succeed" here.
-    return { recipientCount: 0, sentCount: 0, failedCount: 0 };
+    return { recipientCount: 0, sentCount: 0, failedCount: 0, emailChannel };
   }
 
   const { data: subscribers } = await admin
@@ -50,10 +57,7 @@ export async function sendAnnouncementToSubscribers(
     .eq(`community_subscription_preferences.${notifyColumn}`, true)
     .not("email", "is", null);
 
-  const recipients = subscribers || [];
-  if (recipients.length === 0) {
-    return { recipientCount: 0, sentCount: 0, failedCount: 0 };
-  }
+  const recipients = emailChannel ? subscribers || [] : [];
 
   // Idempotency: the unique (announcement_id, subscriber_id, channel)
   // constraint means a second attempt at this announcement never
@@ -116,51 +120,80 @@ export async function sendAnnouncementToSubscribers(
     else failedCount++;
   }
 
-  // --- Push channel — independent consent from email/whatsapp above:
-  // having a push_subscriptions row IS the opt-in (the browser permission
-  // grant already required it), so eligibility here is just "active" +
-  // the content-type preference, not `email_updates`. Doesn't affect the
-  // recipientCount/sentCount/failedCount returned above — those describe
-  // the email send this function's callers already surface in their own
-  // UI; push is a bonus channel layered on top, not a replacement.
-  const { data: pushCandidates } = await admin
-    .from("community_subscribers")
-    .select("id, community_subscription_preferences!inner(*)")
-    .eq("profile_id", profile.id)
-    .eq("status", "active")
-    .eq(`community_subscription_preferences.${notifyColumn}`, true);
+  // --- Push channel — independent consent from email/whatsapp above: eligibility is
+  // "active" + the subscriber's own push_updates opt-in + the content-type preference,
+  // not `email_updates`. Two kinds of devices are reached: a fan's own browser
+  // subscription (push_subscriptions, keyed by subscriber) and, for a subscriber who is a
+  // connected My Ringo customer, that customer's My Ringo devices
+  // (customer_push_subscriptions, via customer_connections.community_subscriber_id).
+  let pushSent = 0;
+  let pushCandidateCount = 0;
+  if (pushChannel) {
+    const pushQuery = (withOptIn: boolean) => {
+      let q = admin
+        .from("community_subscribers")
+        .select("id, community_subscription_preferences!inner(*)")
+        .eq("profile_id", profile.id)
+        .eq("status", "active")
+        .eq(`community_subscription_preferences.${notifyColumn}`, true);
+      if (withOptIn) q = q.eq("community_subscription_preferences.push_updates", true);
+      return q;
+    };
+    let { data: pushCandidates, error: pushError } = await pushQuery(true);
+    // push_updates not created yet (migration pending): behave as before it existed.
+    if (pushError) ({ data: pushCandidates } = await pushQuery(false));
 
-  if (pushCandidates && pushCandidates.length > 0) {
-    const { data: existingPushLogs } = await admin
-      .from("community_delivery_logs")
-      .select("subscriber_id, status")
-      .eq("announcement_id", announcement.id)
-      .eq("channel", "push");
-    const alreadyPushed = new Set(
-      (existingPushLogs || []).filter((l: any) => l.status === "sent").map((l: any) => l.subscriber_id)
-    );
+    const candidates = (pushCandidates || []) as any[];
+    pushCandidateCount = candidates.length;
 
-    const pushBody = String(announcement.message || "").slice(0, 160);
-    for (const subscriber of pushCandidates as any[]) {
-      if (alreadyPushed.has(subscriber.id)) continue;
-      const delivered = await sendPushToSubscriber(admin, subscriber.id, {
+    if (candidates.length > 0) {
+      const { data: existingPushLogs } = await admin
+        .from("community_delivery_logs")
+        .select("subscriber_id, status")
+        .eq("announcement_id", announcement.id)
+        .eq("channel", "push");
+      const alreadyPushed = new Set(
+        (existingPushLogs || []).filter((l: any) => l.status === "sent").map((l: any) => l.subscriber_id)
+      );
+
+      const { data: links } = await admin
+        .from("customer_connections")
+        .select("customer_id, community_subscriber_id")
+        .in("community_subscriber_id", candidates.map((c) => c.id))
+        .eq("profile_id", profile.id)
+        .eq("status", "active");
+      const customerBySubscriber = new Map<string, string>(
+        (links || []).map((l: any) => [l.community_subscriber_id as string, l.customer_id as string])
+      );
+
+      const payload = {
         category: `community_${announcement.notification_category}`,
         title: announcement.title,
-        body: pushBody,
+        body: String(announcement.message || "").slice(0, 160),
         url: ctaUrl || `${siteUrl()}/${profile.username}`,
-      });
-      if (delivered) {
-        await admin.from("community_delivery_logs").upsert(
-          { announcement_id: announcement.id, subscriber_id: subscriber.id, channel: "push", status: "sent", sent_at: new Date().toISOString() },
-          { onConflict: "announcement_id,subscriber_id,channel" }
-        );
+      };
+      for (const subscriber of candidates) {
+        if (alreadyPushed.has(subscriber.id)) continue;
+        const customerId = customerBySubscriber.get(subscriber.id);
+        const [viaFan, viaCustomer] = await Promise.all([
+          sendPushToSubscriber(admin, subscriber.id, payload),
+          customerId ? sendPushToCustomer(customerId, payload) : Promise.resolve(false),
+        ]);
+        if (viaFan || viaCustomer) {
+          pushSent++;
+          await admin.from("community_delivery_logs").upsert(
+            { announcement_id: announcement.id, subscriber_id: subscriber.id, channel: "push", status: "sent", sent_at: new Date().toISOString() },
+            { onConflict: "announcement_id,subscriber_id,channel" }
+          );
+        }
+        // Not delivered just means this subscriber has no push device enabled — not
+        // logged as 'failed', since that is for a real send attempt going wrong.
       }
-      // Not delivered just means this subscriber has no push subscription
-      // (the overwhelmingly common case) — not logged as 'failed', since
-      // that column is for a real send attempt going wrong, not "nothing
-      // to attempt."
     }
   }
 
-  return { recipientCount: recipients.length, sentCount, failedCount };
+  // Email is the headline number when it was sent; a push-only announcement reports the
+  // push audience instead so the creator sees who it actually reached.
+  if (!emailChannel) return { recipientCount: pushCandidateCount, sentCount: pushSent, failedCount: 0, emailChannel };
+  return { recipientCount: recipients.length, sentCount, failedCount, emailChannel };
 }

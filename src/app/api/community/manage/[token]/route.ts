@@ -31,6 +31,7 @@ export async function GET(_request: Request, { params }: { params: { token: stri
       ? {
           email_updates: prefs.email_updates,
           whatsapp_updates: prefs.whatsapp_updates,
+          push_updates: prefs.push_updates ?? true,
           notify_products: prefs.notify_products,
           notify_music: prefs.notify_music,
           notify_events: prefs.notify_events,
@@ -62,6 +63,12 @@ export async function POST(request: Request, { params }: { params: { token: stri
       .from("community_subscription_preferences")
       .update({ email_updates: false, whatsapp_updates: false, updated_at: new Date().toISOString() })
       .eq("subscriber_id", subscriber.id);
+    // Separate write: push_updates may not exist yet (migration pending), and that must not
+    // undo the two flags above.
+    await admin
+      .from("community_subscription_preferences")
+      .update({ push_updates: false })
+      .eq("subscriber_id", subscriber.id);
     await admin
       .from("community_subscribers")
       .update({ status: "unsubscribed", updated_at: new Date().toISOString() })
@@ -75,6 +82,7 @@ export async function POST(request: Request, { params }: { params: { token: stri
   for (const key of [
     "email_updates",
     "whatsapp_updates",
+    "push_updates",
     "notify_products",
     "notify_music",
     "notify_events",
@@ -84,14 +92,22 @@ export async function POST(request: Request, { params }: { params: { token: stri
     if (typeof body?.[key] === "boolean") patch[key] = body[key];
   }
 
-  await admin
+  const { error: updateError } = await admin
     .from("community_subscription_preferences")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("subscriber_id", subscriber.id);
+  if (updateError && "push_updates" in patch) {
+    // push_updates column not created yet (migration pending): save the other fields.
+    const { push_updates: _ignored, ...rest } = patch;
+    await admin
+      .from("community_subscription_preferences")
+      .update({ ...rest, updated_at: new Date().toISOString() })
+      .eq("subscriber_id", subscriber.id);
+  }
 
   // Re-activate a previously-unsubscribed row if they turned a channel
   // back on from here.
-  if (patch.email_updates === true || patch.whatsapp_updates === true) {
+  if (patch.email_updates === true || patch.whatsapp_updates === true || patch.push_updates === true) {
     await admin.from("community_subscribers").update({ status: "active" }).eq("id", subscriber.id);
   }
 

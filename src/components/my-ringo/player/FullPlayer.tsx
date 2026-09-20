@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, ListMusic, Loader2, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
+import { ChevronDown, ListMusic, Moon, Sun, Loader2, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { usePlayer, usePlayerTime } from "./MusicPlayerProvider";
 import { Cover } from "./PlayerBits";
 import Waveform from "./Waveform";
+import { usePlayerTheme } from "./playerTheme";
 import { BAR_COUNT, cachedPeaks, loadPeaks, seededPeaks } from "./waveformPeaks";
 
 // The full-screen player: large artwork, seek bar, transport controls,
@@ -17,6 +18,7 @@ export default function FullPlayer() {
   const p = usePlayer();
   const { currentTime, duration } = usePlayerTime();
   const [showQueue, setShowQueue] = useState(false);
+  const { theme, toggle: toggleTheme } = usePlayerTheme();
   const track = p.current;
   const trackKey = track?.key ?? null;
   const getSourceUrl = p.sourceUrl;
@@ -82,7 +84,7 @@ export default function FullPlayer() {
       role="dialog"
       aria-modal="true"
       aria-label={pl.nowPlaying}
-      className="fixed inset-0 z-[55] flex flex-col bg-ringo-bg text-ringo-text"
+      className={`${theme === "dark" ? "dark " : ""}fixed inset-0 z-[55] flex flex-col bg-ringo-bg text-ringo-text`}
       style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {/* the cover, heavily blurred, as an ambient backdrop (static, no animation cost) */}
@@ -97,14 +99,24 @@ export default function FullPlayer() {
           <ChevronDown size={24} />
         </button>
         <p className="text-xs font-semibold uppercase tracking-wider text-ringo-muted">{pl.nowPlaying}</p>
-        <button
-          onClick={() => setShowQueue((v) => !v)}
-          aria-label={pl.queue}
-          aria-pressed={showQueue}
-          className={`flex h-10 w-10 items-center justify-center rounded-full transition ${showQueue ? active : idle}`}
-        >
-          <ListMusic size={20} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? pl.switchToLight : pl.switchToDark}
+            title={theme === "dark" ? pl.switchToLight : pl.switchToDark}
+            className={`flex h-10 w-10 items-center justify-center rounded-full transition ${idle}`}
+          >
+            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+          <button
+            onClick={() => setShowQueue((v) => !v)}
+            aria-label={pl.queue}
+            aria-pressed={showQueue}
+            className={`flex h-10 w-10 items-center justify-center rounded-full transition ${showQueue ? active : idle}`}
+          >
+            <ListMusic size={20} />
+          </button>
+        </div>
       </header>
 
       <div className="relative mx-auto flex min-h-0 w-full max-w-md flex-1 flex-col px-6 pb-6">

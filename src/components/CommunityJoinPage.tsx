@@ -55,6 +55,7 @@ export default function CommunityJoinPage({ profile }: { profile: any }) {
   const [phone, setPhone] = useState("");
   const [consentEmail, setConsentEmail] = useState(false);
   const [consentWhatsapp, setConsentWhatsapp] = useState(false);
+  const [consentPush, setConsentPush] = useState(false);
   const [manageUrl, setManageUrl] = useState("");
   const [subscriberToken, setSubscriberToken] = useState("");
   const [notifResult, setNotifResult] = useState<"idle" | "enabled" | "failed">("idle");
@@ -75,7 +76,7 @@ export default function CommunityJoinPage({ profile }: { profile: any }) {
       setError(t.communityJoin.emailRequired);
       return;
     }
-    if (!consentEmail && !consentWhatsapp) {
+    if (!consentEmail && !consentWhatsapp && !consentPush) {
       setError(t.communityJoin.consentRequired);
       return;
     }
@@ -93,6 +94,7 @@ export default function CommunityJoinPage({ profile }: { profile: any }) {
           phone: phone.trim(),
           consent_email: consentEmail,
           consent_whatsapp: consentWhatsapp,
+          consent_push: consentPush,
           source: "ringo_profile",
         }),
       });
@@ -311,6 +313,10 @@ export default function CommunityJoinPage({ profile }: { profile: any }) {
           <label className="flex items-center gap-2 text-xs cursor-pointer">
             <input type="checkbox" checked={consentWhatsapp} onChange={(e) => setConsentWhatsapp(e.target.checked)} style={{ accentColor: accent }} />
             {t.communityJoin.consentWhatsapp}
+          </label>
+          <label className="flex items-center gap-2 text-xs cursor-pointer">
+            <input type="checkbox" checked={consentPush} onChange={(e) => setConsentPush(e.target.checked)} style={{ accentColor: accent }} />
+            {t.communityJoin.consentPush}
           </label>
         </div>
 

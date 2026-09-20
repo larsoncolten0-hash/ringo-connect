@@ -130,13 +130,17 @@ export async function deliverLoyaltyNotification(
 // Each one is best-effort and never throws.
 // ---------------------------------------------------------------------
 
-/** After loyalty_record_activity: send the milestones the database newly claimed (near_2, near_1, unlocked). */
+/**
+ * After loyalty_record_activity. The milestones the database newly claimed (near_2, near_1,
+ * unlocked) are sent when there are any; otherwise a plain "recorded" push confirms the visit or
+ * service to the customer straight away. A duplicate/rejected record sends nothing.
+ */
 export async function notifyAfterRecord(
-  input: { customerId: string; profileId: string; businessName: string; programId: string; result: RecordResult },
+  input: { customerId: string; profileId: string; businessName: string; programId: string; quantity?: number; result: RecordResult },
   admin: LoyaltyAdmin = createAdminClient()
 ): Promise<DeliveryReport[]> {
   const wanted = input.result.notify.filter((m) => m === "near_2" || m === "near_1" || m === "unlocked");
-  if (wanted.length === 0) return [];
+  if (wanted.length === 0 && input.result.outcome !== "recorded") return [];
   try {
     const { data: program } = await admin
       .from("loyalty_programs")
@@ -145,6 +149,23 @@ export async function notifyAfterRecord(
       .eq("profile_id", input.profileId)
       .maybeSingle();
     if (!program) return [];
+    if (wanted.length === 0) {
+      return [
+        await deliverLoyaltyNotification(
+          input.customerId,
+          {
+            kind: "recorded",
+            business: input.businessName,
+            actionKey: (program as any).action_key,
+            quantity: input.quantity ?? 1,
+            progress: input.result.progress,
+            target: input.result.target,
+          },
+          {},
+          admin
+        ),
+      ];
+    }
     const reports: DeliveryReport[] = [];
     for (const milestone of wanted) {
       const message: LoyaltyMessage =

@@ -43,7 +43,13 @@ export default function CommunityAnnouncementComposer({
   const [linkType, setLinkType] = useState(announcement?.link_type || "none");
   const [linkUrl, setLinkUrl] = useState(announcement?.link_url || "");
   const [linkRefId, setLinkRefId] = useState(announcement?.link_ref_id || "");
-  const [audience, setAudience] = useState(announcement?.audience === "whatsapp" ? "all" : announcement?.audience || "all");
+  // Which channels this announcement goes out on. Drafts saved before the picker existed
+  // (channels NULL) default to email + push, which is what they did.
+  const [channels, setChannels] = useState<string[]>(
+    Array.isArray(announcement?.channels) ? announcement.channels : ["email", "push"]
+  );
+  const toggleChannel = (c: string) =>
+    setChannels((cur) => (cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c]));
   const [category, setCategory] = useState(announcement?.notification_category || "announcement");
 
   const [error, setError] = useState("");
@@ -51,7 +57,8 @@ export default function CommunityAnnouncementComposer({
   const [sending, setSending] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
-  const [recipientEstimate, setRecipientEstimate] = useState<number | null>(null);
+  const [emailEstimate, setEmailEstimate] = useState<number | null>(null);
+  const [pushEstimate, setPushEstimate] = useState<number | null>(null);
   const [sendResult, setSendResult] = useState<{ sentCount: number; recipientCount: number; providerConfigured: boolean } | null>(null);
 
   const readOnly = status === "sent" || status === "sending";
@@ -69,19 +76,34 @@ export default function CommunityAnnouncementComposer({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { count } = await supabase
+      const column = notifyColumn[category] || "notify_announcements";
+      const { count: emailCount } = await supabase
         .from("community_subscribers")
         .select(`id, community_subscription_preferences!inner(*)`, { count: "exact", head: true })
         .eq("profile_id", profileId)
         .eq("status", "active")
         .eq("community_subscription_preferences.email_updates", true)
-        .eq(`community_subscription_preferences.${notifyColumn[category] || "notify_announcements"}`, true);
-      if (!cancelled) setRecipientEstimate(count ?? 0);
+        .eq(`community_subscription_preferences.${column}`, true);
+      const { count: pushCount, error: pushError } = await supabase
+        .from("community_subscribers")
+        .select(`id, community_subscription_preferences!inner(*)`, { count: "exact", head: true })
+        .eq("profile_id", profileId)
+        .eq("status", "active")
+        .eq("community_subscription_preferences.push_updates", true)
+        .eq(`community_subscription_preferences.${column}`, true);
+      if (cancelled) return;
+      setEmailEstimate(emailCount ?? 0);
+      setPushEstimate(pushError ? null : pushCount ?? 0);
     })();
     return () => {
       cancelled = true;
     };
-  }, [profileId, category, audience]);
+  }, [profileId, category]);
+
+  const confirmBody = t.community.sendConfirmBodyChannels(
+    channels.includes("email") ? emailEstimate ?? 0 : null,
+    channels.includes("push") ? pushEstimate ?? 0 : null
+  );
 
   const saveDraft = async (): Promise<string | null> => {
     setError("");
@@ -93,6 +115,10 @@ export default function CommunityAnnouncementComposer({
       setError(t.community.messageRequired);
       return null;
     }
+    if (channels.length === 0) {
+      setError(t.community.channelRequired);
+      return null;
+    }
     setSaving(true);
     const payload = {
       profile_id: profileId,
@@ -102,7 +128,8 @@ export default function CommunityAnnouncementComposer({
       link_type: linkType,
       link_url: linkType === "custom" ? linkUrl.trim() || null : null,
       link_ref_id: ["product", "music", "event"].includes(linkType) ? linkRefId || null : null,
-      audience,
+      audience: "all",
+      channels,
       notification_category: category,
       updated_at: new Date().toISOString(),
     };
@@ -264,22 +291,28 @@ export default function CommunityAnnouncementComposer({
           </select>
         )}
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ringo-text">{t.community.audienceLabel}</span>
-          <select
-            value={audience}
-            onChange={(e) => setAudience(e.target.value)}
-            disabled={readOnly}
-            className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text disabled:opacity-60 max-w-xs"
-          >
-            <option value="all">{t.community.audienceAll}</option>
-            <option value="email">{t.community.audienceEmail}</option>
-          </select>
-        </label>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-ringo-text">{t.community.channelsLabel}</span>
+          <div className="flex flex-wrap gap-4">
+            {[
+              { key: "email", label: t.community.channelEmail },
+              { key: "push", label: t.community.channelPush },
+            ].map((c) => (
+              <label key={c.key} className="flex items-center gap-2 text-sm text-ringo-text cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={channels.includes(c.key)}
+                  onChange={() => toggleChannel(c.key)}
+                  disabled={readOnly}
+                  className="w-4 h-4 accent-ringo-indigo"
+                />
+                {c.label}
+              </label>
+            ))}
+          </div>
+        </div>
 
-        {recipientEstimate !== null && !readOnly && (
-          <p className="text-xs text-ringo-muted">{t.community.sendConfirmBody(recipientEstimate)}</p>
-        )}
+        {!readOnly && channels.length > 0 && <p className="text-xs text-ringo-muted">{confirmBody}</p>}
 
         {!readOnly && (
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-ringo-border/50">
@@ -334,7 +367,7 @@ export default function CommunityAnnouncementComposer({
           <div className="relative w-full max-w-sm rounded-2xl bg-white p-5" style={{ color: "#14202B" }}>
             <p className="font-semibold mb-1.5">{t.community.sendConfirmTitle}</p>
             <p className="text-sm mb-4" style={{ opacity: 0.75 }}>
-              {t.community.sendConfirmBody(recipientEstimate ?? 0)}
+              {confirmBody}
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setShowSendConfirm(false)} className="text-sm font-medium px-4 py-2 rounded-full" style={{ opacity: 0.7 }}>

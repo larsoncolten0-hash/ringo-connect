@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { sendBookingConfirmationEmail } from "@/lib/email/sendBookingConfirmationEmail";
+import { notifyBookingConfirmed } from "@/lib/customer/bookingPush";
 import { NextResponse } from "next/server";
 
 // The artist/business accepting a booking request — previously a direct
@@ -39,6 +40,9 @@ export async function POST(_request: Request, { params }: { params: { id: string
     // booking is already confirmed above regardless.
     console.error(`booking confirmation email threw for booking ${booking.id}:`, err);
   }
+
+  // Push to the customer's My Ringo app (best-effort; never throws).
+  await notifyBookingConfirmed(booking.id);
 
   return NextResponse.json({ ok: true });
 }

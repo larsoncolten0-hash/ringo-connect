@@ -137,6 +137,15 @@ export const translations = {
     // The public "Join Community" form (see CommunityJoinPage.tsx) and its
     // own confirmation step. Dashboard-side copy (Overview/Subscribers/
     // Announcements/Settings) lives under `community` instead.
+    // Push notifications sent to a Ringo customer's My Ringo devices for events that are not
+    // loyalty (loyalty wording lives under loyalty.notify).
+    customerPush: {
+      bookingConfirmed: {
+        title: "Booking confirmed",
+        body: (service: string, business: string, date: string, time: string) =>
+          `${business} confirmed your booking${service ? ` for ${service}` : ""}${date ? ` on ${date}` : ""}${time ? ` at ${time}` : ""}.`,
+      },
+    },
     communityJoin: {
       formTitle: (name: string) => `Join ${name}'s Community`,
       subtitle: "Stay updated with new music, products, events and announcements.",
@@ -149,6 +158,7 @@ export const translations = {
       preferencesTitle: "Communication preferences",
       consentEmail: "Email updates",
       consentWhatsapp: "WhatsApp updates",
+      consentPush: "Push notifications",
       submit: "Join Community",
       submitting: "Joining…",
       nameRequired: "Please enter your name.",
@@ -456,6 +466,11 @@ export const translations = {
       permissionGroup: "Loyalty",
       notify: {
         push: {
+          recorded: {
+            title: (business: string) => `Recorded at ${business}`,
+            body: (quantity: number, word: string, progress: number | null, target: number | null) =>
+              progress !== null && target !== null ? `${quantity} ${word} recorded. Progress: ${progress}/${target}.` : `${quantity} ${word} recorded.`,
+          },
           near2: { title: "Almost there", body: (many: string, business: string) => `You are 2 ${many} away from your reward at ${business}.` },
           near1: { title: "Almost there", body: (one: string, business: string) => `One more ${one}! Your next ${one} unlocks your reward at ${business}.` },
           unlocked: { title: "🎉 Reward unlocked", body: (reward: string, business: string) => `You unlocked ${reward} at ${business}. Show your QR to redeem it.` },
@@ -764,6 +779,8 @@ export const translations = {
         queueCount: (n: number) => (n === 1 ? "1 track" : `${n} tracks`),
         playAll: "Play all",
         shuffleAll: "Shuffle",
+        switchToLight: "Switch the player to light mode",
+        switchToDark: "Switch the player to dark mode",
       },
       offline: {
         save: "Save for offline",
@@ -2007,6 +2024,16 @@ export const translations = {
       audienceLabel: "Audience",
       audienceAll: "All subscribers",
       audienceEmail: "Email subscribers",
+      channelsLabel: "Send via",
+      channelEmail: "Email",
+      channelPush: "Push notification",
+      channelRequired: "Pick at least one way to send this (email or push).",
+      sendConfirmBodyChannels: (email: number | null, push: number | null) => {
+        const parts: string[] = [];
+        if (email !== null) parts.push(`email ${email} subscriber${email === 1 ? "" : "s"}`);
+        if (push !== null) parts.push(`send a push notification to ${push} subscriber${push === 1 ? "" : "s"}`);
+        return `This will ${parts.join(" and ")} who opted into this type of update. This can't be undone.`;
+      },
       audienceWhatsapp: "WhatsApp subscribers",
       categoryLabel: "Notification type",
       categoryAnnouncement: "Announcement",
@@ -2907,6 +2934,14 @@ export const translations = {
       promptBodyDashboard: "Soyez averti dès qu'une réservation, commande, vente ou un nouvel abonné arrive — directement sur cet appareil.",
       promptBodyAdmin: "Soyez averti des nouveaux membres payants, demandes d'inscription et demandes de paiement — directement sur cet appareil.",
     },
+    // Notifications push envoyées aux appareils My Ringo d'un client Ringo pour les événements hors fidélité (les textes de fidélité sont dans loyalty.notify).
+    customerPush: {
+      bookingConfirmed: {
+        title: "Réservation confirmée",
+        body: (service: string, business: string, date: string, time: string) =>
+          `${business} a confirmé votre réservation${service ? ` pour ${service}` : ""}${date ? ` le ${date}` : ""}${time ? ` à ${time}` : ""}.`,
+      },
+    },
     communityJoin: {
       formTitle: (name: string) => `Rejoindre la communauté de ${name}`,
       subtitle: "Restez informé des nouveautés musicales, produits, événements et annonces.",
@@ -2919,6 +2954,7 @@ export const translations = {
       preferencesTitle: "Préférences de communication",
       consentEmail: "Actualités par e-mail",
       consentWhatsapp: "Actualités par WhatsApp",
+      consentPush: "Notifications push",
       submit: "Rejoindre la communauté",
       submitting: "Inscription…",
       nameRequired: "Veuillez indiquer votre nom.",
@@ -3218,6 +3254,11 @@ export const translations = {
       permissionGroup: "Fidélité",
       notify: {
         push: {
+          recorded: {
+            title: (business: string) => `Enregistré chez ${business}`,
+            body: (quantity: number, word: string, progress: number | null, target: number | null) =>
+              progress !== null && target !== null ? `${quantity} ${word} enregistré(s). Progression : ${progress}/${target}.` : `${quantity} ${word} enregistré(s).`,
+          },
           near2: { title: "Presque là", body: (many: string, business: string) => `Encore 2 ${many} avant votre récompense chez ${business}.` },
           near1: { title: "Presque là", body: (one: string, business: string) => `Encore 1 ${one} et vous débloquez votre récompense chez ${business} !` },
           unlocked: { title: "🎉 Récompense débloquée", body: (reward: string, business: string) => `Vous avez débloqué ${reward} chez ${business}. Montrez votre QR pour l'utiliser.` },
@@ -3526,6 +3567,8 @@ export const translations = {
         queueCount: (n: number) => (n === 1 ? "1 titre" : `${n} titres`),
         playAll: "Tout lire",
         shuffleAll: "Aléatoire",
+        switchToLight: "Passer le lecteur en mode clair",
+        switchToDark: "Passer le lecteur en mode sombre",
       },
       offline: {
         save: "Enregistrer hors ligne",
@@ -4663,6 +4706,16 @@ export const translations = {
       audienceLabel: "Audience",
       audienceAll: "Tous les abonnés",
       audienceEmail: "Abonnés e-mail",
+      channelsLabel: "Envoyer par",
+      channelEmail: "E-mail",
+      channelPush: "Notification push",
+      channelRequired: "Choisissez au moins un moyen d'envoi (e-mail ou push).",
+      sendConfirmBodyChannels: (email: number | null, push: number | null) => {
+        const parts: string[] = [];
+        if (email !== null) parts.push(`enverra un e-mail à ${email} abonné${email === 1 ? "" : "s"}`);
+        if (push !== null) parts.push(`enverra une notification push à ${push} abonné${push === 1 ? "" : "s"}`);
+        return `Cela ${parts.join(" et ")} ayant accepté ce type d'actualité. Cette action est irréversible.`;
+      },
       audienceWhatsapp: "Abonnés WhatsApp",
       categoryLabel: "Type de notification",
       categoryAnnouncement: "Annonce",
