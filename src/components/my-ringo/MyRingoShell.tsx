@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Link2, Music, MessageCircle, Receipt, User } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import LanguageToggle from "@/components/LanguageToggle";
 import { usePlayer } from "./player/MusicPlayerProvider";
+import { CustomerBellButton, CustomerBellPanel } from "./CustomerBell";
+import { useCustomerNotifications } from "./useCustomerNotifications";
 import AccountMenu from "./AccountMenu";
 import BrandLogo from "@/components/BrandLogo";
 
@@ -24,6 +27,17 @@ export default function MyRingoShell({
   const { t } = useLanguage();
   const pathname = usePathname();
   const { current: nowPlaying } = usePlayer();
+  const notifications = useCustomerNotifications();
+  const [bellOpen, setBellOpen] = useState(false);
+  const toggleBell = () => {
+    const next = !bellOpen;
+    setBellOpen(next);
+    notifications.setPanelOpen(next);
+  };
+  const closeBell = () => {
+    setBellOpen(false);
+    notifications.setPanelOpen(false);
+  };
 
   const items = [
     { href: "/my-ringo", label: t.myRingo.nav.home, Icon: Home, exact: true },
@@ -61,7 +75,8 @@ export default function MyRingoShell({
             );
           })}
         </nav>
-        <div className="mt-auto mb-2 px-1">
+        <div className="mt-auto mb-2 flex flex-col gap-1 px-1">
+          <CustomerBellButton variant="row" unread={notifications.unread} open={bellOpen} onToggle={toggleBell} />
           <LanguageToggle />
         </div>
         <AccountMenu customer={customer} variant="side" />
@@ -74,6 +89,7 @@ export default function MyRingoShell({
           {t.myRingo.title}
         </Link>
         <div className="flex items-center gap-1">
+          <CustomerBellButton variant="icon" unread={notifications.unread} open={bellOpen} onToggle={toggleBell} />
           <LanguageToggle />
           <AccountMenu customer={customer} variant="top" />
         </div>
@@ -86,6 +102,8 @@ export default function MyRingoShell({
       >
         <div className="mx-auto w-full max-w-3xl">{children}</div>
       </main>
+
+      {bellOpen && <CustomerBellPanel state={notifications} onClose={closeBell} />}
 
       {/* Mobile bottom tab bar */}
       <nav

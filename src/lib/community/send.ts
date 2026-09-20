@@ -1,7 +1,7 @@
 import { sendEmail } from "@/lib/email/provider";
 import { renderAnnouncementEmail } from "@/lib/email/renderAnnouncementEmail";
 import { sendPushToSubscriber } from "@/lib/push/send";
-import { sendPushToCustomer } from "@/lib/customer/push";
+import { notifyCustomer } from "@/lib/customer/inbox";
 
 // Shared by both send paths — the owner's manual "Send Announcement" and
 // the one-shot /api/community/notify product action — so there is exactly
@@ -177,7 +177,7 @@ export async function sendAnnouncementToSubscribers(
         const customerId = customerBySubscriber.get(subscriber.id);
         const [viaFan, viaCustomer] = await Promise.all([
           sendPushToSubscriber(admin, subscriber.id, payload),
-          customerId ? sendPushToCustomer(customerId, payload) : Promise.resolve(false),
+          customerId ? notifyCustomer(customerId, payload, { profileId: profile.id }) : Promise.resolve(false),
         ]);
         if (viaFan || viaCustomer) {
           pushSent++;

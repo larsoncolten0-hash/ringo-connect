@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendPushToCustomer } from "@/lib/customer/push";
+import { notifyCustomer } from "@/lib/customer/inbox";
 import { translations, type Locale } from "@/lib/i18n/translations";
 
 // Tells a Ringo customer, on their My Ringo devices, that a business confirmed their booking.
@@ -13,7 +13,7 @@ export async function notifyBookingConfirmed(bookingId: string): Promise<void> {
     const admin = createAdminClient();
     const { data: booking } = await admin
       .from("bookings")
-      .select("id, customer_email, service_name_snapshot, booking_date, booking_time, profiles(name, username)")
+      .select("id, profile_id, customer_email, service_name_snapshot, booking_date, booking_time, profiles(name, username)")
       .eq("id", bookingId)
       .maybeSingle();
     if (!booking) return;
@@ -47,7 +47,9 @@ export async function notifyBookingConfirmed(bookingId: string): Promise<void> {
 
     const profile = (booking as any).profiles;
     const n = translations[locale].customerPush.bookingConfirmed;
-    await sendPushToCustomer(customerId, {
+    await notifyCustomer(
+      customerId,
+      {
       category: "booking_confirmed",
       title: n.title,
       body: n.body(
@@ -58,7 +60,9 @@ export async function notifyBookingConfirmed(bookingId: string): Promise<void> {
       ),
       url: "/my-ringo/activity",
       data: { kind: "booking_confirmed" },
-    });
+      },
+      { profileId: (booking as any).profile_id }
+    );
   } catch (err) {
     console.error("notifyBookingConfirmed failed:", err);
   }

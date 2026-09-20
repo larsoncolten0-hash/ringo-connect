@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendPushToCustomer } from "@/lib/customer/push";
+import { notifyCustomer } from "@/lib/customer/inbox";
 import { sendLoyaltyEmail } from "@/lib/email/sendLoyaltyEmail";
 import { buildPush, EMAIL_KINDS, LOYALTY_PUSH_URL, type LoyaltyMessage } from "@/lib/loyalty/notifyMessages";
 import type { ExpiringPackage, ExpiryEvent, LoyaltyAdmin, RecordResult, RedeemResult } from "@/lib/loyalty/engine";
@@ -19,8 +19,9 @@ import type { Locale } from "@/lib/i18n/translations";
 //  * These are transactional product notifications. customer_connections.marketing_consent is
 //    never read; it neither allows nor blocks anything here. Only customer_loyalty_prefs decides,
 //    and a preferences read that FAILS means "do not send" (fail closed).
-//  * Push goes through the existing sendPushToCustomer() -> customer_push_subscriptions (the
-//    same My Ringo service worker). Creator/admin/fan push_subscriptions are never touched.
+//  * Push goes through notifyCustomer(): the message is stored in the customer's My Ringo bell
+//    (customer_notifications) and pushed via customer_push_subscriptions (the same My Ringo
+//    service worker). Creator/admin/fan push_subscriptions are never touched.
 //  * Milestones (near_2, near_1, unlocked, redeemed, package_expiring) arrive ALREADY claimed by
 //    the database (loyalty_notification_log), so each is delivered at most once; this layer does
 //    not recalculate progress or dedupe anything itself.
@@ -91,7 +92,7 @@ export async function deliverLoyaltyNotification(
     try {
       const built = buildPush(message, locale);
       const sent = await withTimeout(
-        sendPushToCustomer(customerId, { category: built.category, title: built.title, body: built.body, url: LOYALTY_PUSH_URL, data: { kind: message.kind } }),
+        notifyCustomer(customerId, { category: built.category, title: built.title, body: built.body, url: LOYALTY_PUSH_URL, data: { kind: message.kind } }),
         timeoutMs
       );
       report.push = sent === TIMEOUT ? "failed" : sent ? "delivered" : "not_delivered";

@@ -649,6 +649,15 @@ export const translations = {
         qaConnections: "View Connections",
         qaMe: "Manage My Ringo",
       },
+      bell: {
+        label: "Notifications",
+        title: "Notifications",
+        close: "Close notifications",
+        markAllRead: "Mark all as read",
+        unread: (n: number) => (n === 1 ? "1 unread" : `${n} unread`),
+        emptyTitle: "No notifications yet",
+        emptyBody: "Updates from the profiles you're connected to will be kept here, so you never miss one.",
+      },
       connections: {
         title: "Connections",
         count: (n: number) => (n === 1 ? "1 connection" : `${n} connections`),
@@ -3459,6 +3468,15 @@ export const translations = {
         quickActions: "Actions rapides",
         qaConnections: "Voir les connexions",
         qaMe: "Gérer Mon Ringo",
+      },
+      bell: {
+        label: "Notifications",
+        title: "Notifications",
+        close: "Fermer les notifications",
+        markAllRead: "Tout marquer comme lu",
+        unread: (n: number) => (n === 1 ? "1 non lue" : `${n} non lues`),
+        emptyTitle: "Aucune notification pour l'instant",
+        emptyBody: "Les actualités des profils auxquels vous êtes connecté seront conservées ici, pour que vous n'en manquiez aucune.",
       },
       connections: {
         title: "Connexions",
