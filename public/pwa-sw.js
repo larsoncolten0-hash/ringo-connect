@@ -51,9 +51,13 @@ self.addEventListener("push", (event) => {
     // rather than silently doing nothing.
   }
 
-  const title = payload.title || "Ringo Connect";
+  // The brand always leads (like Facebook's "Facebook" header): the OS title
+  // is "Ringo Connect", and the message's own headline moves to the first
+  // line of the body, followed by the detail text.
+  const title = "Ringo Connect";
+  const headline = payload.title && payload.title !== title ? payload.title : "";
   const options = {
-    body: payload.body || "",
+    body: [headline, payload.body].filter(Boolean).join("\n"),
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     // Collapses rapid-fire pushes of the same kind (e.g. several order
