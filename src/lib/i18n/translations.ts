@@ -1648,6 +1648,8 @@ export const translations = {
       // DashboardShell.tsx/MobileMoreMenu.tsx.
       loyalty: "Loyalty",
       more: "More",
+      // Link under a hamburger-menu section's preview of its own pages.
+      seeMore: "See more",
     },
     // The dashboard-wide error boundary (src/app/dashboard/error.tsx) —
     // shown in place of a page's content when its data fetch/render
@@ -4328,6 +4330,7 @@ export const translations = {
       ringoCard: "Carte Ringo",
       loyalty: "Fidélité",
       more: "Plus",
+      seeMore: "Voir plus",
     },
     dashboardError: {
       title: "Impossible de charger cette section",

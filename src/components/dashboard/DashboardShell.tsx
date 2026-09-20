@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award, Gift } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award, Gift, ClipboardList, ChefHat, Table2, TrendingUp, Wallet, Settings } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
@@ -197,7 +197,32 @@ export default function DashboardShell({
     // is org-aware (resolves the active organization, not just an owned
     // profile) and RestaurantTabs filters its own sub-nav to the viewer's
     // actual permissions — see that component's own comment.
-    ...(isRestaurant ? [{ href: "/dashboard/restaurant", label: t.nav.restaurant, icon: UtensilsCrossed, core: false }] : []),
+    // `children` = the section's own sub-pages (mirroring RestaurantTabs/
+    // MusicTabs/BookingsTabs) — the hamburger menu previews the first few
+    // under the section with a "See more" link. Restaurant's sub-pages are
+    // permission-filtered per staff role inside RestaurantTabs, which this
+    // shell can't see, so staff get just the section link (no preview)
+    // rather than links to pages they may not be allowed to open; an owner
+    // has every permission, so their preview is always accurate.
+    ...(isRestaurant
+      ? [
+          {
+            href: "/dashboard/restaurant",
+            label: t.nav.restaurant,
+            icon: UtensilsCrossed,
+            core: false,
+            children: organization?.isStaff
+              ? []
+              : [
+                  { href: "/dashboard/restaurant/orders", label: t.restaurant.ordersLabel, icon: ClipboardList },
+                  { href: "/dashboard/restaurant/kitchen", label: t.restaurant.kitchenTitle, icon: ChefHat },
+                  { href: "/dashboard/restaurant/tables", label: t.restaurant.tablesTitle, icon: Table2 },
+                  { href: "/dashboard/restaurant/sales", label: t.restaurant.salesTitle, icon: TrendingUp },
+                  { href: "/dashboard/restaurant/customers", label: t.restaurant.customersTitle, icon: Users },
+                ],
+          },
+        ]
+      : []),
     // Music/Tickets/Bookings, unlike Restaurant, are NOT org-aware yet —
     // requireMusicProfile/requireTicketingProfile/requireOwnProfile still
     // resolve the viewer's OWN profile only (the pre-Team pattern), with no
@@ -211,7 +236,22 @@ export default function DashboardShell({
     // page guards are rewritten to be organization-aware (a real follow-up
     // of its own, not attempted here) — same reasoning as filtering
     // RestaurantTabs to what's actually enforced, just one level up.
-    ...(isMusic && !organization?.isStaff ? [{ href: "/dashboard/music", label: t.nav.musicSales, icon: Music2, core: false }] : []),
+    ...(isMusic && !organization?.isStaff
+      ? [
+          {
+            href: "/dashboard/music",
+            label: t.nav.musicSales,
+            icon: Music2,
+            core: false,
+            children: [
+              { href: "/dashboard/music/orders", label: t.restaurant.ordersLabel, icon: ClipboardList },
+              { href: "/dashboard/music/sales", label: t.restaurant.salesTitle, icon: TrendingUp },
+              { href: "/dashboard/music/customers", label: t.restaurant.customersTitle, icon: Users },
+              { href: "/dashboard/music/earnings", label: t.music.earningsTab, icon: Wallet },
+            ],
+          },
+        ]
+      : []),
     // Its own section, not nested inside Music's editor — Events &
     // Experiences profiles get this without needing Music's other tools.
     ...(hasTicketing && !organization?.isStaff ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket, core: false }] : []),
@@ -220,7 +260,17 @@ export default function DashboardShell({
     // hidden until enabled) so an owner can actually find Settings to turn
     // it on in the first place — but still hidden for staff, same
     // not-yet-org-aware reasoning as Music/Tickets above.
-    ...(!organization?.isStaff ? [{ href: "/dashboard/bookings", label: t.nav.bookings, icon: CalendarCheck, core: false }] : []),
+    ...(!organization?.isStaff
+      ? [
+          {
+            href: "/dashboard/bookings",
+            label: t.nav.bookings,
+            icon: CalendarCheck,
+            core: false,
+            children: [{ href: "/dashboard/bookings/settings", label: t.bookings.settingsTab, icon: Settings }],
+          },
+        ]
+      : []),
     // Same "always visible" reasoning as Bookings above — every category
     // can build a community, so this isn't gated either.
     { href: "/dashboard/community", label: t.nav.community, icon: Users, core: true },
