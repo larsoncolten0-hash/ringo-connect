@@ -57,7 +57,17 @@ export async function applySuccessfulPayment({
   const bundle = parseBundlePlanName(tx.plan_name);
   if (bundle) {
     const result = await applyCardBundleGrant(tx.user_id, bundle.grantPlanName, bundle.durationDays);
-    await admin.from("payment_transactions").update({ status: "success", updated_at: new Date().toISOString() }).eq("id", tx.id);
+    // Claim the payment atomically — the poll and the webhook (and repeated
+    // polls) can overlap, each having read the transaction as still pending.
+    // Only the call whose UPDATE changes the row notifies, so one payment is
+    // one set of notifications, not one per overlapping caller.
+    const { data: claimed } = await admin
+      .from("payment_transactions")
+      .update({ status: "success", updated_at: new Date().toISOString() })
+      .eq("id", tx.id)
+      .neq("status", "success")
+      .select("id");
+    if (!claimed?.length) return { applied: false };
     await notifyCardBundlePurchased({ userId: tx.user_id, durationDays: bundle.durationDays, outcome: result.applied ? result.outcome : null, amount: tx.amount, currency: tx.currency });
     await notifyAffiliateCommissionIfAny(admin, tx.id);
     return { applied: true };
@@ -94,9 +104,26 @@ export async function applySuccessfulPayment({
   }
 
   await admin.from("users").update(updates).eq("id", tx.user_id);
-  await admin.from("payment_transactions").update({ status: "success", updated_at: new Date().toISOString() }).eq("id", tx.id);
+  // Same atomic claim as the bundle path above: only the caller that flips
+  // the transaction to success sends the notifications.
+  const { data: claimedTx } = await admin
+    .from("payment_transactions")
+    .update({ status: "success", updated_at: new Date().toISOString() })
+    .eq("id", tx.id)
+    .neq("status", "success")
+    .select("id");
+  if (!claimedTx?.length) return { applied: false };
 
-  await notifyPaymentSucceeded({ userId: tx.user_id, planDisplayName: plan.display_name || plan.name, amount: tx.amount, currency: tx.currency });
+  // A first-time paid member already gets the admin "New paid member"
+  // push + bell just below — skip the separate admin "Subscription
+  // payment" bell in that case so one payment is one admin notification.
+  await notifyPaymentSucceeded({
+    userId: tx.user_id,
+    planDisplayName: plan.display_name || plan.name,
+    amount: tx.amount,
+    currency: tx.currency,
+    adminBell: !wasOnFreePlan,
+  });
   if (wasOnFreePlan) {
     const { data: buyerProfile } = await admin.from("profiles").select("name, username").eq("user_id", tx.user_id).maybeSingle();
     await sendPushAndBellToAdmins(admin, {
@@ -126,11 +153,14 @@ export async function notifyPaymentSucceeded({
   planDisplayName,
   amount,
   currency,
+  adminBell = true,
 }: {
   userId: string;
   planDisplayName: string;
   amount: number;
   currency: string;
+  // false when the caller sends its own admin notification for this payment.
+  adminBell?: boolean;
 }) {
   const admin = createAdminClient();
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com").replace(/\/$/, "");
@@ -142,12 +172,14 @@ export async function notifyPaymentSucceeded({
   const adminEmails = (admins || []).map((a) => a.email).filter(Boolean);
 
   await Promise.allSettled([
-    notifyAdmins({
-      type: "subscription_payment",
-      title: `Subscription payment — ${planDisplayName}`,
-      body: user?.email ? `${user.email} · ${amount} ${currency}` : `${amount} ${currency}`,
-      link: "/admin",
-    }),
+    adminBell
+      ? notifyAdmins({
+          type: "subscription_payment",
+          title: `Subscription payment — ${planDisplayName}`,
+          body: user?.email ? `${user.email} · ${amount} ${currency}` : `${amount} ${currency}`,
+          link: "/admin",
+        })
+      : Promise.resolve(),
     notifyUser(userId, {
       type: "subscription_payment",
       title: `You're now on the ${planDisplayName} plan`,

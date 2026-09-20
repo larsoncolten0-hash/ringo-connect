@@ -49,10 +49,20 @@ export async function checkAndConfirmFapshiOrder(
     // purely digital order (song/release/ticket/support) has nothing left
     // to do once it's paid.
     const hasPhysicalItem = (order.music_order_items || []).some((i) => i.item_type === "merch");
-    await admin
+    // Claim the "just became paid" moment atomically: several polls (the
+    // pay-status screen, the confirmation tab's long poll, the scanner, the
+    // ticket pass, the receipt page) can all be in flight at once, each
+    // having read the order as unpaid before any of them wrote. Only the
+    // call whose UPDATE actually changes the row gets a result back, so only
+    // that one sends the "Payment received" push/bell below — otherwise the
+    // artist got one notification per overlapping poll for a single sale.
+    const { data: claimed } = await admin
       .from("music_orders")
       .update({ payment_status: "paid", ...(hasPhysicalItem ? {} : { status: "completed" }) })
-      .eq("id", order.id);
+      .eq("id", order.id)
+      .or("payment_status.is.null,payment_status.neq.paid")
+      .select("id");
+    const justPaid = (claimed?.length ?? 0) > 0;
 
     if (profile?.user_id) {
       // Idempotent against a race between two near-simultaneous checks:
@@ -95,12 +105,14 @@ export async function checkAndConfirmFapshiOrder(
       // own cash/card sale — they already know), this path confirms an
       // automatic Mobile Money payment the artist wasn't watching, so a
       // push here is the actual "you got paid" moment for them.
-      await sendPushAndBellToUser(admin, profile.user_id, {
-        category: "payment_received",
-        title: "Payment received",
-        body: `You received ${formatPrice(gross, profile.currency || "XAF")} for a sale.`,
-        url: `/dashboard/music/orders/${order.id}`,
-      });
+      if (justPaid) {
+        await sendPushAndBellToUser(admin, profile.user_id, {
+          category: "payment_received",
+          title: "Payment received",
+          body: `You received ${formatPrice(gross, profile.currency || "XAF")} for a sale.`,
+          url: `/dashboard/music/orders/${order.id}`,
+        });
+      }
     }
 
     try {
