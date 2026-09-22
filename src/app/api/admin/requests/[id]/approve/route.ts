@@ -10,6 +10,7 @@ import { notifyUser } from "@/lib/notifications";
 import { emailShell } from "@/lib/email/emailShell";
 import { sendEmail } from "@/lib/email/provider";
 import { applyCardBundleGrant } from "@/lib/cardBundle";
+import { defaultCurrencyForWhatsapp } from "@/lib/currency";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const admin = await assertCanApproveRequests();
@@ -116,6 +117,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
       name: fullName,
       avatar_url: avatarUrl || null,
       whatsapp_number: whatsappNumber,
+      // A brand-new profile has no currency of its own yet (that's the
+      // only reason this is safe to set unconditionally here, same as
+      // default_whatsapp_message/theme below) — defaults every +237
+      // WhatsApp number to XAF so all of this account's own pricing/
+      // earnings displays start in the right currency, while still
+      // leaving it a completely normal profile field the creator can
+      // change to any other currency afterward from the editor.
+      currency: defaultCurrencyForWhatsapp(whatsappNumber),
       about_long_bio: note || null,
       ...(requestCategory
         ? {

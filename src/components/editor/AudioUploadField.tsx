@@ -50,7 +50,16 @@ export default function AudioUploadField({
   const handleFile = async (file: File) => {
     setError("");
 
-    if (!file.type.startsWith("audio/")) {
+    // Some phone file providers (WhatsApp-downloaded files, certain
+    // Android "Files" providers, etc.) hand the browser a file with no
+    // MIME type at all, or one that doesn't start with "audio/" even
+    // though it plainly is one — the file.type check alone was
+    // blocking real mp3s some artists picked. Fall back to the
+    // extension when the browser didn't give us a usable type.
+    const looksLikeAudio = file.type
+      ? file.type.startsWith("audio/")
+      : /\.(mp3|m4a|wav|aac|ogg|flac|wma|opus)$/i.test(file.name);
+    if (!looksLikeAudio) {
       setError(errorText?.wrongType || "Please choose an audio file.");
       return;
     }
@@ -120,7 +129,12 @@ export default function AudioUploadField({
       <input
         ref={inputRef}
         type="file"
-        accept="audio/*"
+        // "audio/*" alone gets many real mp3s greyed out/unselectable in
+        // the iOS and Android file pickers when the source app (WhatsApp,
+        // a cloud drive, some Android file providers) hasn't tagged the
+        // file with an audio MIME type the OS recognizes — listing common
+        // extensions alongside it makes the picker allow those files too.
+        accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.wma,.opus"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
