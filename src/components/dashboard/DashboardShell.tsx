@@ -12,6 +12,7 @@ import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import HelpWidget from "@/components/dashboard/HelpWidget";
+import RingoAiLauncher from "@/components/ai/RingoAiLauncher";
 import MobileMoreMenu from "@/components/dashboard/MobileMoreMenu";
 import PullToRefresh from "@/components/dashboard/PullToRefresh";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
@@ -612,6 +613,9 @@ export default function DashboardShell({
       </div>
 
       <HelpWidget username={username} email={email} />
+
+      {/* Ringo AI (owner-only beta) — renders nothing unless /api/ai/status allows it. */}
+      <RingoAiLauncher />
 
       {showOnboardingTour && onboardingProfile && (
         <OnboardingTourController showOnboardingTour={showOnboardingTour} profile={onboardingProfile} username={username} />

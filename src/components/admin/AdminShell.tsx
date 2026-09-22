@@ -6,7 +6,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { hasCustomLogo } from "@/lib/brandingDefaults";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, UserCheck, type LucideIcon } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, UserCheck, Sparkles, type LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
@@ -52,6 +52,8 @@ const NAV_ITEMS: {
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, core: false },
   { href: "/admin/customers", label: "Customers", icon: UserCheck, core: false },
   { href: "/admin/branding", label: "Branding", icon: Palette, core: false },
+  // Product name — identical in English and French.
+  { href: "/admin/ai", label: "Ringo AI", icon: Sparkles, core: false },
 ];
 
 export default function AdminShell({
