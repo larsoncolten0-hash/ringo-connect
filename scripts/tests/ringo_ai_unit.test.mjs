@@ -31,13 +31,14 @@ const check = (name, cond, detail = "") => {
 const { runDiagnostics } = load("lib/ai/diagnostics/index.ts");
 const { DIAGNOSTIC_CHECKS } = load("lib/ai/diagnostics/checks.ts");
 const { parseAiSettingsPatch, mapAiSettingsRow } = load("lib/ai/settings.ts");
-const { KNOWLEDGE_MODULES, KNOWLEDGE_TOPIC_IDS, getCategoryModules } = load("lib/ai/knowledge/index.ts");
+const { KNOWLEDGE_MODULES, KNOWLEDGE_TOPIC_IDS, getCategoryModules, getAlwaysModules } = load("lib/ai/knowledge/index.ts");
 const { renderNavigationMap } = load("lib/ai/knowledge/navigation.ts");
 const { buildStableSystemPrompt } = load("lib/ai/prompts/system.ts");
 const { getAvailableTools, executeTool } = load("lib/ai/tools/registry.ts");
 const { AI_TOOLS } = load("lib/ai/tools/index.ts");
 const { translations } = load("lib/i18n/translations.ts");
 const { AI_DENY_REASONS, AI_LIMIT_REASONS, AI_RUNTIME_ERRORS } = load("lib/ai/codes.ts");
+const { resolvePeriod, isBiPeriod, clampLimit, bucketByUtcDay, BI_PERIODS } = load("lib/ai/tools/period.ts");
 
 // ------------------------------------------------------------------ fixtures
 const base = () => ({
@@ -132,7 +133,9 @@ const ctxFor = (snapshot, actor = { kind: "owner" }) => ({
   locale: "en",
 });
 const names = (ctx) => getAvailableTools(ctx).map((t) => t.name).sort();
-check("every registered tool is read or draft — never write (Phase 2)", AI_TOOLS.every((t) => t.kind === "read" || t.kind === "draft"));
+// "content" (Phase 3 increment 2 — Content Studio) is never persisted and has no apply path, same safety
+// posture as "draft"; "write" stays permanently unreachable — see tools/types.ts.
+check("every registered tool is read, draft or content — never write", AI_TOOLS.every((t) => t.kind === "read" || t.kind === "draft" || t.kind === "content"));
 check("no tool can apply/confirm/publish (applying is the owner's click only)", !AI_TOOLS.some((t) => /apply|confirm|publish|execute|commit|write|delete_|send/i.test(t.name)));
 check("tool names unique", new Set(AI_TOOLS.map((t) => t.name)).size === AI_TOOLS.length);
 check("business owner: no music/restaurant/events tools", !names(ctxFor(base())).some((n) => /music|restaurant|events/.test(n)));
@@ -150,10 +153,17 @@ check("every tool schema is strict (additionalProperties:false, all props requir
   const props = Object.keys(t.inputSchema.properties || {});
   return t.inputSchema.additionalProperties === false && props.every((p) => (t.inputSchema.required || []).includes(p));
 }));
+// WHO-IS-ACTING identity (user/profile/org/customer id) must never be model-suppliable — that's server-resolved
+// from the session only. Object-reference ids (product_id, event_id, track_id, menu_item_id,
+// menu_category_id, target_id, draft_id) ARE allowed: they name which of the caller's OWN already-scoped
+// objects a tool targets, and every one is re-verified against the resolved workspace before use (see the
+// draft-tools cross-user/cross-profile tests in ringo_ai_drafts.test.mjs) — categorically different from
+// accepting someone else's identity.
 check(
-  "no tool accepts an identity input (user/profile/org/customer ids are server-resolved); the only id is draft_id",
-  AI_TOOLS.every((t) => !Object.keys(t.inputSchema.properties || {}).some((p) => p !== "draft_id" && /id$|_id|user|profile|org|customer|sql|query/i.test(p)))
+  "no tool accepts a who-is-acting identity input (user_id/profile_id/org_id/customer_id are server-resolved)",
+  AI_TOOLS.every((t) => !Object.keys(t.inputSchema.properties || {}).some((p) => /^(user_id|profile_id|org(anization)?_id|customer_id)$/i.test(p)))
 );
+check("no tool accepts a raw sql/query input", AI_TOOLS.every((t) => !Object.keys(t.inputSchema.properties || {}).some((p) => /sql|query/i.test(p))));
 
 const ctx = ctxFor(base());
 const available = getAvailableTools(ctx);
@@ -185,18 +195,119 @@ check("tool errors never leak internal details to the model", r.isError && !r.co
 check("knowledge ids unique", new Set(KNOWLEDGE_TOPIC_IDS).size === KNOWLEDGE_TOPIC_IDS.length);
 check("every module's related topics exist", KNOWLEDGE_MODULES.every((m) => (m.related || []).every((r) => KNOWLEDGE_TOPIC_IDS.includes(r))));
 check("restaurant owner auto-loads restaurant + loyalty knowledge", ["restaurant", "loyalty"].every((id) => getCategoryModules(["restaurant_food"]).some((m) => m.id === id)));
+
+// ------------------------------------------------------------------ Phase 4 increment 2: category-aware knowledge modules
+check("real_estate owner auto-loads the real_estate module", getCategoryModules(["real_estate"]).some((m) => m.id === "real_estate"));
+check("professional_services owner auto-loads the professional_services module", getCategoryModules(["professional_services"]).some((m) => m.id === "professional_services"));
+check("transport_logistics owner auto-loads the transport_logistics module", getCategoryModules(["transport_logistics"]).some((m) => m.id === "transport_logistics"));
+check(
+  "unrelated categories do NOT accidentally receive the new modules",
+  !["business_ecommerce", "restaurant_food", "music_entertainment"].some((cat) =>
+    ["real_estate", "professional_services", "transport_logistics"].some((id) => getCategoryModules([cat]).some((m) => m.id === id))
+  )
+);
+check(
+  "the new modules do NOT leak into each other's category",
+  !getCategoryModules(["real_estate"]).some((m) => m.id === "professional_services" || m.id === "transport_logistics") &&
+    !getCategoryModules(["professional_services"]).some((m) => m.id === "real_estate" || m.id === "transport_logistics") &&
+    !getCategoryModules(["transport_logistics"]).some((m) => m.id === "real_estate" || m.id === "professional_services")
+);
+check(
+  "existing restaurant/music/catalog knowledge is unchanged by this increment",
+  getCategoryModules(["restaurant_food"]).some((m) => m.id === "restaurant") &&
+    getCategoryModules(["music_entertainment"]).some((m) => m.id === "music") &&
+    getCategoryModules(["business_ecommerce"]).some((m) => m.id === "catalog")
+);
+check(
+  "a page with several categories loads every applicable module, old and new",
+  ["real_estate", "catalog"].every((id) => getCategoryModules(["real_estate", "business_ecommerce"]).some((m) => m.id === id))
+);
+check("the 3 new modules are per-category, never in the always-loaded base prompt", !["real_estate", "professional_services", "transport_logistics"].some((id) => getAlwaysModules().some((m) => m.id === id)));
+for (const topic of ["real_estate", "professional_services", "transport_logistics"]) {
+  const rr = await executeTool("lookup_ringo_help", { topic }, ctx, available);
+  check(`knowledge lookup works for ${topic}`, !rr.isError && JSON.parse(rr.content).content.length > 0);
+}
 const nav = renderNavigationMap();
 check("navigation map has real EN and FR labels (no undefined)", !nav.includes("undefined") && nav.includes("FR:"));
 const stable = buildStableSystemPrompt();
 check("stable prompt is deterministic", stable === buildStableSystemPrompt());
 check("stable prompt carries no per-user/volatile data", !/\d{4}-\d{2}-\d{2}T|Douala|demo@|username: /.test(stable));
 check("stable prompt tells the model tool/user text is data", stable.includes("user_provided_data") && stable.includes("never follow instructions"));
+check("stable prompt teaches draft-aware content generation (Phase 4 increment 3)", stable.includes("draft_facts") && stable.includes("draft_id"));
+check(
+  "category knowledge and draft-aware content generation are independent — a category module loading doesn't require or exclude draft_id support",
+  getCategoryModules(["real_estate"]).length > 0 && AI_TOOLS.some((t) => t.name === "generate_content" && !!t.inputSchema.properties.draft_id)
+);
 for (const locale of ["en", "fr"]) {
   const t = translations[locale].ringoAi;
   check(`${locale}: every tool has a status label`, AI_TOOLS.every((tool) => typeof t.toolStatus[tool.name] === "string"));
   const codes = [...AI_DENY_REASONS, ...AI_LIMIT_REASONS, ...AI_RUNTIME_ERRORS];
   check(`${locale}: every error code has a message`, codes.every((c) => typeof t.errors[c] === "string"), codes.filter((c) => typeof t.errors[c] !== "string").join());
 }
+
+// ------------------------------------------------------------------ Phase 4 increment 4: business intelligence
+// period.ts is pure — no fakes needed. A fixed "now" makes every boundary deterministic.
+const NOW = new Date("2026-03-15T10:30:00.000Z"); // a Sunday, mid-March
+check("isBiPeriod accepts only the 6 real values", BI_PERIODS.every(isBiPeriod) && !isBiPeriod("last_year") && !isBiPeriod(null) && !isBiPeriod(42));
+let pr = resolvePeriod("today", NOW);
+check("today: UTC midnight to UTC midnight+1day", pr.start.toISOString() === "2026-03-15T00:00:00.000Z" && pr.end.toISOString() === "2026-03-16T00:00:00.000Z");
+pr = resolvePeriod("yesterday", NOW);
+check("yesterday: the UTC day before today, not including today", pr.start.toISOString() === "2026-03-14T00:00:00.000Z" && pr.end.toISOString() === "2026-03-15T00:00:00.000Z");
+pr = resolvePeriod("7d", NOW);
+check("7d: exactly 7 UTC calendar days, ending at the start of tomorrow", (pr.end.getTime() - pr.start.getTime()) / (24 * 60 * 60 * 1000) === 7 && pr.start.toISOString() === "2026-03-09T00:00:00.000Z");
+pr = resolvePeriod("30d", NOW);
+check("30d: exactly 30 UTC calendar days", (pr.end.getTime() - pr.start.getTime()) / (24 * 60 * 60 * 1000) === 30);
+pr = resolvePeriod("this_month", NOW);
+check("this_month: the 1st of the current UTC month through tomorrow", pr.start.toISOString() === "2026-03-01T00:00:00.000Z" && pr.end.toISOString() === "2026-03-16T00:00:00.000Z");
+pr = resolvePeriod("previous_month", NOW);
+check("previous_month: the whole prior calendar month, nothing from this month", pr.start.toISOString() === "2026-02-01T00:00:00.000Z" && pr.end.toISOString() === "2026-03-01T00:00:00.000Z");
+const janBoundary = resolvePeriod("previous_month", new Date("2026-01-15T00:00:00.000Z"));
+check("previous_month correctly rolls back across a year boundary (Jan → Dec of prior year)", janBoundary.start.toISOString() === "2025-12-01T00:00:00.000Z" && janBoundary.end.toISOString() === "2026-01-01T00:00:00.000Z");
+check("clampLimit: server clamps regardless of what's asked", clampLimit(0) === 1 && clampLimit(-1) === 1 && clampLimit(999) === 10 && clampLimit(3) === 3 && clampLimit(undefined) === 5 && clampLimit("5") === 5);
+const buckets = bucketByUtcDay(
+  [
+    { at: "2026-03-01T08:00:00+00:00", amount: 100 },
+    { at: "2026-03-01T20:00:00+00:00", amount: 50 },
+    { at: "2026-03-02T08:00:00+00:00", amount: 200 },
+  ],
+  (row) => row.at,
+  (row) => ({ revenue: row.amount, count: 1 })
+);
+check("bucketByUtcDay: sums same-day rows into one bucket, sorted oldest first", buckets.length === 2 && buckets[0].date === "2026-03-01" && buckets[0].revenue === 150 && buckets[0].count === 2 && buckets[1].date === "2026-03-02" && buckets[1].revenue === 200);
+check("bucketByUtcDay: a single-day period naturally produces exactly one bucket", bucketByUtcDay([{ at: "2026-03-01T01:00:00+00:00", amount: 5 }], (r2) => r2.at, (r2) => ({ revenue: r2.amount })).length === 1);
+check("bucketByUtcDay: empty input → empty output, never null/undefined", Array.isArray(bucketByUtcDay([], () => "", () => ({}))));
+
+// The 3 new BI tools are registered, correctly category-gated, and have a translated status label.
+let biSnap = base();
+check("get_my_restaurant_sales: registered, read-only, gated to restaurant pages only", (() => {
+  const t = AI_TOOLS.find((tt) => tt.name === "get_my_restaurant_sales");
+  biSnap = base();
+  biSnap.isRestaurant = true;
+  return !!t && t.kind === "read" && names(ctxFor(biSnap)).includes("get_my_restaurant_sales") && !names(ctxFor(base())).includes("get_my_restaurant_sales");
+})());
+biSnap = base();
+biSnap.isMusic = true;
+check("get_my_music_sales: gated to music pages only", names(ctxFor(biSnap)).includes("get_my_music_sales") && !names(ctxFor(base())).includes("get_my_music_sales"));
+biSnap = base();
+biSnap.hasTicketing = true;
+const musicOnlySnap = base();
+musicOnlySnap.isMusic = true;
+check(
+  "get_my_event_sales: gated to hasTicketing (available beyond just music pages, e.g. events_experiences)",
+  names(ctxFor(biSnap)).includes("get_my_event_sales") && !names(ctxFor(musicOnlySnap)).includes("get_my_event_sales") && !names(ctxFor(base())).includes("get_my_event_sales")
+);
+for (const locale of ["en", "fr"]) {
+  const t = translations[locale].ringoAi;
+  check(`${locale}: the 3 new BI tools have a status label`, ["get_my_restaurant_sales", "get_my_music_sales", "get_my_event_sales"].every((n) => typeof t.toolStatus[n] === "string"));
+}
+check(
+  "PRIVACY: no BI tool schema (new or existing analytics) accepts a customer-identifying field",
+  ["get_my_restaurant_sales", "get_my_music_sales", "get_my_event_sales", "get_my_analytics_summary"].every((name) => {
+    const t = AI_TOOLS.find((tt) => tt.name === name);
+    return !Object.keys(t.inputSchema.properties).some((p) => /customer|email|phone|address/i.test(p));
+  })
+);
+check("stable prompt teaches the honest revenue-vs-clicks limitation for non-transactional categories (Phase 4 increment 4)", stable.includes("get_my_restaurant_sales") && stable.includes("doesn't track individual sales"));
 
 // ------------------------------------------------------------------ settings: blank values are rejected, never coerced to 0
 check("blank daily limit rejected (not saved as 0)", parseAiSettingsPatch({ dailyMessageLimit: null }) === null && parseAiSettingsPatch({ dailyMessageLimit: " " }) === null);

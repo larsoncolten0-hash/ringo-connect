@@ -29,7 +29,8 @@ export const getMyRestaurantSummary: AiTool = {
     for (const o of ordersRes.data || []) {
       byStatus[o.status] = (byStatus[o.status] || 0) + 1;
       byType[o.order_type] = (byType[o.order_type] || 0) + 1;
-      total += Number(o.total) || 0;
+      // Revenue matches every Dashboard Sales view: cancelled/refunded orders never count.
+      if (o.status !== "cancelled" && o.status !== "refunded") total += Number(o.total) || 0;
     }
 
     return {

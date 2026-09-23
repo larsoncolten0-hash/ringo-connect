@@ -26,7 +26,8 @@ export const getMyMusicSummary: AiTool = {
     if (tracksRes.error || releasesRes.error || ordersRes.error) throw new Error("music summary query failed");
 
     const orders = ordersRes.data || [];
-    const paid = orders.filter((o: any) => o.payment_status === "paid");
+    // Matches the Dashboard's own Sales/Overview revenue filter: paid AND not cancelled/refunded.
+    const paid = orders.filter((o: any) => o.payment_status === "paid" && o.status !== "cancelled" && o.status !== "refunded");
 
     return {
       store_currency: snapshot.profile.currency,

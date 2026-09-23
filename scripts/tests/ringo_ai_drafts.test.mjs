@@ -257,6 +257,8 @@ function fakeDb(resolver) {
         eq(k, val) { st.filters[k] = val; return b; },
         in(k, val) { st.filters[k] = val; return b; },
         is(k, val) { st.filters[k] = val; return b; },
+        gte(k, val) { st.filters[k] = { op: "gte", val }; return b; },
+        lt(k, val) { st.filters[k] = { op: "lt", val }; return b; },
         order() { return b; },
         limit() { return b; },
         maybeSingle() { return b; },
@@ -711,6 +713,222 @@ tr = await executeTool(
   getAvailableTools(contentCtx)
 );
 check("tool: generate_content rejects a body over the length cap", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "invalid_input");
+
+// ------------------------------------------------------------------ generate_content draft_id (Phase 4, increment 3)
+// Reuses the SAME ownership-verified getOwnDraft() mock (existingDrafts) every other draft-revision test
+// above already relies on — draft_id support is required to go through this exact existing loader, not a
+// parallel mechanism.
+const genContent = (over = {}) => ({
+  content_type: "whatsapp_promotion",
+  target_type: null,
+  target_id: null,
+  draft_id: null,
+  language: "en",
+  headline: null,
+  body: "placeholder",
+  cta: null,
+  short_version: null,
+  hashtags: null,
+  ...over,
+});
+const putDraft = (draftId, row, ws = WS) => {
+  existingDrafts[`${ws.userId}|${ws.profileId}|${toolCtx.conversationId}|${draftId}`] = {
+    id: draftId,
+    revision: 1,
+    result_id: null,
+    error_code: null,
+    created_at: "2026-09-23T10:00:00+00:00",
+    expires_at: "2099-01-01T00:00:00+00:00",
+    ...row,
+  };
+};
+
+// Built locally (not the later payloadEUFull/payloadMUFull/payloadTUFull/payloadMCFull i18n fixtures,
+// which are declared further down the file and not yet initialized at this point).
+const contentPayloadEU = validateEventUpdateDraft(EU({ title: "A", description: "B", event_date: "2026-11-01", event_time: "20:00", location: "C", price: 1000 }), CTX()).payload;
+const contentPayloadMU = validateMenuItemUpdateDraft(MU({ name: "A", description: "B", price: 1000, available: true, featured: true, prep_time_minutes: 5 }), CTX()).payload;
+const contentPayloadTU = validateTrackUpdateDraft(TU({ title: "A", description: "B", price: 1000 }), CTX()).payload;
+const contentPayloadMC = validateMenuItemCreateDraft(MC({ name: "A", description: "B", price: 1000, available: true, featured: true, prep_time_minutes: 5 }), CTX()).payload;
+
+const PRODUCT_UPDATE_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff01";
+putDraft(PRODUCT_UPDATE_DRAFT_ID, { draft_type: "product.update", status: "awaiting_confirmation", payload: payloadPU, base: baseProduct });
+const EVENT_UPDATE_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff02";
+putDraft(EVENT_UPDATE_DRAFT_ID, { draft_type: "event.update", status: "awaiting_confirmation", payload: contentPayloadEU, base: baseEvent });
+const MENU_UPDATE_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff03";
+putDraft(MENU_UPDATE_DRAFT_ID, { draft_type: "menu_item.update", status: "awaiting_confirmation", payload: contentPayloadMU, base: baseMenuItem });
+const TRACK_UPDATE_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff04";
+putDraft(TRACK_UPDATE_DRAFT_ID, { draft_type: "track.update", status: "awaiting_confirmation", payload: contentPayloadTU, base: baseTrack });
+const PRODUCT_CREATE_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff05";
+putDraft(PRODUCT_CREATE_DRAFT_ID, { draft_type: "product.create", status: "awaiting_confirmation", payload: payloadProd, base: null });
+const MENU_CREATE_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff06";
+putDraft(MENU_CREATE_DRAFT_ID, { draft_type: "menu_item.create", status: "awaiting_confirmation", payload: contentPayloadMC, base: baseCategory });
+const APPLIED_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff07";
+putDraft(APPLIED_DRAFT_ID, { draft_type: "product.update", status: "applied", payload: payloadPU, base: baseProduct });
+const DISCARDED_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff08";
+putDraft(DISCARDED_DRAFT_ID, { draft_type: "product.update", status: "rejected", payload: payloadPU, base: baseProduct });
+const EXPIRED_STATUS_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff09";
+putDraft(EXPIRED_STATUS_DRAFT_ID, { draft_type: "product.update", status: "expired", payload: payloadPU, base: baseProduct });
+const EXPIRES_AT_PAST_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff10";
+putDraft(EXPIRES_AT_PAST_DRAFT_ID, { draft_type: "product.update", status: "awaiting_confirmation", payload: payloadPU, base: baseProduct, expires_at: "2020-01-01T00:00:00+00:00" });
+const STALE_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff11";
+putDraft(STALE_DRAFT_ID, { draft_type: "product.update", status: "stale", payload: payloadPU, base: baseProduct });
+const PROFILE_DRAFT_ID = "ffffffff-ffff-4fff-8fff-ffffffffff12";
+putDraft(PROFILE_DRAFT_ID, { draft_type: "profile.update", status: "awaiting_confirmation", payload: payloadP, base });
+
+// ---- positive: no draft_id still works exactly as before (regression)
+tr = await executeTool("generate_content", genContent({ body: "No draft here." }), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: still works with no draft_id (regression)", JSON.parse(tr.content).ok && JSON.parse(tr.content).draft_facts === undefined);
+
+// ---- positive: each supported draft type returns merged, verified facts
+tr = await executeTool("generate_content", genContent({ draft_id: PRODUCT_UPDATE_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+out = JSON.parse(tr.content);
+check(
+  "generate_content: valid owned PRODUCT UPDATE draft → merged facts (changed field from payload, unchanged from base)",
+  out.ok && out.draft_facts.kind === "product" && out.draft_facts.facts.name === "New name" && out.draft_facts.facts.price === 3000 && out.draft_facts.facts.description === null
+);
+tr = await executeTool("generate_content", genContent({ draft_id: EVENT_UPDATE_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+out = JSON.parse(tr.content);
+check("generate_content: valid owned EVENT UPDATE draft → facts include title/date/price", out.ok && out.draft_facts.kind === "event" && out.draft_facts.facts.title === "A" && out.draft_facts.facts.date === "2026-11-01");
+tr = await executeTool("generate_content", genContent({ draft_id: MENU_UPDATE_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+out = JSON.parse(tr.content);
+check("generate_content: valid owned MENU ITEM UPDATE draft → facts", out.ok && out.draft_facts.kind === "menu_item" && out.draft_facts.facts.name === "A");
+tr = await executeTool("generate_content", genContent({ draft_id: TRACK_UPDATE_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+out = JSON.parse(tr.content);
+check("generate_content: valid owned TRACK UPDATE draft → facts (music, where supported)", out.ok && out.draft_facts.kind === "track" && out.draft_facts.facts.title === "A");
+tr = await executeTool("generate_content", genContent({ draft_id: PRODUCT_CREATE_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+out = JSON.parse(tr.content);
+check("generate_content: valid owned PRODUCT CREATE draft → facts come straight from payload (no base)", out.ok && out.draft_facts.kind === "product" && out.draft_facts.facts.name === payloadProd.name);
+tr = await executeTool("generate_content", genContent({ draft_id: MENU_CREATE_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+out = JSON.parse(tr.content);
+check("generate_content: valid owned MENU ITEM CREATE draft → facts include the category name from base", out.ok && out.draft_facts.kind === "menu_item" && out.draft_facts.facts.category === "Plats");
+tr = await executeTool("generate_content", genContent({ draft_id: APPLIED_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: an already-APPLIED draft is still usable for content (its facts are now real)", JSON.parse(tr.content).ok);
+tr = await executeTool("generate_content", genContent({ draft_id: PROFILE_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: profile.update is a KNOWN but unsupported type for grounding → draft_not_usable, not a crash", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "draft_not_usable");
+
+// ---- security: cross-user, cross-profile, nonexistent, discarded/expired/stale
+tr = await executeTool("generate_content", genContent({ draft_id: PRODUCT_UPDATE_DRAFT_ID }), { ...contentCtx, workspace: otherWs }, getAvailableTools({ ...contentCtx, workspace: otherWs }));
+check("generate_content SECURITY: a cross-USER draft_id is refused (never leaks another account's draft)", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "draft_not_found");
+const otherProfileWs = { ...WS, profileId: "99999999-9999-4999-8999-999999999998" };
+tr = await executeTool("generate_content", genContent({ draft_id: PRODUCT_UPDATE_DRAFT_ID }), { ...contentCtx, workspace: otherProfileWs }, getAvailableTools({ ...contentCtx, workspace: otherProfileWs }));
+check("generate_content SECURITY: a cross-PROFILE draft_id (same user, different profile) is refused", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "draft_not_found");
+tr = await executeTool("generate_content", genContent({ draft_id: "00000000-0000-4000-8000-000000000000" }), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: a nonexistent draft_id is refused safely, not a crash", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "draft_not_found");
+tr = await executeTool("generate_content", genContent({ draft_id: DISCARDED_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: a DISCARDED draft is refused, not used for grounding", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "draft_not_usable");
+tr = await executeTool("generate_content", genContent({ draft_id: EXPIRED_STATUS_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: a draft with stored status EXPIRED is refused", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "draft_not_usable");
+tr = await executeTool("generate_content", genContent({ draft_id: EXPIRES_AT_PAST_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: an awaiting_confirmation draft past its expires_at is treated as expired and refused", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "draft_not_usable");
+tr = await executeTool("generate_content", genContent({ draft_id: STALE_DRAFT_ID }), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: a STALE draft is refused (page changed since it was prepared)", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "draft_not_usable");
+tr = await executeTool("generate_content", genContent({ draft_id: "not-a-uuid" }), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: a malformed draft_id is rejected as invalid_input before any lookup", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "invalid_input");
+check(
+  "generate_content SECURITY: no model-supplied field can name who is acting — draft_id is the ONLY new input, workspace always comes from the server-resolved session",
+  Object.keys(AI_TOOLS.find((t) => t.name === "generate_content").inputSchema.properties).every((p) => !/^(user|profile|org|workspace)_?id$/i.test(p))
+);
+// A discarded/nonexistent draft never causes the CONTENT itself to be blocked — omitting draft_id still works.
+tr = await executeTool("generate_content", genContent(), contentCtx, getAvailableTools(contentCtx));
+check("generate_content: content without any draft_id is unaffected by any of the fixture drafts above", JSON.parse(tr.content).ok);
+
+// ------------------------------------------------------------------ Phase 4 increment 4: read-only business intelligence
+// get_my_restaurant_sales
+const restaurantSalesCtx = { ...toolCtx, snapshot: snap({ isRestaurant: true }) };
+const restaurantSalesAvail = getAvailableTools(restaurantSalesCtx);
+const fakeOrders = [
+  { id: "o1", status: "completed", order_type: "dine_in", total: 5000, created_at: "2026-03-10T12:00:00+00:00" },
+  { id: "o2", status: "completed", order_type: "delivery", total: 3000, created_at: "2026-03-10T18:00:00+00:00" },
+  { id: "o3", status: "cancelled", order_type: "takeaway", total: 9999, created_at: "2026-03-12T09:00:00+00:00" },
+];
+const fakeOrderItems = [
+  { item_name_snapshot: "Ndolé", quantity: 2, line_total: 4000 },
+  { item_name_snapshot: "Jus", quantity: 1, line_total: 1000 },
+  { item_name_snapshot: "Ndolé", quantity: 1, line_total: 2000 },
+];
+serverMod.createClient = () =>
+  fakeDb((st) => {
+    if (st.table === "orders") return { data: st.filters.profile_id === WS.profileId ? fakeOrders : [], error: null };
+    if (st.table === "order_items") return { data: fakeOrderItems, error: null };
+    return { data: [], error: null };
+  });
+tr = await executeTool("get_my_restaurant_sales", { period: "30d", limit: 5 }, restaurantSalesCtx, restaurantSalesAvail);
+out = JSON.parse(tr.content);
+check("get_my_restaurant_sales: revenue/order_count exclude cancelled orders", out.total_revenue === 8000 && out.order_count === 2);
+check("get_my_restaurant_sales: by_status still shows the cancelled order (visible, not hidden from revenue-independent breakdown)", out.by_status.cancelled === 1 && out.by_status.completed === 2);
+check("get_my_restaurant_sales: top_items ranks by revenue, grouped by item name (resilient to a deleted menu item)", out.top_items[0].name === "Ndolé" && out.top_items[0].revenue === 6000);
+check("get_my_restaurant_sales: trend buckets by UTC day", out.trend.length === 1 && out.trend[0].date === "2026-03-10" && out.trend[0].revenue === 8000);
+check("get_my_restaurant_sales: currency echoed from the profile, not hardcoded", out.currency === "XAF");
+check("get_my_restaurant_sales SECURITY: a different profile sees zero, not another page's data", JSON.parse((await executeTool("get_my_restaurant_sales", { period: "30d", limit: 5 }, { ...restaurantSalesCtx, workspace: otherProfileWs }, getAvailableTools({ ...restaurantSalesCtx, workspace: otherProfileWs }))).content).order_count === 0);
+tr = await executeTool("get_my_restaurant_sales", { period: "not_a_real_period", limit: 5 }, restaurantSalesCtx, restaurantSalesAvail);
+check("get_my_restaurant_sales: an invalid period is rejected, not silently defaulted", tr.isError);
+tr = await executeTool("get_my_restaurant_sales", { period: "30d", limit: 999 }, restaurantSalesCtx, restaurantSalesAvail);
+check("get_my_restaurant_sales: an out-of-range limit is clamped server-side, never trusted as-is", JSON.parse(tr.content).top_items.length <= 10);
+serverMod.createClient = () => fakeDb((st) => (st.table === "orders" && st.filters.profile_id === WS.profileId ? { data: [], error: null } : { data: [], error: null }));
+tr = await executeTool("get_my_restaurant_sales", { period: "today", limit: 5 }, restaurantSalesCtx, restaurantSalesAvail);
+out = JSON.parse(tr.content);
+check("get_my_restaurant_sales: an empty period returns real 0s, never null/undefined", out.total_revenue === 0 && out.order_count === 0 && Array.isArray(out.top_items) && out.top_items.length === 0);
+serverMod.createClient = realCreate;
+
+// get_my_music_sales
+const musicSalesCtx = { ...toolCtx, snapshot: snap({ isMusic: true }) };
+const musicSalesAvail = getAvailableTools(musicSalesCtx);
+const fakeMusicOrders = [
+  { id: "mo1", payment_status: "paid", status: "completed", total: 10000, created_at: "2026-03-05T10:00:00+00:00" },
+  { id: "mo2", payment_status: "unpaid", status: "pending", total: 5000, created_at: "2026-03-05T11:00:00+00:00" },
+  { id: "mo3", payment_status: "paid", status: "refunded", total: 7000, created_at: "2026-03-06T10:00:00+00:00" },
+];
+const fakeMusicItems = [
+  { item_type: "song", name_snapshot: "Amapiano Love", quantity: 1, line_total: 6000 },
+  { item_type: "merch", name_snapshot: "T-Shirt", quantity: 1, line_total: 4000 },
+];
+serverMod.createClient = () =>
+  fakeDb((st) => {
+    if (st.table === "music_orders") return { data: st.filters.profile_id === WS.profileId ? fakeMusicOrders : [], error: null };
+    if (st.table === "music_order_items") return { data: fakeMusicItems, error: null };
+    return { data: [], error: null };
+  });
+tr = await executeTool("get_my_music_sales", { period: "30d", limit: 5 }, musicSalesCtx, musicSalesAvail);
+out = JSON.parse(tr.content);
+check("get_my_music_sales: revenue requires paid AND not cancelled/refunded (stricter than the old musicSummary.ts filter)", out.total_revenue === 10000 && out.order_count === 1);
+check("get_my_music_sales: by_item_type_revenue breaks out song vs merch", out.by_item_type_revenue.song === 6000 && out.by_item_type_revenue.merch === 4000);
+check("get_my_music_sales: top_tracks only includes item_type 'song', never merch", out.top_tracks.length === 1 && out.top_tracks[0].name === "Amapiano Love");
+serverMod.createClient = realCreate;
+
+// get_my_event_sales — gated independently of isMusic (events_experiences pages use it too)
+const eventSalesCtx = { ...toolCtx, snapshot: snap({ hasTicketing: true }) };
+const eventSalesAvail = getAvailableTools(eventSalesCtx);
+const fakeTicketOrders = [{ id: "to1", payment_status: "paid", status: "completed", created_at: "2026-03-07T10:00:00+00:00" }];
+const fakeTicketItems = [
+  { event_id: EID, name_snapshot: "VIP", quantity: 2, line_total: 20000, created_at: "2026-03-07T10:00:00+00:00" },
+  { event_id: EID, name_snapshot: "Standard", quantity: 3, line_total: 9000, created_at: "2026-03-07T10:05:00+00:00" },
+];
+serverMod.createClient = () =>
+  fakeDb((st) => {
+    if (st.table === "music_orders") return { data: st.filters.profile_id === WS.profileId ? fakeTicketOrders : [], error: null };
+    if (st.table === "music_order_items") return { data: st.filters.item_type === "ticket" ? fakeTicketItems : [], error: null };
+    if (st.table === "events") return { data: [{ id: EID, title: "Afro Night" }], error: null };
+    return { data: [], error: null };
+  });
+tr = await executeTool("get_my_event_sales", { period: "30d", limit: 5 }, eventSalesCtx, eventSalesAvail);
+out = JSON.parse(tr.content);
+check("get_my_event_sales: tickets_sold sums quantity across line items, not row count", out.tickets_sold === 5);
+check("get_my_event_sales: ticket_revenue uses the price actually paid (price_snapshot/line_total), summed", out.ticket_revenue === 29000);
+check("get_my_event_sales: top_events resolves the real event title via a bounded follow-up lookup", out.top_events[0].event_title === "Afro Night" && out.top_events[0].revenue === 29000);
+serverMod.createClient = realCreate;
+
+// PRIVACY: none of the 3 new tools' fixture outputs contain anything customer-shaped, and none of their
+// schemas accept a customer-identifying input — checked directly against the actual JSON returned above.
+for (const sample of [out]) {
+  check("PRIVACY: BI tool output never contains a customer name/email/phone/id-shaped key", !/customer_name|customer_email|customer_phone|customer_id/i.test(JSON.stringify(sample)));
+}
+check(
+  "PRIVACY: no BI tool schema accepts user_id/profile_id (workspace is always server-resolved)",
+  ["get_my_restaurant_sales", "get_my_music_sales", "get_my_event_sales"].every((name) => {
+    const t = AI_TOOLS.find((tt) => tt.name === name);
+    return !Object.keys(t.inputSchema.properties).some((p) => /^(user|profile)_id$/i.test(p));
+  })
+);
 
 // ------------------------------------------------------------------ apply pipeline (applyDraft) with fake store
 const applyMod = load("lib/ai/drafts/apply.ts");

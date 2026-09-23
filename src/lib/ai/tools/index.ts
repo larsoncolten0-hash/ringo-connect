@@ -8,6 +8,9 @@ import { getMyRestaurantSummary } from "./definitions/restaurantSummary";
 import { getMyEventsSummary } from "./definitions/eventsSummary";
 import { getMyBookingsSummary } from "./definitions/bookingsSummary";
 import { getMyConnectSummary } from "./definitions/connectSummary";
+import { getMyRestaurantSales } from "./definitions/restaurantSales";
+import { getMyMusicSales } from "./definitions/musicSales";
+import { getMyEventSales } from "./definitions/eventSales";
 import { lookupRingoHelp } from "./definitions/lookupHelp";
 import { getSetupOptions } from "./definitions/setupOptions";
 import {
@@ -38,6 +41,9 @@ export const AI_TOOLS: readonly AiTool<any>[] = [
   getMyEventsSummary,
   getMyBookingsSummary,
   getMyConnectSummary,
+  getMyRestaurantSales,
+  getMyMusicSales,
+  getMyEventSales,
   lookupRingoHelp,
   getSetupOptions,
   createProfileDraft,
