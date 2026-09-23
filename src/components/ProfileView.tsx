@@ -106,6 +106,10 @@ export default function ProfileView({
   // that choice reflected even if they later mark it unavailable, rather
   // than have the spotlight silently vanish.
   const pinnedItem = isMusic && profile.pinned_id ? pinnedSource.find((x: any) => x.id === profile.pinned_id) : null;
+  // "support" has no row of its own (pinned_id is always null for it) — it
+  // depends on the Support the Artist toggle still being on, the same way
+  // track/product/event depend on the item still existing.
+  const showPinnedSupport = isMusic && profile.pinned_type === "support" && supportEnabled;
   const isVerified = !!profile.verified;
 
   // Populated client-side only (cookies aren't readable during SSR) —
@@ -538,12 +542,14 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             ...(isMusic ? { backgroundColor: MUSIC_CREAM, color: MUSIC_CREAM_TEXT } : {}),
           }}
         >
-          {pinnedItem && (
+          {(pinnedItem || showPinnedSupport) && (
             <PinnedSpotlight
               t={t}
               type={profile.pinned_type}
               item={pinnedItem}
               artistName={profile.name || ""}
+              avatarUrl={profile.avatar_url}
+              supportMessage={profile.support_message}
               accent={accent}
               buttonStyle={linkButtonStyle}
               currency={profile.currency || "USD"}

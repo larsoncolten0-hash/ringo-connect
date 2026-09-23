@@ -8,7 +8,7 @@ import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
 
-type PinType = "track" | "product" | "event";
+type PinType = "track" | "product" | "event" | "support";
 
 // Only ever rendered for a profile tagged Music & Entertainment. Replaces
 // the earlier "Artist Hub" nav — instead of a grid of shortcuts, the
@@ -33,8 +33,10 @@ export default function PinnedSpotlightCard({
 
   // Reads off the live draft, not a static prop, so an item added to
   // Tracks/Catalog/Events moments ago is immediately pinnable without a
-  // page reload.
-  const itemsByType: Record<PinType, any[]> = {
+  // page reload. "support" has no list of its own — pinning it means
+  // "feature the Support the Artist card," not one specific row, so it's
+  // never a key here.
+  const itemsByType: Record<Exclude<PinType, "support">, any[]> = {
     track: draft.tracks || [],
     product: draft.products || [],
     event: draft.events || [],
@@ -44,9 +46,15 @@ export default function PinnedSpotlightCard({
     track: t.music.pinnedTypeTrack,
     product: t.music.pinnedTypeProduct,
     event: t.music.pinnedTypeEvent,
+    support: t.music.pinnedTypeSupport,
   };
 
   const itemTitle = (type: PinType, item: any) => (type === "product" ? item.name : item.title) || "…";
+
+  // Support the Artist must actually be turned on (Music settings) for
+  // pinning it to do anything on the public page — same condition
+  // ProfileView uses to decide whether the section renders at all.
+  const supportPinnable = draft.hub_support_enabled !== false && !!draft.whatsapp_number;
 
   const persist = async (type: PinType | null, id: string | null) => {
     await supabase.from("profiles").update({ pinned_type: type, pinned_id: id }).eq("id", profileId);
@@ -55,10 +63,13 @@ export default function PinnedSpotlightCard({
   };
 
   const selectType = (type: PinType) => {
+    if (type === "support" && !supportPinnable) return;
     // Switching type clears the item — the previous selection almost
     // certainly isn't a valid id for the new type.
     setPinnedType(type);
     setPinnedId(null);
+    // "support" has no item to pick — selecting it IS the whole action.
+    if (type === "support") persist(type, null);
   };
 
   const selectItem = (id: string) => {
@@ -81,12 +92,13 @@ export default function PinnedSpotlightCard({
       <p className="text-xs text-ringo-muted -mt-1 mb-4">{t.music.pinnedHint}</p>
 
       <div className="flex flex-col gap-3">
-        <div className="flex gap-1.5">
-          {(["track", "product", "event"] as PinType[]).map((type) => (
+        <div className="flex gap-1.5 flex-wrap">
+          {(["track", "product", "event", "support"] as PinType[]).map((type) => (
             <button
               key={type}
               onClick={() => selectType(type)}
-              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition ${
+              disabled={type === "support" && !supportPinnable}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition disabled:opacity-40 disabled:cursor-not-allowed ${
                 pinnedType === type
                   ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo"
                   : "border-ringo-border text-ringo-muted"
@@ -97,7 +109,18 @@ export default function PinnedSpotlightCard({
           ))}
         </div>
 
-        {pinnedType &&
+        {pinnedType === "support" && !supportPinnable && <p className="text-xs text-ringo-muted">{t.music.pinnedSupportDisabledHint}</p>}
+
+        {pinnedType === "support" ? (
+          <div className="flex items-center gap-2">
+            <p className="flex-1 text-xs text-ringo-muted">{t.music.pinnedSupportSelected}</p>
+            <button onClick={clearPin} className="shrink-0 flex items-center gap-1 text-xs font-medium text-ringo-muted hover:text-red-500 px-2 py-2">
+              <X size={13} />
+              {t.music.pinnedClear}
+            </button>
+          </div>
+        ) : (
+          pinnedType &&
           (itemsByType[pinnedType].length === 0 ? (
             <p className="text-xs text-ringo-muted">{t.music.pinnedNoneAvailable}</p>
           ) : (
@@ -126,7 +149,8 @@ export default function PinnedSpotlightCard({
                 </button>
               )}
             </div>
-          ))}
+          ))
+        )}
       </div>
     </EditorCard>
   );

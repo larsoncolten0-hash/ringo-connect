@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Play, Pause, ExternalLink, ShoppingBag, Ticket, Sparkles, MapPin } from "lucide-react";
+import { Play, Pause, ExternalLink, ShoppingBag, Ticket, Sparkles, MapPin, Heart } from "lucide-react";
 import { hexToRgba } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import { primaryTicketType } from "@/lib/ticketTypes";
@@ -10,14 +10,18 @@ import type { Translations } from "@/lib/i18n/translations";
 // The one thing a fan sees first — replaces the old "Artist Hub" nav grid
 // with a single big, visual pick the creator makes themselves (see
 // PinnedSpotlightCard in the dashboard): their latest song, a merch item,
-// or an upcoming show. Resolved from profile.tracks/products/events by
-// pinned_id in ProfileView — if that item was since deleted, ProfileView
-// just doesn't render this at all.
+// an upcoming show, or (unlike the other three) a standing feature of the
+// Support the Artist section rather than one specific row. Resolved in
+// ProfileView — for track/product/event, a dangling pinned_id (the item was
+// since deleted) just means this doesn't render; "support" instead depends
+// on the Support the Artist toggle still being on.
 export default function PinnedSpotlight({
   t,
   type,
   item,
   artistName,
+  avatarUrl,
+  supportMessage,
   accent,
   buttonStyle,
   currency,
@@ -27,9 +31,12 @@ export default function PinnedSpotlight({
   onTogglePlay,
 }: {
   t: Translations;
-  type: "track" | "product" | "event";
+  type: "track" | "product" | "event" | "support";
   item: any;
   artistName: string;
+  /** Only used for the "support" variant, which has no item of its own. */
+  avatarUrl?: string | null;
+  supportMessage?: string | null;
   accent: string;
   buttonStyle: CSSProperties;
   currency: string;
@@ -38,6 +45,45 @@ export default function PinnedSpotlight({
   playingId: string | null;
   onTogglePlay: (track: any) => void;
 }) {
+  if (type === "support") {
+    return (
+      <div className="relative w-full overflow-hidden rounded-[28px] animate-fade-up" style={{ animationDelay: "320ms" }}>
+        <div className="relative aspect-[4/3] sm:aspect-[16/10] w-full">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${hexToRgba(accent, 0.5)}, rgba(0,0,0,0.6))` }} />
+          )}
+          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 5%, rgba(0,0,0,0.15) 55%, transparent 75%)" }} />
+          <a href="#support" className="absolute inset-0" aria-label={t.music.supportTitle} />
+          <span
+            className="absolute top-3.5 left-3.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-full"
+            style={{ backgroundColor: hexToRgba(accent, 0.9), color: "#fff" }}
+          >
+            <Sparkles size={11} />
+            {t.music.spotlightBadge}
+          </span>
+          <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5 flex items-end gap-3">
+            <div className="flex-1 min-w-0 text-white">
+              <p className="text-lg sm:text-xl font-display font-bold truncate drop-shadow-sm">{t.music.supportTitle}</p>
+              <p className="text-sm truncate" style={{ opacity: 0.85 }}>
+                {supportMessage || t.music.supportHint}
+              </p>
+            </div>
+            <a
+              href="#support"
+              className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg transition hover:brightness-95 active:scale-95"
+              style={buttonStyle}
+            >
+              <Heart size={13} />
+              {t.music.pinnedSupportCta}
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const cover = type === "product" ? item.image_url : item.cover_image_url;
   const title = type === "product" ? item.name : item.title;
   // The item's own detail page — every type gets one (see
