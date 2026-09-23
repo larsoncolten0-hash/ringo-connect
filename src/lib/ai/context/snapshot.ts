@@ -58,21 +58,21 @@ export interface WorkspaceSnapshot {
   onboardingCompleted: boolean;
   loyaltyAvailability: LoyaltyAvailability;
   counts: {
-    links: number;
-    socialLinks: number;
-    products: number;
-    tracks: number;
-    sellableStandaloneTracks: number;
-    unpricedStandaloneTracks: number;
-    releases: number;
-    events: number;
-    upcomingPublishedEvents: number;
-    upcomingEventsWithoutTicketing: number;
-    menuCategories: number;
-    menuItems: number;
-    availableMenuItems: number;
-    restaurantTables: number;
-    bookingServices: number;
+    links: number | null;
+    socialLinks: number | null;
+    products: number | null;
+    tracks: number | null;
+    sellableStandaloneTracks: number | null;
+    unpricedStandaloneTracks: number | null;
+    releases: number | null;
+    events: number | null;
+    upcomingPublishedEvents: number | null;
+    upcomingEventsWithoutTicketing: number | null;
+    menuCategories: number | null;
+    menuItems: number | null;
+    availableMenuItems: number | null;
+    restaurantTables: number | null;
+    bookingServices: number | null;
     activeConnections: number | null;
     activeCommunitySubscribers: number | null;
     activeLoyaltyPrograms: number | null;
@@ -81,13 +81,14 @@ export interface WorkspaceSnapshot {
 
 type Db = ReturnType<typeof createClient>;
 
-async function countRows(db: Db, table: string, profileId: string, extra?: (q: any) => any): Promise<number> {
+// null (not 0) when the query fails, so "couldn't verify" is never reported as "none".
+async function countRows(db: Db, table: string, profileId: string, extra?: (q: any) => any): Promise<number | null> {
   let q: any = db.from(table).select("id", { count: "exact", head: true }).eq("profile_id", profileId);
   if (extra) q = extra(q);
   const { count, error } = await q;
   if (error) {
     console.error(`ai snapshot count ${table} failed:`, error.message);
-    return 0;
+    return null;
   }
   return count || 0;
 }
@@ -99,7 +100,7 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
   const pid = workspace.profileId;
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ data: p }, { data: u }] = await Promise.all([
+  const [{ data: p, error: profileError }, { data: u, error: userError }] = await Promise.all([
     db
       .from("profiles")
       .select(
@@ -116,7 +117,13 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
       .maybeSingle(),
   ]);
 
-  const profile = (p || {}) as Record<string, any>;
+  // The profile and plan are the base of every answer: if they can't be read,
+  // fail the request instead of describing defaults ("published", "Free")
+  // as if they were this user's real account.
+  if (profileError || !p || userError) {
+    throw new Error(`ai snapshot base query failed: ${profileError?.message || userError?.message || "profile not found"}`);
+  }
+  const profile = p as Record<string, any>;
   const planRow = ((u as any)?.plans || {}) as Record<string, any>;
   const categoryShape = { category: profile.category ?? null, categories: Array.isArray(profile.categories) ? profile.categories : [] };
   const isMusic = profileHasCategory(categoryShape, "music_entertainment");
@@ -155,6 +162,10 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
     countActiveLoyaltyPrograms(pid),
   ]);
 
+  const tracksOk = !trackRows.error;
+  const eventsOk = !eventRows.error;
+  if (trackRows.error) console.error("ai snapshot tracks failed:", trackRows.error.message);
+  if (eventRows.error) console.error("ai snapshot events failed:", eventRows.error.message);
   const tracks = (trackRows.data || []) as { price: number | string | null; available: boolean | null; release_id: string | null }[];
   // Mirrors the Music store's own rule (MusicStorePage.tsx): a standalone
   // track is purchasable when available !== false, not part of a release,
@@ -226,13 +237,13 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
       links,
       socialLinks,
       products,
-      tracks: tracks.length,
-      sellableStandaloneTracks,
-      unpricedStandaloneTracks: standalone.length - sellableStandaloneTracks,
+      tracks: tracksOk ? tracks.length : null,
+      sellableStandaloneTracks: tracksOk ? sellableStandaloneTracks : null,
+      unpricedStandaloneTracks: tracksOk ? standalone.length - sellableStandaloneTracks : null,
       releases,
-      events: events.length,
-      upcomingPublishedEvents: upcomingPublished.length,
-      upcomingEventsWithoutTicketing,
+      events: eventsOk ? events.length : null,
+      upcomingPublishedEvents: eventsOk ? upcomingPublished.length : null,
+      upcomingEventsWithoutTicketing: eventsOk ? upcomingEventsWithoutTicketing : null,
       menuCategories,
       menuItems,
       availableMenuItems,

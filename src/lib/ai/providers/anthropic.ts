@@ -106,8 +106,9 @@ export const anthropicProvider: AiProvider = {
       strict: true,
     }));
 
+    let stream: ReturnType<Anthropic["messages"]["stream"]> | null = null;
     try {
-      const stream = getClient().messages.stream(
+      stream = getClient().messages.stream(
         {
           model: request.model,
           max_tokens: request.maxOutputTokens,
@@ -140,7 +141,17 @@ export const anthropicProvider: AiProvider = {
         },
       };
     } catch (error) {
-      throw mapError(error);
+      // An aborted or failed stream may already have consumed (billed) input
+      // and output tokens; report them so usage limits still count them.
+      const mapped = mapError(error);
+      const u = stream?.currentMessage?.usage;
+      if (!u) throw mapped;
+      throw new AiProviderError(mapped.code, mapped.message, {
+        inputTokens: u.input_tokens ?? 0,
+        outputTokens: u.output_tokens ?? 0,
+        cacheReadTokens: u.cache_read_input_tokens ?? 0,
+        cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
+      });
     }
   },
 };

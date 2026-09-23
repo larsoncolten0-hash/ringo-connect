@@ -101,8 +101,13 @@ export function parseAiSettingsPatch(body: unknown): Record<string, unknown> | n
   const b = body as Record<string, unknown>;
   const patch: Record<string, unknown> = {};
 
+  // A blank limit is rejected, not coerced: Number(null) and Number("") are 0,
+  // which would silently block every user (daily limit 0, budget $0).
+  const blank = (v: unknown) => v === null || (typeof v === "string" && v.trim() === "");
+
   const intIn = (key: string, col: string, min: number, max: number) => {
     if (b[key] === undefined) return true;
+    if (blank(b[key])) return false;
     const v = Number(b[key]);
     if (!Number.isInteger(v) || v < min || v > max) return false;
     patch[col] = v;
@@ -138,6 +143,7 @@ export function parseAiSettingsPatch(body: unknown): Record<string, unknown> | n
     patch.effort = b.effort;
   }
   if (b.monthlyGlobalBudgetUsd !== undefined) {
+    if (blank(b.monthlyGlobalBudgetUsd)) return null;
     const v = Number(b.monthlyGlobalBudgetUsd);
     if (!Number.isFinite(v) || v < 0 || v > 100000) return null;
     patch.monthly_global_budget_usd = v;

@@ -42,16 +42,36 @@ function mapProviderError(error: unknown): AiRuntimeError {
 
 const TOOL_BUDGET_NOTE = "Tool limit for this message reached. Answer now using what you already have; do not call more tools.";
 
-export async function runChat({ access, locale, conversationId, message, emit, signal }: ChatRequest): Promise<void> {
+// Model work is aborted after this long so the request always reaches
+// finishUsage (and its tokens count toward limits) before the platform kills
+// the function at the chat route's maxDuration (60s).
+const CHAT_DEADLINE_MS = 50_000;
+
+export async function runChat({ access, locale, conversationId, message, emit, signal: clientSignal }: ChatRequest): Promise<void> {
   const { workspace, settings, provider } = access;
   const started = Date.now();
+  const deadline = new AbortController();
+  let deadlineHit = false;
+  const deadlineTimer = setTimeout(() => {
+    deadlineHit = true;
+    deadline.abort();
+  }, CHAT_DEADLINE_MS);
+  const onClientAbort = () => deadline.abort();
+  if (clientSignal?.aborted) deadline.abort();
+  else clientSignal?.addEventListener("abort", onClientAbort, { once: true });
+  const signal = deadline.signal;
   let usage: AiUsage = EMPTY_USAGE;
   let toolRounds = 0;
   let toolCalls = 0;
   let convId: string | null = null;
 
-  const finishUsage = (status: "ok" | "error", errorCode: string | null) =>
-    recordUsageEvent({
+  // Exactly one usage row per request, even if a later step throws into the
+  // catch below after usage was already recorded.
+  let usageRecorded = false;
+  const finishUsage = async (status: "ok" | "error", errorCode: string | null) => {
+    if (usageRecorded) return;
+    usageRecorded = true;
+    await recordUsageEvent({
       userId: workspace.userId,
       profileId: workspace.profileId,
       conversationId: convId,
@@ -65,12 +85,14 @@ export async function runChat({ access, locale, conversationId, message, emit, s
       latencyMs: Date.now() - started,
       costUsd: estimateCostUsd(usage, settings),
     });
+  };
 
   // 1. Conversation (ownership + workspace re-checked server-side).
   let history: AiMessage[] = [];
   if (conversationId) {
     const conv = await getOwnConversation(workspace.userId, conversationId);
     if (!conv || conv.profile_id !== workspace.profileId) {
+      clearTimeout(deadlineTimer);
       emit({ type: "error", code: "conversation_not_found" });
       return;
     }
@@ -175,7 +197,12 @@ export async function runChat({ access, locale, conversationId, message, emit, s
   } catch (error) {
     const code = mapProviderError(error);
     console.error("ringo ai chat failed:", error instanceof Error ? `${error.name}: ${error.message}` : error);
-    await finishUsage("error", error instanceof AiProviderError ? `provider_${error.code}` : "internal");
+    if (error instanceof AiProviderError && error.partialUsage) usage = addUsage(usage, error.partialUsage);
+    const errorCode = deadlineHit ? "timeout" : error instanceof AiProviderError ? `provider_${error.code}` : "internal";
+    await finishUsage("error", errorCode);
     emit({ type: "error", code });
+  } finally {
+    clearTimeout(deadlineTimer);
+    clientSignal?.removeEventListener("abort", onClientAbort);
   }
 }

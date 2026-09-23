@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getActiveOrgCookie } from "@/lib/team/access";
 import { getAiSettings, hasPricing, type AiSettings } from "@/lib/ai/settings";
+import { estimateReservation } from "@/lib/ai/usage";
 import { getAiProvider } from "@/lib/ai/providers";
 import type { AiProvider } from "@/lib/ai/providers/types";
 import type { AiWorkspace } from "@/lib/ai/types";
@@ -20,8 +21,9 @@ import type { AiDenyReason, AiLimitReason } from "@/lib/ai/codes";
 //   6. not acting inside someone else's organization (Phase 1 is owner-only) → staff_workspace
 //   7. not a demo account              → demo_account
 //   8. beta allowlist (when enabled)   → not_in_beta
-// Usage limits are a separate step (checkAiQuota) so /api/ai/status can
-// report "you're in, but out of messages today" distinctly.
+// Usage limits are a separate step so /api/ai/status can report "you're in,
+// but out of messages today" distinctly: checkAiQuota (read-only, for the
+// status display) and reserveAiQuota (atomic, what /api/ai/chat enforces).
 
 export interface AiAccess {
   workspace: AiWorkspace;
@@ -130,4 +132,64 @@ export async function checkAiQuota(access: AiAccess): Promise<AiQuotaResult> {
   }
 
   return { ok: true, remainingToday };
+}
+
+// Longer than the chat route's maxDuration (60s): a reservation outlives any
+// request that could still be running, and a request that died without
+// releasing stops holding quota shortly after.
+const RESERVATION_TTL_SECONDS = 120;
+
+export type AiReservationResult =
+  | { ok: true; reservationId: string; remainingToday: number }
+  | { ok: false; reason: AiLimitReason; remainingToday: number };
+
+/**
+ * The enforcing limit check for a chat request. Atomically (one advisory-
+ * locked RPC, see 2026-10-26_ringo_ai_quota_reservations.sql) checks the
+ * same three limits as checkAiQuota — counting every other in-flight
+ * request's reservation as already used — and reserves this request's
+ * upper-bound estimate. Simultaneous requests (tabs, devices) can therefore
+ * never all pass on the same remaining quota. The caller MUST release the
+ * reservation when the request ends; the real usage is recorded separately
+ * (usage.ts), so the estimate never becomes the final accounting.
+ * Fails CLOSED, like checkAiQuota.
+ */
+export async function reserveAiQuota(access: AiAccess): Promise<AiReservationResult> {
+  const { settings } = access;
+  const estimate = estimateReservation(settings);
+  const { data, error } = await createAdminClient().rpc("ai_reserve_quota", {
+    p_user_id: access.workspace.userId,
+    p_daily_limit: access.dailyMessageLimit,
+    p_monthly_token_limit: settings.monthlyUserTokenLimit,
+    // Budget enforceable only with pricing configured (same rule as checkAiQuota).
+    p_global_budget_usd: hasPricing(settings) ? settings.monthlyGlobalBudgetUsd : null,
+    p_reserve_tokens: estimate.tokens,
+    p_reserve_cost_usd: estimate.costUsd,
+    p_ttl_seconds: RESERVATION_TTL_SECONDS,
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row) {
+    if (error) console.error("ai_reserve_quota failed:", error.message);
+    return { ok: false, reason: "quota_unavailable", remainingToday: 0 };
+  }
+
+  const remainingToday = Math.max(0, Number(row.remaining_today) || 0);
+  if (typeof row.reservation_id === "string" && row.reservation_id) {
+    return { ok: true, reservationId: row.reservation_id, remainingToday };
+  }
+  const reason: AiLimitReason =
+    row.deny_reason === "daily_limit" || row.deny_reason === "monthly_limit" || row.deny_reason === "budget_reached"
+      ? row.deny_reason
+      : "quota_unavailable";
+  return { ok: false, reason, remainingToday };
+}
+
+/**
+ * Ends a reservation once the request's real usage has been recorded (or it
+ * ended without calling the model). Idempotent; if it fails, the reservation
+ * simply expires after RESERVATION_TTL_SECONDS.
+ */
+export async function releaseAiQuota(reservationId: string): Promise<void> {
+  const { error } = await createAdminClient().from("ai_quota_reservations").delete().eq("id", reservationId);
+  if (error) console.error("releaseAiQuota failed:", error.message);
 }

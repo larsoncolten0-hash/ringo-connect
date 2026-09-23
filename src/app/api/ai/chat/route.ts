@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { checkAiQuota, resolveAiAccess } from "@/lib/ai/guard";
+import { releaseAiQuota, reserveAiQuota, resolveAiAccess } from "@/lib/ai/guard";
 import { runChat, type ChatEvent } from "@/lib/ai/orchestrator";
 import { AI_MAX_USER_MESSAGE_CHARS } from "@/lib/ai/codes";
 import { isAiLocale } from "@/lib/ai/types";
@@ -36,8 +36,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_request" }, { status: 400 });
   }
 
-  const quota = await checkAiQuota(access.access);
+  // Atomic check-and-reserve (see guard.ts): concurrent requests can't all
+  // pass on the same remaining quota. Released in `finally` below — after
+  // runChat has recorded the real usage — on every path: success, error,
+  // timeout, client abort.
+  const quota = await reserveAiQuota(access.access);
   if (!quota.ok) return NextResponse.json({ error: quota.reason }, { status: STATUS_BY_REASON[quota.reason] ?? 429 });
+  const reservationId = quota.reservationId;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -57,6 +62,7 @@ export async function POST(request: Request) {
         console.error("ai chat route failed:", error instanceof Error ? error.message : error);
         emit({ type: "error", code: "internal" });
       } finally {
+        await releaseAiQuota(reservationId);
         closed = true;
         try {
           controller.close();

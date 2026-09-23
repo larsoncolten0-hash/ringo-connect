@@ -8,6 +8,9 @@ import type { DiagnosticCheck } from "./types";
 //     plans.bookings_feature_enabled are stored but not enforced by any
 //     route today, so claiming they block anything would be false.
 
+// A null count means the snapshot couldn't verify it: a check that depends on
+// it stays silent rather than reporting a problem (or "none") that may be false.
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
@@ -43,7 +46,7 @@ export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
     knowledge: "plans",
     rule: "LinksCard blocks adding links beyond plans.max_links.",
     evaluate: (s) =>
-      s.plan.maxLinks !== null && s.counts.links >= s.plan.maxLinks
+      s.plan.maxLinks !== null && s.counts.links !== null && s.counts.links >= s.plan.maxLinks
         ? { severity: "warning", facts: { links: s.counts.links, plan_max_links: s.plan.maxLinks, plan: s.plan.displayName }, fixPath: "/dashboard/subscription" }
         : null,
   },
@@ -52,7 +55,7 @@ export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
     knowledge: "plans",
     rule: "CatalogCard blocks adding products beyond plans.max_products (0 = catalog locked).",
     evaluate: (s) =>
-      s.plan.maxProducts !== null && s.counts.products >= s.plan.maxProducts
+      s.plan.maxProducts !== null && s.counts.products !== null && s.counts.products >= s.plan.maxProducts
         ? { severity: "warning", facts: { products: s.counts.products, plan_max_products: s.plan.maxProducts, plan: s.plan.displayName }, fixPath: "/dashboard/subscription" }
         : null,
   },
@@ -94,7 +97,7 @@ export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
     knowledge: "restaurant",
     rule: "Menu items with available=false can't be ordered (MenuItemDetailView.tsx).",
     evaluate: (s) =>
-      s.isRestaurant && s.counts.menuItems > 0 && s.counts.availableMenuItems === 0
+      s.isRestaurant && s.counts.menuItems !== null && s.counts.menuItems > 0 && s.counts.availableMenuItems === 0
         ? { severity: "problem", facts: { menu_items: s.counts.menuItems, available_menu_items: 0 }, fixPath: "/dashboard?section=menu" }
         : null,
   },
@@ -110,7 +113,7 @@ export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
     knowledge: "music",
     rule: "MusicStorePage.tsx only sells a standalone track when it has a price (and available !== false).",
     evaluate: (s) =>
-      s.isMusic && s.counts.unpricedStandaloneTracks > 0
+      s.isMusic && s.counts.unpricedStandaloneTracks !== null && s.counts.unpricedStandaloneTracks > 0
         ? { severity: "warning", facts: { tracks_without_price: s.counts.unpricedStandaloneTracks, sellable_tracks: s.counts.sellableStandaloneTracks }, fixPath: "/dashboard?section=tracks" }
         : null,
   },
@@ -119,7 +122,7 @@ export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
     knowledge: "music",
     rule: "/api/music/orders only accepts checkout when profiles.currency = XAF (Mobile Money via Fapshi is the only payment method); currency is chosen in the Catalog section.",
     evaluate: (s) =>
-      s.isMusic && s.profile.currency !== "XAF" && (s.counts.sellableStandaloneTracks > 0 || s.counts.releases > 0 || s.counts.upcomingPublishedEvents > 0)
+      s.isMusic && s.profile.currency !== "XAF" && ((s.counts.sellableStandaloneTracks ?? 0) > 0 || (s.counts.releases ?? 0) > 0 || (s.counts.upcomingPublishedEvents ?? 0) > 0)
         ? { severity: "problem", facts: { store_currency: s.profile.currency, required_currency: "XAF" }, fixPath: "/dashboard?section=catalog" }
         : null,
   },
@@ -128,7 +131,7 @@ export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
     knowledge: "events",
     rule: "An event is only buyable online with an active ticket type (event_ticket_types) or a legacy single price (events.price).",
     evaluate: (s) =>
-      s.hasTicketing && s.counts.upcomingEventsWithoutTicketing > 0
+      s.hasTicketing && s.counts.upcomingEventsWithoutTicketing !== null && s.counts.upcomingEventsWithoutTicketing > 0
         ? { severity: "warning", facts: { upcoming_events_without_ticketing: s.counts.upcomingEventsWithoutTicketing }, fixPath: "/dashboard/tickets" }
         : null,
   },
@@ -137,7 +140,7 @@ export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
     knowledge: "events",
     rule: "Events whose date has passed no longer sell tickets.",
     evaluate: (s) =>
-      s.hasTicketing && s.counts.events > 0 && s.counts.upcomingPublishedEvents === 0
+      s.hasTicketing && s.counts.events !== null && s.counts.events > 0 && s.counts.upcomingPublishedEvents === 0
         ? { severity: "tip", facts: { events: s.counts.events, upcoming_published_events: 0 }, fixPath: "/dashboard/tickets" }
         : null,
   },
@@ -146,7 +149,7 @@ export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
     knowledge: "bookings",
     rule: "/api/bookings rejects requests unless profiles.bookings_enabled = true; services (booking_services) are optional.",
     evaluate: (s) => {
-      if (!s.profile.bookingsEnabled && s.counts.bookingServices > 0) {
+      if (!s.profile.bookingsEnabled && s.counts.bookingServices !== null && s.counts.bookingServices > 0) {
         return { severity: "warning", facts: { bookings_enabled: false, booking_services: s.counts.bookingServices }, fixPath: "/dashboard/bookings/settings" };
       }
       if (s.profile.bookingsEnabled && s.counts.bookingServices === 0) {

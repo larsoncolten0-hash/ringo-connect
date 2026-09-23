@@ -80,7 +80,9 @@ export type AiProviderErrorCode = "rate_limited" | "overloaded" | "unavailable" 
 export class AiProviderError extends Error {
   constructor(
     public readonly code: AiProviderErrorCode,
-    message: string
+    message: string,
+    /** Tokens the provider reported before the turn failed or was aborted, so they still count toward limits. */
+    public readonly partialUsage?: AiUsage
   ) {
     super(message);
     this.name = "AiProviderError";
