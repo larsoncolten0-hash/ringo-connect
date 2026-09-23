@@ -11,7 +11,15 @@ import type { AiWorkspace } from "@/lib/ai/types";
 // the Dashboard editor. Adding a draft type = one new file + one registry line
 // + the draft_type CHECK in a new additive migration.
 
-export const DRAFT_TYPES = ["profile.update", "product.create", "event.create", "product.update"] as const;
+export const DRAFT_TYPES = [
+  "profile.update",
+  "product.create",
+  "event.create",
+  "product.update",
+  "event.update",
+  "track.update",
+  "menu_item.update",
+] as const;
 export type DraftType = (typeof DRAFT_TYPES)[number];
 
 export const DRAFT_STATUSES = ["awaiting_confirmation", "applying", "applied", "failed", "rejected", "expired", "stale"] as const;

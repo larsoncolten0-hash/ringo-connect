@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { AI_MAX_USER_MESSAGE_CHARS } from "@/lib/ai/codes";
 import MessageList, { type UiMessage } from "./MessageList";
 import type { DraftView } from "@/lib/ai/drafts/view";
+import type { ContentView } from "@/lib/ai/content/view";
 
 export type AiStatus = { canSend: boolean; limitReason: string | null; remainingToday: number };
 
@@ -42,6 +43,7 @@ export default function RingoAiPanel({
   const [history, setHistory] = useState<ConversationRow[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, DraftView>>({});
+  const [contents, setContents] = useState<Record<string, ContentView>>({});
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -60,6 +62,7 @@ export default function RingoAiPanel({
   }, []);
 
   const upsertDraft = useCallback((draft: DraftView) => setDrafts((prev) => ({ ...prev, [draft.id]: draft })), []);
+  const upsertContent = useCallback((content: ContentView) => setContents((prev) => ({ ...prev, [content.id]: content })), []);
 
   const attachImage = async (file: File) => {
     setImageError(null);
@@ -155,6 +158,11 @@ export default function RingoAiPanel({
             // the owner presses Confirm & Apply on it.
             upsertDraft(event.draft);
             patchAssistant(assistantId, (m) => ({ draftIds: (m.draftIds || []).includes(event.draft.id) ? m.draftIds : [...(m.draftIds || []), event.draft.id] }));
+          } else if (event.type === "content" && event.content?.id) {
+            // A generated-content card — nothing is written anywhere; it's
+            // already "done" the moment it's shown.
+            upsertContent(event.content);
+            patchAssistant(assistantId, (m) => ({ contentIds: (m.contentIds || []).includes(event.content.id) ? m.contentIds : [...(m.contentIds || []), event.content.id] }));
           } else if (event.type === "done") {
             patchAssistant(assistantId, { pending: false, serverId: event.messageId, truncated: !!event.truncated });
             onStatusChange({ ...status, remainingToday: Math.max(0, status.remainingToday - 1), canSend: status.remainingToday - 1 > 0, limitReason: status.remainingToday - 1 > 0 ? null : "daily_limit" });
@@ -178,6 +186,7 @@ export default function RingoAiPanel({
     setConversationId(null);
     setMessages([]);
     setDrafts({});
+    setContents({});
     setView("chat");
   };
 
@@ -222,6 +231,9 @@ export default function RingoAiPanel({
       setConversationId(id);
       setMessages(loaded);
       setDrafts(Object.fromEntries(loadedDrafts.map((dr) => [dr.id, dr])));
+      // Content cards are never persisted — a reopened conversation shows its
+      // text reply only, same as the design intends.
+      setContents({});
       setView("chat");
     } catch {
       // Stay on the list; the user can retry.
@@ -246,6 +258,12 @@ export default function RingoAiPanel({
       body: JSON.stringify({ messageId: message.serverId, rating }),
     }).catch(() => null);
   };
+
+  // Regenerate/language-switch on a content card are pure client
+  // conveniences — they just send a new chat message; the model has the
+  // prior turn in context, so no id needs to be threaded through.
+  const regenerateContent = () => send(t.ringoAi.content.regeneratePrompt);
+  const switchContentLanguage = (locale: "en" | "fr") => send(locale === "fr" ? t.ringoAi.content.translateToFrenchPrompt : t.ringoAi.content.translateToEnglishPrompt);
 
   // Human handoff: the existing HelpWidget already opens itself from a
   // `?support=open` deep link on mount — reuse that instead of touching it.
@@ -365,7 +383,16 @@ export default function RingoAiPanel({
                 <p className="text-[11px] text-ringo-muted leading-relaxed">{t.ringoAi.readOnlyNote}</p>
               </div>
             ) : (
-              <MessageList messages={messages} toolStatus={toolStatus} onRate={rate} drafts={drafts} onDraftChange={upsertDraft} />
+              <MessageList
+                messages={messages}
+                toolStatus={toolStatus}
+                onRate={rate}
+                drafts={drafts}
+                onDraftChange={upsertDraft}
+                contents={contents}
+                onRegenerateContent={regenerateContent}
+                onSwitchContentLanguage={switchContentLanguage}
+              />
             )}
           </div>
 

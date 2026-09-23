@@ -11,6 +11,7 @@ import type { AiToolContext } from "@/lib/ai/tools/types";
 import { appendMessage, createConversation, getOwnConversation, listConversationMessages } from "@/lib/ai/conversations";
 import { estimateCostUsd, recordUsageEvent } from "@/lib/ai/usage";
 import type { DraftView } from "@/lib/ai/drafts/view";
+import type { ContentView } from "@/lib/ai/content/view";
 
 // The one Ringo AI orchestrator. Setup help, advice, content and support are
 // behaviours of this same loop (driven by the prompt, knowledge and tools),
@@ -23,6 +24,7 @@ export type ChatEvent =
   | { type: "text"; delta: string }
   | { type: "tool"; name: string }
   | { type: "draft"; draft: DraftView }
+  | { type: "content"; content: ContentView }
   | { type: "done"; messageId: string; toolsUsed: string[]; truncated: boolean }
   | { type: "error"; code: AiRuntimeError };
 
@@ -126,6 +128,7 @@ export async function runChat({ access, locale, conversationId, message, imageUr
       locale,
       conversationId: activeConversationId,
       emitDraft: (draft) => emit({ type: "draft", draft }),
+      emitContent: (content) => emit({ type: "content", content }),
     };
     const tools = settings.maxToolRounds > 0 ? getAvailableTools(toolCtx) : [];
     const system = {

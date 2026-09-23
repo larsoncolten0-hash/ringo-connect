@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import { NO_INPUT_SCHEMA, parseNoInput, type AiTool } from "../types";
+import { NO_INPUT_SCHEMA, clipText, parseNoInput, type AiTool } from "../types";
 
 export const getMyRestaurantSummary: AiTool = {
   name: "get_my_restaurant_summary",
   description:
-    "Summarize the user's own restaurant setup: ordering switch and order types, menu size and availability, tables, and orders over the last 30 days by status and type (counts and totals only, no customer details).",
+    "Summarize the user's own restaurant setup: ordering switch and order types, menu items (up to 30: id, name, price, available), tables, and orders over the last 30 days by status and type (counts and totals only, no customer details). Use a menu item's id with update_menu_item_draft to edit it.",
   kind: "read",
   permission: "orders.view",
   available: (s) => s.isRestaurant,
@@ -13,11 +13,13 @@ export const getMyRestaurantSummary: AiTool = {
   async run({ workspace, snapshot }) {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const db = createClient();
-    const [ordersRes, tablesRes] = await Promise.all([
+    const [ordersRes, tablesRes, itemsRes] = await Promise.all([
       db.from("orders").select("status, order_type, total").eq("profile_id", workspace.profileId).gte("created_at", since).limit(5000),
       db.from("restaurant_tables").select("id", { count: "exact", head: true }).eq("profile_id", workspace.profileId).eq("enabled", true),
+      db.from("menu_items").select("id, name, price, available").eq("profile_id", workspace.profileId).order("sort_order", { ascending: true }).limit(30),
     ]);
     if (ordersRes.error) throw new Error(ordersRes.error.message);
+    if (itemsRes.error) throw new Error(itemsRes.error.message);
 
     const byStatus: Record<string, number> = {};
     const byType: Record<string, number> = {};
@@ -35,6 +37,12 @@ export const getMyRestaurantSummary: AiTool = {
         categories: snapshot.counts.menuCategories,
         items: snapshot.counts.menuItems,
         available_items: snapshot.counts.availableMenuItems,
+        menu_items: (itemsRes.data || []).map((i: any) => ({
+          id: i.id,
+          name: clipText(i.name, 60),
+          price: i.price === null ? null : Number(i.price),
+          available: i.available !== false,
+        })),
       },
       tables: { total: snapshot.counts.restaurantTables, enabled: tablesRes.count ?? null },
       last_30_days: {

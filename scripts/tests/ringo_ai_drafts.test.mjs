@@ -33,6 +33,9 @@ const { validateProfileDraft, profilePatch, profileUpdateDraft } = load("lib/ai/
 const { validateProductDraft, productCreateDraft } = load("lib/ai/drafts/productCreate.ts");
 const { validateEventDraft, eventCreateDraft } = load("lib/ai/drafts/eventCreate.ts");
 const { validateProductUpdateDraft, productUpdateDraft } = load("lib/ai/drafts/productUpdate.ts");
+const { validateEventUpdateDraft, eventUpdateDraft } = load("lib/ai/drafts/eventUpdate.ts");
+const { validateTrackUpdateDraft, trackUpdateDraft } = load("lib/ai/drafts/trackUpdate.ts");
+const { validateMenuItemUpdateDraft, menuItemUpdateDraft } = load("lib/ai/drafts/menuItemUpdate.ts");
 const { phoneFromOwner, emailFromOwner, imageUrlFromOwner } = load("lib/ai/drafts/provenance.ts");
 const { looksLikeImage, isOwnAiUploadUrl, extFromMime } = load("lib/ai/uploads.ts");
 const { DRAFT_DEFINITIONS } = load("lib/ai/drafts/registry.ts");
@@ -180,6 +183,48 @@ check("event: past date refused", validateEventDraft({ title: "X", date: "2026-0
 check("event: impossible date refused", validateEventDraft({ title: "X", date: "2026-02-30", time: null, location: null }, CTX()).reason === "invalid_input");
 check("event: only on pages with ticketing (profileHasTicketing)", eventCreateDraft.availability(FACTS()).reason === "feature_unavailable" && eventCreateDraft.availability(FACTS({ category: "music_entertainment", categories: ["music_entertainment"] })).ok);
 
+// ------------------------------------------------------------------ event.update draft validation (edit an existing event)
+const EID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const EU = (over = {}) => ({ eventId: EID, title: null, description: null, event_date: null, event_time: null, location: null, price: null, ...over });
+v = validateEventUpdateDraft(EU({ title: "New title" }), CTX());
+check("event update: a single field change accepted, others stay null", v.ok && v.payload.title === "New title" && v.payload.price === null);
+check("event update: nothing to change (all null) rejected", validateEventUpdateDraft(EU(), CTX()).reason === "nothing_to_change");
+check("event update: missing/invalid event_id rejected", validateEventUpdateDraft({ title: "A" }, CTX()).reason === "invalid_input" && validateEventUpdateDraft(EU({ eventId: "not-a-uuid" }), CTX()).reason === "invalid_input");
+check("event update: editing a PAST date is allowed (unlike event.create)", validateEventUpdateDraft(EU({ event_date: "2020-01-01" }), CTX()).ok);
+check("event update: an impossible date is still rejected", validateEventUpdateDraft(EU({ event_date: "2026-02-30" }), CTX()).reason === "invalid_input");
+check("event update: negative price rejected", validateEventUpdateDraft(EU({ price: -1 }), CTX()).reason === "invalid_input");
+check("event update: only on pages with ticketing", eventUpdateDraft.availability(FACTS()).reason === "feature_unavailable" && eventUpdateDraft.availability(FACTS({ category: "events_experiences", categories: ["events_experiences"] })).ok);
+
+// ------------------------------------------------------------------ track.update draft validation (edit an existing track)
+const TID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const TU = (over = {}) => ({ trackId: TID, title: null, description: null, price: null, ...over });
+v = validateTrackUpdateDraft(TU({ title: "New title" }), CTX());
+check("track update: a single field change accepted, others stay null", v.ok && v.payload.title === "New title" && v.payload.price === null);
+check("track update: nothing to change (all null) rejected", validateTrackUpdateDraft(TU(), CTX()).reason === "nothing_to_change");
+check("track update: missing/invalid track_id rejected", validateTrackUpdateDraft({ title: "A" }, CTX()).reason === "invalid_input" && validateTrackUpdateDraft(TU({ trackId: "not-a-uuid" }), CTX()).reason === "invalid_input");
+check("track update: title over 120 chars rejected", validateTrackUpdateDraft(TU({ title: "x".repeat(121) }), CTX()).reason === "invalid_input");
+check("track update: negative price rejected", validateTrackUpdateDraft(TU({ price: -1 }), CTX()).reason === "invalid_input");
+check(
+  "track update: only on music pages",
+  trackUpdateDraft.availability(FACTS()).reason === "feature_unavailable" && trackUpdateDraft.availability(FACTS({ category: "music_entertainment", categories: ["music_entertainment"] })).ok
+);
+
+// ------------------------------------------------------------------ menu_item.update draft validation (edit an existing menu item)
+const MID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const MU = (over = {}) => ({ menuItemId: MID, name: null, description: null, price: null, available: null, featured: null, prep_time_minutes: null, ...over });
+v = validateMenuItemUpdateDraft(MU({ name: "New name" }), CTX());
+check("menu item update: a single field change accepted, others stay null", v.ok && v.payload.name === "New name" && v.payload.price === null);
+check("menu item update: nothing to change (all null) rejected", validateMenuItemUpdateDraft(MU(), CTX()).reason === "nothing_to_change");
+check("menu item update: missing/invalid menu_item_id rejected", validateMenuItemUpdateDraft({ name: "A" }, CTX()).reason === "invalid_input" && validateMenuItemUpdateDraft(MU({ menuItemId: "not-a-uuid" }), CTX()).reason === "invalid_input");
+check("menu item update: negative price rejected", validateMenuItemUpdateDraft(MU({ price: -1 }), CTX()).reason === "invalid_input");
+check("menu item update: available/featured booleans accepted", validateMenuItemUpdateDraft(MU({ available: false, featured: true }), CTX()).ok);
+check("menu item update: non-boolean available rejected", validateMenuItemUpdateDraft(MU({ available: "yes" }), CTX()).reason === "invalid_input");
+check("menu item update: negative prep_time_minutes rejected", validateMenuItemUpdateDraft(MU({ prep_time_minutes: -5 }), CTX()).reason === "invalid_input");
+check(
+  "menu item update: only on restaurant pages",
+  menuItemUpdateDraft.availability(FACTS()).reason === "feature_unavailable" && menuItemUpdateDraft.availability(FACTS({ category: "restaurant_food", categories: ["restaurant_food"] })).ok
+);
+
 // ------------------------------------------------------------------ fake Supabase (session client) for adapters
 function fakeDb(resolver) {
   const db = {
@@ -319,6 +364,59 @@ check(
   (await productUpdateDraft.apply(productUpdateWith({ data: "updated", error: null }), WS, { payload: payloadPU, base: baseProduct, targetId: PID }, FACTS({ currency: "USD" }))).code === "stale"
 );
 
+// event UPDATE apply
+const payloadEU = validateEventUpdateDraft(EU({ title: "New title", price: 3000 }), CTX()).payload;
+const baseEvent = { title: "Old title", description: null, event_date: "2026-10-10", event_time: "20:00", location: "Yaoundé", price: 2000 };
+const eventUpdateWith = (reply) => fakeDb((st) => (st.op === "rpc" ? reply : { data: null, error: { message: "unexpected table access" } }));
+db = eventUpdateWith({ data: "updated", error: null });
+ar = await eventUpdateDraft.apply(db, WS, { payload: payloadEU, base: baseEvent, targetId: EID }, FACTS());
+const rpcEU = db.calls.find((c) => c.op === "rpc");
+check("apply event update: a single atomic RPC via the session client", ar.ok && db.calls.length === 1 && rpcEU?.name === "ai_apply_event_update");
+check("apply event update: sends the event + profile id and only the changed columns", rpcEU && rpcEU.args.p_event_id === EID && rpcEU.args.p_profile_id === WS.profileId && Object.keys(rpcEU.args.p_patch).sort().join() === "price,title");
+ar = await eventUpdateDraft.apply(eventUpdateWith({ data: "price_locked", error: null }), WS, { payload: payloadEU, base: baseEvent, targetId: EID }, FACTS());
+check("apply event update: price on a tiered event → feature_unavailable, not applied", !ar.ok && ar.code === "feature_unavailable");
+ar = await eventUpdateDraft.apply(eventUpdateWith({ data: "stale", error: null }), WS, { payload: payloadEU, base: baseEvent, targetId: EID }, FACTS());
+check("apply event update: 'stale' (page changed since) → stale, not applied", !ar.ok && ar.code === "stale");
+ar = await eventUpdateDraft.apply(eventUpdateWith({ data: "already_applied", error: null }), WS, { payload: payloadEU, base: baseEvent, targetId: EID }, FACTS());
+check("apply event update: 'already_applied' (retry) → idempotent success", ar.ok && ar.alreadyApplied);
+ar = await eventUpdateDraft.apply(eventUpdateWith({ data: "not_found", error: null }), WS, { payload: payloadEU, base: baseEvent, targetId: EID }, FACTS());
+check("apply event update: 'not_found' → write_failed, never applied", !ar.ok && ar.code === "write_failed");
+
+// track UPDATE apply
+const payloadTU = validateTrackUpdateDraft(TU({ title: "New title", price: 1500 }), CTX()).payload;
+const baseTrack = { title: "Old title", description: null, price: 1000 };
+const trackUpdateWith = (reply) => fakeDb((st) => (st.op === "rpc" ? reply : { data: null, error: { message: "unexpected table access" } }));
+db = trackUpdateWith({ data: "updated", error: null });
+ar = await trackUpdateDraft.apply(db, WS, { payload: payloadTU, base: baseTrack, targetId: TID }, FACTS());
+const rpcTU = db.calls.find((c) => c.op === "rpc");
+check("apply track update: a single atomic RPC via the session client", ar.ok && db.calls.length === 1 && rpcTU?.name === "ai_apply_track_update");
+check("apply track update: sends the track + profile id and only the changed columns", rpcTU && rpcTU.args.p_track_id === TID && rpcTU.args.p_profile_id === WS.profileId && Object.keys(rpcTU.args.p_patch).sort().join() === "price,title");
+ar = await trackUpdateDraft.apply(trackUpdateWith({ data: "release_locked", error: null }), WS, { payload: payloadTU, base: baseTrack, targetId: TID }, FACTS());
+check("apply track update: price on a track that's part of a release → feature_unavailable, not applied", !ar.ok && ar.code === "feature_unavailable");
+ar = await trackUpdateDraft.apply(trackUpdateWith({ data: "stale", error: null }), WS, { payload: payloadTU, base: baseTrack, targetId: TID }, FACTS());
+check("apply track update: 'stale' → stale, not applied", !ar.ok && ar.code === "stale");
+ar = await trackUpdateDraft.apply(trackUpdateWith({ data: "already_applied", error: null }), WS, { payload: payloadTU, base: baseTrack, targetId: TID }, FACTS());
+check("apply track update: 'already_applied' (retry) → idempotent success", ar.ok && ar.alreadyApplied);
+
+// menu item UPDATE apply
+const payloadMU = validateMenuItemUpdateDraft(MU({ name: "New name", price: 2500, available: false }), CTX()).payload;
+const baseMenuItem = { name: "Old name", description: null, price: 2000, available: true, featured: false, prep_time_minutes: 10 };
+const menuUpdateWith = (reply) => fakeDb((st) => (st.op === "rpc" ? reply : { data: null, error: { message: "unexpected table access" } }));
+db = menuUpdateWith({ data: "updated", error: null });
+ar = await menuItemUpdateDraft.apply(db, WS, { payload: payloadMU, base: baseMenuItem, targetId: MID }, FACTS());
+const rpcMU = db.calls.find((c) => c.op === "rpc");
+check("apply menu item update: a single atomic RPC via the session client", ar.ok && db.calls.length === 1 && rpcMU?.name === "ai_apply_menu_item_update");
+check(
+  "apply menu item update: sends the item + profile id and only the changed columns",
+  rpcMU && rpcMU.args.p_menu_item_id === MID && rpcMU.args.p_profile_id === WS.profileId && Object.keys(rpcMU.args.p_patch).sort().join() === "available,name,price"
+);
+ar = await menuItemUpdateDraft.apply(menuUpdateWith({ data: "stale", error: null }), WS, { payload: payloadMU, base: baseMenuItem, targetId: MID }, FACTS());
+check("apply menu item update: 'stale' → stale, not applied", !ar.ok && ar.code === "stale");
+ar = await menuItemUpdateDraft.apply(menuUpdateWith({ data: "already_applied", error: null }), WS, { payload: payloadMU, base: baseMenuItem, targetId: MID }, FACTS());
+check("apply menu item update: 'already_applied' (retry) → idempotent success", ar.ok && ar.alreadyApplied);
+ar = await menuItemUpdateDraft.apply(menuUpdateWith({ data: null, error: { code: "42501", message: "rls" } }), WS, { payload: payloadMU, base: baseMenuItem, targetId: MID }, FACTS());
+check("apply menu item update: database refusal → write_failed", !ar.ok && ar.code === "write_failed");
+
 // ------------------------------------------------------------------ draft view (what the browser gets)
 const row = { id: "d1", draft_type: "profile.update", status: "awaiting_confirmation", payload: payloadP, base, revision: 2, result_id: null, error_code: null, created_at: "2026-09-23T10:00:00+00:00", expires_at: "2099-01-01T00:00:00+00:00" };
 let view = toDraftView(row);
@@ -344,7 +442,10 @@ check("tools: event drafts only where ticketing exists", !toolNames(snap()).incl
 const UNSUPPORTED = /"(minLength|maxLength|minimum|maximum|multipleOf|pattern)"/;
 check("tools: draft schemas use only strict-mode-supported JSON Schema", AI_TOOLS.every((t) => !UNSUPPORTED.test(JSON.stringify(t.inputSchema))));
 check("tools: no schema lets the model send user/profile/org/customer ids", AI_TOOLS.every((t) => !Object.keys(t.inputSchema.properties || {}).some((p) => /user|profile_id|org|customer/.test(p))));
-check("tools: every registered draft type has a definition", ["profile.update", "product.create", "event.create", "product.update"].every((ty) => DRAFT_DEFINITIONS[ty]));
+check(
+  "tools: every registered draft type has a definition",
+  ["profile.update", "product.create", "event.create", "product.update", "event.update", "track.update", "menu_item.update"].every((ty) => DRAFT_DEFINITIONS[ty])
+);
 
 // ------------------------------------------------------------------ draft tools with fake I/O
 const serverMod = load("lib/supabase/server.ts");
@@ -462,6 +563,97 @@ inserted = [];
 tr = await executeTool("update_product_draft", { draft_id: null, product_id: PID, name: "X", description: null, price: null, image_url: null }, toolCtx, avail);
 check("tool: a product_id that doesn't exist/isn't owned → facts_unavailable, no draft", JSON.parse(tr.content).reason === "facts_unavailable" && inserted.length === 0);
 serverMod.createClient = realCreate;
+
+// update_event_draft: only offered on ticketing-enabled pages; loadBase reads the "events" table.
+const ticketingCtx = { ...toolCtx, snapshot: snap({ hasTicketing: true }) };
+const ticketingAvail = getAvailableTools(ticketingCtx);
+check("tool: update_event_draft not offered without ticketing", !toolNames(snap()).includes("update_event_draft") && toolNames(snap({ hasTicketing: true })).includes("update_event_draft"));
+factsNow = FACTS({ category: "events_experiences", categories: ["events_experiences"] });
+serverMod.createClient = () => fakeDb((st) => (st.table === "events" ? { data: baseEvent, error: null } : { data: [], error: null }));
+inserted = [];
+tr = await executeTool("update_event_draft", { draft_id: null, event_id: EID, title: "New title", description: null, event_date: null, event_time: null, location: null, price: null }, ticketingCtx, ticketingAvail);
+out = JSON.parse(tr.content);
+check("tool: update_event_draft prepared against the real current event", out.ok && inserted.length === 1 && inserted[0].type === "event.update" && inserted[0].payload.eventId === EID);
+serverMod.createClient = () => fakeDb((st) => (st.table === "events" ? { data: null, error: null } : { data: [], error: null }));
+inserted = [];
+tr = await executeTool("update_event_draft", { draft_id: null, event_id: EID, title: "X", description: null, event_date: null, event_time: null, location: null, price: null }, ticketingCtx, ticketingAvail);
+check("tool: an event_id that doesn't exist/isn't owned → facts_unavailable, no draft", JSON.parse(tr.content).reason === "facts_unavailable" && inserted.length === 0);
+serverMod.createClient = realCreate;
+
+// update_track_draft: only offered on music pages; loadBase reads the "tracks" table.
+const musicCtx = { ...toolCtx, snapshot: snap({ isMusic: true }) };
+const musicAvail = getAvailableTools(musicCtx);
+check("tool: update_track_draft not offered on non-music pages", !toolNames(snap()).includes("update_track_draft") && toolNames(snap({ isMusic: true })).includes("update_track_draft"));
+factsNow = FACTS({ category: "music_entertainment", categories: ["music_entertainment"] });
+serverMod.createClient = () => fakeDb((st) => (st.table === "tracks" ? { data: baseTrack, error: null } : { data: [], error: null }));
+inserted = [];
+tr = await executeTool("update_track_draft", { draft_id: null, track_id: TID, title: "New title", description: null, price: null }, musicCtx, musicAvail);
+out = JSON.parse(tr.content);
+check("tool: update_track_draft prepared against the real current track", out.ok && inserted.length === 1 && inserted[0].type === "track.update" && inserted[0].payload.trackId === TID);
+serverMod.createClient = () => fakeDb((st) => (st.table === "tracks" ? { data: null, error: null } : { data: [], error: null }));
+inserted = [];
+tr = await executeTool("update_track_draft", { draft_id: null, track_id: TID, title: "X", description: null, price: null }, musicCtx, musicAvail);
+check("tool: a track_id that doesn't exist/isn't owned → facts_unavailable, no draft", JSON.parse(tr.content).reason === "facts_unavailable" && inserted.length === 0);
+serverMod.createClient = realCreate;
+
+// update_menu_item_draft: only offered on restaurant pages; loadBase reads the "menu_items" table.
+const restaurantCtx = { ...toolCtx, snapshot: snap({ isRestaurant: true }) };
+const restaurantAvail = getAvailableTools(restaurantCtx);
+check("tool: update_menu_item_draft not offered on non-restaurant pages", !toolNames(snap()).includes("update_menu_item_draft") && toolNames(snap({ isRestaurant: true })).includes("update_menu_item_draft"));
+factsNow = FACTS({ category: "restaurant_food", categories: ["restaurant_food"] });
+serverMod.createClient = () => fakeDb((st) => (st.table === "menu_items" ? { data: baseMenuItem, error: null } : { data: [], error: null }));
+inserted = [];
+tr = await executeTool(
+  "update_menu_item_draft",
+  { draft_id: null, menu_item_id: MID, name: "New name", description: null, price: null, available: null, featured: null, prep_time_minutes: null },
+  restaurantCtx,
+  restaurantAvail
+);
+out = JSON.parse(tr.content);
+check("tool: update_menu_item_draft prepared against the real current menu item", out.ok && inserted.length === 1 && inserted[0].type === "menu_item.update" && inserted[0].payload.menuItemId === MID);
+serverMod.createClient = () => fakeDb((st) => (st.table === "menu_items" ? { data: null, error: null } : { data: [], error: null }));
+inserted = [];
+tr = await executeTool(
+  "update_menu_item_draft",
+  { draft_id: null, menu_item_id: MID, name: "X", description: null, price: null, available: null, featured: null, prep_time_minutes: null },
+  restaurantCtx,
+  restaurantAvail
+);
+check("tool: a menu_item_id that doesn't exist/isn't owned → facts_unavailable, no draft", JSON.parse(tr.content).reason === "facts_unavailable" && inserted.length === 0);
+serverMod.createClient = realCreate;
+
+// generate_content: no draft, no write — a target_id must be owned by this workspace if given.
+inserted = [];
+emitted.length = 0;
+const emittedContent = [];
+const contentCtx = { ...toolCtx, emitContent: (c) => emittedContent.push(c) };
+serverMod.createClient = () => fakeDb((st) => (st.table === "products" ? { data: { id: PID }, error: null } : { data: [], error: null }));
+tr = await executeTool(
+  "generate_content",
+  { content_type: "promotional_post", target_type: "product", target_id: PID, language: "en", headline: "Big Sale", body: "Grab it now.", cta: "Shop now", short_version: null, hashtags: ["sale"] },
+  contentCtx,
+  getAvailableTools(contentCtx)
+);
+out = JSON.parse(tr.content);
+check("tool: generate_content succeeds and emits a content card, never a draft", out.ok && emittedContent.length === 1 && emittedContent[0].body === "Grab it now." && inserted.length === 0 && emitted.length === 0);
+check("tool: generate_content never writes to ai_drafts (insertDraft not called)", inserted.length === 0);
+serverMod.createClient = () => fakeDb((st) => (st.table === "products" ? { data: null, error: null } : { data: [], error: null }));
+emittedContent.length = 0;
+tr = await executeTool(
+  "generate_content",
+  { content_type: "promotional_post", target_type: "product", target_id: PID, language: "en", headline: null, body: "Grab it now.", cta: null, short_version: null, hashtags: null },
+  contentCtx,
+  getAvailableTools(contentCtx)
+);
+check("tool: generate_content refuses a target id that isn't owned by this workspace", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "not_found" && emittedContent.length === 0);
+serverMod.createClient = realCreate;
+tr = await executeTool(
+  "generate_content",
+  { content_type: "promotional_post", target_type: null, target_id: null, language: "en", headline: null, body: "x".repeat(2001), cta: null, short_version: null, hashtags: null },
+  contentCtx,
+  getAvailableTools(contentCtx)
+);
+check("tool: generate_content rejects a body over the length cap", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "invalid_input");
 
 // ------------------------------------------------------------------ apply pipeline (applyDraft) with fake store
 const applyMod = load("lib/ai/drafts/apply.ts");
@@ -723,7 +915,18 @@ for (const def of Object.values(DRAFT_DEFINITIONS)) {
   (sample?.changes || []).forEach((c) => allFields.add(c.field));
 }
 const payloadPUWithImage = validateProductUpdateDraft(PU({ image_url: uploadedUrl }), CTX({}, saidImage)).payload;
-[...productCreateDraft.changes({ ...payloadProd, description: "d" }), ...eventCreateDraft.changes(payloadEv), ...productUpdateDraft.changes(payloadPU, baseProduct), ...productUpdateDraft.changes(payloadPUWithImage, baseProduct)].forEach((c) => allFields.add(c.field));
+const payloadEUFull = validateEventUpdateDraft(EU({ title: "A", description: "B", event_date: "2026-11-01", event_time: "20:00", location: "C", price: 1000 }), CTX()).payload;
+const payloadTUFull = validateTrackUpdateDraft(TU({ title: "A", description: "B", price: 1000 }), CTX()).payload;
+const payloadMUFull = validateMenuItemUpdateDraft(MU({ name: "A", description: "B", price: 1000, available: true, featured: true, prep_time_minutes: 5 }), CTX()).payload;
+[
+  ...productCreateDraft.changes({ ...payloadProd, description: "d" }),
+  ...eventCreateDraft.changes(payloadEv),
+  ...productUpdateDraft.changes(payloadPU, baseProduct),
+  ...productUpdateDraft.changes(payloadPUWithImage, baseProduct),
+  ...eventUpdateDraft.changes(payloadEUFull, baseEvent),
+  ...trackUpdateDraft.changes(payloadTUFull, baseTrack),
+  ...menuItemUpdateDraft.changes(payloadMUFull, baseMenuItem),
+].forEach((c) => allFields.add(c.field));
 allFields.add("music_role");
 for (const loc of ["en", "fr"]) {
   const d = translations[loc].ringoAi.drafts;

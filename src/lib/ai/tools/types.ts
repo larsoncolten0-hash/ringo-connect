@@ -1,6 +1,7 @@
 import type { AiLocale, AiWorkspace } from "@/lib/ai/types";
 import type { WorkspaceSnapshot } from "@/lib/ai/context/snapshot";
 import type { DraftView } from "@/lib/ai/drafts/view";
+import type { ContentView } from "@/lib/ai/content/view";
 
 // A Ringo AI tool is an explicitly defined, server-side capability. The model
 // can only ask for a tool by name with a small, validated input; it never
@@ -8,13 +9,18 @@ import type { DraftView } from "@/lib/ai/drafts/view";
 // server-resolved workspace and must scope every query to
 // ctx.workspace.profileId itself.
 //
-//   kind "read"  — Phase 1. Reads and summarizes the owner's own data.
-//   kind "draft" — Phase 2. Prepares a proposal (ai_drafts), never writes Ringo
-//                  data. Applying is the owner's "Confirm & Apply" click
-//                  (POST /api/ai/drafts/[id]/apply) — never a tool.
-//   kind "write" — reserved. The registry refuses to expose it.
+//   kind "read"    — Phase 1. Reads and summarizes the owner's own data.
+//   kind "draft"   — Phase 2. Prepares a proposal (ai_drafts), never writes
+//                    Ringo data. Applying is the owner's "Confirm & Apply"
+//                    click (POST /api/ai/drafts/[id]/apply) — never a tool.
+//   kind "content" — Phase 3 Increment 2. Presents AI-generated marketing
+//                    copy (already composed by the model from grounded data)
+//                    as a structured card. Nothing is written or persisted —
+//                    there is no Ringo record to apply this to, so there is
+//                    no confirm/apply step for this kind, ever.
+//   kind "write"   — reserved. The registry refuses to expose it.
 
-export type AiToolKind = "read" | "draft" | "write";
+export type AiToolKind = "read" | "draft" | "content" | "write";
 
 export interface AiToolContext {
   workspace: AiWorkspace;
@@ -24,6 +30,8 @@ export interface AiToolContext {
   conversationId?: string;
   /** Streams a draft's review card to the panel (draft tools only). */
   emitDraft?: (draft: DraftView) => void;
+  /** Streams a generated-content card to the panel (content tools only). */
+  emitContent?: (content: ContentView) => void;
 }
 
 export interface AiTool<Input = Record<string, never>> {

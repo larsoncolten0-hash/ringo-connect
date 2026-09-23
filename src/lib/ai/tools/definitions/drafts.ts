@@ -166,6 +166,55 @@ export const updateProductDraft: AiTool<Record<string, unknown>> = {
   run: (ctx, input) => prepareDraft(ctx, "product.update", input),
 };
 
+export const updateTrackDraft: AiTool<Record<string, unknown>> = {
+  name: "update_track_draft",
+  description:
+    "Prepare a DRAFT edit of ONE EXISTING music track already in the user's catalog (use a track_id from get_my_music_summary). Nothing changes until the user clicks Confirm & Apply. Use null for every field you are not changing. description may be text you wrote or rewrote from the user's facts, with no invented claims. price can only be changed for a STANDALONE track (has_release: false in get_my_music_summary) — a track that's part of a release is priced through the release itself; don't offer to change price for those, explain why instead.",
+  kind: "draft",
+  permission: "music.manage",
+  available: (s) => s.isMusic,
+  inputSchema: {
+    type: "object",
+    properties: {
+      draft_id: draftIdParam,
+      track_id: { type: "string", format: "uuid", description: "The id of the existing track to edit, from get_my_music_summary." },
+      title: nullable({ type: "string" }, "New track title (max 120 chars), or null to keep it."),
+      description: nullable({ type: "string" }, "New track description (max 1000 chars), or null to keep it."),
+      price: nullable({ type: "number" }, "New price in the store currency, or null to keep it. Only for standalone tracks."),
+    },
+    required: ["draft_id", "track_id", "title", "description", "price"],
+    additionalProperties: false,
+  },
+  parseInput: passObject,
+  run: (ctx, input) => prepareDraft(ctx, "track.update", input),
+};
+
+export const updateMenuItemDraft: AiTool<Record<string, unknown>> = {
+  name: "update_menu_item_draft",
+  description:
+    "Prepare a DRAFT edit of ONE EXISTING restaurant menu item already in the user's menu (use a menu_item_id from get_my_restaurant_summary). Nothing changes until the user clicks Confirm & Apply. Use null for every field you are not changing. description may be text you wrote or rewrote from the user's facts, with no invented claims (ingredients, allergens etc. only if the user actually gave them).",
+  kind: "draft",
+  permission: "menu.manage",
+  available: (s) => s.isRestaurant,
+  inputSchema: {
+    type: "object",
+    properties: {
+      draft_id: draftIdParam,
+      menu_item_id: { type: "string", format: "uuid", description: "The id of the existing menu item to edit, from get_my_restaurant_summary." },
+      name: nullable({ type: "string" }, "New item name (max 120 chars), or null to keep it."),
+      description: nullable({ type: "string" }, "New item description (max 1000 chars), or null to keep it."),
+      price: nullable({ type: "number" }, "New price in the store currency, or null to keep it."),
+      available: nullable({ type: "boolean" }, "Whether the item is orderable, or null to keep it."),
+      featured: nullable({ type: "boolean" }, "Whether the item is featured, or null to keep it."),
+      prep_time_minutes: nullable({ type: "number" }, "Preparation time in minutes (whole number), or null to keep it."),
+    },
+    required: ["draft_id", "menu_item_id", "name", "description", "price", "available", "featured", "prep_time_minutes"],
+    additionalProperties: false,
+  },
+  parseInput: passObject,
+  run: (ctx, input) => prepareDraft(ctx, "menu_item.update", input),
+};
+
 export const createEventDraft: AiTool<Record<string, unknown>> = {
   name: "create_event_draft",
   description:
@@ -187,6 +236,32 @@ export const createEventDraft: AiTool<Record<string, unknown>> = {
   },
   parseInput: passObject,
   run: (ctx, input) => prepareDraft(ctx, "event.create", input),
+};
+
+export const updateEventDraft: AiTool<Record<string, unknown>> = {
+  name: "update_event_draft",
+  description:
+    "Prepare a DRAFT edit of ONE EXISTING event already in the user's Tickets (use an event_id from get_my_events_summary). Nothing changes until the user clicks Confirm & Apply. Use null for every field you are not changing. Editing a past date is allowed (e.g. correcting a typo). price can only be changed when the event has NO ticket tiers yet (ticket_tiers_count: 0 in get_my_events_summary) — once tiers exist, price is set per tier in Tickets; don't offer to change it here, explain why instead.",
+  kind: "draft",
+  permission: "tickets.manage",
+  available: (s) => s.hasTicketing,
+  inputSchema: {
+    type: "object",
+    properties: {
+      draft_id: draftIdParam,
+      event_id: { type: "string", format: "uuid", description: "The id of the existing event to edit, from get_my_events_summary." },
+      title: nullable({ type: "string" }, "New event title (max 120 chars), or null to keep it."),
+      description: nullable({ type: "string" }, "New event description (max 1000 chars), or null to keep it."),
+      event_date: nullable({ type: "string", format: "date" }, "New date YYYY-MM-DD, or null to keep it."),
+      event_time: nullable({ type: "string" }, "New start time as the user said it, or null to keep it."),
+      location: nullable({ type: "string" }, "New venue / place (max 160 chars), or null to keep it."),
+      price: nullable({ type: "number" }, "New price in the store currency, or null to keep it. Only when the event has no ticket tiers yet."),
+    },
+    required: ["draft_id", "event_id", "title", "description", "event_date", "event_time", "location", "price"],
+    additionalProperties: false,
+  },
+  parseInput: passObject,
+  run: (ctx, input) => prepareDraft(ctx, "event.update", input),
 };
 
 export const discardMyDraft: AiTool<{ draft_id: string }> = {

@@ -3,10 +3,12 @@ import type { AiToolSpec } from "@/lib/ai/providers/types";
 import type { AiTool, AiToolContext, AiToolKind } from "./types";
 import { AI_TOOLS } from "./index";
 
-// Read tools, plus Phase 2 draft tools (which only PREPARE drafts; applying
-// needs the owner's Confirm & Apply click). "write" stays unreachable even if
-// one is registered by mistake — there is no model-callable mutation.
-const EXPOSED_KINDS: readonly AiToolKind[] = ["read", "draft"];
+// Read tools, Phase 2 draft tools (which only PREPARE drafts; applying needs
+// the owner's Confirm & Apply click), and Phase 3 Increment 2 content tools
+// (present already-generated, never-persisted marketing copy). "write" stays
+// unreachable even if one is registered by mistake — there is no
+// model-callable mutation.
+const EXPOSED_KINDS: readonly AiToolKind[] = ["read", "draft", "content"];
 
 const MAX_RESULT_CHARS = 6000;
 const TOOL_TIMEOUT_MS = 10_000;

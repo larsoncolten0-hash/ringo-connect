@@ -5,7 +5,9 @@ import { AlertCircle, Check, Copy, Loader2, Sparkles, ThumbsDown, ThumbsUp } fro
 import { useLanguage } from "@/components/LanguageProvider";
 import RichText from "./RichText";
 import DraftCard from "./DraftCard";
+import ContentCard from "./ContentCard";
 import type { DraftView } from "@/lib/ai/drafts/view";
+import type { ContentView } from "@/lib/ai/content/view";
 
 export type UiMessage = {
   id: string;
@@ -19,6 +21,8 @@ export type UiMessage = {
   rating?: number;
   /** Review cards for drafts Ringo AI prepared in this reply. */
   draftIds?: string[];
+  /** Content Studio cards Ringo AI prepared in this reply (never persisted). */
+  contentIds?: string[];
   createdAt?: string;
 };
 
@@ -51,12 +55,18 @@ export default function MessageList({
   onRate,
   drafts,
   onDraftChange,
+  contents,
+  onRegenerateContent,
+  onSwitchContentLanguage,
 }: {
   messages: UiMessage[];
   toolStatus: string | null;
   onRate: (message: UiMessage, rating: number) => void;
   drafts: Record<string, DraftView>;
   onDraftChange: (draft: DraftView) => void;
+  contents: Record<string, ContentView>;
+  onRegenerateContent: () => void;
+  onSwitchContentLanguage: (locale: "en" | "fr") => void;
 }) {
   const { t } = useLanguage();
 
@@ -79,6 +89,11 @@ export default function MessageList({
                 </div>
               )}
               {(m.draftIds || []).map((id) => (drafts[id] ? <DraftCard key={id} draft={drafts[id]} onChange={onDraftChange} /> : null))}
+              {(m.contentIds || []).map((id) =>
+                contents[id] ? (
+                  <ContentCard key={id} content={contents[id]} onRegenerate={onRegenerateContent} onSwitchLanguage={onSwitchContentLanguage} />
+                ) : null
+              )}
               {m.pending && (
                 <div className="flex items-center gap-2 text-xs text-ringo-muted px-1 py-1.5">
                   <Loader2 size={13} className="animate-spin" />

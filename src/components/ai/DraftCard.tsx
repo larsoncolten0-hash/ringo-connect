@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, ArrowRight, CalendarDays, Check, Eye, Loader2, ShoppingBag, Sparkles, UserRound } from "lucide-react";
+import { AlertCircle, ArrowRight, CalendarDays, Check, Eye, Loader2, Music, ShoppingBag, Sparkles, UserRound, UtensilsCrossed } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, getRestaurantSubcategory } from "@/lib/categories";
 import type { DraftView } from "@/lib/ai/drafts/view";
@@ -13,7 +13,15 @@ import type { DraftChange } from "@/lib/ai/drafts/types";
 // explicit "Confirm & Apply" click (POST /api/ai/drafts/[id]/apply with the
 // revision on screen); no chat message can do it.
 
-const TYPE_ICON = { "profile.update": UserRound, "product.create": ShoppingBag, "event.create": CalendarDays, "product.update": ShoppingBag } as const;
+const TYPE_ICON = {
+  "profile.update": UserRound,
+  "product.create": ShoppingBag,
+  "event.create": CalendarDays,
+  "product.update": ShoppingBag,
+  "event.update": CalendarDays,
+  "track.update": Music,
+  "menu_item.update": UtensilsCrossed,
+} as const;
 
 export default function DraftCard({ draft, onChange }: { draft: DraftView; onChange: (next: DraftView) => void }) {
   const { t, locale } = useLanguage();
