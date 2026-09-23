@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import EditorCard from "./EditorCard";
 import ImageUploadField from "./ImageUploadField";
+import AvatarCropperField from "./AvatarCropperField";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
 
@@ -119,7 +120,7 @@ export default function ProfileHeaderCard({
           photo" step (src/lib/onboardingTour.ts) — a plain HTML attribute
           with no behavior of its own, additive only. */}
       <div data-tour="profile-photo" className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
-        <ImageUploadField
+        <AvatarCropperField
           value={avatarUrl}
           onChange={(url) => {
             setAvatarUrl(url);
@@ -127,8 +128,6 @@ export default function ProfileHeaderCard({
             generateAvatarIcons(url);
           }}
           userId={userId}
-          folder="avatar"
-          shape="circle"
           size={64}
           errorText={t.editor.upload}
         />

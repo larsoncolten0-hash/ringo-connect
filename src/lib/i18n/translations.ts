@@ -2258,6 +2258,12 @@ export const translations = {
         wrongType: "Please choose an image file.",
         failed: "Upload failed. Try again.",
       },
+      avatarCropper: {
+        title: "Adjust your photo",
+        cancel: "Cancel",
+        save: "Save",
+        saving: "Saving…",
+      },
     },
     analytics: {
       pageEvents: "page events",
@@ -5284,6 +5290,12 @@ export const translations = {
         tooLarge: "Les images doivent faire moins de 5 Mo.",
         wrongType: "Veuillez choisir un fichier image.",
         failed: "Échec de l'envoi. Réessayez.",
+      },
+      avatarCropper: {
+        title: "Ajustez votre photo",
+        cancel: "Annuler",
+        save: "Enregistrer",
+        saving: "Enregistrement…",
       },
     },
     analytics: {
