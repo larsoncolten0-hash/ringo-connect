@@ -1,11 +1,14 @@
+import { imageUrlFromOwner } from "./provenance";
 import type { DraftDefinition, DraftValidationContext, ValidationResult } from "./types";
 
 // product.create — one catalog product. Applied through the owner's session
 // client with the same insert CatalogCard makes (RLS "products owner
 // write"), plus the fields its Save writes. Products have no hidden state in
 // Ringo: once confirmed, the product is visible on the public page — the
-// review card says so explicitly. Photos, stock and links are added in
-// Catalog afterwards (Ringo AI never uploads images).
+// review card says so explicitly. Stock and links are added in Catalog
+// afterwards. A cover photo CAN be included here (image_url) — same STRICT
+// provenance as product.update: only a URL the owner actually attached and
+// had uploaded in this conversation (imageUrlFromOwner), never invented.
 //
 // Plan rule: identical to Editor.tsx/CatalogCard — plans.max_products === 0
 // locks the catalog; otherwise the count must be below max_products (null =
@@ -18,6 +21,7 @@ export interface ProductDraftPayload {
   name: string;
   description: string | null;
   price: number | null;
+  imageUrl: string | null;
   /** The store currency the price was prepared in; apply refuses if it changed since. */
   currency: string;
 }
@@ -48,9 +52,16 @@ export function validateProductDraft(raw: unknown, ctx: DraftValidationContext):
   // At apply time a stored payload whose currency no longer matches
   // re-validates to a different payload → the apply route marks it stale.
 
+  let imageUrl: string | null = null;
+  if (r.image_url !== null && r.image_url !== undefined) {
+    if (typeof r.image_url !== "string" || r.image_url.length > 2000) invalid.push("image_url");
+    else if (!imageUrlFromOwner(r.image_url, ctx.userText)) return { ok: false, reason: "contact_not_from_user", fields: ["image_url"] };
+    else imageUrl = r.image_url;
+  }
+
   if (invalid.length) return { ok: false, reason: "invalid_input", fields: invalid };
   if (!name) return { ok: false, reason: "missing_fields", fields: ["name"] };
-  return { ok: true, payload: { name, description: description ?? null, price, currency } };
+  return { ok: true, payload: { name, description: description ?? null, price, imageUrl, currency } };
 }
 
 export const productCreateDraft: DraftDefinition<ProductDraftPayload> = {
@@ -67,10 +78,11 @@ export const productCreateDraft: DraftDefinition<ProductDraftPayload> = {
     { field: "product_name", kind: "text", before: null, after: p.name },
     ...(p.description ? [{ field: "product_description", kind: "longtext" as const, before: null, after: p.description, generated: true }] : []),
     { field: "product_price", kind: "price", before: null, after: p.price === null ? null : { amount: p.price, currency: p.currency } },
+    ...(p.imageUrl ? [{ field: "product_image", kind: "image" as const, before: null, after: p.imageUrl }] : []),
   ],
 
   summary: (p) => `New product: ${p.name.slice(0, 80)}`,
-  fieldNames: (p) => ["name", ...(p.description ? ["description"] : []), ...(p.price !== null ? ["price"] : [])],
+  fieldNames: (p) => ["name", ...(p.description ? ["description"] : []), ...(p.price !== null ? ["price"] : []), ...(p.imageUrl ? ["image_url"] : [])],
 
   async apply(db, workspace, draft, facts) {
     if (facts.currency !== draft.payload.currency) return { ok: false, code: "stale" };
@@ -88,9 +100,25 @@ export const productCreateDraft: DraftDefinition<ProductDraftPayload> = {
     }
     switch (row.outcome) {
       case "inserted":
-        return { ok: true, resultId: draft.targetId, alreadyApplied: false };
-      case "already_exists": // retry of an apply whose insert already committed
-        return { ok: true, resultId: draft.targetId, alreadyApplied: true };
+      case "already_exists": {
+        // The insert RPC doesn't take a photo (it only ever inserts the 5
+        // plan-limited columns). A second, tightly-scoped write through the
+        // SAME owner session client attaches it — the exact "products owner
+        // write" RLS policy CatalogCard's own image save already relies on,
+        // no new RPC/migration needed. `.is("image_url", null)` makes a
+        // retry of "already_exists" idempotent: it never clobbers a photo
+        // set by anything else since the insert.
+        if (draft.payload.imageUrl) {
+          const { error: imgError } = await db
+            .from("products")
+            .update({ image_url: draft.payload.imageUrl })
+            .eq("id", draft.targetId)
+            .eq("profile_id", workspace.profileId)
+            .is("image_url", null);
+          if (imgError) console.error("ai product draft image attach failed:", imgError.message);
+        }
+        return { ok: true, resultId: draft.targetId, alreadyApplied: row.outcome === "already_exists" };
+      }
       case "limit_reached":
         return { ok: false, code: "plan_limit_reached" };
       case "catalog_locked":

@@ -124,7 +124,7 @@ export const createProfileDraft: AiTool<Record<string, unknown>> = {
 export const createProductDraft: AiTool<Record<string, unknown>> = {
   name: "create_product_draft",
   description:
-    "Prepare a DRAFT of ONE new product for the user's catalog. Nothing is created until the user clicks Confirm & Apply; once confirmed the product appears on their public page. The price is in the page's store currency (see workspace; XAF has no decimals) — only a price the user gave you, otherwise null. The description may be text you wrote from the user's facts, with no invented claims. Photos, stock and links are added afterwards — once the product is confirmed, call update_product_draft with the new product's id to attach an image the user sent you.",
+    "Prepare a DRAFT of ONE new product for the user's catalog. Nothing is created until the user clicks Confirm & Apply; once confirmed the product appears on their public page. The price is in the page's store currency (see workspace; XAF has no decimals) — only a price the user gave you, otherwise null. The description may be text you wrote from the user's facts, with no invented claims. image_url is ONLY the exact URL of an image the user attached in this conversation (never invent or guess one) — otherwise null; stock and links are added afterwards in Catalog.",
   kind: "draft",
   permission: "settings.manage",
   inputSchema: {
@@ -134,8 +134,9 @@ export const createProductDraft: AiTool<Record<string, unknown>> = {
       name: { type: "string", description: "Product name (max 120 chars)." },
       description: nullable({ type: "string" }, "Product description (max 1000 chars)."),
       price: nullable({ type: "number" }, "Price in the store currency, or null if the user didn't give one."),
+      image_url: nullable({ type: "string" }, "The exact URL of an image the user attached in this conversation, or null."),
     },
-    required: ["draft_id", "name", "description", "price"],
+    required: ["draft_id", "name", "description", "price", "image_url"],
     additionalProperties: false,
   },
   parseInput: passObject,

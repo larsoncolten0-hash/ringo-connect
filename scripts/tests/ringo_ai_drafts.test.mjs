@@ -111,6 +111,7 @@ check("product: no price is allowed (shown as 'No price')", validateProductDraft
 check("plan: catalog locked (max_products 0) → feature_unavailable, like Editor.tsx", productCreateDraft.availability(FACTS({ maxProducts: 0 })).reason === "feature_unavailable");
 check("plan: at max_products → plan_limit_reached, like CatalogCard", productCreateDraft.availability(FACTS({ maxProducts: 3, productCount: 3 })).reason === "plan_limit_reached");
 check("plan: under the limit / unlimited → ok", productCreateDraft.availability(FACTS({ maxProducts: 5 })).ok && productCreateDraft.availability(FACTS()).ok);
+check("product: image_url absent/null → payload.imageUrl is null (no regression for existing callers)", validateProductDraft({ name: "A", description: null, price: null }, CTX()).payload.imageUrl === null);
 
 // ------------------------------------------------------------------ product UPDATE draft validation (edit an existing product)
 const PID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -133,6 +134,15 @@ check("provenance: a url the model invents (never attached) is refused", !imageU
 v = validateProductUpdateDraft(PU({ image_url: uploadedUrl }), CTX({}, saidImage));
 check("product update: image_url the owner attached is accepted", v.ok && v.payload.imageUrl === uploadedUrl);
 check("product update: an invented image_url is refused as contact_not_from_user", validateProductUpdateDraft(PU({ image_url: "https://evil.example/x.jpg" }), CTX({}, saidImage)).reason === "contact_not_from_user");
+
+// Regression: product.create must carry the same image_url the user attached, in the SAME draft as the
+// name/description/price — this is the actual bug the user hit (image dropped silently on creation).
+v = validateProductDraft({ name: "Merch tee", description: null, price: 5000, image_url: uploadedUrl }, CTX({}, saidImage));
+check("product CREATE: image_url the owner attached in this conversation is accepted on the SAME draft", v.ok && v.payload.imageUrl === uploadedUrl);
+check(
+  "product CREATE: an invented/never-attached image_url is refused, not silently dropped",
+  validateProductDraft({ name: "Merch tee", description: null, price: 5000, image_url: "https://evil.example/x.jpg" }, CTX({}, saidImage)).reason === "contact_not_from_user"
+);
 
 // ------------------------------------------------------------------ POST /api/ai/uploads/image validation helpers
 const savedSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -183,6 +193,7 @@ function fakeDb(resolver) {
         delete() { st.op = "delete"; return b; },
         eq(k, val) { st.filters[k] = val; return b; },
         in(k, val) { st.filters[k] = val; return b; },
+        is(k, val) { st.filters[k] = val; return b; },
         order() { return b; },
         limit() { return b; },
         maybeSingle() { return b; },
@@ -233,6 +244,38 @@ check("apply product: a single atomic RPC via the session client — no direct i
 check("apply product: pre-assigned id + own profile + reviewed values", rpcC && rpcC.args.p_id === TARGET && rpcC.args.p_profile_id === WS.profileId && rpcC.args.p_name === "Merch tee" && rpcC.args.p_price === 5000);
 ar = await productCreateDraft.apply(productWith({ data: [{ outcome: "already_exists", product_id: TARGET }], error: null }), WS, { payload: payloadProd, base: null, targetId: TARGET }, FACTS());
 check("apply product: retry of a committed insert → idempotent, no duplicate", ar.ok && ar.alreadyApplied && ar.resultId === TARGET);
+
+// Regression for the reported bug: a product.create draft that carries an image_url must actually
+// persist it — the insert RPC alone can't (it never takes a photo), so apply() makes ONE additional,
+// tightly-scoped write through the SAME owner session client right after a successful insert.
+const payloadProdWithImage = validateProductDraft({ name: "Merch tee", description: null, price: 5000, image_url: uploadedUrl }, CTX({}, saidImage)).payload;
+const imageWrites = [];
+const productWithImage = (rpcReply, updateReply = { data: {}, error: null }) =>
+  fakeDb((st) => {
+    if (st.op === "rpc") return rpcReply;
+    if (st.table === "products" && st.op === "update") {
+      imageWrites.push(st);
+      return updateReply;
+    }
+    return { data: null, error: { message: "unexpected table access" } };
+  });
+imageWrites.length = 0;
+db = productWithImage({ data: [{ outcome: "inserted", product_id: TARGET }], error: null });
+ar = await productCreateDraft.apply(db, WS, { payload: payloadProdWithImage, base: null, targetId: TARGET }, FACTS());
+check("apply product: an image_url on the draft is written to products.image_url on insert", ar.ok && imageWrites.length === 1 && imageWrites[0].payload.image_url === uploadedUrl);
+check(
+  "apply product: the image write is scoped to this exact product + profile, and never overwrites an existing photo",
+  imageWrites[0].filters.id === TARGET && imageWrites[0].filters.profile_id === WS.profileId && imageWrites[0].filters.image_url === null
+);
+imageWrites.length = 0;
+ar = await productCreateDraft.apply(productWithImage({ data: [{ outcome: "already_exists", product_id: TARGET }], error: null }), WS, { payload: payloadProdWithImage, base: null, targetId: TARGET }, FACTS());
+check("apply product: retry (already_exists) also (re-)attaches the image, still idempotent", ar.ok && ar.alreadyApplied && imageWrites.length === 1);
+imageWrites.length = 0;
+ar = await productCreateDraft.apply(productWithImage({ data: [{ outcome: "inserted", product_id: TARGET }], error: null }, { data: null, error: { message: "storage rls" } }), WS, { payload: payloadProdWithImage, base: null, targetId: TARGET }, FACTS());
+check("apply product: the product still counts as created even if the (non-fatal) image write fails", ar.ok && ar.resultId === TARGET);
+imageWrites.length = 0;
+ar = await productCreateDraft.apply(productWithImage({ data: [{ outcome: "limit_reached", product_id: null }], error: null }), WS, { payload: payloadProdWithImage, base: null, targetId: TARGET }, FACTS());
+check("apply product: no image write is attempted when the insert itself didn't happen (limit_reached)", !ar.ok && imageWrites.length === 0);
 ar = await productCreateDraft.apply(productWith({ data: [{ outcome: "limit_reached", product_id: null }], error: null }), WS, { payload: payloadProd, base: null, targetId: TARGET }, FACTS());
 check("apply product: limit reached at insert time → plan_limit_reached", !ar.ok && ar.code === "plan_limit_reached");
 ar = await productCreateDraft.apply(productWith({ data: [{ outcome: "catalog_locked", product_id: null }], error: null }), WS, { payload: payloadProd, base: null, targetId: TARGET }, FACTS());
@@ -367,6 +410,21 @@ ownerSaid = savedOwner;
 serverMod.createClient = realCreate;
 tr = await executeTool("create_product_draft", { name: "Tee", description: null, price: 5000, draft_id: null }, { ...toolCtx, snapshot: snap() }, avail);
 check("tool: product draft prepared (not created)", JSON.parse(tr.content).ok && inserted.length === 1 && inserted[0].type === "product.create");
+
+// Regression: create_product_draft must carry an attached image straight through in ONE draft — this
+// is the exact end-to-end path the user's smoke test hit ("attach image → create → confirm").
+const savedOwnerImg = ownerSaid;
+ownerSaid = saidImage;
+inserted = [];
+tr = await executeTool("create_product_draft", { name: "Merch tee", description: null, price: 5000, image_url: uploadedUrl, draft_id: null }, { ...toolCtx, snapshot: snap() }, avail);
+out = JSON.parse(tr.content);
+check("tool: create_product_draft carries the attached image in the SAME draft (no second step needed)", out.ok && inserted[0]?.payload.imageUrl === uploadedUrl && out.fields_in_draft.includes("product_image"));
+inserted = [];
+tr = await executeTool("create_product_draft", { name: "Merch tee", description: null, price: 5000, image_url: "https://evil.example/x.jpg", draft_id: null }, { ...toolCtx, snapshot: snap() }, avail);
+check("tool: create_product_draft refuses an image_url never attached by the owner", !JSON.parse(tr.content).ok && JSON.parse(tr.content).reason === "contact_not_from_user" && inserted.length === 0);
+ownerSaid = savedOwnerImg;
+inserted = [];
+
 factsNow = FACTS({ maxProducts: 3, productCount: 3 });
 inserted = [];
 tr = await executeTool("create_product_draft", { name: "Tee", description: null, price: 5000, draft_id: null }, toolCtx, avail);
