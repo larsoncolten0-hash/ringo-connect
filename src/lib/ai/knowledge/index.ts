@@ -19,6 +19,14 @@ import { analyticsModule } from "./modules/analytics";
 import { realEstateModule } from "./modules/realEstate";
 import { professionalServicesModule } from "./modules/professionalServices";
 import { transportLogisticsModule } from "./modules/transportLogistics";
+import { beautyWellnessModule } from "./modules/beautyWellness";
+import { healthMedicalModule } from "./modules/healthMedical";
+import { educationTrainingModule } from "./modules/educationTraining";
+import { travelHospitalityModule } from "./modules/travelHospitality";
+import { creativeMediaModule } from "./modules/creativeMedia";
+import { freelancersCreatorsModule } from "./modules/freelancersCreators";
+import { constructionHomeServicesModule } from "./modules/constructionHomeServices";
+import { agricultureAgribusinessModule } from "./modules/agricultureAgribusiness";
 
 // The knowledge registry. To teach Ringo AI about a new feature, add one
 // module file and list it here — nothing else in Ringo AI changes. Order is
@@ -43,6 +51,14 @@ export const KNOWLEDGE_MODULES: readonly KnowledgeModule[] = [
   realEstateModule,
   professionalServicesModule,
   transportLogisticsModule,
+  beautyWellnessModule,
+  healthMedicalModule,
+  educationTrainingModule,
+  travelHospitalityModule,
+  creativeMediaModule,
+  freelancersCreatorsModule,
+  constructionHomeServicesModule,
+  agricultureAgribusinessModule,
 ];
 
 export const KNOWLEDGE_TOPIC_IDS: string[] = KNOWLEDGE_MODULES.map((m) => m.id);

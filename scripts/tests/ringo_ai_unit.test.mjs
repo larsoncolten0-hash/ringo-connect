@@ -31,7 +31,7 @@ const check = (name, cond, detail = "") => {
 const { runDiagnostics } = load("lib/ai/diagnostics/index.ts");
 const { DIAGNOSTIC_CHECKS } = load("lib/ai/diagnostics/checks.ts");
 const { parseAiSettingsPatch, mapAiSettingsRow } = load("lib/ai/settings.ts");
-const { KNOWLEDGE_MODULES, KNOWLEDGE_TOPIC_IDS, getCategoryModules, getAlwaysModules } = load("lib/ai/knowledge/index.ts");
+const { KNOWLEDGE_MODULES, KNOWLEDGE_TOPIC_IDS, getCategoryModules, getAlwaysModules, getKnowledgeModule } = load("lib/ai/knowledge/index.ts");
 const { renderNavigationMap } = load("lib/ai/knowledge/navigation.ts");
 const { buildStableSystemPrompt } = load("lib/ai/prompts/system.ts");
 const { getAvailableTools, executeTool } = load("lib/ai/tools/registry.ts");
@@ -224,6 +224,66 @@ check(
 );
 check("the 3 new modules are per-category, never in the always-loaded base prompt", !["real_estate", "professional_services", "transport_logistics"].some((id) => getAlwaysModules().some((m) => m.id === id)));
 for (const topic of ["real_estate", "professional_services", "transport_logistics"]) {
+  const rr = await executeTool("lookup_ringo_help", { topic }, ctx, available);
+  check(`knowledge lookup works for ${topic}`, !rr.isError && JSON.parse(rr.content).content.length > 0);
+}
+
+// ------------------------------------------------------------------ Phase 4 increment 5: remaining category-aware knowledge modules
+const REMAINING_CATEGORIES = [
+  "beauty_wellness",
+  "health_medical",
+  "education_training",
+  "travel_hospitality",
+  "creative_media",
+  "freelancers_creators",
+  "construction_home_services",
+  "agriculture_agribusiness",
+];
+for (const id of REMAINING_CATEGORIES) {
+  check(`${id} owner auto-loads its own module`, getCategoryModules([id]).some((m) => m.id === id));
+}
+check(
+  "unrelated/prior categories do NOT accidentally receive any of the 8 new modules",
+  !["business_ecommerce", "restaurant_food", "music_entertainment", "real_estate", "professional_services", "transport_logistics"].some((cat) =>
+    REMAINING_CATEGORIES.some((id) => getCategoryModules([cat]).some((m) => m.id === id))
+  )
+);
+check(
+  "none of the 8 new modules leak into any of the OTHER 7's category",
+  REMAINING_CATEGORIES.every((id) => {
+    const others = REMAINING_CATEGORIES.filter((x) => x !== id);
+    return !getCategoryModules([id]).some((m) => others.includes(m.id));
+  })
+);
+check(
+  "existing restaurant/music/catalog/real_estate knowledge remains unaffected by this increment",
+  getCategoryModules(["restaurant_food"]).some((m) => m.id === "restaurant") &&
+    getCategoryModules(["music_entertainment"]).some((m) => m.id === "music") &&
+    getCategoryModules(["business_ecommerce"]).some((m) => m.id === "catalog") &&
+    getCategoryModules(["real_estate"]).some((m) => m.id === "real_estate")
+);
+check("'other' deliberately received NO dedicated module — the generic/core knowledge is already correct for it", !KNOWLEDGE_TOPIC_IDS.includes("other"));
+check("the 8 new modules are per-category, never in the always-loaded base prompt", !REMAINING_CATEGORIES.some((id) => getAlwaysModules().some((m) => m.id === id)));
+check(
+  "no invented capability: freelancers_creators and agriculture_agribusiness truthfully say they have NO booking form (categories.ts confirms neither has a `booking` default)",
+  !getKnowledgeModule("freelancers_creators").body.includes('"Book') &&
+    getKnowledgeModule("freelancers_creators").body.toLowerCase().includes("no ringo-recommended booking form") &&
+    getKnowledgeModule("agriculture_agribusiness").body.toLowerCase().includes("no ringo-recommended booking form")
+);
+check(
+  "no invented capability: categories WITH a real booking default name their actual button label, not an invented one",
+  getKnowledgeModule("beauty_wellness").body.includes("Book Appointment") &&
+    getKnowledgeModule("education_training").body.includes("Book a Class") &&
+    getKnowledgeModule("travel_hospitality").body.includes("Request Booking") &&
+    getKnowledgeModule("creative_media").body.includes("Book a Photoshoot") &&
+    getKnowledgeModule("construction_home_services").body.includes("Request a Quote")
+);
+check("health_medical explicitly scopes Ringo AI away from giving medical advice", getKnowledgeModule("health_medical").body.toLowerCase().includes("never give medical advice"));
+check(
+  "PII/identity: none of the 8 new modules mention an invented database field (snake_case identity/PII-shaped strings like customer_id, medical_record_id, diagnosis_code)",
+  REMAINING_CATEGORIES.every((id) => !/customer_id|patient_id|ssn_|medical_record_|diagnosis_code/i.test(getKnowledgeModule(id).body))
+);
+for (const topic of REMAINING_CATEGORIES) {
   const rr = await executeTool("lookup_ringo_help", { topic }, ctx, available);
   check(`knowledge lookup works for ${topic}`, !rr.isError && JSON.parse(rr.content).content.length > 0);
 }
