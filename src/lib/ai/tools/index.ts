@@ -20,6 +20,7 @@ import {
   updateEventDraft,
   updateTrackDraft,
   updateMenuItemDraft,
+  createMenuItemDraft,
 } from "./definitions/drafts";
 import { generateContent } from "./definitions/content";
 
@@ -46,6 +47,7 @@ export const AI_TOOLS: readonly AiTool<any>[] = [
   updateEventDraft,
   updateTrackDraft,
   updateMenuItemDraft,
+  createMenuItemDraft,
   getMyDrafts,
   discardMyDraft,
   generateContent,

@@ -19,6 +19,7 @@ export const DRAFT_TYPES = [
   "event.update",
   "track.update",
   "menu_item.update",
+  "menu_item.create",
 ] as const;
 export type DraftType = (typeof DRAFT_TYPES)[number];
 

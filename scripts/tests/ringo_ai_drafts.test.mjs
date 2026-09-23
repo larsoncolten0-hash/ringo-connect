@@ -36,6 +36,7 @@ const { validateProductUpdateDraft, productUpdateDraft } = load("lib/ai/drafts/p
 const { validateEventUpdateDraft, eventUpdateDraft } = load("lib/ai/drafts/eventUpdate.ts");
 const { validateTrackUpdateDraft, trackUpdateDraft } = load("lib/ai/drafts/trackUpdate.ts");
 const { validateMenuItemUpdateDraft, menuItemUpdateDraft } = load("lib/ai/drafts/menuItemUpdate.ts");
+const { validateMenuItemCreateDraft, menuItemCreateDraft } = load("lib/ai/drafts/menuItemCreate.ts");
 const { phoneFromOwner, emailFromOwner, imageUrlFromOwner } = load("lib/ai/drafts/provenance.ts");
 const { looksLikeImage, isOwnAiUploadUrl, extFromMime } = load("lib/ai/uploads.ts");
 const { DRAFT_DEFINITIONS } = load("lib/ai/drafts/registry.ts");
@@ -223,6 +224,23 @@ check("menu item update: negative prep_time_minutes rejected", validateMenuItemU
 check(
   "menu item update: only on restaurant pages",
   menuItemUpdateDraft.availability(FACTS()).reason === "feature_unavailable" && menuItemUpdateDraft.availability(FACTS({ category: "restaurant_food", categories: ["restaurant_food"] })).ok
+);
+
+// ------------------------------------------------------------------ menu_item.create draft validation (Phase 4, increment 1)
+const CATID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+const MC = (over = {}) => ({ menu_category_id: CATID, name: null, description: null, price: null, available: null, featured: null, prep_time_minutes: null, ...over });
+v = validateMenuItemCreateDraft(MC({ name: "Ndolé plate" }), CTX());
+check("menu item create: valid item accepted; price defaults to 0, available defaults to true, featured to false", v.ok && v.payload.name === "Ndolé plate" && v.payload.price === 0 && v.payload.available === true && v.payload.featured === false);
+check("menu item create: missing category id rejected", validateMenuItemCreateDraft({ name: "A" }, CTX()).reason === "invalid_input" && validateMenuItemCreateDraft(MC({ menu_category_id: "not-a-uuid", name: "A" }), CTX()).reason === "invalid_input");
+check("menu item create: missing name → missing_fields", validateMenuItemCreateDraft(MC({ name: "  " }), CTX()).reason === "missing_fields");
+check("menu item create: negative price rejected", validateMenuItemCreateDraft(MC({ name: "A", price: -1 }), CTX()).reason === "invalid_input");
+check("menu item create: XAF price with decimals rejected", validateMenuItemCreateDraft(MC({ name: "A", price: 99.5 }), CTX()).reason === "invalid_input");
+check("menu item create: explicit available/featured accepted", validateMenuItemCreateDraft(MC({ name: "A", available: false, featured: true }), CTX()).payload.available === false);
+check("menu item create: non-boolean available rejected", validateMenuItemCreateDraft(MC({ name: "A", available: "yes" }), CTX()).reason === "invalid_input");
+check("menu item create: negative prep_time_minutes rejected", validateMenuItemCreateDraft(MC({ name: "A", prep_time_minutes: -5 }), CTX()).reason === "invalid_input");
+check(
+  "menu item create: only on restaurant pages",
+  menuItemCreateDraft.availability(FACTS()).reason === "feature_unavailable" && menuItemCreateDraft.availability(FACTS({ category: "restaurant_food", categories: ["restaurant_food"] })).ok
 );
 
 // ------------------------------------------------------------------ fake Supabase (session client) for adapters
@@ -417,6 +435,31 @@ check("apply menu item update: 'already_applied' (retry) → idempotent success"
 ar = await menuItemUpdateDraft.apply(menuUpdateWith({ data: null, error: { code: "42501", message: "rls" } }), WS, { payload: payloadMU, base: baseMenuItem, targetId: MID }, FACTS());
 check("apply menu item update: database refusal → write_failed", !ar.ok && ar.code === "write_failed");
 
+// menu item CREATE apply (Phase 4, increment 1): ONE atomic owner-checked insert (ai_create_menu_item).
+const payloadMC = validateMenuItemCreateDraft(MC({ name: "Ndolé plate", price: 2500 }), CTX()).payload;
+const baseCategory = { menu_category_id: CATID, menu_category_name: "Plats" };
+const menuCreateWith = (reply) => fakeDb((st) => (st.op === "rpc" ? reply : { data: null, error: { message: "unexpected table access" } }));
+db = menuCreateWith({ data: [{ outcome: "inserted", menu_item_id: MID }], error: null });
+ar = await menuItemCreateDraft.apply(db, WS, { payload: payloadMC, base: baseCategory, targetId: MID }, FACTS());
+const rpcMC = db.calls.find((c) => c.op === "rpc");
+check("apply menu item create: a single atomic RPC via the session client — no direct insert", ar.ok && db.calls.length === 1 && rpcMC?.name === "ai_create_menu_item");
+check(
+  "apply menu item create: pre-assigned id + own profile + category + reviewed values",
+  rpcMC && rpcMC.args.p_id === MID && rpcMC.args.p_profile_id === WS.profileId && rpcMC.args.p_menu_category_id === CATID && rpcMC.args.p_name === "Ndolé plate" && rpcMC.args.p_price === 2500
+);
+ar = await menuItemCreateDraft.apply(menuCreateWith({ data: [{ outcome: "already_exists", menu_item_id: MID }], error: null }), WS, { payload: payloadMC, base: baseCategory, targetId: MID }, FACTS());
+check("apply menu item create: retry of a committed insert → idempotent, no duplicate", ar.ok && ar.alreadyApplied && ar.resultId === MID);
+ar = await menuItemCreateDraft.apply(menuCreateWith({ data: [{ outcome: "category_not_found", menu_item_id: null }], error: null }), WS, { payload: payloadMC, base: baseCategory, targetId: MID }, FACTS());
+check("apply menu item create: category deleted since prepare → invalid_payload, not applied", !ar.ok && ar.code === "invalid_payload");
+ar = await menuItemCreateDraft.apply(menuCreateWith({ data: [{ outcome: "not_owner", menu_item_id: null }], error: null }), WS, { payload: payloadMC, base: baseCategory, targetId: MID }, FACTS());
+check("apply menu item create: not the owner → write_failed", !ar.ok && ar.code === "write_failed");
+ar = await menuItemCreateDraft.apply(menuCreateWith({ data: null, error: { code: "42501", message: "rls" } }), WS, { payload: payloadMC, base: baseCategory, targetId: MID }, FACTS());
+check("apply menu item create: database refusal → write_failed", !ar.ok && ar.code === "write_failed");
+check(
+  "apply menu item create: store currency changed since the draft → stale, nothing sent",
+  (await menuItemCreateDraft.apply(menuCreateWith({ data: [{ outcome: "inserted" }], error: null }), WS, { payload: payloadMC, base: baseCategory, targetId: MID }, FACTS({ currency: "USD" }))).code === "stale"
+);
+
 // ------------------------------------------------------------------ draft view (what the browser gets)
 const row = { id: "d1", draft_type: "profile.update", status: "awaiting_confirmation", payload: payloadP, base, revision: 2, result_id: null, error_code: null, created_at: "2026-09-23T10:00:00+00:00", expires_at: "2099-01-01T00:00:00+00:00" };
 let view = toDraftView(row);
@@ -444,7 +487,7 @@ check("tools: draft schemas use only strict-mode-supported JSON Schema", AI_TOOL
 check("tools: no schema lets the model send user/profile/org/customer ids", AI_TOOLS.every((t) => !Object.keys(t.inputSchema.properties || {}).some((p) => /user|profile_id|org|customer/.test(p))));
 check(
   "tools: every registered draft type has a definition",
-  ["profile.update", "product.create", "event.create", "product.update", "event.update", "track.update", "menu_item.update"].every((ty) => DRAFT_DEFINITIONS[ty])
+  ["profile.update", "product.create", "event.create", "product.update", "event.update", "track.update", "menu_item.update", "menu_item.create"].every((ty) => DRAFT_DEFINITIONS[ty])
 );
 
 // ------------------------------------------------------------------ draft tools with fake I/O
@@ -620,6 +663,20 @@ tr = await executeTool(
   restaurantAvail
 );
 check("tool: a menu_item_id that doesn't exist/isn't owned → facts_unavailable, no draft", JSON.parse(tr.content).reason === "facts_unavailable" && inserted.length === 0);
+serverMod.createClient = realCreate;
+
+// create_menu_item_draft (Phase 4, increment 1): loadBase reads the "menu_categories" table, scoped to this workspace's profile.
+factsNow = FACTS({ category: "restaurant_food", categories: ["restaurant_food"] });
+serverMod.createClient = () => fakeDb((st) => (st.table === "menu_categories" ? { data: baseCategory, error: null } : { data: [], error: null }));
+inserted = [];
+tr = await executeTool("create_menu_item_draft", { draft_id: null, menu_category_id: CATID, name: "Ndolé plate", description: null, price: 2500, available: null, featured: null, prep_time_minutes: null }, restaurantCtx, restaurantAvail);
+out = JSON.parse(tr.content);
+check("tool: create_menu_item_draft prepared against a real, owned category", out.ok && inserted.length === 1 && inserted[0].type === "menu_item.create" && inserted[0].payload.menuCategoryId === CATID);
+check("tool: create_menu_item_draft review card shows the category, not just the item", out.fields_in_draft.includes("menu_item_category"));
+serverMod.createClient = () => fakeDb((st) => (st.table === "menu_categories" ? { data: null, error: null } : { data: [], error: null }));
+inserted = [];
+tr = await executeTool("create_menu_item_draft", { draft_id: null, menu_category_id: CATID, name: "X", description: null, price: null, available: null, featured: null, prep_time_minutes: null }, restaurantCtx, restaurantAvail);
+check("tool: a menu_category_id that doesn't exist/isn't owned → facts_unavailable, no draft", JSON.parse(tr.content).reason === "facts_unavailable" && inserted.length === 0);
 serverMod.createClient = realCreate;
 
 // generate_content: no draft, no write — a target_id must be owned by this workspace if given.
@@ -918,6 +975,7 @@ const payloadPUWithImage = validateProductUpdateDraft(PU({ image_url: uploadedUr
 const payloadEUFull = validateEventUpdateDraft(EU({ title: "A", description: "B", event_date: "2026-11-01", event_time: "20:00", location: "C", price: 1000 }), CTX()).payload;
 const payloadTUFull = validateTrackUpdateDraft(TU({ title: "A", description: "B", price: 1000 }), CTX()).payload;
 const payloadMUFull = validateMenuItemUpdateDraft(MU({ name: "A", description: "B", price: 1000, available: true, featured: true, prep_time_minutes: 5 }), CTX()).payload;
+const payloadMCFull = validateMenuItemCreateDraft(MC({ name: "A", description: "B", price: 1000, available: true, featured: true, prep_time_minutes: 5 }), CTX()).payload;
 [
   ...productCreateDraft.changes({ ...payloadProd, description: "d" }),
   ...eventCreateDraft.changes(payloadEv),
@@ -926,6 +984,7 @@ const payloadMUFull = validateMenuItemUpdateDraft(MU({ name: "A", description: "
   ...eventUpdateDraft.changes(payloadEUFull, baseEvent),
   ...trackUpdateDraft.changes(payloadTUFull, baseTrack),
   ...menuItemUpdateDraft.changes(payloadMUFull, baseMenuItem),
+  ...menuItemCreateDraft.changes(payloadMCFull, baseCategory),
 ].forEach((c) => allFields.add(c.field));
 allFields.add("music_role");
 for (const loc of ["en", "fr"]) {

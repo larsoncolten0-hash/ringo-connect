@@ -21,6 +21,7 @@ const TYPE_ICON = {
   "event.update": CalendarDays,
   "track.update": Music,
   "menu_item.update": UtensilsCrossed,
+  "menu_item.create": UtensilsCrossed,
 } as const;
 
 export default function DraftCard({ draft, onChange }: { draft: DraftView; onChange: (next: DraftView) => void }) {

@@ -189,6 +189,32 @@ export const updateTrackDraft: AiTool<Record<string, unknown>> = {
   run: (ctx, input) => prepareDraft(ctx, "track.update", input),
 };
 
+export const createMenuItemDraft: AiTool<Record<string, unknown>> = {
+  name: "create_menu_item_draft",
+  description:
+    "Prepare a DRAFT of ONE new menu item inside an EXISTING menu category (use a category id from get_my_restaurant_summary's menu.category_list). Nothing is created until the user clicks Confirm & Apply; once confirmed the item appears on their public menu. The price is in the page's store currency (XAF has no decimals) — a price the user gave you, otherwise it defaults to 0 like a blank item does in the editor. The description may be text you wrote from the user's facts (ingredients, prep etc. only if the user actually gave them), with no invented claims.",
+  kind: "draft",
+  permission: "menu.manage",
+  available: (s) => s.isRestaurant,
+  inputSchema: {
+    type: "object",
+    properties: {
+      draft_id: draftIdParam,
+      menu_category_id: { type: "string", format: "uuid", description: "The id of the existing menu category to add this item to, from get_my_restaurant_summary." },
+      name: { type: "string", description: "Item name (max 120 chars)." },
+      description: nullable({ type: "string" }, "Item description (max 1000 chars), or null."),
+      price: nullable({ type: "number" }, "Price in the store currency, or null to default to 0 (like a blank item in the editor)."),
+      available: nullable({ type: "boolean" }, "Whether the item is orderable, or null to default to true (available)."),
+      featured: nullable({ type: "boolean" }, "Whether the item is featured, or null to default to false."),
+      prep_time_minutes: nullable({ type: "number" }, "Preparation time in minutes (whole number), or null if unknown."),
+    },
+    required: ["draft_id", "menu_category_id", "name", "description", "price", "available", "featured", "prep_time_minutes"],
+    additionalProperties: false,
+  },
+  parseInput: passObject,
+  run: (ctx, input) => prepareDraft(ctx, "menu_item.create", input),
+};
+
 export const updateMenuItemDraft: AiTool<Record<string, unknown>> = {
   name: "update_menu_item_draft",
   description:
