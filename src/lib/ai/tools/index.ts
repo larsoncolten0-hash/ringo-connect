@@ -9,11 +9,13 @@ import { getMyEventsSummary } from "./definitions/eventsSummary";
 import { getMyBookingsSummary } from "./definitions/bookingsSummary";
 import { getMyConnectSummary } from "./definitions/connectSummary";
 import { lookupRingoHelp } from "./definitions/lookupHelp";
+import { getSetupOptions } from "./definitions/setupOptions";
+import { createEventDraft, createProductDraft, createProfileDraft, discardMyDraft, getMyDrafts } from "./definitions/drafts";
 
 // The complete list of capabilities Ringo AI has. Nothing outside this list
 // can be invoked. Order is deterministic (it's part of the cached prompt).
 // To add a capability for a new feature: add a definition file and list it
-// here; draft/write tools stay hidden by the registry until Phase 2/3.
+// here. Draft tools (Phase 2) prepare drafts only; there is no apply tool.
 export const AI_TOOLS: readonly AiTool<any>[] = [
   getMyProfileOverview,
   runMySetupCheck,
@@ -25,4 +27,10 @@ export const AI_TOOLS: readonly AiTool<any>[] = [
   getMyBookingsSummary,
   getMyConnectSummary,
   lookupRingoHelp,
+  getSetupOptions,
+  createProfileDraft,
+  createProductDraft,
+  createEventDraft,
+  getMyDrafts,
+  discardMyDraft,
 ];

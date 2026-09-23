@@ -24,7 +24,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
   return NextResponse.json({
     conversation: { id: conv.id, title: conv.title },
-    messages: messages.map((m) => ({ id: m.id, role: m.role, content: m.content, rating: ratingById.get(m.id) ?? 0 })),
+    messages: messages.map((m) => ({ id: m.id, role: m.role, content: m.content, rating: ratingById.get(m.id) ?? 0, createdAt: m.created_at })),
   });
 }
 

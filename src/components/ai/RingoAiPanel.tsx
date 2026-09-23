@@ -6,6 +6,7 @@ import { ArrowLeft, History, LifeBuoy, Loader2, Plus, Send, Sparkles, Trash2, X 
 import { useLanguage } from "@/components/LanguageProvider";
 import { AI_MAX_USER_MESSAGE_CHARS } from "@/lib/ai/codes";
 import MessageList, { type UiMessage } from "./MessageList";
+import type { DraftView } from "@/lib/ai/drafts/view";
 
 export type AiStatus = { canSend: boolean; limitReason: string | null; remainingToday: number };
 
@@ -35,6 +36,7 @@ export default function RingoAiPanel({
   const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [history, setHistory] = useState<ConversationRow[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, DraftView>>({});
   const abortRef = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +49,8 @@ export default function RingoAiPanel({
   const patchAssistant = useCallback((id: string, patch: Partial<UiMessage> | ((m: UiMessage) => Partial<UiMessage>)) => {
     setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...(typeof patch === "function" ? patch(m) : patch) } : m)));
   }, []);
+
+  const upsertDraft = useCallback((draft: DraftView) => setDrafts((prev) => ({ ...prev, [draft.id]: draft })), []);
 
   const send = async (text: string) => {
     const message = text.trim();
@@ -106,6 +110,11 @@ export default function RingoAiPanel({
             // Separate text written before a tool call from what follows it.
             patchAssistant(assistantId, (m) => ({ content: m.content && !m.content.endsWith("\n\n") ? m.content + "\n\n" : m.content }));
             setToolStatus(event.name);
+          } else if (event.type === "draft" && event.draft?.id) {
+            // A review card — shown under this reply. Nothing is applied until
+            // the owner presses Confirm & Apply on it.
+            upsertDraft(event.draft);
+            patchAssistant(assistantId, (m) => ({ draftIds: (m.draftIds || []).includes(event.draft.id) ? m.draftIds : [...(m.draftIds || []), event.draft.id] }));
           } else if (event.type === "done") {
             patchAssistant(assistantId, { pending: false, serverId: event.messageId, truncated: !!event.truncated });
             onStatusChange({ ...status, remainingToday: Math.max(0, status.remainingToday - 1), canSend: status.remainingToday - 1 > 0, limitReason: status.remainingToday - 1 > 0 ? null : "daily_limit" });
@@ -128,6 +137,7 @@ export default function RingoAiPanel({
     abortRef.current?.abort();
     setConversationId(null);
     setMessages([]);
+    setDrafts({});
     setView("chat");
   };
 
@@ -146,13 +156,32 @@ export default function RingoAiPanel({
   const openConversation = async (id: string) => {
     abortRef.current?.abort();
     try {
-      const res = await fetch(`/api/ai/conversations/${id}`);
+      const [res, draftsRes] = await Promise.all([
+        fetch(`/api/ai/conversations/${id}`),
+        fetch(`/api/ai/drafts?conversationId=${encodeURIComponent(id)}`).catch(() => null),
+      ]);
       if (!res.ok) return;
       const data = await res.json();
+      const loadedDrafts: DraftView[] = draftsRes?.ok ? (await draftsRes.json()).drafts || [] : [];
+      const loaded: UiMessage[] = (data.messages || []).map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        serverId: m.id,
+        rating: m.rating || 0,
+        createdAt: m.createdAt,
+      }));
+      // Each card goes under the reply that prepared it: the first assistant
+      // message stored after the draft was created (replies are stored last).
+      for (const draft of loadedDrafts) {
+        const target =
+          loaded.find((m) => m.role === "assistant" && !!m.createdAt && m.createdAt >= draft.createdAt) ??
+          [...loaded].reverse().find((m) => m.role === "assistant");
+        if (target) target.draftIds = [...(target.draftIds || []), draft.id];
+      }
       setConversationId(id);
-      setMessages(
-        (data.messages || []).map((m: any) => ({ id: m.id, role: m.role, content: m.content, serverId: m.id, rating: m.rating || 0 }))
-      );
+      setMessages(loaded);
+      setDrafts(Object.fromEntries(loadedDrafts.map((dr) => [dr.id, dr])));
       setView("chat");
     } catch {
       // Stay on the list; the user can retry.
@@ -296,7 +325,7 @@ export default function RingoAiPanel({
                 <p className="text-[11px] text-ringo-muted leading-relaxed">{t.ringoAi.readOnlyNote}</p>
               </div>
             ) : (
-              <MessageList messages={messages} toolStatus={toolStatus} onRate={rate} />
+              <MessageList messages={messages} toolStatus={toolStatus} onRate={rate} drafts={drafts} onDraftChange={upsertDraft} />
             )}
           </div>
 

@@ -132,20 +132,28 @@ const ctxFor = (snapshot, actor = { kind: "owner" }) => ({
   locale: "en",
 });
 const names = (ctx) => getAvailableTools(ctx).map((t) => t.name).sort();
-check("every registered tool is read-only in Phase 1", AI_TOOLS.every((t) => t.kind === "read"));
+check("every registered tool is read or draft — never write (Phase 2)", AI_TOOLS.every((t) => t.kind === "read" || t.kind === "draft"));
+check("no tool can apply/confirm/publish (applying is the owner's click only)", !AI_TOOLS.some((t) => /apply|confirm|publish|execute|commit|write|delete_|send/i.test(t.name)));
 check("tool names unique", new Set(AI_TOOLS.map((t) => t.name)).size === AI_TOOLS.length);
 check("business owner: no music/restaurant/events tools", !names(ctxFor(base())).some((n) => /music|restaurant|events/.test(n)));
 s = base(); s.isMusic = true; s.hasTicketing = true;
 check("music owner: music + events tools available", names(ctxFor(s)).includes("get_my_music_summary") && names(ctxFor(s)).includes("get_my_events_summary"));
 check(
   "future staff actor without permissions only gets permission-free tools",
-  names(ctxFor(base(), { kind: "staff", roleName: "Cashier", permissions: [] })).join() === "lookup_ringo_help"
+  names(ctxFor(base(), { kind: "staff", roleName: "Cashier", permissions: [] })).join() === "discard_draft,get_my_drafts,lookup_ringo_help"
+);
+check(
+  "future staff actor can't prepare profile/product/event drafts without the matching permission",
+  !names(ctxFor(base(), { kind: "staff", roleName: "Cashier", permissions: ["orders.view"] })).some((n) => /^create_/.test(n))
 );
 check("every tool schema is strict (additionalProperties:false, all props required)", AI_TOOLS.every((t) => {
   const props = Object.keys(t.inputSchema.properties || {});
   return t.inputSchema.additionalProperties === false && props.every((p) => (t.inputSchema.required || []).includes(p));
 }));
-check("no tool accepts an id-like input (profile/user ids are server-resolved)", AI_TOOLS.every((t) => !Object.keys(t.inputSchema.properties || {}).some((p) => /id$|_id|user|profile|sql|query/i.test(p))));
+check(
+  "no tool accepts an identity input (user/profile/org/customer ids are server-resolved); the only id is draft_id",
+  AI_TOOLS.every((t) => !Object.keys(t.inputSchema.properties || {}).some((p) => p !== "draft_id" && /id$|_id|user|profile|org|customer|sql|query/i.test(p)))
+);
 
 const ctx = ctxFor(base());
 const available = getAvailableTools(ctx);

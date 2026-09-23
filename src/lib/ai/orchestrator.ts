@@ -10,6 +10,7 @@ import { executeTool, getAvailableTools, toToolSpecs } from "@/lib/ai/tools/regi
 import type { AiToolContext } from "@/lib/ai/tools/types";
 import { appendMessage, createConversation, getOwnConversation, listConversationMessages } from "@/lib/ai/conversations";
 import { estimateCostUsd, recordUsageEvent } from "@/lib/ai/usage";
+import type { DraftView } from "@/lib/ai/drafts/view";
 
 // The one Ringo AI orchestrator. Setup help, advice, content and support are
 // behaviours of this same loop (driven by the prompt, knowledge and tools),
@@ -21,6 +22,7 @@ export type ChatEvent =
   | { type: "start"; conversationId: string }
   | { type: "text"; delta: string }
   | { type: "tool"; name: string }
+  | { type: "draft"; draft: DraftView }
   | { type: "done"; messageId: string; toolsUsed: string[]; truncated: boolean }
   | { type: "error"; code: AiRuntimeError };
 
@@ -112,7 +114,13 @@ export async function runChat({ access, locale, conversationId, message, emit, s
     const snapshot = await loadWorkspaceSnapshot(workspace);
     const findings = runDiagnostics(snapshot);
     const contextCard = buildUserContext(workspace, snapshot, findings, locale);
-    const toolCtx: AiToolContext = { workspace, snapshot, locale };
+    const toolCtx: AiToolContext = {
+      workspace,
+      snapshot,
+      locale,
+      conversationId: activeConversationId,
+      emitDraft: (draft) => emit({ type: "draft", draft }),
+    };
     const tools = settings.maxToolRounds > 0 ? getAvailableTools(toolCtx) : [];
     const system = {
       stable: buildStableSystemPrompt(),

@@ -1,5 +1,6 @@
 import type { AiLocale, AiWorkspace } from "@/lib/ai/types";
 import type { WorkspaceSnapshot } from "@/lib/ai/context/snapshot";
+import type { DraftView } from "@/lib/ai/drafts/view";
 
 // A Ringo AI tool is an explicitly defined, server-side capability. The model
 // can only ask for a tool by name with a small, validated input; it never
@@ -8,10 +9,10 @@ import type { WorkspaceSnapshot } from "@/lib/ai/context/snapshot";
 // ctx.workspace.profileId itself.
 //
 //   kind "read"  — Phase 1. Reads and summarizes the owner's own data.
-//   kind "draft" — Phase 2. Prepares a proposal (ai drafts), never writes Ringo data.
-//   kind "write" — Phase 3. Executes only after explicit user confirmation, via
-//                  existing Ringo logic. The registry refuses to expose
-//                  anything but "read" until those phases are built.
+//   kind "draft" — Phase 2. Prepares a proposal (ai_drafts), never writes Ringo
+//                  data. Applying is the owner's "Confirm & Apply" click
+//                  (POST /api/ai/drafts/[id]/apply) — never a tool.
+//   kind "write" — reserved. The registry refuses to expose it.
 
 export type AiToolKind = "read" | "draft" | "write";
 
@@ -19,6 +20,10 @@ export interface AiToolContext {
   workspace: AiWorkspace;
   snapshot: WorkspaceSnapshot;
   locale: AiLocale;
+  /** The server-resolved conversation this request belongs to (draft tools scope to it). */
+  conversationId?: string;
+  /** Streams a draft's review card to the panel (draft tools only). */
+  emitDraft?: (draft: DraftView) => void;
 }
 
 export interface AiTool<Input = Record<string, never>> {

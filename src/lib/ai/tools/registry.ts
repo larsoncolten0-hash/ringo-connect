@@ -3,9 +3,10 @@ import type { AiToolSpec } from "@/lib/ai/providers/types";
 import type { AiTool, AiToolContext, AiToolKind } from "./types";
 import { AI_TOOLS } from "./index";
 
-// Phase 1 exposes read tools only. Draft/write kinds stay unreachable until
-// their confirmation flow exists, even if one is registered by mistake.
-const EXPOSED_KINDS: readonly AiToolKind[] = ["read"];
+// Read tools, plus Phase 2 draft tools (which only PREPARE drafts; applying
+// needs the owner's Confirm & Apply click). "write" stays unreachable even if
+// one is registered by mistake — there is no model-callable mutation.
+const EXPOSED_KINDS: readonly AiToolKind[] = ["read", "draft"];
 
 const MAX_RESULT_CHARS = 6000;
 const TOOL_TIMEOUT_MS = 10_000;

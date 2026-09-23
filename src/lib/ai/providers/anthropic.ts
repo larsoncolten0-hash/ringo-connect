@@ -103,7 +103,6 @@ export const anthropicProvider: AiProvider = {
       name: t.name,
       description: t.description,
       input_schema: t.inputSchema as Anthropic.Tool.InputSchema,
-      strict: true,
     }));
 
     let stream: ReturnType<Anthropic["messages"]["stream"]> | null = null;
