@@ -4,6 +4,7 @@ import { runChat, type ChatEvent } from "@/lib/ai/orchestrator";
 import { AI_MAX_USER_MESSAGE_CHARS } from "@/lib/ai/codes";
 import { isAiLocale } from "@/lib/ai/types";
 import { isUuid } from "@/lib/customer/connect";
+import { isOwnAiUploadUrl } from "@/lib/ai/uploads";
 
 // POST /api/ai/chat — one Ringo AI turn, streamed as NDJSON (one ChatEvent
 // per line). Everything that decides WHO and WHAT (identity, workspace,
@@ -35,6 +36,11 @@ export async function POST(request: Request) {
   if (!message || message.length > AI_MAX_USER_MESSAGE_CHARS || (conversationId !== null && !isUuid(conversationId))) {
     return NextResponse.json({ error: "invalid_request" }, { status: 400 });
   }
+  // Only a URL this same caller actually got back from POST /api/ai/uploads/image
+  // is ever used — anything else (an arbitrary or another user's URL) is
+  // silently dropped rather than sent to the model provider to fetch.
+  const rawImageUrl = typeof body?.imageUrl === "string" ? body.imageUrl : null;
+  const imageUrl = rawImageUrl && isOwnAiUploadUrl(rawImageUrl, access.access.workspace.userId) ? rawImageUrl : null;
 
   // Atomic check-and-reserve (see guard.ts): concurrent requests can't all
   // pass on the same remaining quota. Released in `finally` below — after
@@ -57,7 +63,7 @@ export async function POST(request: Request) {
         }
       };
       try {
-        await runChat({ access: access.access, locale, conversationId, message, emit, signal: request.signal });
+        await runChat({ access: access.access, locale, conversationId, message, imageUrl, emit, signal: request.signal });
       } catch (error) {
         console.error("ai chat route failed:", error instanceof Error ? error.message : error);
         emit({ type: "error", code: "internal" });

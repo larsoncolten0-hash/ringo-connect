@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, History, LifeBuoy, Loader2, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, History, ImagePlus, LifeBuoy, Loader2, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { AI_MAX_USER_MESSAGE_CHARS } from "@/lib/ai/codes";
 import MessageList, { type UiMessage } from "./MessageList";
@@ -14,6 +14,11 @@ type ConversationRow = { id: string; title: string | null; updatedAt: string };
 
 let localId = 0;
 const nextId = () => `local-${++localId}`;
+
+// Same limit POST /api/ai/uploads/image enforces server-side — checked here
+// too so the user gets an instant error instead of waiting on a request that
+// will be rejected anyway (same pattern as ImageUploadField.tsx).
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 // The Ringo AI chat panel. Talks only to /api/ai/* — every decision about
 // identity, workspace and limits is made server-side; this component just
@@ -37,8 +42,12 @@ export default function RingoAiPanel({
   const [history, setHistory] = useState<ConversationRow[] | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, DraftView>>({});
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -52,9 +61,38 @@ export default function RingoAiPanel({
 
   const upsertDraft = useCallback((draft: DraftView) => setDrafts((prev) => ({ ...prev, [draft.id]: draft })), []);
 
+  const attachImage = async (file: File) => {
+    setImageError(null);
+    if (!file.type.startsWith("image/")) {
+      setImageError(t.ringoAi.errors.image_wrong_type);
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError(t.ringoAi.errors.image_too_large);
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/ai/uploads/image", { method: "POST", body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data?.url !== "string") {
+        setImageError(t.ringoAi.errors[data?.error as string] ?? t.ringoAi.errors.image_upload_failed);
+        return;
+      }
+      setPendingImage(data.url);
+    } catch {
+      setImageError(t.ringoAi.errors.image_upload_failed);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const send = async (text: string) => {
     const message = text.trim();
     if (!message || streaming || !status.canSend) return;
+    const imageUrl = pendingImage;
     const assistantId = nextId();
     setMessages((prev) => [
       ...prev,
@@ -62,6 +100,8 @@ export default function RingoAiPanel({
       { id: assistantId, role: "assistant", content: "", serverId: null, pending: true },
     ]);
     setDraft("");
+    setPendingImage(null);
+    setImageError(null);
     setStreaming(true);
     setToolStatus(null);
 
@@ -71,7 +111,7 @@ export default function RingoAiPanel({
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, locale, conversationId }),
+        body: JSON.stringify({ message, locale, conversationId, imageUrl }),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) {
@@ -334,6 +374,25 @@ export default function RingoAiPanel({
             {!status.canSend && status.limitReason && (
               <p className="text-xs text-ringo-coral mb-2">{t.ringoAi.errors[status.limitReason] ?? t.ringoAi.errors.internal}</p>
             )}
+            {(pendingImage || uploadingImage) && (
+              <div className="flex items-center gap-2 mb-2 rounded-xl border border-ringo-border/80 bg-ringo-muted/[0.06] px-2 py-1.5">
+                <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-ringo-muted/10 flex items-center justify-center">
+                  {uploadingImage ? (
+                    <Loader2 size={14} className="animate-spin text-ringo-muted" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={pendingImage as string} alt="" className="w-full h-full object-cover" />
+                  )}
+                </div>
+                <span className="flex-1 text-xs text-ringo-muted truncate">{uploadingImage ? t.ringoAi.uploadingImage : t.ringoAi.imageAttached}</span>
+                {!uploadingImage && (
+                  <button type="button" onClick={() => setPendingImage(null)} aria-label={t.ringoAi.removeImage} className="p-1 rounded-lg text-ringo-muted hover:text-ringo-text shrink-0">
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            )}
+            {imageError && <p className="text-xs text-ringo-coral mb-2">{imageError}</p>}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -341,6 +400,26 @@ export default function RingoAiPanel({
               }}
               className="flex items-end gap-2"
             >
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) attachImage(file);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={streaming || uploadingImage || !status.canSend}
+                aria-label={t.ringoAi.attachImage}
+                className="shrink-0 w-9 h-9 rounded-full border border-ringo-border text-ringo-muted flex items-center justify-center hover:text-ringo-text hover:border-ringo-indigo/50 transition disabled:opacity-40"
+              >
+                <ImagePlus size={15} />
+              </button>
               <textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value.slice(0, AI_MAX_USER_MESSAGE_CHARS))}

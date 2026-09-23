@@ -14,6 +14,7 @@ export interface AiToolSpec {
 
 export type AiContentPart =
   | { type: "text"; text: string }
+  | { type: "image"; url: string }
   | { type: "tool_call"; id: string; name: string; input: unknown }
   | { type: "tool_result"; toolCallId: string; content: string; isError?: boolean };
 

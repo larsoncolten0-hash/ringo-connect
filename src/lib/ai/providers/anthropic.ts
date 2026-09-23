@@ -36,9 +36,11 @@ function toAnthropicContent(parts: AiContentPart[]): Anthropic.ContentBlockParam
   for (const part of parts) {
     if (part.type === "text") {
       if (part.text) blocks.push({ type: "text", text: part.text });
+    } else if (part.type === "image") {
+      blocks.push({ type: "image", source: { type: "url", url: part.url } });
     } else if (part.type === "tool_call") {
       blocks.push({ type: "tool_use", id: part.id, name: part.name, input: part.input as Record<string, unknown> });
-    } else {
+    } else if (part.type === "tool_result") {
       blocks.push({ type: "tool_result", tool_use_id: part.toolCallId, content: part.content, is_error: part.isError || undefined });
     }
   }

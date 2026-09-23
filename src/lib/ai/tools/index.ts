@@ -10,7 +10,7 @@ import { getMyBookingsSummary } from "./definitions/bookingsSummary";
 import { getMyConnectSummary } from "./definitions/connectSummary";
 import { lookupRingoHelp } from "./definitions/lookupHelp";
 import { getSetupOptions } from "./definitions/setupOptions";
-import { createEventDraft, createProductDraft, createProfileDraft, discardMyDraft, getMyDrafts } from "./definitions/drafts";
+import { createEventDraft, createProductDraft, createProfileDraft, discardMyDraft, getMyDrafts, updateProductDraft } from "./definitions/drafts";
 
 // The complete list of capabilities Ringo AI has. Nothing outside this list
 // can be invoked. Order is deterministic (it's part of the cached prompt).
@@ -30,6 +30,7 @@ export const AI_TOOLS: readonly AiTool<any>[] = [
   getSetupOptions,
   createProfileDraft,
   createProductDraft,
+  updateProductDraft,
   createEventDraft,
   getMyDrafts,
   discardMyDraft,

@@ -42,3 +42,17 @@ export function emailFromOwner(email: string, ownerText: string[]): boolean {
     Array.from(text.matchAll(pattern)).some((m) => m[0].replace(/[.)\]]+$/, "").toLowerCase() === needle)
   );
 }
+
+/**
+ * True when `url` is exactly the URL of an image the owner attached and had
+ * uploaded (via POST /api/ai/uploads/image) in this conversation — never a
+ * URL the model invented. The orchestrator appends a literal
+ * `\n[image: <url>]` marker to the persisted user message when a chat turn
+ * carries an uploaded image (see orchestrator.ts); this checks for that
+ * exact marker, the same way phoneFromOwner/emailFromOwner check for
+ * exactly what the owner typed.
+ */
+export function imageUrlFromOwner(url: string, ownerText: string[]): boolean {
+  const needle = `[image: ${url}]`;
+  return ownerText.some((text) => text.includes(needle));
+}

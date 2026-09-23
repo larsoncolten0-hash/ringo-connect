@@ -32,7 +32,9 @@ const check = (name, cond, detail = "") => {
 const { validateProfileDraft, profilePatch, profileUpdateDraft } = load("lib/ai/drafts/profileUpdate.ts");
 const { validateProductDraft, productCreateDraft } = load("lib/ai/drafts/productCreate.ts");
 const { validateEventDraft, eventCreateDraft } = load("lib/ai/drafts/eventCreate.ts");
-const { phoneFromOwner, emailFromOwner } = load("lib/ai/drafts/provenance.ts");
+const { validateProductUpdateDraft, productUpdateDraft } = load("lib/ai/drafts/productUpdate.ts");
+const { phoneFromOwner, emailFromOwner, imageUrlFromOwner } = load("lib/ai/drafts/provenance.ts");
+const { looksLikeImage, isOwnAiUploadUrl, extFromMime } = load("lib/ai/uploads.ts");
 const { DRAFT_DEFINITIONS } = load("lib/ai/drafts/registry.ts");
 const { toDraftView } = load("lib/ai/drafts/view.ts");
 const { isSameOriginRequest } = load("lib/ai/drafts/http.ts");
@@ -109,6 +111,56 @@ check("product: no price is allowed (shown as 'No price')", validateProductDraft
 check("plan: catalog locked (max_products 0) → feature_unavailable, like Editor.tsx", productCreateDraft.availability(FACTS({ maxProducts: 0 })).reason === "feature_unavailable");
 check("plan: at max_products → plan_limit_reached, like CatalogCard", productCreateDraft.availability(FACTS({ maxProducts: 3, productCount: 3 })).reason === "plan_limit_reached");
 check("plan: under the limit / unlimited → ok", productCreateDraft.availability(FACTS({ maxProducts: 5 })).ok && productCreateDraft.availability(FACTS()).ok);
+
+// ------------------------------------------------------------------ product UPDATE draft validation (edit an existing product)
+const PID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const PU = (over = {}) => ({ productId: PID, name: null, description: null, price: null, image_url: null, ...over });
+v = validateProductUpdateDraft(PU({ name: "New name" }), CTX());
+check("product update: a single field change accepted, others stay null", v.ok && v.payload.name === "New name" && v.payload.price === null);
+check("product update: nothing to change (all null) rejected", validateProductUpdateDraft(PU(), CTX()).reason === "nothing_to_change");
+check("product update: missing/invalid product_id rejected", validateProductUpdateDraft({ name: "A" }, CTX()).reason === "invalid_input" && validateProductUpdateDraft(PU({ productId: "not-a-uuid" }), CTX()).reason === "invalid_input");
+check("product update: name over 120 chars rejected", validateProductUpdateDraft(PU({ name: "x".repeat(121) }), CTX()).reason === "invalid_input");
+check("product update: negative price rejected", validateProductUpdateDraft(PU({ price: -1 }), CTX()).reason === "invalid_input");
+check("product update: availability is always ok (no plan limit on edits)", productUpdateDraft.availability(FACTS({ maxProducts: 0 })).ok);
+check("product update: currency still comes from the store, not the model", validateProductUpdateDraft(PU({ name: "A" }), CTX()).payload.currency === "XAF");
+
+// image_url provenance: STRICT, same posture as phone/email — only a URL the
+// owner actually got back from an upload in THIS conversation.
+const uploadedUrl = "https://project.supabase.co/storage/v1/object/public/uploads/u1/ai-uploads/abc.jpg";
+const saidImage = [`Use this for my product\n[image: ${uploadedUrl}]`];
+check("provenance: an uploaded image url attached in this conversation is accepted", imageUrlFromOwner(uploadedUrl, saidImage));
+check("provenance: a url the model invents (never attached) is refused", !imageUrlFromOwner("https://project.supabase.co/storage/v1/object/public/uploads/u1/ai-uploads/other.jpg", saidImage));
+v = validateProductUpdateDraft(PU({ image_url: uploadedUrl }), CTX({}, saidImage));
+check("product update: image_url the owner attached is accepted", v.ok && v.payload.imageUrl === uploadedUrl);
+check("product update: an invented image_url is refused as contact_not_from_user", validateProductUpdateDraft(PU({ image_url: "https://evil.example/x.jpg" }), CTX({}, saidImage)).reason === "contact_not_from_user");
+
+// ------------------------------------------------------------------ POST /api/ai/uploads/image validation helpers
+const savedSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.supabase.co";
+check("upload: a real JPEG signature is recognized", looksLikeImage(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0])));
+check("upload: a real PNG signature is recognized", looksLikeImage(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0])));
+check("upload: a real WEBP (RIFF…WEBP) signature is recognized", looksLikeImage(new TextEncoder().encode("RIFF\0\0\0\0WEBP")));
+check("upload: a spoofed Content-Type with non-image bytes is rejected (magic-byte sniff)", !looksLikeImage(new TextEncoder().encode("<html><body>not an image</body></html>")));
+check("upload: empty bytes rejected", !looksLikeImage(new Uint8Array([])));
+check("upload: extension is derived from the sniffed/declared type, never the filename", extFromMime("image/png") === "png" && extFromMime("image/webp") === "webp" && extFromMime("image/jpeg") === "jpg");
+check(
+  "upload: a URL under the caller's own ai-uploads prefix is accepted",
+  isOwnAiUploadUrl("https://project.supabase.co/storage/v1/object/public/uploads/u1/ai-uploads/abc.jpg", "u1")
+);
+check(
+  "upload: another user's ai-uploads URL is refused",
+  !isOwnAiUploadUrl("https://project.supabase.co/storage/v1/object/public/uploads/u2/ai-uploads/abc.jpg", "u1")
+);
+check(
+  "upload: a URL outside the ai-uploads folder (e.g. the products folder) is refused",
+  !isOwnAiUploadUrl("https://project.supabase.co/storage/v1/object/public/uploads/u1/products/abc.jpg", "u1")
+);
+check("upload: an arbitrary external URL is refused", !isOwnAiUploadUrl("https://evil.example/u1/ai-uploads/abc.jpg", "u1"));
+check(
+  "upload: a path-traversal attempt is refused",
+  !isOwnAiUploadUrl("https://project.supabase.co/storage/v1/object/public/uploads/u1/ai-uploads/../../other/x.jpg", "u1")
+);
+process.env.NEXT_PUBLIC_SUPABASE_URL = savedSupabaseUrl;
 
 // ------------------------------------------------------------------ event draft validation + ticketing gate
 v = validateEventDraft({ title: "Afro Night", date: "2026-10-10", time: "21:00", location: "Yaoundé" }, CTX());
@@ -199,6 +251,31 @@ const evIns = db.calls.find((c) => c.op === "insert");
 check("apply event: always inserted UNPUBLISHED (status 'draft', never the 'published' default)", ar.ok && evIns.table === "events" && evIns.payload.status === "draft");
 check("apply event: review path is the existing event editor", eventCreateDraft.reviewPath(TARGET) === `/dashboard/tickets/${TARGET}`);
 
+// product UPDATE apply: ONE atomic compare-and-set (ai_apply_product_update), through the session client.
+const payloadPU = validateProductUpdateDraft(PU({ name: "New name", price: 3000 }), CTX()).payload;
+const baseProduct = { name: "Old name", description: null, price: 2000, image_url: null };
+const productUpdateWith = (reply) => fakeDb((st) => (st.op === "rpc" ? reply : { data: null, error: { message: "unexpected table access" } }));
+db = productUpdateWith({ data: "updated", error: null });
+ar = await productUpdateDraft.apply(db, WS, { payload: payloadPU, base: baseProduct, targetId: PID }, FACTS());
+const rpcPU = db.calls.find((c) => c.op === "rpc");
+check("apply product update: a single atomic RPC via the session client", ar.ok && db.calls.length === 1 && rpcPU?.name === "ai_apply_product_update");
+check(
+  "apply product update: sends the product + profile id, only the changed columns, and the draft-time base",
+  rpcPU && rpcPU.args.p_product_id === PID && rpcPU.args.p_profile_id === WS.profileId && Object.keys(rpcPU.args.p_patch).sort().join() === "name,price" && JSON.stringify(rpcPU.args.p_base) === JSON.stringify(baseProduct)
+);
+ar = await productUpdateDraft.apply(productUpdateWith({ data: "stale", error: null }), WS, { payload: payloadPU, base: baseProduct, targetId: PID }, FACTS());
+check("apply product update: 'stale' (page changed since) → stale, not applied", !ar.ok && ar.code === "stale");
+ar = await productUpdateDraft.apply(productUpdateWith({ data: "already_applied", error: null }), WS, { payload: payloadPU, base: baseProduct, targetId: PID }, FACTS());
+check("apply product update: 'already_applied' (retry) → idempotent success", ar.ok && ar.alreadyApplied);
+ar = await productUpdateDraft.apply(productUpdateWith({ data: "not_found", error: null }), WS, { payload: payloadPU, base: baseProduct, targetId: PID }, FACTS());
+check("apply product update: 'not_found' (not the owner / product deleted) → write_failed, never applied", !ar.ok && ar.code === "write_failed");
+ar = await productUpdateDraft.apply(productUpdateWith({ data: null, error: { code: "42501", message: "column not allowed" } }), WS, { payload: payloadPU, base: baseProduct, targetId: PID }, FACTS());
+check("apply product update: database refusal → write_failed", !ar.ok && ar.code === "write_failed");
+check(
+  "apply product update: store currency changed since the draft → stale, nothing sent",
+  (await productUpdateDraft.apply(productUpdateWith({ data: "updated", error: null }), WS, { payload: payloadPU, base: baseProduct, targetId: PID }, FACTS({ currency: "USD" }))).code === "stale"
+);
+
 // ------------------------------------------------------------------ draft view (what the browser gets)
 const row = { id: "d1", draft_type: "profile.update", status: "awaiting_confirmation", payload: payloadP, base, revision: 2, result_id: null, error_code: null, created_at: "2026-09-23T10:00:00+00:00", expires_at: "2099-01-01T00:00:00+00:00" };
 let view = toDraftView(row);
@@ -224,7 +301,7 @@ check("tools: event drafts only where ticketing exists", !toolNames(snap()).incl
 const UNSUPPORTED = /"(minLength|maxLength|minimum|maximum|multipleOf|pattern)"/;
 check("tools: draft schemas use only strict-mode-supported JSON Schema", AI_TOOLS.every((t) => !UNSUPPORTED.test(JSON.stringify(t.inputSchema))));
 check("tools: no schema lets the model send user/profile/org/customer ids", AI_TOOLS.every((t) => !Object.keys(t.inputSchema.properties || {}).some((p) => /user|profile_id|org|customer/.test(p))));
-check("tools: every registered draft type has a definition", ["profile.update", "product.create", "event.create"].every((ty) => DRAFT_DEFINITIONS[ty]));
+check("tools: every registered draft type has a definition", ["profile.update", "product.create", "event.create", "product.update"].every((ty) => DRAFT_DEFINITIONS[ty]));
 
 // ------------------------------------------------------------------ draft tools with fake I/O
 const serverMod = load("lib/supabase/server.ts");
@@ -304,6 +381,29 @@ check("tool: revising own draft bumps the revision (old confirmation becomes inv
 const otherWs = { ...WS, userId: "77777777-7777-4777-8777-777777777777", profileId: "88888888-8888-4888-8888-888888888888" };
 tr = await executeTool("create_product_draft", { name: "X", description: null, price: null, draft_id: "66666666-6666-4666-8666-666666666666" }, { ...toolCtx, workspace: otherWs }, getAvailableTools({ ...toolCtx, workspace: otherWs }));
 check("tool: another user/profile can't touch this draft (cross-user/cross-profile)", JSON.parse(tr.content).reason === "draft_not_found");
+
+// update_product_draft: loadBase reads the "products" table, scoped to this workspace's profile.
+serverMod.createClient = () =>
+  fakeDb((st) => (st.table === "products" ? { data: baseProduct, error: null } : { data: [], error: null }));
+ownerSaid = saidImage;
+inserted = [];
+tr = await executeTool("update_product_draft", { draft_id: null, product_id: PID, name: "Repainted", description: null, price: null, image_url: null }, toolCtx, avail);
+out = JSON.parse(tr.content);
+check("tool: update_product_draft prepared (not applied) against the real current product", out.ok && inserted.length === 1 && inserted[0].type === "product.update" && inserted[0].payload.productId === PID);
+inserted = [];
+tr = await executeTool("update_product_draft", { draft_id: null, product_id: PID, name: null, description: null, price: null, image_url: uploadedUrl }, toolCtx, avail);
+out = JSON.parse(tr.content);
+check("tool: update_product_draft accepts an image the owner attached in this conversation", out.ok && inserted[0]?.payload.imageUrl === uploadedUrl);
+inserted = [];
+tr = await executeTool("update_product_draft", { draft_id: null, product_id: PID, name: null, description: null, price: null, image_url: "https://evil.example/x.jpg" }, toolCtx, avail);
+out = JSON.parse(tr.content);
+check("tool: update_product_draft refuses an image url the owner never attached", !out.ok && out.reason === "contact_not_from_user" && inserted.length === 0);
+ownerSaid = [];
+serverMod.createClient = () => fakeDb((st) => (st.table === "products" ? { data: null, error: null } : { data: [], error: null }));
+inserted = [];
+tr = await executeTool("update_product_draft", { draft_id: null, product_id: PID, name: "X", description: null, price: null, image_url: null }, toolCtx, avail);
+check("tool: a product_id that doesn't exist/isn't owned → facts_unavailable, no draft", JSON.parse(tr.content).reason === "facts_unavailable" && inserted.length === 0);
+serverMod.createClient = realCreate;
 
 // ------------------------------------------------------------------ apply pipeline (applyDraft) with fake store
 const applyMod = load("lib/ai/drafts/apply.ts");
@@ -564,7 +664,8 @@ for (const def of Object.values(DRAFT_DEFINITIONS)) {
   const sample = def.type === "profile.update" ? toDraftView({ ...row, payload: validateProfileDraft(P({ name: "a", bio: "b", long_bio: "c", location: "d", category: "restaurant_food", extra_categories: ["events_experiences"], restaurant_subcategory: "cafe", whatsapp: "677123456", phone: "677 12 34 56", email: "nova@example.cm" }), CTX({}, said)).payload, base: {} }) : null;
   (sample?.changes || []).forEach((c) => allFields.add(c.field));
 }
-[...productCreateDraft.changes({ ...payloadProd, description: "d" }), ...eventCreateDraft.changes(payloadEv)].forEach((c) => allFields.add(c.field));
+const payloadPUWithImage = validateProductUpdateDraft(PU({ image_url: uploadedUrl }), CTX({}, saidImage)).payload;
+[...productCreateDraft.changes({ ...payloadProd, description: "d" }), ...eventCreateDraft.changes(payloadEv), ...productUpdateDraft.changes(payloadPU, baseProduct), ...productUpdateDraft.changes(payloadPUWithImage, baseProduct)].forEach((c) => allFields.add(c.field));
 allFields.add("music_role");
 for (const loc of ["en", "fr"]) {
   const d = translations[loc].ringoAi.drafts;

@@ -29,6 +29,10 @@ export const AI_RUNTIME_ERRORS = [
 ] as const;
 export type AiRuntimeError = (typeof AI_RUNTIME_ERRORS)[number];
 
+/** POST /api/ai/uploads/image failure codes — translated via t.ringoAi.errors. */
+export const AI_UPLOAD_ERRORS = ["image_too_large", "image_wrong_type", "image_upload_failed"] as const;
+export type AiUploadError = (typeof AI_UPLOAD_ERRORS)[number];
+
 export type AiErrorCode = AiDenyReason | AiLimitReason | AiRuntimeError;
 
 /** Max characters a user may type into one Ringo AI message. */

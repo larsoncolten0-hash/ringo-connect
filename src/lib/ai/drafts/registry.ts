@@ -2,6 +2,7 @@ import type { DraftDefinition, DraftType } from "./types";
 import { profileUpdateDraft } from "./profileUpdate";
 import { productCreateDraft } from "./productCreate";
 import { eventCreateDraft } from "./eventCreate";
+import { productUpdateDraft } from "./productUpdate";
 
 // Every draft type Ringo AI can prepare. Future types (menu item, booking
 // service, track, release, link, promotion…) are added here — plus the
@@ -11,6 +12,7 @@ export const DRAFT_DEFINITIONS: Record<DraftType, DraftDefinition<any>> = {
   "profile.update": profileUpdateDraft,
   "product.create": productCreateDraft,
   "event.create": eventCreateDraft,
+  "product.update": productUpdateDraft,
 };
 
 export function getDraftDefinition(type: string): DraftDefinition<any> | null {

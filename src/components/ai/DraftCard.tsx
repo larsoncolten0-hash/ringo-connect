@@ -13,7 +13,7 @@ import type { DraftChange } from "@/lib/ai/drafts/types";
 // explicit "Confirm & Apply" click (POST /api/ai/drafts/[id]/apply with the
 // revision on screen); no chat message can do it.
 
-const TYPE_ICON = { "profile.update": UserRound, "product.create": ShoppingBag, "event.create": CalendarDays } as const;
+const TYPE_ICON = { "profile.update": UserRound, "product.create": ShoppingBag, "event.create": CalendarDays, "product.update": ShoppingBag } as const;
 
 export default function DraftCard({ draft, onChange }: { draft: DraftView; onChange: (next: DraftView) => void }) {
   const { t, locale } = useLanguage();
@@ -122,13 +122,27 @@ export default function DraftCard({ draft, onChange }: { draft: DraftView; onCha
                       </span>
                     )}
                   </div>
-                  {hasBefore && (
-                    <p className="text-xs text-ringo-muted line-through decoration-ringo-muted/50 break-words whitespace-pre-wrap mt-0.5">{format(c.kind, c.before)}</p>
+                  {c.kind === "image" ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      {hasBefore && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={String(c.before)} alt="" className="w-12 h-12 rounded-lg object-cover opacity-50" />
+                      )}
+                      {hasBefore && <ArrowRight size={13} className="shrink-0 text-ringo-indigo" />}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={String(c.after)} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                    </div>
+                  ) : (
+                    <>
+                      {hasBefore && (
+                        <p className="text-xs text-ringo-muted line-through decoration-ringo-muted/50 break-words whitespace-pre-wrap mt-0.5">{format(c.kind, c.before)}</p>
+                      )}
+                      <p className="text-sm text-ringo-text break-words whitespace-pre-wrap mt-0.5 flex gap-1.5">
+                        {hasBefore && <ArrowRight size={13} className="shrink-0 mt-1 text-ringo-indigo" />}
+                        <span className="font-medium">{format(c.kind, c.after)}</span>
+                      </p>
+                    </>
                   )}
-                  <p className="text-sm text-ringo-text break-words whitespace-pre-wrap mt-0.5 flex gap-1.5">
-                    {hasBefore && <ArrowRight size={13} className="shrink-0 mt-1 text-ringo-indigo" />}
-                    <span className="font-medium">{format(c.kind, c.after)}</span>
-                  </p>
                 </li>
               );
             })}

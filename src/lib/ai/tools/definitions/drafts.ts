@@ -124,7 +124,7 @@ export const createProfileDraft: AiTool<Record<string, unknown>> = {
 export const createProductDraft: AiTool<Record<string, unknown>> = {
   name: "create_product_draft",
   description:
-    "Prepare a DRAFT of ONE new product for the user's catalog. Nothing is created until the user clicks Confirm & Apply; once confirmed the product appears on their public page. The price is in the page's store currency (see workspace; XAF has no decimals) — only a price the user gave you, otherwise null. The description may be text you wrote from the user's facts, with no invented claims. Photos, stock and links are added later in Catalog.",
+    "Prepare a DRAFT of ONE new product for the user's catalog. Nothing is created until the user clicks Confirm & Apply; once confirmed the product appears on their public page. The price is in the page's store currency (see workspace; XAF has no decimals) — only a price the user gave you, otherwise null. The description may be text you wrote from the user's facts, with no invented claims. Photos, stock and links are added afterwards — once the product is confirmed, call update_product_draft with the new product's id to attach an image the user sent you.",
   kind: "draft",
   permission: "settings.manage",
   inputSchema: {
@@ -140,6 +140,29 @@ export const createProductDraft: AiTool<Record<string, unknown>> = {
   },
   parseInput: passObject,
   run: (ctx, input) => prepareDraft(ctx, "product.create", input),
+};
+
+export const updateProductDraft: AiTool<Record<string, unknown>> = {
+  name: "update_product_draft",
+  description:
+    "Prepare a DRAFT edit of ONE EXISTING product already in the user's catalog (use a product_id from get_my_catalog_summary). Nothing changes until the user clicks Confirm & Apply. Use null for every field you are not changing. description may be text you wrote or rewrote from the user's facts (tone, length, translation), with no invented claims. image_url is ONLY the exact URL of an image the user attached in this conversation (never invent or guess one) — otherwise null.",
+  kind: "draft",
+  permission: "settings.manage",
+  inputSchema: {
+    type: "object",
+    properties: {
+      draft_id: draftIdParam,
+      product_id: { type: "string", format: "uuid", description: "The id of the existing product to edit, from get_my_catalog_summary." },
+      name: nullable({ type: "string" }, "New product name (max 120 chars), or null to keep it."),
+      description: nullable({ type: "string" }, "New product description (max 1000 chars), or null to keep it."),
+      price: nullable({ type: "number" }, "New price in the store currency, or null to keep it."),
+      image_url: nullable({ type: "string" }, "The exact URL of an image the user attached in this conversation, or null to keep the current photo."),
+    },
+    required: ["draft_id", "product_id", "name", "description", "price", "image_url"],
+    additionalProperties: false,
+  },
+  parseInput: passObject,
+  run: (ctx, input) => prepareDraft(ctx, "product.update", input),
 };
 
 export const createEventDraft: AiTool<Record<string, unknown>> = {

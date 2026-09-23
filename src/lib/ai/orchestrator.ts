@@ -31,6 +31,8 @@ export interface ChatRequest {
   locale: AiLocale;
   conversationId: string | null;
   message: string;
+  /** A URL already verified (by the chat route) to be this caller's own upload. */
+  imageUrl?: string | null;
   emit: (event: ChatEvent) => void;
   signal?: AbortSignal;
 }
@@ -49,7 +51,7 @@ const TOOL_BUDGET_NOTE = "Tool limit for this message reached. Answer now using 
 // the function at the chat route's maxDuration (60s).
 const CHAT_DEADLINE_MS = 50_000;
 
-export async function runChat({ access, locale, conversationId, message, emit, signal: clientSignal }: ChatRequest): Promise<void> {
+export async function runChat({ access, locale, conversationId, message, imageUrl, emit, signal: clientSignal }: ChatRequest): Promise<void> {
   const { workspace, settings, provider } = access;
   const started = Date.now();
   const deadline = new AbortController();
@@ -107,7 +109,11 @@ export async function runChat({ access, locale, conversationId, message, emit, s
   const activeConversationId: string = convId ?? (await createConversation(workspace.userId, workspace.profileId, locale, message));
   convId = activeConversationId;
   emit({ type: "start", conversationId: activeConversationId });
-  await appendMessage(activeConversationId, "user", message);
+  // Persisted content stays plain text, by design (see the module comment):
+  // an attached image is recorded as a literal `[image: <url>]` marker, the
+  // same ground truth later draft provenance checks (imageUrlFromOwner) look
+  // for — the image itself is never replayed on later turns.
+  await appendMessage(activeConversationId, "user", imageUrl ? `${message}\n[image: ${imageUrl}]` : message);
 
   try {
     // 2. Verified context.
@@ -127,7 +133,10 @@ export async function runChat({ access, locale, conversationId, message, emit, s
       dynamic: buildDynamicSystemPrompt(contextCard, [snapshot.profile.category, ...snapshot.profile.categories].filter((c): c is string => !!c)),
     };
 
-    const messages: AiMessage[] = [...history, { role: "user", parts: [{ type: "text", text: message }] }];
+    // The image is included on THIS turn only (never replayed from history —
+    // stored messages are text-only, see above).
+    const userParts: AiContentPart[] = [{ type: "text", text: message }, ...(imageUrl ? [{ type: "image" as const, url: imageUrl }] : [])];
+    const messages: AiMessage[] = [...history, { role: "user", parts: userParts }];
     const replyParts: string[] = [];
     const toolsUsed = new Set<string>();
     let truncated = false;

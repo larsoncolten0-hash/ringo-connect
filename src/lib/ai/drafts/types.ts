@@ -11,7 +11,7 @@ import type { AiWorkspace } from "@/lib/ai/types";
 // the Dashboard editor. Adding a draft type = one new file + one registry line
 // + the draft_type CHECK in a new additive migration.
 
-export const DRAFT_TYPES = ["profile.update", "product.create", "event.create"] as const;
+export const DRAFT_TYPES = ["profile.update", "product.create", "event.create", "product.update"] as const;
 export type DraftType = (typeof DRAFT_TYPES)[number];
 
 export const DRAFT_STATUSES = ["awaiting_confirmation", "applying", "applied", "failed", "rejected", "expired", "stale"] as const;
@@ -67,7 +67,7 @@ export type ValidationResult<P> = { ok: true; payload: P } | { ok: false; reason
 /** One row of the review card. Values are raw; the UI formats them per `kind` in the owner's language. */
 export interface DraftChange {
   field: string;
-  kind: "text" | "longtext" | "category" | "categories" | "music_role" | "restaurant_subcategory" | "phone" | "email" | "price" | "date";
+  kind: "text" | "longtext" | "category" | "categories" | "music_role" | "restaurant_subcategory" | "phone" | "email" | "price" | "date" | "image";
   before: unknown;
   after: unknown;
   /** Text Ringo AI wrote (bio, descriptions) — labelled as AI-written on the card. */
