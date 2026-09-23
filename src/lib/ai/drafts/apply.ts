@@ -23,7 +23,27 @@ export type ApplyResponse =
   | { ok: true; draft: DraftView; alreadyApplied: boolean }
   | { ok: false; code: ApplyFailure | "not_found" | "already_applied" | "in_progress" | "revision_mismatch" | "discarded" | "expired" | "claim_failed"; draft: DraftView | null };
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+// Order-independent for object keys (a payload re-built by validation can
+// legitimately enumerate keys in a different order than the one stored in
+// the draft's JSONB column), but still order-SENSITIVE for arrays (e.g.
+// `categories`, where element order is a real, meaningful difference).
+export function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a === null || a === undefined || b === null || b === undefined) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => same(v, b[i]));
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    const aKeys = Object.keys(a as Record<string, unknown>);
+    const bKeys = Object.keys(b as Record<string, unknown>);
+    if (aKeys.length !== bKeys.length) return false;
+    return aKeys.every(
+      (k) => Object.prototype.hasOwnProperty.call(b, k) && same((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])
+    );
+  }
+  return false;
+}
 
 export async function applyDraft(workspace: AiWorkspace, draftId: string, revision: number): Promise<ApplyResponse> {
   const db = createClient();

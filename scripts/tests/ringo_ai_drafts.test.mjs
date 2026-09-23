@@ -363,6 +363,46 @@ res = await applyMod.applyDraft(WS, DRAFT_ID, 1);
 factsMod.loadDraftFacts = async () => factsNow;
 check("apply: can't read facts → fail closed (facts_unavailable), nothing written", !res.ok && res.code === "facts_unavailable");
 
+// ------------------------------------------------------------------ same(): order-independent value equality
+// Regression for a real production false-positive: the draft's STORED payload (as it comes back out
+// of the ai_drafts.payload JSONB column) can legitimately enumerate its keys in a different order
+// than a fresh re-validation call produces. Only VALUES should decide staleness, never key order —
+// but array element order (e.g. `categories`) is a real, meaningful difference and must still count.
+check("same(): identical values, different key order → equal", applyMod.same({ a: 1, b: 2, c: null }, { c: null, b: 2, a: 1 }));
+check("same(): identical values, different key order, nested → equal", applyMod.same({ x: { p: 1, q: 2 }, y: [1, 2] }, { y: [1, 2], x: { q: 2, p: 1 } }));
+check("same(): a genuinely different value → not equal", !applyMod.same({ a: 1 }, { a: 2 }));
+check("same(): a missing key → not equal", !applyMod.same({ a: 1, b: 2 }, { a: 1 }));
+check("same(): null vs a real value → not equal", !applyMod.same({ a: null }, { a: "x" }));
+check("same(): array order still matters (e.g. categories)", !applyMod.same({ categories: ["a", "b"] }, { categories: ["b", "a"] }));
+check("same(): identical array order → equal", applyMod.same({ categories: ["a", "b"] }, { categories: ["a", "b"] }));
+
+// ------------------------------------------------------------------ regression: profile.update Confirm & Apply must not false-positive stale
+// Reproduces the real production incident end-to-end through applyDraft(): an untouched draft whose
+// stored payload happens to enumerate keys in a different order than validateProfileDraft() would
+// produce must still apply successfully — and a page that genuinely changed must still be rejected.
+const reorderKeys = (obj) => Object.fromEntries(Object.keys(obj).sort().reverse().map((k) => [k, obj[k]]));
+const payloadPReordered = reorderKeys(payloadP);
+check(
+  "regression setup: the reordered payload really has a different key order (same values)",
+  JSON.stringify(Object.keys(payloadPReordered)) !== JSON.stringify(Object.keys(payloadP)) && JSON.stringify(payloadPReordered) !== JSON.stringify(payloadP)
+);
+
+const rpcCreateClient = serverMod.createClient;
+
+serverMod.createClient = () => fakeDb((st) => (st.op === "rpc" && st.name === "ai_apply_profile_update" ? { data: "updated", error: null } : { data: null, error: { message: "unexpected call" } }));
+resetApply({ draft_type: "profile.update", payload: payloadPReordered, base });
+storedDraft.draft_type = "profile.update";
+res = await applyMod.applyDraft(WS, DRAFT_ID, 1);
+check("regression: untouched profile draft, reordered stored payload → applies successfully, not stale", res.ok === true && finished[0]?.status === "applied", JSON.stringify(res));
+
+serverMod.createClient = () => fakeDb((st) => (st.op === "rpc" && st.name === "ai_apply_profile_update" ? { data: "stale", error: null } : { data: null, error: { message: "unexpected call" } }));
+resetApply({ draft_type: "profile.update", payload: payloadPReordered, base });
+storedDraft.draft_type = "profile.update";
+res = await applyMod.applyDraft(WS, DRAFT_ID, 1);
+check("regression: a genuine page change (RPC-level stale) is still rejected — protection not weakened", !res.ok && res.code === "stale" && finished[0]?.status === "stale");
+
+serverMod.createClient = rpcCreateClient;
+
 // ------------------------------------------------------------------ chat can never apply a draft
 const usageMod = load("lib/ai/usage.ts");
 const convMod = load("lib/ai/conversations.ts");
