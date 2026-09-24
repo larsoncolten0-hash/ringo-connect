@@ -215,44 +215,25 @@ export function resolveCustomerAction(input: CustomerActionInput): ResolvedCusto
   // 4. Capability routes — only for an explicit creator choice, so an
   //    unconfigured (NULL/NULL) item never gains a new destination.
   if (input.cta?.explicit) {
-    let missing: UnavailableReason | null = null;
     switch (action) {
       case "BOOKING":
-        if (caps.bookingsEnabled) return done("booking_page", "native");
-        missing = "capability_disabled";
-        break;
+        return caps.bookingsEnabled ? done("booking_page", "native") : blocked("capability_disabled");
       case "ORDER":
-        if (caps.restaurantOrdering) return done("restaurant_order_page", "native");
-        missing = "capability_disabled";
-        break;
+        return caps.restaurantOrdering ? done("restaurant_order_page", "native") : blocked("capability_disabled");
       case "QUOTE":
-        if (caps.quotesEnabled) return done("quote_form", "native");
-        missing = "capability_disabled";
-        break;
+        return caps.quotesEnabled ? done("quote_form", "native") : blocked("capability_disabled");
       case "CHAT":
-        if (caps.chatEnabled) return done("chat", "native");
-        missing = "capability_disabled";
-        break;
+        return caps.chatEnabled ? done("chat", "native") : blocked("capability_disabled");
       case "CONTACT":
-        missing = "capability_disabled";
-        break;
+        return caps.hasWhatsapp ? done("whatsapp", "native") : blocked("capability_disabled");
       case "PURCHASE":
-        if (caps.onlineCheckoutEnabled) {
-          if (profile.isDemo) return blocked("demo_profile");
-          if ((profile.currency || "USD") !== "XAF") return blocked("currency_unsupported");
-          return done("product_checkout", "native");
-        }
-        missing = "capability_disabled";
-        break;
+        if (!caps.onlineCheckoutEnabled) return blocked("capability_disabled");
+        if (profile.isDemo) return blocked("demo_profile");
+        if ((profile.currency || "USD") !== "XAF") return blocked("currency_unsupported");
+        return done("product_checkout", "native");
       default:
-        break; // TICKET (non-event), REGISTER, EXTERNAL, INFORMATION: no native route
+        break; // TICKET (non-event), REGISTER, EXTERNAL, INFORMATION: no route
     }
-    // No native workflow is on for this action, but the profile's own WhatsApp
-    // is the existing way to act on an offering (the same chat the item page
-    // already offers), so an explicitly chosen action button opens it rather
-    // than silently rendering nothing. Informational / external buttons don't.
-    if (caps.hasWhatsapp && action !== "INFORMATION" && action !== "EXTERNAL") return done("whatsapp", "native");
-    if (missing) return blocked(missing);
   }
 
   return done("none", "none");

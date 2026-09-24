@@ -22,7 +22,6 @@ export default function ProductRow({
   category,
   isMusic,
   bookingEnabled,
-  hasWhatsapp,
   onChange,
   onDelete,
   startExpanded,
@@ -38,7 +37,6 @@ export default function ProductRow({
   category?: string | null;
   isMusic?: boolean;
   bookingEnabled?: boolean;
-  hasWhatsapp?: boolean;
   onChange: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
@@ -189,7 +187,6 @@ export default function ProductRow({
                   isMusic={!!isMusic}
                   hasLandingUrl={!!product.landing_url?.trim()}
                   bookingEnabled={!!bookingEnabled}
-                  hasWhatsapp={!!hasWhatsapp}
                   preset={product.cta_preset}
                   label={product.cta_label}
                   onChange={onChange}

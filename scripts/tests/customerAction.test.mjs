@@ -123,34 +123,9 @@ for (const [action, flag, dest, pay] of routes) {
   check(`${action}: NOT explicit → no new capability destination`, nullish.destination === "none" && nullish.available === true && nullish.reason === null);
 }
 for (const action of ["ticket", "register", "external", "info"]) {
-  r = run({ cta: { action, explicit: true } }, { bookingsEnabled: true, restaurantOrdering: true, quotesEnabled: true, chatEnabled: true, onlineCheckoutEnabled: true });
+  r = run({ cta: { action, explicit: true } }, { bookingsEnabled: true, restaurantOrdering: true, quotesEnabled: true, chatEnabled: true, hasWhatsapp: true, onlineCheckoutEnabled: true });
   check(`${action}: no capability route exists → none`, r.destination === "none" && r.available === true);
 }
-
-// WhatsApp fallback: an explicit action button with no link and no native workflow opens the
-// profile's own WhatsApp (the same chat the item page already offers) instead of rendering nothing.
-const wa = (action, cap = {}, over = {}, profile = {}) => run({ cta: { action, explicit: true }, ...over }, { hasWhatsapp: true, ...cap }, profile);
-for (const action of ["purchase", "order", "booking", "viewing", "ticket", "quote", "register", "chat", "contact"]) {
-  r = wa(action);
-  check(`${action}: explicit + WhatsApp, nothing native on → whatsapp`, r.destination === "whatsapp" && r.destinationOrigin === "native" && r.paymentMode === "NONE" && r.available === true && r.reason === null, JSON.stringify(r));
-}
-for (const action of ["info", "external"]) check(`${action}: never falls back to WhatsApp`, wa(action).destination === "none");
-check("WhatsApp fallback needs an explicit choice (NULL/NULL unchanged)", run({ cta: { action: "purchase", explicit: false } }, { hasWhatsapp: true }).destination === "none");
-check("no WhatsApp number → still no destination (purchase)", run({ cta: { action: "purchase", explicit: true } }, {}).destination === "none");
-check("WhatsApp fallback: the item's own link still wins", wa("purchase", {}, { hasLandingUrl: true }).destination === "external_link");
-check("WhatsApp fallback: music storefront still wins", wa("purchase", {}, {}, { isMusic: true }).destination === "music_storefront");
-check("WhatsApp fallback: event ticketing still wins", wa("ticket", { hasTicketing: true }, { source: "event" }).destination === "ticket_flow");
-for (const status of ["sold_out", "unavailable", "closed", "coming_soon"]) {
-  const x = wa("purchase", {}, { status });
-  check(`WhatsApp fallback: ${status} still wins`, x.available === false && x.destination === "none" && x.paymentMode === "NONE" && x.reason === status);
-}
-check("native booking beats WhatsApp", wa("booking", { bookingsEnabled: true }).destination === "booking_page");
-check("native order page beats WhatsApp", wa("order", { restaurantOrdering: true }).destination === "restaurant_order_page");
-check("native quote form beats WhatsApp", wa("quote", { quotesEnabled: true }).destination === "quote_form");
-check("native chat beats WhatsApp", wa("chat", { chatEnabled: true }).destination === "chat");
-check("product checkout beats WhatsApp when eligible", wa("purchase", { onlineCheckoutEnabled: true }, {}, { currency: "XAF" }).destination === "product_checkout");
-check("checkout on + demo profile → blocked, not WhatsApp", wa("purchase", { onlineCheckoutEnabled: true }, {}, { isDemo: true }).reason === "demo_profile");
-check("checkout on + non-XAF → blocked, not WhatsApp", wa("purchase", { onlineCheckoutEnabled: true }, {}, { currency: "USD" }).reason === "currency_unsupported");
 
 // product checkout gates
 const pc = (cap, profile) => run({ cta: { action: "purchase", explicit: true } }, cap, profile);
@@ -258,21 +233,6 @@ const legacy = (i) => {
   check("parity: NULL/NULL never gains a new destination for any category", nullNull);
 }
 
-// ---------------------------------------------------------------- WhatsApp fallback through the CTA engine
-{
-  const eng = (over) => cta.resolveProductCta({ category: "business_ecommerce", isMusic: false, hasLandingUrl: false, bookingEnabled: false, hasWhatsapp: true, ctaPreset: "buy_now", ctaLabel: null, ...over });
-  check("Business & E-commerce: Buy Now, no link, WhatsApp set → whatsapp destination", eng({}).destination === "whatsapp");
-  check("custom label behaves the same", eng({ ctaPreset: null, ctaLabel: "Get Yours" }).destination === "whatsapp");
-  check("no WhatsApp number → none", eng({ hasWhatsapp: false }).destination === "none");
-  check("hasWhatsapp omitted (old callers) → none", eng({ hasWhatsapp: undefined }).destination === "none");
-  check("NULL/NULL never gains WhatsApp", eng({ ctaPreset: null, ctaLabel: null }).destination === "none");
-  check("link still wins", eng({ hasLandingUrl: true }).destination === "external");
-  check("music unchanged", eng({ isMusic: true, category: "music_entertainment" }).destination === "music_storefront");
-  check("informational preset never gets WhatsApp", eng({ category: "other", ctaPreset: "learn_more" }).destination === "none");
-  check("booking preset with bookings on still → booking page", eng({ category: "beauty_wellness", ctaPreset: "book_now", bookingEnabled: true }).destination === "booking_page");
-  check("booking preset with bookings off + WhatsApp → whatsapp", eng({ category: "beauty_wellness", ctaPreset: "book_now", bookingEnabled: false }).destination === "whatsapp");
-}
-
 // ---------------------------------------------------------------- music & ticket unchanged through the CTA engine
 for (const category of ["music_entertainment", "events_experiences", null]) {
   const noLink = cta.resolveProductCta({ category, isMusic: true, hasLandingUrl: false, bookingEnabled: true, ctaPreset: "book_now", ctaLabel: "Purchase Track" });
@@ -280,9 +240,58 @@ for (const category of ["music_entertainment", "events_experiences", null]) {
   const link = cta.resolveProductCta({ category, isMusic: true, hasLandingUrl: true, bookingEnabled: true, ctaPreset: null, ctaLabel: null });
   check(`music profile (${category}): link still wins`, link.destination === "external");
 }
-check("engine never returns a destination the product page doesn't render", ["external", "music_storefront", "booking_page", "whatsapp", "none"].includes(cta.resolveProductCta({ category: "restaurant_food", isMusic: false, hasLandingUrl: false, bookingEnabled: true, ctaPreset: "order_now", ctaLabel: null }).destination));
+check("engine never returns a destination the product page doesn't render", ["external", "music_storefront", "booking_page", "none"].includes(cta.resolveProductCta({ category: "restaurant_food", isMusic: false, hasLandingUrl: false, bookingEnabled: true, ctaPreset: "order_now", ctaLabel: null }).destination));
 r = cta.resolveProductCta({ category: "restaurant_food", isMusic: false, hasLandingUrl: false, bookingEnabled: true, ctaPreset: "order_now", ctaLabel: null });
 check("ORDER preset on a product (no link) renders nothing in Phase 2", r.destination === "none");
+
+// ---------------------------------------------------------------- NO WhatsApp fallback (correction)
+// A CTA whose destination resolves to "none" must NOT be redirected to WhatsApp (or anywhere else).
+// The only "whatsapp" destination is the resolver's own CONTACT action route.
+{
+  const all = ["purchase", "order", "booking", "viewing", "ticket", "quote", "register", "chat", "info", "external"];
+  for (const action of all) {
+    const x = run({ cta: { action, explicit: true } }, { hasWhatsapp: true });
+    check(`resolver: ${action} + WhatsApp number set, nothing native on → none, not whatsapp`, x.destination === "none", JSON.stringify(x));
+  }
+  let bad = 0, n = 0;
+  for (const action of [...Object.keys(expectAction), "zzz"]) for (const explicit of [false, true]) for (const hasLandingUrl of [false, true]) for (const isMusic of [false, true])
+    for (const source of ["product", "menu_item", "track", "release", "event"]) for (const status of ["available", "sold_out"])
+      for (const b of [false, true]) for (const o of [false, true]) for (const q of [false, true]) for (const c of [false, true]) for (const oc of [false, true]) {
+        const x = run({ cta: { action, explicit }, hasLandingUrl, source, status }, { hasWhatsapp: true, bookingsEnabled: b, restaurantOrdering: o, quotesEnabled: q, chatEnabled: c, onlineCheckoutEnabled: oc, hasTicketing: true }, { isMusic });
+        n++;
+        if (x.destination === "whatsapp" && !(action === "contact" && explicit)) bad++;
+      }
+  check(`resolver: WhatsApp destination only ever for an explicit CONTACT action (${n} combos)`, bad === 0, String(bad));
+}
+{
+  // Through the CTA engine (what the product page and editor read).
+  const eng = (over) => cta.resolveProductCta({ category: "business_ecommerce", isMusic: false, hasLandingUrl: false, bookingEnabled: false, ctaPreset: "buy_now", ctaLabel: null, ...over });
+  check("engine: Buy Now, no link, WhatsApp number present → none", eng({ hasWhatsapp: true }).destination === "none");
+  check("engine: custom label, no link, WhatsApp present → none", eng({ ctaPreset: null, ctaLabel: "Get Yours", hasWhatsapp: true }).destination === "none");
+  check("engine: booking preset, bookings off, WhatsApp present → none", eng({ category: "beauty_wellness", ctaPreset: "book_now", hasWhatsapp: true }).destination === "none");
+  check("engine: order / quote / ticket / register presets, WhatsApp present → none", ["order_now", "request_quote", "get_tickets", "enroll_now"].every((ctaPreset) => eng({ ctaPreset, hasWhatsapp: true }).destination === "none"));
+  // Unchanged behavior, even with a WhatsApp number on the profile:
+  check("unchanged: item link still wins", eng({ hasLandingUrl: true, hasWhatsapp: true }).destination === "external");
+  check("unchanged: music storefront still wins", eng({ isMusic: true, category: "music_entertainment", hasWhatsapp: true }).destination === "music_storefront");
+  check("unchanged: booking page, bookings on", eng({ category: "beauty_wellness", ctaPreset: "book_now", bookingEnabled: true, hasWhatsapp: true }).destination === "booking_page");
+  check("unchanged: real-estate viewing, bookings on → booking page", eng({ category: "real_estate", ctaPreset: "request_viewing", bookingEnabled: true, hasWhatsapp: true }).destination === "booking_page");
+  check("unchanged: real-estate viewing, bookings off → none", eng({ category: "real_estate", ctaPreset: "request_viewing", bookingEnabled: false, hasWhatsapp: true }).destination === "none");
+  check("unchanged: NULL/NULL with a WhatsApp number → none and no label", (() => { const o = eng({ ctaPreset: null, ctaLabel: null, hasWhatsapp: true }); return o.destination === "none" && o.label === null; })());
+  // Exhaustive: the engine can only ever return the four destinations that existed before Phase 1.
+  let outside = 0, combos = 0;
+  for (const category of [null, ...CATEGORIES.map((c) => c.id)]) for (const hasLandingUrl of [false, true]) for (const isMusic of [false, true]) for (const bookingEnabled of [false, true]) for (const hasWhatsapp of [false, true])
+    for (const ctaPreset of [null, ...Object.keys(cta.CTA_PRESETS)]) for (const ctaLabel of [null, "Custom"]) {
+      const d = cta.resolveProductCta({ category, hasLandingUrl, isMusic, bookingEnabled, hasWhatsapp, ctaPreset, ctaLabel }).destination;
+      combos++;
+      if (!["external", "music_storefront", "booking_page", "none"].includes(d)) outside++;
+    }
+  check(`engine: destination is always external / music_storefront / booking_page / none (${combos} combos)`, outside === 0, String(outside));
+  // Static guards: the public page and the CTA engine contain no WhatsApp-as-CTA path.
+  const pdv = fs.readFileSync(path.join(REPO, "src/components/catalog/ProductDetailView.tsx"), "utf8");
+  const ctaSrcNow = fs.readFileSync(path.join(REPO, "src/lib/cta.ts"), "utf8");
+  check("ProductDetailView renders no WhatsApp-as-CTA branch", !/destination === "whatsapp"|primaryIsWhatsapp|hasWhatsapp/.test(pdv));
+  check("cta.ts has no WhatsApp input or destination", !/hasWhatsapp|"whatsapp"/.test(ctaSrcNow));
+}
 
 const failed = results.filter((x) => !x.pass);
 console.log(`${results.length - failed.length}/${results.length} passed`);

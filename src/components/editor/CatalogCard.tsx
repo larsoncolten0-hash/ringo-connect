@@ -185,7 +185,6 @@ export default function CatalogCard({
             category={draft.category}
             isMusic={profileHasCategory(draft, "music_entertainment")}
             bookingEnabled={!!draft.bookings_enabled}
-            hasWhatsapp={!!String(draft.whatsapp_number || "").replace(/[^0-9]/g, "")}
             startExpanded={product.id === justAddedId}
             onChange={(patch) => updateProduct(product.id, patch)}
             onDelete={() => deleteProduct(product.id)}

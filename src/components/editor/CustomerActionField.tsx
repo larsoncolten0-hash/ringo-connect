@@ -21,7 +21,6 @@ export default function CustomerActionField({
   isMusic,
   hasLandingUrl,
   bookingEnabled,
-  hasWhatsapp,
   preset,
   label,
   onChange,
@@ -30,7 +29,6 @@ export default function CustomerActionField({
   isMusic: boolean;
   hasLandingUrl: boolean;
   bookingEnabled: boolean;
-  hasWhatsapp: boolean;
   preset: string | null | undefined;
   label: string | null | undefined;
   onChange: (patch: { cta_preset: string | null; cta_label: string | null }) => void;
@@ -50,7 +48,6 @@ export default function CustomerActionField({
     isMusic,
     hasLandingUrl,
     bookingEnabled,
-    hasWhatsapp,
     ctaPreset: preset,
     ctaLabel: label,
   });
