@@ -1,3 +1,4 @@
+import { getClientIp } from "@/lib/customer/codes";
 import { getCustomerFromCookie, isSameOrigin } from "@/lib/customer/session";
 import { createProductOrder } from "@/lib/productCheckout/createOrder";
 import { buildCheckoutDeps, internalError, respond } from "@/lib/productCheckout/http";
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
       customerId = session?.customer.id ?? null;
     }
 
-    return respond(await createProductOrder(buildCheckoutDeps(), body, { customerId }), 201);
+    return respond(await createProductOrder(buildCheckoutDeps(), body, { customerId, clientKey: getClientIp(request.headers) }), 201);
   } catch (err) {
     return internalError(err);
   }

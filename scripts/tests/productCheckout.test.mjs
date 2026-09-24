@@ -140,6 +140,18 @@ function makeWorld(opts = {}) {
       Object.assign(p, patch);
       return true;
     },
+    async listReconcilableOrderIds({ sinceIso, limit }) {
+      const since = new Date(sinceIso).getTime();
+      const live = (id) => ["awaiting_payment", "expired", "cancelled"].includes(db.orders.get(id)?.status);
+      const newest = (a, b) => new Date(b.created_at) - new Date(a.created_at);
+      const g = (pred) => db.payments.filter(pred).sort(newest).map((p) => p.target_id);
+      const groups = [
+        g((p) => p.status === "succeeded" && new Date(p.created_at).getTime() >= since),
+        g((p) => (p.status === "initiated" || p.status === "pending") && p.provider_transaction_id),
+        g((p) => (p.status === "expired" || p.status === "cancelled") && p.provider_transaction_id && new Date(p.created_at).getTime() >= since),
+      ];
+      return [...new Set(groups.flat())].filter(live).slice(0, limit);
+    },
     async getEarningByOrder(orderId) { return copy(db.earnings.find((e) => e.order_id === orderId) || null); },
     async insertEarning(row) {
       if (db.earnings.some((e) => e.order_id === row.order_id || e.payment_id === row.payment_id)) return "exists";
@@ -546,8 +558,8 @@ function clock0(w) { return w.clock.t; }
   const forbidden = /music_orders|music_order_items|music_sale_earnings|music_payouts|payment_transactions|applySuccessfulPayment|musicOrderPayment|checkAndConfirmFapshiOrder|request_music_payout|orders\/\[id\]|\/api\/music|\/api\/billing/;
   check("isolation: product checkout never references music/billing/payment_transactions code or tables", all.every(([, s]) => !forbidden.test(s)), all.filter(([, s]) => forbidden.test(s)).map(([f]) => f).join());
   const imports = all.flatMap(([f, s]) => [...s.matchAll(/from\s+"([^"]+)"/g)].map((m) => [f, m[1]]));
-  check("isolation: only the Fapshi adapter imports fapshi.ts; only the server wiring files import next/supabase", imports.filter(([, m]) => /fapshi$/.test(m)).every(([f]) => f === "fapshiProvider.ts") && imports.filter(([, m]) => /^next|supabase/.test(m)).every(([f]) => ["http.ts", "availability.ts"].includes(f)));
-  check("isolation: core logic files import nothing outside the module", all.filter(([f]) => !["supabaseStore.ts", "fapshiProvider.ts", "http.ts", "availability.ts"].includes(f)).every(([f]) => imports.filter(([g]) => g === f).every(([, m]) => m.startsWith("./"))));
+  check("isolation: only the Fapshi adapter imports fapshi.ts; only the server wiring files import next/supabase", imports.filter(([, m]) => /fapshi$/.test(m)).every(([f]) => f === "fapshiProvider.ts") && imports.filter(([, m]) => /^next|supabase/.test(m)).every(([f]) => ["http.ts", "availability.ts", "responses.ts"].includes(f)));
+  check("isolation: core logic files import nothing outside the module", all.filter(([f]) => !["supabaseStore.ts", "fapshiProvider.ts", "http.ts", "availability.ts", "commerceRateLimiter.ts", "responses.ts"].includes(f)).every(([f]) => imports.filter(([g]) => g === f).every(([, m]) => m.startsWith("./"))));
   check("no payout / withdrawal / hold / commission-percentage code", all.every(([, s]) => !/payout|withdraw|available_at|hold_days/i.test(s)) && all.every(([, s]) => !/commissionRate\s*=\s*0?\.\d|rate\s*=\s*0?\.\d/.test(s)));
   check("no Stripe in the generic lane (Fapshi only)", all.every(([, s]) => !/stripe/i.test(s.replace(/"stripe"/g, ""))));
 
@@ -631,6 +643,415 @@ function clock0(w) { return w.clock.t; }
   }
   const httpSrc = fs.readFileSync(path.join(REPO, "src/lib/productCheckout/http.ts"), "utf8");
   check("wiring: the real server deps use one shared poll gate", /pollGate:\s*providerPollGate/.test(httpSrc) && /createProviderPollGate\(\)/.test(httpSrc));
+}
+
+// ================================================================ 7. RECONCILIATION SWEEP + ABUSE LIMITS
+{
+  const { reconcileProductPayments } = L("reconcile.ts");
+  const { createProviderPollGate } = L("pollGate.ts");
+  const { withinLimit } = L("rateLimit.ts");
+  const nofn = () => {};
+  const phone9 = (i) => `6${String(70000000 + i)}`;
+  // many independent orders in one world (unlimited stock, distinct contact/payer numbers)
+  async function payFor(w, i, over = {}) {
+    const o = await newOrder(w, { customer_phone: phone9(i), quantity: 1, ...over });
+    const p = await initiateProductPayment(w.deps, o.id, goodPay({ phone: phone9(i) }));
+    if (!p.ok) throw new Error("setup pay failed: " + p.code);
+    const pay = w.db.payments.find((x) => x.target_id === o.id);
+    return { order: o, payment: pay, transId: pay.provider_transaction_id };
+  }
+  const unlimited = { product: { inventory_count: null } };
+
+  // ---- customer pays and closes the tab: the sweep finds and settles it
+  {
+    const w = makeWorld(); const p = await paying(w);
+    w.provider.statuses.set(p.transId, { status: "SUCCESSFUL", amount: 12000 });
+    const before = w.provider.statusCalls;
+    const sum = await reconcileProductPayments(w.deps);
+    check("reconcile: a payment that succeeded while nobody watched is settled", w.db.orders.get(p.order.id).status === "paid" && w.db.earnings.length === 1 && sum.succeeded === 1 && sum.examined === 1 && w.provider.statusCalls === before + 1);
+    check("reconcile: the earning uses the unchanged commission calculation (12000 x 5% = 600 / 11400)", w.db.earnings[0].platform_fee === 600 && w.db.earnings[0].net_amount === 11400 && w.db.earnings[0].commission_rate === 0.05);
+    for (let i = 0; i < 3; i++) await reconcileProductPayments(w.deps);
+    check("reconcile: running it again is idempotent (one earning, still paid, no more provider calls)", w.db.earnings.length === 1 && w.db.orders.get(p.order.id).status === "paid" && w.provider.statusCalls === before + 1);
+  }
+  // ---- concurrent with the customer's own polling and a second sweep
+  {
+    let hook = 0; const w = makeWorld({ onOrderPaid: async () => { hook++; } }); const p = await paying(w);
+    w.provider.statuses.set(p.transId, { status: "SUCCESSFUL", amount: 12000 });
+    await Promise.all([reconcileProductPayments(w.deps), checkProductPayment(w.deps, p.order.id), reconcileProductPayments(w.deps), checkProductPayment(w.deps, p.order.id)]);
+    check("reconcile: concurrent sweeps + customer polls never double-settle (one earning, one paid transition, hook once)", w.db.earnings.length === 1 && w.db.orders.get(p.order.id).status === "paid" && hook === 1, `${w.db.earnings.length}/${hook}`);
+  }
+  // ---- late success
+  {
+    const w = makeWorld(); const p = await paying(w); w.minutes(16); // attempt window over, order reservation (30 min) still open
+    await reconcileProductPayments(w.deps);
+    check("reconcile: an attempt past its window (provider still CREATED) is marked expired, nothing else changes", w.db.payments[0].status === "expired" && w.db.orders.get(p.order.id).status === "awaiting_payment" && w.db.earnings.length === 0);
+    w.provider.statuses.set(p.transId, { status: "SUCCESSFUL", amount: 12000 });
+    const sum = await reconcileProductPayments(w.deps);
+    check("late success, reservation still held: the recently expired attempt is honoured -> paid, one earning", w.db.orders.get(p.order.id).status === "paid" && w.db.earnings.length === 1 && sum.succeeded === 1);
+  }
+  {
+    const w = makeWorld(); const p = await paying(w); w.minutes(40);
+    await reconcileProductPayments(w.deps);
+    const stockAfterRelease = w.db.products.get(U(11)).inventory_count;
+    check("reconcile: an unpaid order past its window is expired and its stock released exactly once", w.db.orders.get(p.order.id).status === "expired" && w.db.releases === 1 && stockAfterRelease === 20);
+    w.provider.statuses.set(p.transId, { status: "SUCCESSFUL", amount: 12000 });
+    const sum = await reconcileProductPayments(w.deps);
+    check("late success AFTER the stock was released -> payment_review, no earning, stock not re-reserved", w.db.orders.get(p.order.id).status === "payment_review" && w.db.earnings.length === 0 && sum.review === 1 && w.db.products.get(U(11)).inventory_count === 20);
+    const calls = w.provider.statusCalls; await reconcileProductPayments(w.deps); await reconcileProductPayments(w.deps);
+    check("payment_review orders are left alone by later sweeps (no provider calls, no earning)", w.provider.statusCalls === calls && w.db.earnings.length === 0);
+  }
+  // ---- amount verification preserved
+  {
+    const w = makeWorld(); const p = await paying(w);
+    w.provider.statuses.set(p.transId, { status: "SUCCESSFUL", amount: 100 });
+    const sum = await reconcileProductPayments(w.deps);
+    check("reconcile keeps the provider amount check: a mismatched amount -> payment_review, no earning", w.db.orders.get(p.order.id).status === "payment_review" && w.db.earnings.length === 0 && sum.review === 1);
+  }
+  // ---- failed / expired / pending / provider trouble
+  {
+    const w = makeWorld(unlimited); const a = await payFor(w, 1), b = await payFor(w, 2), c = await payFor(w, 3);
+    w.provider.statuses.set(a.transId, { status: "FAILED", amount: null, reason: "insufficient funds" });
+    w.provider.statuses.set(b.transId, { status: "EXPIRED", amount: null });
+    const sum = await reconcileProductPayments(w.deps);
+    const st = (x) => w.db.payments.find((p) => p.id === x.payment.id).status;
+    check("reconcile: FAILED / EXPIRED / still-open are recorded correctly, no earnings", st(a) === "failed" && st(b) === "expired" && st(c) === "pending" && w.db.earnings.length === 0, JSON.stringify(sum));
+  }
+  {
+    const w = makeWorld(); const p = await paying(w); w.provider.failStatus = true;
+    const snapshot = JSON.stringify([w.db.payments, [...w.db.orders.values()], w.db.earnings]);
+    const sum = await reconcileProductPayments(w.deps);
+    check("reconcile: provider down / 429 -> pending, nothing changes, no earning, no crash", JSON.stringify([w.db.payments, [...w.db.orders.values()], w.db.earnings]) === snapshot && sum.pending === 1 && sum.errors === 0);
+  }
+  {
+    const w = makeWorld(); const p = await paying(w);
+    w.db.payments[0].status = "succeeded"; w.db.payments[0].confirmed_at = new Date(w.clock.t).toISOString(); // crashed between "payment succeeded" and "order paid"
+    const sum = await reconcileProductPayments(w.deps);
+    check("reconcile heals a crash between the payment claim and order settlement (order paid, one earning, no provider call)", w.db.orders.get(p.order.id).status === "paid" && w.db.earnings.length === 1 && w.provider.statusCalls === 0 && sum.succeeded === 1);
+  }
+  // ---- selection: only orders that can still change, within the lookback
+  {
+    const w = makeWorld(unlimited); const paid = await payFor(w, 1), open = await payFor(w, 2), old = await payFor(w, 3);
+    w.provider.statuses.set(paid.transId, { status: "SUCCESSFUL", amount: 6000 });
+    await checkProductPayment(w.deps, paid.order.id); // settled by the customer
+    old.payment.status = "expired"; old.payment.created_at = new Date(w.clock.t - 25 * 3600000).toISOString(); // older than the 24h lookback
+    const ids = await w.deps.store.listReconcilableOrderIds({ sinceIso: new Date(w.clock.t - C.LATE_CONFIRMATION_LOOKBACK_HOURS * 3600000).toISOString(), limit: 50 });
+    check("selection: skips paid orders and payments older than the lookback; includes the open attempt", ids.length === 1 && ids[0] === open.order.id, JSON.stringify(ids));
+  }
+  // ---- bounded work
+  {
+    const w = makeWorld(unlimited); for (let i = 1; i <= 30; i++) await payFor(w, i);
+    w.provider.statusCalls = 0;
+    const sum = await reconcileProductPayments(w.deps);
+    check("bounded: a default run examines at most RECONCILE_MAX_ORDERS_PER_RUN orders", sum.examined === C.RECONCILE_MAX_ORDERS_PER_RUN && w.provider.statusCalls === C.RECONCILE_MAX_ORDERS_PER_RUN, `${sum.examined}/${w.provider.statusCalls}`);
+    const w2 = makeWorld(unlimited); for (let i = 1; i <= 12; i++) await payFor(w2, i);
+    const small = await reconcileProductPayments(w2.deps, { maxOrders: 5 });
+    check("bounded: maxOrders is honoured", small.examined === 5);
+    let t = 0; const slow = makeWorld(unlimited); for (let i = 1; i <= 12; i++) await payFor(slow, i);
+    const orig = slow.provider.getStatus.bind(slow.provider); slow.provider.getStatus = async (id) => { t += 6000; return orig(id); };
+    const limited = await reconcileProductPayments(slow.deps, { concurrency: 2, timeBudgetMs: 10000, clockMs: () => t });
+    check("bounded: the time budget stops the run early and says so", limited.budget_exhausted === true && limited.examined < 12 && limited.examined >= 2, JSON.stringify(limited));
+    const empty = await reconcileProductPayments(makeWorld().deps);
+    check("bounded: nothing to do is a cheap no-op", empty.examined === 0 && empty.budget_exhausted === false);
+  }
+  // ---- provider rate limit is respected by the sweep
+  {
+    const w = makeWorld(); w.deps.pollGate = createProviderPollGate(); const p = await paying(w);
+    for (let i = 0; i < 5; i++) await reconcileProductPayments(w.deps);
+    check("provider limit: five back-to-back sweeps ask Fapshi about the transaction once", w.provider.statusCalls === 1, String(w.provider.statusCalls));
+    w.clock.t += 12000; await reconcileProductPayments(w.deps);
+    check("provider limit: it asks again once the gap has passed", w.provider.statusCalls === 2);
+    // sweep + customer polling together stay within 6/min
+    const w2 = makeWorld(); w2.deps.pollGate = createProviderPollGate(); await paying(w2); const stamps = []; const real = w2.provider.getStatus.bind(w2.provider);
+    w2.provider.getStatus = async (id) => { stamps.push(w2.clock.t); return real(id); };
+    for (let s = 0; s < 300; s++) { w2.clock.t += 1000; await Promise.all([reconcileProductPayments(w2.deps), checkProductPayment(w2.deps, U(1001))]); }
+    const worst = Math.max(...stamps.map((x) => stamps.filter((u) => u >= x && u < x + 60000).length));
+    check("provider limit: sweeps and customer polling combined never exceed 6 requests in any 60s window", worst <= 6 && stamps.length > 0, `worst=${worst}`);
+  }
+
+  // ---- abuse limits (in-memory limiter mirroring commerce_rate_limit_hit: count, allow, record; rejections are not recorded)
+  const memLimiter = (w) => { const ev = new Map(); return { calls: [], async hit(kind, subject) {
+    this.calls.push([kind, subject]); const rule = C.RATE_RULES[kind]; const k = `${kind}:${subject}`; const now = w.clock.t;
+    const live = (ev.get(k) || []).filter((t) => now - t < rule.windowSeconds * 1000);
+    if (live.length >= rule.max) { ev.set(k, live); return false; }
+    live.push(now); ev.set(k, live); return true; } }; };
+  check("limits: rules are sane (per-phone stricter than per-IP; day window >= 10 min window)", C.RATE_RULES.pay_phone.max < C.RATE_RULES.pay_ip.max && C.RATE_RULES.pay_phone_day.windowSeconds >= C.RATE_RULES.pay_phone.windowSeconds && Object.values(C.RATE_RULES).every((r) => r.max >= 1 && r.windowSeconds >= 1 && r.windowSeconds <= 172800));
+  check("limits: rate_limited is a stable code (429)", HTTP_STATUS.rate_limited === 429 && codeOf({ ok: false, code: "rate_limited" }) === "rate_limited");
+  {
+    const w = makeWorld(unlimited); w.deps.limiter = memLimiter(w);
+    let last; for (let i = 1; i <= C.RATE_RULES.order_ip.max; i++) last = await createProductOrder(w.deps, goodOrder({ customer_phone: phone9(i), quantity: 1 }), { customerId: null, clientKey: "203.0.113.7" });
+    check("limits: orders up to the per-IP limit succeed", last.ok && w.db.orders.size === C.RATE_RULES.order_ip.max);
+    const stock = w.db.products.get(U(11)).inventory_count; const seq = w.db.seq;
+    const blocked = await createProductOrder(w.deps, goodOrder({ customer_phone: phone9(99), quantity: 1 }), { customerId: null, clientKey: "203.0.113.7" });
+    check("limits: the next order from the same client is refused with rate_limited — no order, no stock reserved", codeOf(blocked) === "rate_limited" && w.db.orders.size === C.RATE_RULES.order_ip.max && w.db.seq === seq && w.db.products.get(U(11)).inventory_count === stock);
+    const other = await createProductOrder(w.deps, goodOrder({ customer_phone: phone9(98), quantity: 1 }), { customerId: null, clientKey: "203.0.113.8" });
+    check("limits: a different client is unaffected", other.ok);
+    const noKey = await createProductOrder(w.deps, goodOrder({ customer_phone: phone9(97), quantity: 1 }), { customerId: null });
+    check("limits: no client key (address unavailable) means no IP limit is applied", noKey.ok);
+    w.clock.t += 601000;
+    check("limits: allowed again after the window passes", (await createProductOrder(w.deps, goodOrder({ customer_phone: phone9(96), quantity: 1 }), { customerId: null, clientKey: "203.0.113.7" })).ok);
+    const inelig = makeWorld({ settings: { commerceEnabled: false } }); inelig.deps.limiter = memLimiter(inelig);
+    await createProductOrder(inelig.deps, goodOrder(), { customerId: null, clientKey: "1.1.1.1" });
+    check("limits: a request refused for another reason (commerce off) does not use up the limit", inelig.deps.limiter.calls.length === 0);
+  }
+  {
+    // payer-number flood: one stranger's phone, many orders, many clients
+    const w = makeWorld(unlimited); w.deps.limiter = memLimiter(w);
+    const results = [];
+    for (let i = 1; i <= 5; i++) {
+      const o = await newOrder(w, { customer_phone: phone9(i), quantity: 1 });
+      results.push(codeOf(await initiateProductPayment(w.deps, o.id, goodPay({ phone: "677 00 00 00" }), { clientKey: `198.51.100.${i}` })));
+    }
+    check("limits: the same payer number can only be prompted RULES.pay_phone.max times per window, whatever the order or client", results.filter((r) => r === "OK").length === C.RATE_RULES.pay_phone.max && results.slice(C.RATE_RULES.pay_phone.max).every((r) => r === "rate_limited"), results.join());
+    check("limits: a refused prompt calls the provider zero extra times and writes no payment row", w.provider.calls.length === C.RATE_RULES.pay_phone.max && w.db.payments.length === C.RATE_RULES.pay_phone.max);
+    w.clock.t += 601000;
+    const o2 = await newOrder(w, { customer_phone: phone9(50), quantity: 1 });
+    check("limits: the same payer number is allowed again after the 10-minute window (while under the daily cap)", codeOf(await initiateProductPayment(w.deps, o2.id, goodPay({ phone: "677 00 00 00" }), { clientKey: "198.51.100.50" })) === "OK");
+    let day = 0; for (let n = 0; n < 12; n++) { w.clock.t += 601000; const o = await newOrder(w, { customer_phone: phone9(100 + n), quantity: 1 }); if (codeOf(await initiateProductPayment(w.deps, o.id, goodPay({ phone: "677 00 00 00" }), { clientKey: `192.0.2.${n}` })) === "OK") day++; }
+    check("limits: the daily cap applies even when every 10-minute window is clear", day + 4 === C.RATE_RULES.pay_phone_day.max, String(day));
+    const w3 = makeWorld(unlimited); w3.deps.limiter = memLimiter(w3); let okIp = 0;
+    for (let i = 1; i <= 14; i++) { const o = await newOrder(w3, { customer_phone: phone9(i), quantity: 1 }); if (codeOf(await initiateProductPayment(w3.deps, o.id, goodPay({ phone: phone9(200 + i) }), { clientKey: "203.0.113.99" })) === "OK") okIp++; }
+    check("limits: one client cannot prompt more than RULES.pay_ip.max numbers per window", okIp === C.RATE_RULES.pay_ip.max, String(okIp));
+  }
+  {
+    // the limiter itself failing must never block a customer, and must be logged without leaking
+    const w = makeWorld(); w.deps.limiter = { async hit() { throw new Error("connection string postgres://user:SECRETPW@host"); } };
+    const p = await paying(w);
+    const o = await createProductOrder(w.deps, goodOrder({ customer_phone: "677999999" }), { customerId: null, clientKey: "1.2.3.4" });
+    check("limits: a failing limiter fails OPEN (order and payment still work)", o.ok && !!p.transId);
+    const logs = w.db.logs.filter((l) => l.e === "product_rate_limit_error");
+    check("limits: the failure is logged, bounded, and the caller gets no error text", logs.length >= 1 && logs.every((l) => String(l.d.error).length <= 120));
+    check("limits: withinLimit with no limiter or no subject applies no limit", (await withinLimit({ log: nofn }, "pay_ip", "x")) === true && (await withinLimit({ limiter: { hit: async () => false }, log: nofn }, "pay_ip", null)) === true && (await withinLimit({ limiter: { hit: async () => false }, log: nofn }, "pay_ip", "x")) === false);
+  }
+  {
+    // existing behaviour with a limiter present but permissive: identical outcomes
+    const w = makeWorld(); w.deps.limiter = { async hit() { return true; } }; const p = await paying(w);
+    w.provider.statuses.set(p.transId, { status: "SUCCESSFUL", amount: 12000 });
+    const s = await checkProductPayment(w.deps, p.order.id);
+    check("regression: with a permissive limiter the normal pay -> success flow is unchanged", s.ok && s.data.status === "succeeded" && w.db.earnings.length === 1);
+  }
+  // mutation: a reconciler that skipped the amount check would be caught by the test above; here, without the gate a hammering sweep exceeds 6/min
+  {
+    const w = makeWorld(); await paying(w); const stamps = []; const real = w.provider.getStatus.bind(w.provider);
+    w.provider.getStatus = async (id) => { stamps.push(w.clock.t); return real(id); };
+    for (let s = 0; s < 60; s++) { w.clock.t += 1000; await reconcileProductPayments(w.deps); }
+    check("mutation: WITHOUT the poll gate a sweep every second exceeds 6/min (so the gate tests can fail)", stamps.length > 6);
+  }
+}
+
+// ================================================================ 8. SERVER WIRING: real store query, hashing, ROUTES, CRON
+{
+  const os = await import("os");
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pc-routes-"));
+  const write = (name, body) => { const p = path.join(tmp, name); fs.writeFileSync(p, body); return p; };
+  const SRC = path.join(REPO, "src");
+
+  // --- the REAL supabaseStore.listReconcilableOrderIds against a tiny in-memory PostgREST-style builder
+  {
+    const { createSupabaseStore } = L("supabaseStore.ts");
+    const mkAdmin = (tables) => ({
+      from(name) {
+        const q = { f: [], order: null, limit: null };
+        const b = {
+          select() { return b; },
+          eq(c, v) { q.f.push((r) => r[c] === v); return b; },
+          in(c, vs) { q.f.push((r) => vs.includes(r[c])); return b; },
+          not(c, op, v) { if (op === "is" && v === null) q.f.push((r) => r[c] != null); return b; },
+          gte(c, v) { q.f.push((r) => r[c] >= v); return b; },
+          order(c, o) { q.order = [c, o.ascending]; return b; },
+          limit(n) { q.limit = n; return b; },
+          then(res, rej) {
+            let rows = (tables[name] || []).filter((r) => q.f.every((f) => f(r)));
+            if (q.order) rows = [...rows].sort((x, y) => (x[q.order[0]] < y[q.order[0]] ? -1 : 1) * (q.order[1] ? 1 : -1));
+            if (q.limit != null) rows = rows.slice(0, q.limit);
+            return Promise.resolve({ data: rows, error: null }).then(res, rej);
+          },
+        };
+        return b;
+      },
+    });
+    const T0 = Date.parse("2026-11-03T10:00:00Z"), iso = (h) => new Date(T0 - h * 3600000).toISOString();
+    const pay = (id, target, status, ageH, tx = "TX") => ({ id, target_id: target, target_type: "product_order", status, created_at: iso(ageH), provider_transaction_id: tx });
+    const tables = {
+      product_orders: [
+        { id: "o-open", status: "awaiting_payment" }, { id: "o-paid", status: "paid" }, { id: "o-review", status: "payment_review" },
+        { id: "o-exp", status: "expired" }, { id: "o-old", status: "expired" }, { id: "o-heal", status: "awaiting_payment" }, { id: "o-notx", status: "awaiting_payment" },
+      ],
+      customer_payments: [
+        pay("1", "o-open", "pending", 1), pay("2", "o-paid", "pending", 1), pay("3", "o-review", "expired", 1), pay("4", "o-exp", "expired", 2),
+        pay("5", "o-old", "expired", 30), pay("6", "o-heal", "succeeded", 3), pay("7", "o-notx", "initiated", 1, null),
+      ],
+    };
+    const store = createSupabaseStore(mkAdmin(tables));
+    const ids = await store.listReconcilableOrderIds({ sinceIso: iso(24), limit: 10 });
+    check("real store query: succeeded-unsettled first, then open, then recently expired; skips paid / review / too old / no transaction id", JSON.stringify(ids) === JSON.stringify(["o-heal", "o-open", "o-exp"]), JSON.stringify(ids));
+    check("real store query: limit is honoured", (await store.listReconcilableOrderIds({ sinceIso: iso(24), limit: 2 })).length === 2);
+    check("real store query: nothing to do -> empty (no orders query needed)", (await createSupabaseStore(mkAdmin({ customer_payments: [], product_orders: [] })).listReconcilableOrderIds({ sinceIso: iso(24), limit: 5 })).length === 0);
+    let threw = false; try { await createSupabaseStore({ from: () => ({ select() { return this; }, eq() { return this; }, order() { return this; }, limit() { return this; }, in() { return this; }, not() { return this; }, gte() { return this; }, then(res) { return Promise.resolve({ data: null, error: { code: "XX000", message: "SECRET internal detail" } }).then(res); } }) }).listReconcilableOrderIds({ sinceIso: iso(24), limit: 5 }); } catch (e) { threw = !/SECRET/.test(e.message); }
+    check("real store query: a database error throws a generic message (no database text)", threw);
+  }
+
+  // --- keyed hashing + the RPC limiter
+  {
+    const { hashRateSubject, createSupabaseRateLimiter } = L("commerceRateLimiter.ts");
+    const saved = process.env.SETTINGS_ENCRYPTION_KEY; process.env.SETTINGS_ENCRYPTION_KEY = "test-key-A";
+    const h = hashRateSubject("pay_ip", "203.0.113.7");
+    check("hash: 64 hex chars, deterministic, case/space-insensitive, bound to the kind", /^[0-9a-f]{64}$/.test(h) && h === hashRateSubject("pay_ip", " 203.0.113.7 ") && h !== hashRateSubject("order_ip", "203.0.113.7") && h !== hashRateSubject("pay_ip", "203.0.113.8"));
+    check("hash: the raw value is not in the output", !h.includes("203") || !/203\.0\.113\.7/.test(h));
+    process.env.SETTINGS_ENCRYPTION_KEY = "test-key-B"; const h2 = hashRateSubject("pay_ip", "203.0.113.7"); process.env.SETTINGS_ENCRYPTION_KEY = "test-key-A";
+    check("hash: keyed - a different secret gives a different hash (not reversible without the server key)", h !== h2);
+    let calls = []; const admin = (ret) => ({ async rpc(fn, args) { calls.push([fn, args]); return ret; } });
+    check("limiter: true from the database = allowed, false = refused", (await createSupabaseRateLimiter(admin({ data: true, error: null })).hit("pay_phone", "677000000")) === true && (await createSupabaseRateLimiter(admin({ data: false, error: null })).hit("pay_phone", "677000000")) === false);
+    const [fn, args] = calls[0];
+    check("limiter: calls commerce_rate_limit_hit with only the kind, a hash, the window and the max - never a raw phone or IP", fn === "commerce_rate_limit_hit" && JSON.stringify(Object.keys(args).sort()) === JSON.stringify(["p_kind", "p_max", "p_subject_hash", "p_window_seconds"]) && !JSON.stringify(args).includes("677000000") && args.p_window_seconds === C.RATE_RULES.pay_phone.windowSeconds && args.p_max === C.RATE_RULES.pay_phone.max);
+    let msg = ""; try { await createSupabaseRateLimiter(admin({ data: null, error: { code: "42883", message: "function does not exist SECRET" } })).hit("pay_ip", "1.1.1.1"); } catch (e) { msg = e.message; }
+    check("limiter: a database error (e.g. function not installed yet) throws a generic message, so callers fail open", /failed \(42883\)/.test(msg) && !/SECRET/.test(msg));
+    delete process.env.SETTINGS_ENCRYPTION_KEY; let noKey = false; try { hashRateSubject("pay_ip", "x"); } catch { noKey = true; } process.env.SETTINGS_ENCRYPTION_KEY = saved ?? "";
+    if (saved === undefined) delete process.env.SETTINGS_ENCRYPTION_KEY;
+    check("hash: refuses to run without the server secret", noKey);
+  }
+
+  // --- ROUTES: real route handlers + real respond/internalError; only the wiring is stubbed
+  const httpStub = write("http.stub.ts", `
+    import { respond, internalError } from ${JSON.stringify(path.join(SRC, "lib/productCheckout/responses.ts").replace(/\\/g, "/"))};
+    export { respond, internalError };
+    export function buildCheckoutDeps() { return (globalThis as any).__T.buildDeps(); }
+  `);
+  const sessionStub = write("session.stub.ts", `export function isSameOrigin() { return false; } export async function getCustomerFromCookie() { return null; }`);
+  const jitiR = require("jiti")(import.meta.url, {
+    alias: { "@/lib/productCheckout/http": httpStub, "@/lib/customer/session": sessionStub, "@": SRC },
+    interopDefault: true, cache: false, requireCache: false,
+  });
+  const R = (p) => jitiR(path.join(SRC, "app/api", p));
+  const ordersRoute = R("products/orders/route.ts"), payRoute = R("products/orders/[id]/pay/route.ts"), statusRoute = R("products/orders/[id]/pay-status/route.ts"), cronRoute = R("cron/reconcile-product-payments/route.ts");
+  const { createSupabaseRateLimiter, hashRateSubject } = L("commerceRateLimiter.ts");
+  const savedKey = process.env.SETTINGS_ENCRYPTION_KEY; process.env.SETTINGS_ENCRYPTION_KEY = "route-test-key";
+  const quiet = console.error; const warn = console.warn;
+
+  const rpcCalls = []; let rpcMode = "allow";
+  const admin = { async rpc(fn, args) { rpcCalls.push(args); if (rpcMode === "deny") return { data: false, error: null }; if (rpcMode === "error") return { data: null, error: { code: "42883" } }; return { data: true, error: null }; } };
+  let W = makeWorld({ product: { inventory_count: null } });
+  globalThis.__T = { buildDeps: () => { W.clock.t = Date.now(); return { ...W.deps, now: () => new Date(), limiter: createSupabaseRateLimiter(admin), pollGate: undefined }; } };
+  const req = (url, method, body, headers = {}) => new Request(`http://localhost${url}`, { method, headers: { "content-type": "application/json", ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const json = async (res) => { const t = await res.text(); try { return [res.status, JSON.parse(t), t]; } catch { return [res.status, null, t]; } };
+
+  // create order
+  let [st, body] = await json(await ordersRoute.POST(req("/api/products/orders", "POST", goodOrder({ quantity: 1 }), { "x-forwarded-for": "203.0.113.7, 10.0.0.1" })));
+  check("route POST /orders: valid -> 201 with the order view (no phone / email / customer id)", st === 201 && body.id && body.total === 6000 && !("customer_phone" in body) && !("customer_email" in body) && !("customer_id" in body), JSON.stringify(body));
+  check("route POST /orders: the client IP (first x-forwarded-for entry) is hashed before it reaches the database", rpcCalls.length === 1 && rpcCalls[0].p_kind === "order_ip" && rpcCalls[0].p_subject_hash === hashRateSubject("order_ip", "203.0.113.7") && !JSON.stringify(rpcCalls).includes("203.0.113"));
+  const orderId = body.id;
+  rpcCalls.length = 0; await ordersRoute.POST(req("/api/products/orders", "POST", goodOrder({ quantity: 1, customer_phone: "677111111" })));
+  check("route POST /orders: no client address available -> no IP limit call", rpcCalls.length === 0);
+  [st, body] = await json(await ordersRoute.POST(req("/api/products/orders", "POST", goodOrder({ quantity: 0 }))));
+  check("route POST /orders: invalid input -> 400 with a code only", st === 400 && Object.keys(body).length === 1 && typeof body.error === "string");
+  rpcMode = "deny"; const seq0 = W.db.seq;
+  [st, body] = await json(await ordersRoute.POST(req("/api/products/orders", "POST", goodOrder({ quantity: 1, customer_phone: "677222222" }), { "x-forwarded-for": "198.51.100.9" })));
+  check("route POST /orders: over the limit -> 429 rate_limited, no order created", st === 429 && body.error === "rate_limited" && W.db.seq === seq0);
+  rpcMode = "error"; console.warn = () => {};
+  [st, body] = await json(await ordersRoute.POST(req("/api/products/orders", "POST", goodOrder({ quantity: 1, customer_phone: "677333333" }), { "x-forwarded-for": "198.51.100.10" })));
+  console.warn = warn;
+  check("route POST /orders: the limiter function missing/failing fails OPEN (order still created)", st === 201 && !!body.id);
+  rpcMode = "allow";
+
+  // pay
+  rpcCalls.length = 0;
+  [st, body] = await json(await payRoute.POST(req(`/api/products/orders/${orderId}/pay`, "POST", { phone: "677 12 34 56", medium: "mobile money" }, { "x-forwarded-for": "203.0.113.7" }), { params: { id: orderId } }));
+  check("route POST /pay: valid -> 200 pending, no transaction id / phone in the response", st === 200 && body.status === "pending" && !/TX-|677/.test(JSON.stringify(body)), JSON.stringify(body));
+  check("route POST /pay: three abuse-limit hits (ip, payer phone 10min, payer phone day), all hashed - no raw IP or phone", rpcCalls.map((c) => c.p_kind).join() === "pay_ip,pay_phone,pay_phone_day" && !/203\.0\.113|677123456/.test(JSON.stringify(rpcCalls)));
+  rpcMode = "deny"; const provCalls = W.provider.calls.length;
+  const o2 = (await json(await ordersRoute.POST(req("/api/products/orders", "POST", goodOrder({ quantity: 1, customer_phone: "677444444" })))))[1];
+  [st, body] = await json(await payRoute.POST(req(`/api/products/orders/${o2.id}/pay`, "POST", { phone: "677 12 34 56", medium: "mobile money" }), { params: { id: o2.id } }));
+  check("route POST /pay: over the limit -> 429 rate_limited and Fapshi is never called", st === 429 && body.error === "rate_limited" && W.provider.calls.length === provCalls);
+  rpcMode = "allow";
+  [st, body] = await json(await payRoute.POST(req(`/api/products/orders/${o2.id}/pay`, "POST", { phone: "abc", medium: "mobile money" }), { params: { id: o2.id } }));
+  check("route POST /pay: bad phone -> 400 invalid_phone", st === 400 && body.error === "invalid_phone");
+  [st, body] = await json(await payRoute.POST(req(`/api/products/orders/zzz/pay`, "POST", { phone: "677123456", medium: "mobile money" }), { params: { id: "zzz" } }));
+  check("route POST /pay: malformed order id -> 404 order_not_found", st === 404 && body.error === "order_not_found");
+
+  // pay-status
+  [st, body] = await json(await statusRoute.GET(req(`/api/products/orders/${orderId}/pay-status`, "GET"), { params: { id: orderId } }));
+  check("route GET /pay-status: pending order -> 200 pending", st === 200 && body.status === "pending");
+  [st, body] = await json(await statusRoute.GET(req(`/x`, "GET"), { params: { id: U(31337) } }));
+  check("route GET /pay-status: unknown order -> 404 order_not_found", st === 404 && body.error === "order_not_found");
+  W.provider.statuses.set(W.db.payments[0].provider_transaction_id, { status: "SUCCESSFUL", amount: 6000 });
+  [st, body] = await json(await statusRoute.GET(req(`/x`, "GET"), { params: { id: orderId } }));
+  check("route GET /pay-status: success is settled and returned (receipt number, no ids of payments)", st === 200 && body.status === "succeeded" && /^RCP-/.test(body.receipt_number) && W.db.earnings.length === 1 && !("payment_id" in body));
+
+  // every public error code maps to its declared HTTP status through the real respond()
+  {
+    const { respond, internalError } = jitiR(path.join(SRC, "lib/productCheckout/responses.ts"));
+    let all = true; for (const [code, status] of Object.entries(HTTP_STATUS)) { const r = respond({ ok: false, code }); const j = await r.json(); if (r.status !== status || j.error !== code || Object.keys(j).length !== 1) all = false; }
+    check("HTTP mapping: every public error code returns exactly its declared status with only { error: code }", all && Object.keys(HTTP_STATUS).length >= 29);
+    check("HTTP mapping: the 429 codes are rate_limited, too_many_open_orders, too_many_payment_attempts", Object.entries(HTTP_STATUS).filter(([, s]) => s === 429).map(([c]) => c).sort().join() === "rate_limited,too_many_open_orders,too_many_payment_attempts");
+    check("HTTP mapping: success uses the requested status", respond({ ok: true, data: { a: 1 } }, 201).status === 201);
+    console.error = () => {}; const r = internalError(new Error("password=hunter2 host=db.internal")); console.error = quiet;
+    const [s5, j5, t5] = await json(r);
+    check("no leakage: internalError is a bare 500 { error: 'internal_error' }", s5 === 500 && j5.error === "internal_error" && !/hunter2|db\.internal/.test(t5));
+  }
+  // unexpected exceptions never leak through any route
+  {
+    const boom = new Error("relation product_orders SECRET-DB-PASSWORD=abc123 at db.internal:5432");
+    const saved = W.deps.store.getProduct; W.deps.store.getProduct = async () => { throw boom; }; console.error = () => {};
+    const a = await json(await ordersRoute.POST(req("/api/products/orders", "POST", goodOrder())));
+    W.deps.store.getProduct = saved;
+    const savedGet = W.deps.store.getOrder; W.deps.store.getOrder = async () => { throw boom; };
+    const b = await json(await statusRoute.GET(req("/x", "GET"), { params: { id: orderId } }));
+    const c = await json(await payRoute.POST(req("/x", "POST", { phone: "677123456", medium: "mobile money" }), { params: { id: orderId } }));
+    W.deps.store.getOrder = savedGet; console.error = quiet;
+    check("no leakage: an unexpected exception in any checkout route is a generic 500 with no internal text", [a, b, c].every(([s, j, t]) => s === 500 && j.error === "internal_error" && !/SECRET|abc123|db\.internal|relation/.test(t)));
+  }
+
+  // --- CRON route
+  W = makeWorld({ product: { inventory_count: null } });
+  const cp = await (async () => { const o = await newOrder(W, { quantity: 1 }); await initiateProductPayment(W.deps, o.id, goodPay()); return { order: o, tx: W.db.payments[0].provider_transaction_id }; })();
+  W.provider.statuses.set(cp.tx, { status: "SUCCESSFUL", amount: 6000 });
+  const saveSecret = process.env.CRON_SECRET;
+  const cron = (auth) => cronRoute.GET(req("/api/cron/reconcile-product-payments", "GET", undefined, auth === undefined ? {} : { authorization: auth }));
+  process.env.CRON_SECRET = "cron-secret-value";
+  let [cs, cj] = await json(await cron());
+  check("cron: no Authorization header -> 401, nothing settled", cs === 401 && cj.error === "Unauthorized" && W.db.earnings.length === 0 && W.provider.statusCalls === 0);
+  [cs] = await json(await cron("Bearer wrong")); const c2 = cs;
+  [cs] = await json(await cron("cron-secret-value")); const c3 = cs;
+  [cs] = await json(await cron("Bearer cron-secret-valuee")); const c4 = cs;
+  check("cron: wrong secret, missing 'Bearer', or a longer/shorter value -> 401", c2 === 401 && c3 === 401 && c4 === 401 && W.db.earnings.length === 0);
+  delete process.env.CRON_SECRET;
+  [cs] = await json(await cron("Bearer undefined")); const u1 = cs; [cs] = await json(await cron("Bearer ")); const u2 = cs; [cs] = await json(await cron());
+  check("cron: with CRON_SECRET unset EVERY request is refused (never matches the literal 'Bearer undefined')", u1 === 401 && u2 === 401 && cs === 401 && W.db.earnings.length === 0);
+  process.env.CRON_SECRET = "cron-secret-value";
+  let raw; [cs, cj, raw] = await json(await cron("Bearer cron-secret-value"));
+  check("cron: correct secret -> 200 with counts only", cs === 200 && cj.ok === true && cj.succeeded === 1 && cj.examined === 1 && Object.values(cj).every((v) => typeof v === "number" || typeof v === "boolean"));
+  check("cron: the payment was settled through the shared path (order paid, exactly one earning)", W.db.orders.get(cp.order.id).status === "paid" && W.db.earnings.length === 1);
+  check("cron: the response contains no order id, phone, amount or transaction id", !new RegExp(`${cp.order.id}|${cp.tx}|677|6000`).test(raw));
+  [cs, cj] = await json(await cron("Bearer cron-secret-value"));
+  check("cron: a second run is a no-op (idempotent)", cs === 200 && cj.examined === 0 && W.db.earnings.length === 1);
+  { const leak = new Error("SECRET-CONN-STRING db.internal"); const svd = W.deps.store.listReconcilableOrderIds; W.deps.store.listReconcilableOrderIds = async () => { throw leak; }; console.error = () => {};
+    const [s5, j5, t5] = await json(await cron("Bearer cron-secret-value")); console.error = quiet; W.deps.store.listReconcilableOrderIds = svd;
+    check("cron: an internal failure is a generic 500 with no internal text", s5 === 500 && j5.error === "internal_error" && !/SECRET|db\.internal/.test(t5)); }
+  if (saveSecret === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = saveSecret;
+  if (savedKey === undefined) delete process.env.SETTINGS_ENCRYPTION_KEY; else process.env.SETTINGS_ENCRYPTION_KEY = savedKey;
+  console.error = quiet; console.warn = warn; delete globalThis.__T;
+
+  // --- the REAL http.ts wiring (limiter + shared poll gate) with only the leaf modules stubbed
+  {
+    const supaStub = write("supa.stub.ts", `export function createAdminClient() { return { from() { throw new Error("not used"); }, rpc() { throw new Error("not used"); } }; }`);
+    const fapStub = write("fapshi.stub.ts", `export async function fapshiDirectPay() { throw new Error("no network in tests"); } export async function fapshiGetStatus() { throw new Error("no network in tests"); }`);
+    const jitiH = require("jiti")(import.meta.url, { alias: { "@/lib/supabase/server": supaStub, "@/lib/fapshi": fapStub, "@": SRC }, interopDefault: true, cache: false, requireCache: false });
+    const H = jitiH(path.join(SRC, "lib/productCheckout/http.ts"));
+    const d1 = H.buildCheckoutDeps(), d2 = H.buildCheckoutDeps();
+    check("http wiring: real deps carry the abuse limiter and one poll gate shared by every request", !!d1.limiter && typeof d1.limiter.hit === "function" && !!d1.pollGate && d1.pollGate === d2.pollGate);
+    check("http wiring: re-exports respond/internalError for the routes", typeof H.respond === "function" && typeof H.internalError === "function");
+  }
+  fs.rmSync(tmp, { recursive: true, force: true });
+
+  // --- source-level facts
+  const cronSrc = fs.readFileSync(path.join(REPO, "src/app/api/cron/reconcile-product-payments/route.ts"), "utf8");
+  check("cron: no schedule was added (vercel.json unchanged: only the two existing daily jobs)", JSON.stringify(JSON.parse(fs.readFileSync(path.join(REPO, "vercel.json"), "utf8")).crons.map((c) => c.path)) === JSON.stringify(["/api/cron/downgrade-expired", "/api/cron/cleanup-demo-accounts"]));
+  check("cron: uses timingSafeEqual and requires CRON_SECRET to be set", /timingSafeEqual/.test(cronSrc) && /if \(!secret\) return false/.test(cronSrc));
+  const reconSrc = fs.readFileSync(path.join(REPO, "src/lib/productCheckout/reconcile.ts"), "utf8");
+  check("reconcile: contains no settlement logic of its own (delegates to checkProductPayment)", /checkProductPayment/.test(reconSrc) && !/settleProductPayment|insertEarning|computeEarnings|updateOrder|releaseOrder/.test(reconSrc.replace(/\/\/.*$/gm, "")));
+  const settleSrc = fs.readFileSync(path.join(REPO, "src/lib/productCheckout/settlement.ts"), "utf8");
+  check("settlement, commission and amount verification are untouched by this increment (still gated by VERIFY_PROVIDER_AMOUNT; commission from computeEarnings)", /VERIFY_PROVIDER_AMOUNT/.test(settleSrc) && /computeEarnings\(payment\.amount, settings\.commissionRate\)/.test(settleSrc) && C.VERIFY_PROVIDER_AMOUNT === true);
+  const tr = fs.readFileSync(path.join(REPO, "src/lib/i18n/translations.ts"), "utf8");
+  check("i18n: rate_limited has an English and a French message", /rate_limited: "Too many requests/.test(tr) && /rate_limited: "Trop de demandes/.test(tr));
 }
 
 const failed = results.filter((x) => !x.pass);

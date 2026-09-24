@@ -1,3 +1,4 @@
+import { getClientIp } from "@/lib/customer/codes";
 import { initiateProductPayment } from "@/lib/productCheckout/initiatePayment";
 import { buildCheckoutDeps, internalError, respond } from "@/lib/productCheckout/http";
 
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
     const body = await request.json().catch(() => null);
-    return respond(await initiateProductPayment(buildCheckoutDeps(), params.id, body));
+    return respond(await initiateProductPayment(buildCheckoutDeps(), params.id, body, { clientKey: getClientIp(request.headers) }));
   } catch (err) {
     return internalError(err);
   }

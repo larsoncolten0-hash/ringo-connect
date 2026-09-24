@@ -3,6 +3,7 @@
 // One live attempt per order (also enforced by a partial unique index), a bounded number of attempts
 // per order, and the provider is only called after our own payment row exists.
 
+import { withinLimit } from "./rateLimit";
 import { MAX_PAYMENT_ATTEMPTS, PAYMENT_WINDOW_MINUTES, PROVIDER, SUPPORTED_CURRENCY, TARGET_TYPE } from "./constants";
 import { toOrderView, type OrderView } from "./createOrder";
 import { checkPaymentEligibility } from "./eligibility";
@@ -18,7 +19,12 @@ export interface PayStartView {
 
 const isLive = (p: PaymentRow) => p.status === "initiated" || p.status === "pending";
 
-export async function initiateProductPayment(deps: CheckoutDeps, orderId: string, raw: unknown): Promise<Result<PayStartView>> {
+export async function initiateProductPayment(
+  deps: CheckoutDeps,
+  orderId: string,
+  raw: unknown,
+  ctx: { clientKey?: string | null } = {}
+): Promise<Result<PayStartView>> {
   if (!isUuid(orderId)) return fail("order_not_found");
   const parsed = parsePayInput(raw);
   if (!parsed.ok) return fail(parsed.code);
@@ -68,6 +74,13 @@ export async function initiateProductPayment(deps: CheckoutDeps, orderId: string
   if (blocked) return fail(blocked);
 
   if (payments.length >= MAX_PAYMENT_ATTEMPTS) return fail("too_many_payment_attempts");
+
+  // Abuse limits, checked only once the request is otherwise valid so refused requests cost nothing.
+  // The payer number is free text, so it is limited on its own: a stranger's phone cannot be flooded
+  // with payment prompts by rotating orders or clients.
+  if (!(await withinLimit(deps, "pay_ip", ctx.clientKey))) return fail("rate_limited");
+  if (!(await withinLimit(deps, "pay_phone", phone))) return fail("rate_limited");
+  if (!(await withinLimit(deps, "pay_phone_day", phone))) return fail("rate_limited");
 
   // A stale live attempt (its window has passed) makes way for the new one. The provider may still
   // confirm it later; the status check keeps honouring recently expired attempts.

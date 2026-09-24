@@ -6,6 +6,7 @@
 import { RESERVATION_MINUTES } from "./constants";
 import { checkCommerceEligibility } from "./eligibility";
 import { fail, ok, type Result } from "./errors";
+import { withinLimit } from "./rateLimit";
 import { formatProductOrderNumber } from "./format";
 import type { CheckoutDeps, OrderItemRow, OrderRow } from "./types";
 import { parseCreateOrderInput } from "./validation";
@@ -44,7 +45,7 @@ export function toOrderView(order: OrderRow, items: OrderItemRow[]): OrderView {
 export async function createProductOrder(
   deps: CheckoutDeps,
   raw: unknown,
-  ctx: { customerId: string | null }
+  ctx: { customerId: string | null; clientKey?: string | null }
 ): Promise<Result<OrderView>> {
   const parsed = parseCreateOrderInput(raw);
   if (!parsed.ok) return fail(parsed.code);
@@ -57,6 +58,9 @@ export async function createProductOrder(
 
   const blocked = checkCommerceEligibility({ settings, profile, product, quantity: input.quantity });
   if (blocked) return fail(blocked);
+
+  // Abuse limit (per client, keyed-hash counted): stops one client reserving stock over and over.
+  if (!(await withinLimit(deps, "order_ip", ctx.clientKey))) return fail("rate_limited");
 
   const created = await deps.store.createOrder({
     profileId: product.profile_id, // resolved from the product, never from the request

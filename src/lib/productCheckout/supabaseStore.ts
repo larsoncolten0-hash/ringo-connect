@@ -118,6 +118,24 @@ export function createSupabaseStore(admin: Admin): CheckoutStore {
       return (data as EarningRow) ?? null;
     },
 
+    async listReconcilableOrderIds({ sinceIso, limit }: { sinceIso: string; limit: number }): Promise<string[]> {
+      const base = () => admin.from("customer_payments").select("target_id, created_at").eq("target_type", "product_order").order("created_at", { ascending: false }).limit(limit * 4);
+      const [succeeded, open, recent] = await Promise.all([
+        base().eq("status", "succeeded").gte("created_at", sinceIso),
+        base().in("status", ["initiated", "pending"]).not("provider_transaction_id", "is", null),
+        base().in("status", ["expired", "cancelled"]).not("provider_transaction_id", "is", null).gte("created_at", sinceIso),
+      ]);
+      for (const r of [succeeded, open, recent]) if (r.error) throw new Error(`customer_payments reconcile query failed (${r.error.code || "error"})`);
+      const groups: string[][] = [succeeded, open, recent].map((r) => [...new Set(((r.data || []) as { target_id: string }[]).map((p) => p.target_id))]);
+      const all = [...new Set(groups.flat())];
+      if (all.length === 0) return [];
+      // Only orders that can still change: a paid/fulfilled/refunded/payment_review order needs no provider call.
+      const { data: orders, error } = await admin.from("product_orders").select("id").in("id", all).in("status", ["awaiting_payment", "expired", "cancelled"]);
+      if (error) throw new Error(`product_orders reconcile query failed (${error.code || "error"})`);
+      const live = new Set(((orders || []) as { id: string }[]).map((o) => o.id));
+      return groups.flat().filter((id, i, a) => live.has(id) && a.indexOf(id) === i).slice(0, limit);
+    },
+
     async insertEarning(row: EarningRow) {
       const { error } = await admin.from("commerce_sale_earnings").insert(row);
       if (!error) return "inserted" as const;

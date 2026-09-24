@@ -2,10 +2,9 @@
 // Server only. Responses carry stable error CODES, never database/provider text.
 
 import { randomUUID } from "crypto";
-import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { HTTP_STATUS, type Result } from "./errors";
 import { createFapshiProvider } from "./fapshiProvider";
+import { createSupabaseRateLimiter } from "./commerceRateLimiter";
 import { createProviderPollGate } from "./pollGate";
 import { createSupabaseStore } from "./supabaseStore";
 import type { CheckoutDeps } from "./types";
@@ -14,10 +13,12 @@ import type { CheckoutDeps } from "./types";
 const providerPollGate = createProviderPollGate();
 
 export function buildCheckoutDeps(): CheckoutDeps {
+  const admin = createAdminClient();
   return {
-    store: createSupabaseStore(createAdminClient()),
+    store: createSupabaseStore(admin),
     provider: createFapshiProvider(),
     pollGate: providerPollGate,
+    limiter: createSupabaseRateLimiter(admin),
     now: () => new Date(),
     newId: () => randomUUID(),
     log: (event, data) => console.warn(`[product-checkout] ${event}`, data ?? {}),
@@ -26,13 +27,5 @@ export function buildCheckoutDeps(): CheckoutDeps {
   };
 }
 
-export function respond<T>(result: Result<T>, successStatus = 200) {
-  if (result.ok) return NextResponse.json(result.data, { status: successStatus });
-  return NextResponse.json({ error: result.code }, { status: HTTP_STATUS[result.code] });
-}
-
-/** Any unexpected exception becomes a generic 500 — the detail goes to the server log only. */
-export function internalError(err: unknown) {
-  console.error("[product-checkout] unexpected error:", (err as Error)?.message || err);
-  return NextResponse.json({ error: "internal_error" }, { status: HTTP_STATUS.internal_error });
-}
+// Result -> HTTP mapping lives in responses.ts; re-exported so the routes keep one import.
+export { respond, internalError } from "./responses";

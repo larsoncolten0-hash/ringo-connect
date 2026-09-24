@@ -23,6 +23,7 @@ export const HTTP_STATUS = {
   order_not_payable: 409,
   payment_already_pending: 409,
   too_many_payment_attempts: 429,
+  rate_limited: 429,
   payment_amount_invalid: 409,
   payment_amount_mismatch: 409,
   payment_currency_mismatch: 409,

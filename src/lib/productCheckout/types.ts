@@ -133,6 +133,18 @@ export interface CheckoutStore {
   getEarningByOrder(orderId: string): Promise<EarningRow | null>;
   /** 'exists' when the unique (order / payment) constraint already holds an earning. */
   insertEarning(row: EarningRow): Promise<"inserted" | "exists">;
+  /**
+   * Orders the reconciliation sweep should look at, most useful first: succeeded payments whose order
+   * never got settled, then open attempts, then recently expired/cancelled attempts (a late
+   * confirmation is still real money). Only orders that could still change (awaiting_payment, expired,
+   * cancelled). Read-only.
+   */
+  listReconcilableOrderIds(args: { sinceIso: string; limit: number }): Promise<string[]>;
+}
+
+/** Abuse limiter boundary. true = allowed (and counted); false = over the limit. */
+export interface RateLimiter {
+  hit(kind: "order_ip" | "pay_ip" | "pay_phone" | "pay_phone_day", subject: string): Promise<boolean>;
 }
 
 export type ProviderStatus = "CREATED" | "SUCCESSFUL" | "FAILED" | "EXPIRED";
@@ -151,6 +163,8 @@ export interface CheckoutDeps {
   onOrderPaid?: (info: { order: OrderRow; profile: ProfileRow | null; gross: number }) => Promise<void>;
   /** Optional: limits how often one transaction is asked about at the provider (Fapshi's 6/min/transaction). */
   pollGate?: { tryAcquire(transactionId: string, nowMs: number): boolean };
+  /** Optional abuse limiter. Absent = no limits (unit tests). A limiter that errors fails OPEN (logged). */
+  limiter?: RateLimiter;
   /** Server-side diagnostics only. Must never include phone numbers, emails or provider secrets. */
   log: (event: string, data?: Record<string, unknown>) => void;
 }

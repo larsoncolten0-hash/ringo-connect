@@ -36,3 +36,22 @@ export const VERIFY_PROVIDER_AMOUNT = true;
 export const PAYMENT_STATUS_POLL_INTERVAL_MS = 12_000;
 export const PAYMENT_STATUS_FIRST_POLL_MS = 3_000;
 export const PROVIDER_STATUS_MIN_GAP_MS = 11_000;
+
+// ---------------------------------------------------------------- reconciliation sweep (cron)
+// One run looks at most this many orders, a few at a time, and stops when the time budget is used,
+// so a run always fits inside the function's time limit. Each order is asked about at most once per
+// run (one status request per transaction), and the shared poll gate still applies.
+export const RECONCILE_MAX_ORDERS_PER_RUN = 25;
+export const RECONCILE_CONCURRENCY = 4;
+export const RECONCILE_TIME_BUDGET_MS = 40_000;
+
+// ---------------------------------------------------------------- abuse limits (per keyed hash, never raw values)
+// Counted by the database (commerce_rate_limit_hit). Rejected attempts are not recorded, so a blocked
+// caller cannot extend their own block. All values are tunable here without a schema change.
+export const RATE_RULES = {
+  order_ip: { windowSeconds: 600, max: 10 }, // new orders per client IP per 10 min
+  pay_ip: { windowSeconds: 600, max: 10 }, // payment prompts per client IP per 10 min
+  pay_phone: { windowSeconds: 600, max: 3 }, // prompts to ONE payer number per 10 min, across all orders
+  pay_phone_day: { windowSeconds: 86_400, max: 10 }, // ...and per 24 hours
+} as const;
+export type RateKind = keyof typeof RATE_RULES;
