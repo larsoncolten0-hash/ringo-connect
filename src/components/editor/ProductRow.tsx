@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import { formatPrice } from "@/lib/currency";
 import ImageGalleryUploadField from "./ImageGalleryUploadField";
+import CustomerActionField from "./CustomerActionField";
 
 // Field edits here only update local state (via onChange, which also
 // feeds the live preview) — nothing is written to Supabase until the
@@ -18,6 +19,9 @@ export default function ProductRow({
   userId,
   currency,
   communityEnabled,
+  category,
+  isMusic,
+  bookingEnabled,
   onChange,
   onDelete,
   startExpanded,
@@ -29,6 +33,10 @@ export default function ProductRow({
   // CatalogCard.tsx for why this is a distinct button rather than folded
   // into the bulk Save.
   communityEnabled?: boolean;
+  // Context for the Customer action field (see CustomerActionField.tsx).
+  category?: string | null;
+  isMusic?: boolean;
+  bookingEnabled?: boolean;
   onChange: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
@@ -172,6 +180,18 @@ export default function ProductRow({
                 inputMode="url"
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
               />
+              {/* Only once the cta columns exist on the row (post-migration). */}
+              {product.cta_preset !== undefined && (
+                <CustomerActionField
+                  category={category}
+                  isMusic={!!isMusic}
+                  hasLandingUrl={!!product.landing_url?.trim()}
+                  bookingEnabled={!!bookingEnabled}
+                  preset={product.cta_preset}
+                  label={product.cta_label}
+                  onChange={onChange}
+                />
+              )}
               <input
                 value={product.whatsapp_message ?? ""}
                 onChange={(e) => onChange({ whatsapp_message: e.target.value })}

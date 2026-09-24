@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, BadgeCheck, ChevronRight, ShoppingBag, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, BadgeCheck, CalendarCheck, ChevronRight, ShoppingBag, ShoppingCart } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { useLanguage } from "@/components/LanguageProvider";
 import ShareButton from "@/components/ShareButton";
@@ -10,6 +10,7 @@ import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { LOW_INVENTORY_THRESHOLD } from "@/lib/ticketTypes";
 import { getCategory } from "@/lib/categories";
+import { resolveProductCta } from "@/lib/cta";
 import { newEventId } from "@/lib/pixelClient";
 import { productHref, productImages } from "./productHref";
 
@@ -85,18 +86,33 @@ export default function ProductDetailView({
     ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(product.whatsapp_message || `Hi, I'm interested in ${product.name}`)}`
     : null;
 
+  // Creator-chosen wording (products.cta_preset / cta_label) only ever replaces
+  // the label text. Where a tap goes is decided by the item's real capability,
+  // exactly as before — see src/lib/cta.ts. Both NULL → the existing labels.
+  const cta = resolveProductCta({
+    category: profile.category,
+    isMusic,
+    hasLandingUrl: !!product.landing_url,
+    bookingEnabled: !!profile.bookings_enabled,
+    ctaPreset: product.cta_preset,
+    ctaLabel: product.cta_label,
+  });
+  const ctaLabel = cta.label ? (cta.label.kind === "custom" ? cta.label.text : t.cta.labels[cta.label.id]) : null;
+
   const primary: { label: string; href: string; external: boolean; icon: any; onClick?: () => void } | null = soldOut
     ? null
     : product.landing_url
     ? {
-        label: isMusic ? t.music.buyNowLabel : t.profilePage.viewDetails,
+        label: ctaLabel || (isMusic ? t.music.buyNowLabel : t.profilePage.viewDetails),
         href: product.landing_url,
         external: true,
         icon: ArrowUpRight,
         onClick: () => track("product"),
       }
     : isMusic
-    ? { label: t.music.shopMerch, href: `/m/${username}?add=merch:${product.id}`, external: false, icon: ShoppingCart }
+    ? { label: ctaLabel || t.music.shopMerch, href: `/m/${username}?add=merch:${product.id}`, external: false, icon: ShoppingCart }
+    : ctaLabel && cta.destination === "booking_page"
+    ? { label: ctaLabel, href: `/${username}/book`, external: false, icon: CalendarCheck }
     : null;
 
   const shareStrings = {

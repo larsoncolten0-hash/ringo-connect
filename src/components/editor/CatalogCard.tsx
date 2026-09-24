@@ -6,7 +6,8 @@ import { Reorder } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
-import { getCategory } from "@/lib/categories";
+import { getCategory, profileHasCategory } from "@/lib/categories";
+import { isCtaPresetId, normalizeCtaLabel } from "@/lib/cta";
 import EditorCard from "./EditorCard";
 import EmptyState from "./EmptyState";
 import ProductRow from "./ProductRow";
@@ -98,6 +99,14 @@ export default function CatalogCard({
             whatsapp_message: p.whatsapp_message,
             available: p.available !== false,
             inventory_count: p.inventory_count === "" || p.inventory_count == null ? null : Number(p.inventory_count),
+            // Only sent when the row actually carries the cta columns, so a
+            // save can never fail on a database that hasn't got them yet.
+            ...(p.cta_preset !== undefined
+              ? {
+                  cta_preset: isCtaPresetId(p.cta_preset) ? p.cta_preset : null,
+                  cta_label: normalizeCtaLabel(p.cta_label),
+                }
+              : {}),
           })
           .eq("id", p.id)
       )
@@ -168,6 +177,9 @@ export default function CatalogCard({
             userId={userId}
             currency={currency}
             communityEnabled={communityEnabled}
+            category={draft.category}
+            isMusic={profileHasCategory(draft, "music_entertainment")}
+            bookingEnabled={!!draft.bookings_enabled}
             startExpanded={product.id === justAddedId}
             onChange={(patch) => updateProduct(product.id, patch)}
             onDelete={() => deleteProduct(product.id)}
