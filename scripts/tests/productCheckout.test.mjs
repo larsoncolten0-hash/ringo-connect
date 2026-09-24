@@ -546,8 +546,8 @@ function clock0(w) { return w.clock.t; }
   const forbidden = /music_orders|music_order_items|music_sale_earnings|music_payouts|payment_transactions|applySuccessfulPayment|musicOrderPayment|checkAndConfirmFapshiOrder|request_music_payout|orders\/\[id\]|\/api\/music|\/api\/billing/;
   check("isolation: product checkout never references music/billing/payment_transactions code or tables", all.every(([, s]) => !forbidden.test(s)), all.filter(([, s]) => forbidden.test(s)).map(([f]) => f).join());
   const imports = all.flatMap(([f, s]) => [...s.matchAll(/from\s+"([^"]+)"/g)].map((m) => [f, m[1]]));
-  check("isolation: only the Fapshi adapter imports fapshi.ts, only http.ts imports next/supabase", imports.filter(([, m]) => /fapshi$/.test(m)).every(([f]) => f === "fapshiProvider.ts") && imports.filter(([, m]) => /^next|supabase/.test(m)).every(([f]) => f === "http.ts"));
-  check("isolation: core logic files import nothing outside the module", all.filter(([f]) => !["supabaseStore.ts", "fapshiProvider.ts", "http.ts"].includes(f)).every(([f]) => imports.filter(([g]) => g === f).every(([, m]) => m.startsWith("./"))));
+  check("isolation: only the Fapshi adapter imports fapshi.ts; only the server wiring files import next/supabase", imports.filter(([, m]) => /fapshi$/.test(m)).every(([f]) => f === "fapshiProvider.ts") && imports.filter(([, m]) => /^next|supabase/.test(m)).every(([f]) => ["http.ts", "availability.ts"].includes(f)));
+  check("isolation: core logic files import nothing outside the module", all.filter(([f]) => !["supabaseStore.ts", "fapshiProvider.ts", "http.ts", "availability.ts"].includes(f)).every(([f]) => imports.filter(([g]) => g === f).every(([, m]) => m.startsWith("./"))));
   check("no payout / withdrawal / hold / commission-percentage code", all.every(([, s]) => !/payout|withdraw|available_at|hold_days/i.test(s)) && all.every(([, s]) => !/commissionRate\s*=\s*0?\.\d|rate\s*=\s*0?\.\d/.test(s)));
   check("no Stripe in the generic lane (Fapshi only)", all.every(([, s]) => !/stripe/i.test(s.replace(/"stripe"/g, ""))));
 

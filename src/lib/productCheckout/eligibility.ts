@@ -21,19 +21,22 @@ function platformAndProfileGate(settings: CommerceSettings, profile: ProfileRow 
   return null;
 }
 
-/** Can a NEW order be created for this product and quantity? */
-export function checkCommerceEligibility(input: {
-  settings: CommerceSettings;
-  profile: ProfileRow | null;
-  product: ProductRow | null;
-  quantity: number;
-}): CheckoutErrorCode | null {
-  const { settings, profile, product, quantity } = input;
+/** Profile-level gates: platform switches, profile state, music refusal and currency. */
+export function checkProfileEligibility(input: { settings: CommerceSettings; profile: ProfileRow | null }): CheckoutErrorCode | null {
+  const { settings, profile } = input;
   const gate = platformAndProfileGate(settings, profile);
   if (gate) return gate;
   if (profileCurrency(profile as ProfileRow) !== SUPPORTED_CURRENCY) return "commerce_currency_unsupported";
+  return null;
+}
 
-  if (!product || product.profile_id !== profile!.id) return "product_unavailable";
+/**
+ * Product-level gates: belongs to the profile, available, named, positively priced, whole-XAF total and
+ * enough stock. Pure and browser-safe, so the editor can apply the SAME rules the server does.
+ */
+export function checkProductEligibility(input: { product: ProductRow | null; profileId: string; quantity: number }): CheckoutErrorCode | null {
+  const { product, profileId, quantity } = input;
+  if (!product || product.profile_id !== profileId) return "product_unavailable";
   if (product.available === false) return "product_unavailable";
   if (!product.name || !product.name.trim()) return "product_unavailable";
   const priceCents = toCents(product.price);
@@ -41,6 +44,18 @@ export function checkCommerceEligibility(input: {
   if (!isWholeAmount((priceCents * quantity) / 100)) return "product_price_unsupported"; // Fapshi moves whole XAF
   if (product.inventory_count !== null && product.inventory_count !== undefined && product.inventory_count < quantity) return "insufficient_stock";
   return null;
+}
+
+/** Can a NEW order be created for this product and quantity? (profile gates, then product gates) */
+export function checkCommerceEligibility(input: {
+  settings: CommerceSettings;
+  profile: ProfileRow | null;
+  product: ProductRow | null;
+  quantity: number;
+}): CheckoutErrorCode | null {
+  const profileBlock = checkProfileEligibility({ settings: input.settings, profile: input.profile });
+  if (profileBlock) return profileBlock;
+  return checkProductEligibility({ product: input.product, profileId: (input.profile as ProfileRow).id, quantity: input.quantity });
 }
 
 /** May a payment be started for this EXISTING order right now (settings/profile/currency/amount)? */

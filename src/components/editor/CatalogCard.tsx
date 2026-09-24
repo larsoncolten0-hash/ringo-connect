@@ -9,6 +9,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { useSectionSave } from "@/components/dashboard/sectionSave";
 import { getCategory, profileHasCategory } from "@/lib/categories";
 import { isCtaPresetId, normalizeCtaLabel } from "@/lib/cta";
+import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import EditorCard from "./EditorCard";
 import EmptyState from "./EmptyState";
 import ProductRow from "./ProductRow";
@@ -186,6 +187,9 @@ export default function CatalogCard({
             isMusic={profileHasCategory(draft, "music_entertainment")}
             bookingEnabled={!!draft.bookings_enabled}
             restaurantOrdering={profileHasCategory(draft, "restaurant_food") && draft.ordering_enabled !== false}
+            // Profile-level flag from the server + the same product rules the server applies (price, stock, availability).
+            checkoutAvailable={!!draft.commerceCheckoutAvailable && checkProductEligibility({ product: { ...product, profile_id: product.profile_id ?? draft.id }, profileId: draft.id, quantity: 1 }) === null}
+            isDemo={draft.is_demo === true}
             startExpanded={product.id === justAddedId}
             onChange={(patch) => updateProduct(product.id, patch)}
             onDelete={() => deleteProduct(product.id)}

@@ -22,6 +22,9 @@ export default function CustomerActionField({
   hasLandingUrl,
   bookingEnabled,
   restaurantOrdering,
+  checkoutAvailable,
+  currency,
+  isDemo,
   preset,
   label,
   onChange,
@@ -31,6 +34,9 @@ export default function CustomerActionField({
   hasLandingUrl: boolean;
   bookingEnabled: boolean;
   restaurantOrdering: boolean;
+  checkoutAvailable: boolean;
+  currency: string | null;
+  isDemo: boolean;
   preset: string | null | undefined;
   label: string | null | undefined;
   onChange: (patch: { cta_preset: string | null; cta_label: string | null }) => void;
@@ -51,6 +57,9 @@ export default function CustomerActionField({
     hasLandingUrl,
     bookingEnabled,
     restaurantOrdering,
+    checkoutAvailable,
+    currency,
+    isDemo,
     ctaPreset: preset,
     ctaLabel: label,
   });

@@ -5,6 +5,7 @@ import { profileHasCategory } from "@/lib/categories";
 import { generateMetadata as generateProfileMetadata, generateViewport } from "@/lib/profileMetadata";
 import ProductDetailView from "@/components/catalog/ProductDetailView";
 import { productImages } from "@/components/catalog/productHref";
+import { computeCheckoutAvailability } from "@/lib/productCheckout/availability";
 
 export { generateViewport };
 
@@ -62,12 +63,17 @@ export default async function ProductDetailRoute({ params }: { params: { usernam
     .sort((a: any, b: any) => a.sort_order - b.sort_order)
     .slice(0, 8);
 
+  // Server-authoritative: does this product qualify for the generic checkout right now? (Cheap pre-checks
+  // skip the settings read for music profiles, items with a link and items with no explicit purchase CTA.)
+  const checkoutAvailable = await computeCheckoutAvailability(profile, product);
+
   return (
     <ProductDetailView
       profile={profile}
       product={product}
       related={related}
       isMusic={profileHasCategory(profile, "music_entertainment")}
+      checkoutAvailable={checkoutAvailable}
     />
   );
 }

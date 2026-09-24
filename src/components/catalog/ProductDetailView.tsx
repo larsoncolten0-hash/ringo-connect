@@ -32,11 +32,14 @@ export default function ProductDetailView({
   product,
   related,
   isMusic,
+  checkoutAvailable = false,
 }: {
   profile: any;
   product: any;
   related: any[];
   isMusic: boolean;
+  // Computed on the server by the SAME eligibility rules the order API enforces; never by the browser.
+  checkoutAvailable?: boolean;
 }) {
   const { t, locale } = useLanguage();
   // Same label the profile's own catalog section uses ("Services", "Merch"…).
@@ -96,6 +99,9 @@ export default function ProductDetailView({
     hasLandingUrl: !!product.landing_url,
     bookingEnabled: !!profile.bookings_enabled,
     restaurantOrdering: profileHasCategory(profile, "restaurant_food") && profile.ordering_enabled !== false,
+    checkoutAvailable,
+    currency: profile.currency,
+    isDemo: profile.is_demo === true,
     ctaPreset: product.cta_preset,
     ctaLabel: product.cta_label,
   });
@@ -116,7 +122,11 @@ export default function ProductDetailView({
     : cta.destination === "music_storefront"
     ? { label: ctaLabel || t.music.shopMerch, ...route, icon: ShoppingCart }
     : ctaLabel
-    ? { label: ctaLabel, ...route, icon: cta.destination === "restaurant_order_page" ? UtensilsCrossed : CalendarCheck }
+    ? {
+        label: ctaLabel,
+        ...route,
+        icon: cta.destination === "restaurant_order_page" ? UtensilsCrossed : cta.destination === "product_checkout" ? ShoppingCart : CalendarCheck,
+      }
     : null;
 
   const shareStrings = {

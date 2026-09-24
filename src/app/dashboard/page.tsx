@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Editor from "@/components/Editor";
+import { computeProfileCheckoutAvailability } from "@/lib/productCheckout/availability";
 
 // See src/app/admin/settings/page.tsx for why this matters: without it,
 // navigating back here via the sidebar can show stale cached data.
@@ -38,6 +39,9 @@ export default async function DashboardPage() {
   const { facebook_capi_token_encrypted, tiktok_events_token_encrypted, ...profileForClient } = profile;
   (profileForClient as any).facebookCapiConfigured = !!facebook_capi_token_encrypted;
   (profileForClient as any).tiktokEventsConfigured = !!tiktok_events_token_encrypted;
+  // Whether product checkout is switched on for this profile (platform + profile rules). The editor
+  // applies the product-level rules per row so its hint matches what customers will see.
+  (profileForClient as any).commerceCheckoutAvailable = await computeProfileCheckoutAvailability(profile);
 
   return (
     <Editor

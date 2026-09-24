@@ -95,7 +95,7 @@ export function getRecommendedCta(category: string | null | undefined): {
   return { action: CTA_PRESETS[list[0]], recommended: list[0], alternatives: list };
 }
 
-export type CtaDestination = "external" | "music_storefront" | "booking_page" | "restaurant_order_page" | "none";
+export type CtaDestination = "external" | "music_storefront" | "booking_page" | "restaurant_order_page" | "product_checkout" | "none";
 
 export interface ResolvedProductCta {
   action: CtaAction;
@@ -112,6 +112,12 @@ export function resolveProductCta(input: {
   // The profile is a restaurant/food profile and hasn't turned ordering off —
   // the existing /r/{username} order page is then a valid destination.
   restaurantOrdering?: boolean;
+  // Server-computed by the SAME eligibility rules the order API enforces (productCheckout/eligibility):
+  // commerce on, commission set, Fapshi on, XAF, non-demo, non-music, product sellable. The browser
+  // never decides this. `currency` / `isDemo` are passed through so the resolver's own gates agree.
+  checkoutAvailable?: boolean;
+  currency?: string | null;
+  isDemo?: boolean;
   ctaPreset?: string | null;
   ctaLabel?: string | null;
 }): ResolvedProductCta {
@@ -129,7 +135,8 @@ export function resolveProductCta(input: {
   // the universal resolver (src/lib/customerAction.ts): the item's own link
   // wins, then the music storefront, then — only for a button the creator
   // explicitly chose — the booking page (booking/viewing types, bookings on) or
-  // the restaurant order page (order type, restaurant with ordering on).
+  // the restaurant order page (order type, restaurant with ordering on) or the product checkout
+  // (purchase type, only when the server says checkout is available).
   // Resolver destinations this product page doesn't render yet map to "none"
   // (no button, as before); there is no fallback destination.
   const resolved = resolveCustomerAction({
@@ -138,7 +145,13 @@ export function resolveProductCta(input: {
     hasLandingUrl: input.hasLandingUrl,
     profile: {
       isMusic: input.isMusic,
-      capabilities: { bookingsEnabled: input.bookingEnabled, restaurantOrdering: !!input.restaurantOrdering },
+      currency: input.currency ?? null,
+      isDemo: !!input.isDemo,
+      capabilities: {
+        bookingsEnabled: input.bookingEnabled,
+        restaurantOrdering: !!input.restaurantOrdering,
+        onlineCheckoutEnabled: !!input.checkoutAvailable,
+      },
     },
   });
   const destination: CtaDestination =
@@ -146,7 +159,8 @@ export function resolveProductCta(input: {
       ? "external"
       : resolved.destination === "music_storefront" ||
         resolved.destination === "booking_page" ||
-        resolved.destination === "restaurant_order_page"
+        resolved.destination === "restaurant_order_page" ||
+        resolved.destination === "product_checkout"
       ? resolved.destination
       : "none";
 

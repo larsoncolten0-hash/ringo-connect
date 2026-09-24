@@ -31,7 +31,8 @@ check("external without a link → no route", routes.customerActionRoute("extern
 check("music_storefront → existing storefront handoff", JSON.stringify(routes.customerActionRoute("music_storefront", ctx)) === JSON.stringify({ href: "/m/chez-ali?add=merch:p-1", external: false }));
 check("booking_page → existing booking form", JSON.stringify(routes.customerActionRoute("booking_page", ctx)) === JSON.stringify({ href: "/chez-ali/book", external: false }));
 check("restaurant_order_page → existing restaurant order page (page, not a product)", JSON.stringify(routes.customerActionRoute("restaurant_order_page", ctx)) === JSON.stringify({ href: "/r/chez-ali", external: false }));
-for (const d of ["ticket_flow", "quote_form", "chat", "product_checkout", "whatsapp", "none", "", "toString", "__proto__", "anything-else"]) {
+check("product_checkout → the generic product checkout page (a Ringo page)", JSON.stringify(routes.customerActionRoute("product_checkout", ctx)) === JSON.stringify({ href: "/chez-ali/item/p-1/checkout", external: false }));
+for (const d of ["ticket_flow", "quote_form", "chat", "whatsapp", "none", "", "toString", "__proto__", "anything-else"]) {
   check(`unsupported destination "${d}" → no route (never WhatsApp)`, routes.customerActionRoute(d, ctx) === null);
 }
 {
@@ -102,9 +103,16 @@ check("a non-order action never routes to the order page", ["book_now", "request
     const x = R.resolveCustomerAction({ cta: { action, explicit: true }, source: "product", hasLandingUrl: false, profile: { currency: "XAF", capabilities: flags } });
     check(`${action} with nothing native on + WhatsApp number → not WhatsApp, no route`, x.destination !== "whatsapp" && routes.customerActionRoute(x.destination, ctx) === null, JSON.stringify(x));
   }
-  for (const action of ["quote", "chat", "purchase"]) {
+  for (const action of ["quote", "chat"]) {
     const enabled = R.resolveCustomerAction({ cta: { action, explicit: true }, source: "product", hasLandingUrl: false, profile: { currency: "XAF", capabilities: { ...flags, quotesEnabled: true, chatEnabled: true, onlineCheckoutEnabled: true } } });
     check(`${action}: even if a future workflow resolves, the product page has no route for it`, routes.customerActionRoute(enabled.destination, ctx) === null, enabled.destination);
+  }
+  {
+    // purchase is the one that now has a real destination — and only when checkout is available
+    const enabled = R.resolveCustomerAction({ cta: { action: "purchase", explicit: true }, source: "product", hasLandingUrl: false, profile: { currency: "XAF", capabilities: { ...flags, onlineCheckoutEnabled: true } } });
+    check("purchase + checkout available → product_checkout with its own route", enabled.destination === "product_checkout" && routes.customerActionRoute(enabled.destination, ctx)?.href === "/chez-ali/item/p-1/checkout");
+    const off = R.resolveCustomerAction({ cta: { action: "purchase", explicit: true }, source: "product", hasLandingUrl: false, profile: { currency: "XAF", capabilities: { ...flags, onlineCheckoutEnabled: false } } });
+    check("purchase + checkout NOT available → no route, and never WhatsApp", off.destination === "none" && routes.customerActionRoute(off.destination, ctx) === null);
   }
   for (const category of ["freelancers_creators", "construction_home_services", "business_ecommerce", null]) {
     const p = cta.resolveProductCta({ category, isMusic: false, hasLandingUrl: false, bookingEnabled: false, restaurantOrdering: false, hasWhatsapp: true, ctaPreset: null, ctaLabel: "Custom" });
