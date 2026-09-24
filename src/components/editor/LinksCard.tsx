@@ -6,6 +6,7 @@ import { Reorder } from "framer-motion";
 import { Link2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSectionSave } from "@/components/dashboard/sectionSave";
 import EditorCard from "./EditorCard";
 import EmptyState from "./EmptyState";
 import LinkRow from "./LinkRow";
@@ -61,8 +62,8 @@ export default function LinksCard({
   // One explicit save for every link's fields at once — mirrors
   // WhatsAppCard: nothing reaches Supabase until this is clicked. Adding,
   // deleting, and reordering links stay immediate (structural, not edits).
-  const saveAll = async () => {
-    await Promise.all(
+  const saveAll = async (): Promise<boolean> => {
+    const results = await Promise.all(
       links.map((l) =>
         supabase
           .from("links")
@@ -70,8 +71,11 @@ export default function LinksCard({
           .eq("id", l.id)
       )
     );
+    if (results.some((r) => r.error)) return false;
     pulse.show();
+    return true;
   };
+  const inSection = useSectionSave(saveAll);
 
   const deleteLink = async (id: string) => {
     setLinks((prev) => {
@@ -146,7 +150,7 @@ export default function LinksCard({
         ))}
       </Reorder.Group>
 
-      {links.length > 0 && (
+      {links.length > 0 && !inSection && (
         <button
           onClick={saveAll}
           className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"

@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { AccordionItem, useAccordion } from "@/components/ui/Accordion";
 import SaveButton, { type SaveState } from "@/components/dashboard/SaveButton";
 import UnsavedChangesDialog from "@/components/dashboard/UnsavedChangesDialog";
+import { SectionSaveContext, type SectionSaveFn } from "@/components/dashboard/sectionSave";
 import { useSound } from "@/components/SoundProvider";
 
 // The Editor-specific dropdown row — each existing editor card (Profile,
@@ -27,11 +28,13 @@ import { useSound } from "@/components/SoundProvider";
 //   bubbling up from inside this row (capture phase, so it can't be
 //   blocked by a descendant calling stopPropagation) — no changes needed
 //   to the card itself.
-// - "Save Changes" blurs whatever's currently focused (committing any
-//   in-flight edit that hasn't fired its own onBlur yet), shows a brief
-//   saving/success sequence, then closes the row automatically — even
-//   though the actual persistence already happened per-field, not in one
-//   batch here.
+// - "Save Changes" is the ONE save for the dropdown: it blurs whatever's
+//   focused, then runs the save of every card inside that buffers its edits
+//   (they register through useSectionSave — see sectionSave.tsx — and hide
+//   their own Save button). Only when all of them succeed does it show
+//   success and close the row; if any fails it shows "Save failed" and stays
+//   open so nothing is silently lost. Cards that persist per-field on blur
+//   register nothing, so for them it behaves as before.
 // - "Discard Changes" can't un-persist a field that already auto-saved on
 //   blur — but it can (and does) throw away anything typed but never
 //   blurred, by asking Next.js to re-fetch this route's server data
@@ -58,6 +61,22 @@ export default function EditorSection({
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  // Saves registered by the cards inside this section (see sectionSave.tsx).
+  const saversRef = useRef(new Set<SectionSaveFn>());
+  const [saverCount, setSaverCount] = useState(0);
+  const sectionSave = useMemo(
+    () => ({
+      register: (fn: SectionSaveFn) => {
+        saversRef.current.add(fn);
+        setSaverCount(saversRef.current.size);
+        return () => {
+          saversRef.current.delete(fn);
+          setSaverCount(saversRef.current.size);
+        };
+      },
+    }),
+    []
+  );
   // Resolved by whichever button the unsaved-changes dialog's own click
   // handler calls — "Keep Editing" (false, veto the close) or "Discard
   // Changes" (true, proceed).
@@ -71,13 +90,25 @@ export default function EditorSection({
     });
   };
 
-  const handleSave = () => {
-    // Commits whatever the user was mid-typing — a normal field's own
-    // onBlur already fires the moment focus leaves it, this just makes
-    // sure that happens before the "saved" message shows.
+  const handleSave = async () => {
+    if (saveState === "saving") return;
+    // Commits whatever the user was mid-typing, then waits a tick so any
+    // state update that blur triggers is rendered before the saves read it.
     (document.activeElement as HTMLElement | null)?.blur?.();
     setSaveState("saving");
-    window.setTimeout(() => {
+    await new Promise((resolve) => window.setTimeout(resolve, 30));
+
+    const results = await Promise.all(
+      Array.from(saversRef.current).map(async (save) => {
+        try {
+          return (await save()) !== false;
+        } catch {
+          return false;
+        }
+      })
+    );
+
+    if (results.every(Boolean)) {
       setSaveState("success");
       setDirty(false);
       play("success");
@@ -85,7 +116,11 @@ export default function EditorSection({
         setSaveState("idle");
         requestClose(id);
       }, 900);
-    }, 350);
+    } else {
+      // Stay open with the edits still in place so the user can retry.
+      setSaveState("error");
+      window.setTimeout(() => setSaveState("idle"), 2500);
+    }
   };
 
   const handleKeepEditing = () => {
@@ -109,6 +144,7 @@ export default function EditorSection({
   return (
     <>
       <AccordionItem id={id} icon={icon} title={title} subtitle={subtitle} badge={badge} guard={guard}>
+        <SectionSaveContext.Provider value={sectionSave}>
         <div onChangeCapture={() => setDirty(true)} onInputCapture={() => setDirty(true)} className="flex flex-col gap-5">
           {children}
           {/* Only appears once there's actually something to save. Stays
@@ -116,7 +152,7 @@ export default function EditorSection({
               the instant success starts) so that moment is never cut off
               mid-animation. */}
           <AnimatePresence>
-            {(dirty || saveState !== "idle") && (
+            {(dirty || saveState !== "idle" || saverCount > 0) && (
               <motion.div
                 initial={{ opacity: 0, y: 6, height: 0 }}
                 animate={{ opacity: 1, y: 0, height: "auto" }}
@@ -131,6 +167,7 @@ export default function EditorSection({
             )}
           </AnimatePresence>
         </div>
+        </SectionSaveContext.Provider>
       </AccordionItem>
 
       {showUnsavedDialog && <UnsavedChangesDialog onKeepEditing={handleKeepEditing} onDiscard={handleDiscard} />}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Tag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSectionSave } from "@/components/dashboard/sectionSave";
 import CategoryPicker from "@/components/CategoryPicker";
 import { type CategoryId } from "@/lib/categories";
 import EditorCard from "./EditorCard";
@@ -44,14 +45,17 @@ export default function CategoryCard({
     });
   };
 
-  const save = async () => {
-    if (!category) return;
-    await supabase
+  const save = async (): Promise<boolean> => {
+    if (!category) return true; // nothing chosen yet, nothing to save
+    const { error } = await supabase
       .from("profiles")
       .update({ category, categories: [category, ...extraCategories] })
       .eq("id", profileId);
+    if (error) return false;
     pulse.show();
+    return true;
   };
+  const inSection = useSectionSave(save);
 
   return (
     <EditorCard icon={Tag} title={t.editor.category.title} action={<SavedPulse visible={pulse.visible} label={t.editor.saved} />}>
@@ -64,13 +68,15 @@ export default function CategoryCard({
         onToggleExtra={toggleExtra}
         strings={{ morePrompt: t.editor.category.morePrompt, moreHint: t.editor.category.moreHint }}
       />
-      <button
-        onClick={save}
-        disabled={!category}
-        className="self-start mt-4 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium disabled:opacity-40"
-      >
-        {t.editor.save}
-      </button>
+      {!inSection && (
+        <button
+          onClick={save}
+          disabled={!category}
+          className="self-start mt-4 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium disabled:opacity-40"
+        >
+          {t.editor.save}
+        </button>
+      )}
     </EditorCard>
   );
 }

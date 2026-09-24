@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Info, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSectionSave } from "@/components/dashboard/sectionSave";
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
@@ -47,8 +48,8 @@ export default function AboutCard({
   // local state (and the live preview) above, nothing reaches Supabase
   // until this is clicked. Adding/removing an extra phone row stays
   // immediate since that's a structural action, not a field edit.
-  const save = async () => {
-    await Promise.all([
+  const save = async (): Promise<boolean> => {
+    const results = await Promise.all([
       supabase
         .from("profiles")
         .update({
@@ -65,8 +66,11 @@ export default function AboutCard({
         supabase.from("profile_phone_numbers").update({ phone_number: p.phone_number }).eq("id", p.id)
       ),
     ]);
+    if (results.some((r) => r.error)) return false;
     pulse.show();
+    return true;
   };
+  const inSection = useSectionSave(save);
 
   const addExtraPhone = async () => {
     const { data } = await supabase
@@ -210,12 +214,14 @@ export default function AboutCard({
           />
         </div>
 
-        <button
-          onClick={save}
-          className="self-start px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
-        >
-          {t.editor.save}
-        </button>
+        {!inSection && (
+          <button
+            onClick={save}
+            className="self-start px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
+          >
+            {t.editor.save}
+          </button>
+        )}
       </div>
     </EditorCard>
   );

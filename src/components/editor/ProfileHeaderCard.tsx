@@ -4,6 +4,7 @@ import { useState } from "react";
 import { User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSectionSave } from "@/components/dashboard/sectionSave";
 import EditorCard from "./EditorCard";
 import ImageUploadField from "./ImageUploadField";
 import AvatarCropperField from "./AvatarCropperField";
@@ -79,8 +80,11 @@ export default function ProfileHeaderCard({
   // One explicit save for the whole card — mirrors WhatsAppCard: uploading
   // a photo or typing only updates local state (and the live preview)
   // above, nothing reaches Supabase until this is clicked.
-  const save = async () => {
-    await supabase
+  const save = async (): Promise<boolean> => {
+    // A home-screen icon is still being generated from the new photo; saving now
+    // would write the old icons. Report failure so the user simply retries.
+    if (generatingIcons) return false;
+    const { error } = await supabase
       .from("profiles")
       .update({
         cover_image_url: coverUrl || null,
@@ -92,8 +96,11 @@ export default function ProfileHeaderCard({
         avatar_icon_maskable_512_url: iconMaskable512Url || null,
       })
       .eq("id", profileId);
+    if (error) return false;
     pulse.show();
+    return true;
   };
+  const inSection = useSectionSave(save);
 
   return (
     <EditorCard icon={User} title={t.editor.profile.title} action={<SavedPulse visible={pulse.visible} label={t.editor.saved} />}>
@@ -158,14 +165,16 @@ export default function ProfileHeaderCard({
         </div>
       </div>
 
-      <button
-        onClick={save}
-        disabled={generatingIcons}
-        title={generatingIcons ? "Preparing your home-screen icon…" : undefined}
-        className="self-start mt-4 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97] disabled:opacity-60"
-      >
-        {t.editor.save}
-      </button>
+      {!inSection && (
+        <button
+          onClick={save}
+          disabled={generatingIcons}
+          title={generatingIcons ? "Preparing your home-screen icon…" : undefined}
+          className="self-start mt-4 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97] disabled:opacity-60"
+        >
+          {t.editor.save}
+        </button>
+      )}
     </EditorCard>
   );
 }

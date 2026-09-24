@@ -95,7 +95,7 @@ export function getRecommendedCta(category: string | null | undefined): {
   return { action: CTA_PRESETS[list[0]], recommended: list[0], alternatives: list };
 }
 
-export type CtaDestination = "external" | "music_storefront" | "booking_page" | "none";
+export type CtaDestination = "external" | "music_storefront" | "booking_page" | "whatsapp" | "none";
 
 export interface ResolvedProductCta {
   action: CtaAction;
@@ -109,6 +109,9 @@ export function resolveProductCta(input: {
   isMusic: boolean;
   hasLandingUrl: boolean;
   bookingEnabled: boolean;
+  // The profile has a WhatsApp number — the existing way to act on an offering
+  // that has no link and no native workflow switched on.
+  hasWhatsapp?: boolean;
   ctaPreset?: string | null;
   ctaLabel?: string | null;
 }): ResolvedProductCta {
@@ -132,12 +135,12 @@ export function resolveProductCta(input: {
     cta: { action, explicit: label !== null, presetId: preset },
     source: "product",
     hasLandingUrl: input.hasLandingUrl,
-    profile: { isMusic: input.isMusic, capabilities: { bookingsEnabled: input.bookingEnabled } },
+    profile: { isMusic: input.isMusic, capabilities: { bookingsEnabled: input.bookingEnabled, hasWhatsapp: !!input.hasWhatsapp } },
   });
   const destination: CtaDestination =
     resolved.destination === "external_link"
       ? "external"
-      : resolved.destination === "music_storefront" || resolved.destination === "booking_page"
+      : resolved.destination === "music_storefront" || resolved.destination === "booking_page" || resolved.destination === "whatsapp"
       ? resolved.destination
       : "none";
 

@@ -94,6 +94,7 @@ export default function ProductDetailView({
     isMusic,
     hasLandingUrl: !!product.landing_url,
     bookingEnabled: !!profile.bookings_enabled,
+    hasWhatsapp: !!whatsappHref,
     ctaPreset: product.cta_preset,
     ctaLabel: product.cta_label,
   });
@@ -113,7 +114,12 @@ export default function ProductDetailView({
     ? { label: ctaLabel || t.music.shopMerch, href: `/m/${username}?add=merch:${product.id}`, external: false, icon: ShoppingCart }
     : ctaLabel && cta.destination === "booking_page"
     ? { label: ctaLabel, href: `/${username}/book`, external: false, icon: CalendarCheck }
+    : ctaLabel && cta.destination === "whatsapp" && whatsappHref
+    ? { label: ctaLabel, href: whatsappHref, external: true, icon: ArrowUpRight, onClick: () => track("whatsapp") }
     : null;
+  // The chosen button already opens the same WhatsApp chat, so the separate
+  // WhatsApp icon would just be a duplicate.
+  const primaryIsWhatsapp = !!primary && primary.href === whatsappHref;
 
   const shareStrings = {
     share: t.profilePage.share,
@@ -280,7 +286,7 @@ export default function ProductDetailView({
           }}
         >
           <div className="mx-auto flex max-w-xl items-center gap-2.5 px-4 pt-3">
-            {whatsappHref && (
+            {whatsappHref && !primaryIsWhatsapp && (
               <a
                 href={whatsappHref}
                 target="_blank"

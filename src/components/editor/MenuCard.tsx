@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BookOpen } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSectionSave } from "@/components/dashboard/sectionSave";
 import EditorCard from "./EditorCard";
 import EmptyState from "./EmptyState";
 import MenuCategorySection from "./MenuCategorySection";
@@ -115,8 +116,8 @@ export default function MenuCard({
   // One explicit save for every item's fields across every category —
   // mirrors WhatsAppCard: nothing reaches Supabase until this is clicked.
   // Adding/deleting/reordering items or categories stay immediate.
-  const saveAllItems = async () => {
-    await Promise.all(
+  const saveAllItems = async (): Promise<boolean> => {
+    const results = await Promise.all(
       items.map((i) =>
         supabase
           .from("menu_items")
@@ -133,8 +134,11 @@ export default function MenuCard({
           .eq("id", i.id)
       )
     );
+    if (results.some((r) => r.error)) return false;
     pulse.show();
+    return true;
   };
+  const inSection = useSectionSave(saveAllItems);
 
   const deleteItem = async (id: string) => {
     const next = items.filter((i) => i.id !== id);
@@ -201,7 +205,7 @@ export default function MenuCard({
         })}
       </div>
 
-      {items.length > 0 && (
+      {items.length > 0 && !inSection && (
         <button
           onClick={saveAllItems}
           className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"

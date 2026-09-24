@@ -6,6 +6,7 @@ import { Reorder } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSectionSave } from "@/components/dashboard/sectionSave";
 import { getCategory, profileHasCategory } from "@/lib/categories";
 import { isCtaPresetId, normalizeCtaLabel } from "@/lib/cta";
 import EditorCard from "./EditorCard";
@@ -84,8 +85,8 @@ export default function CatalogCard({
   // preview) above, nothing reaches Supabase until this is clicked. Adding,
   // deleting, and reordering products stay immediate since those are
   // structural actions, not field edits.
-  const saveAll = async () => {
-    await Promise.all(
+  const saveAll = async (): Promise<boolean> => {
+    const results = await Promise.all(
       products.map((p) =>
         supabase
           .from("products")
@@ -111,8 +112,12 @@ export default function CatalogCard({
           .eq("id", p.id)
       )
     );
+    // A failed write used to be swallowed and still show "Saved".
+    if (results.some((r) => r.error)) return false;
     pulse.show();
+    return true;
   };
+  const inSection = useSectionSave(saveAll);
 
   const deleteProduct = async (id: string) => {
     setProducts((prev) => {
@@ -180,6 +185,7 @@ export default function CatalogCard({
             category={draft.category}
             isMusic={profileHasCategory(draft, "music_entertainment")}
             bookingEnabled={!!draft.bookings_enabled}
+            hasWhatsapp={!!String(draft.whatsapp_number || "").replace(/[^0-9]/g, "")}
             startExpanded={product.id === justAddedId}
             onChange={(patch) => updateProduct(product.id, patch)}
             onDelete={() => deleteProduct(product.id)}
@@ -187,7 +193,7 @@ export default function CatalogCard({
         ))}
       </Reorder.Group>
 
-      {products.length > 0 && (
+      {products.length > 0 && !inSection && (
         <button
           onClick={saveAll}
           className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"

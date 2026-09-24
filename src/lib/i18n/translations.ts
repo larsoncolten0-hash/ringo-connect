@@ -15,7 +15,7 @@ export const translations = {
       customOption: "Custom",
       customPlaceholder: "e.g. Reserve my spot",
       customHint: "Changes the button wording only, not what it does.",
-      noDestinationHint: "This button only appears once the item has a link, or bookings are turned on.",
+      noDestinationHint: "This button only appears once the item has a link, or your WhatsApp number is set up, or bookings are turned on.",
       labels: {
         buy_now: "Buy now",
         shop_now: "Shop now",
@@ -3249,7 +3249,7 @@ export const translations = {
       customOption: "Personnalisé",
       customPlaceholder: "ex. Réserver ma place",
       customHint: "Change uniquement le texte du bouton, pas son fonctionnement.",
-      noDestinationHint: "Ce bouton n'apparaît que lorsque l'article a un lien, ou que les réservations sont activées.",
+      noDestinationHint: "Ce bouton n'apparaît que lorsque l'article a un lien, ou que votre numéro WhatsApp est configuré, ou que les réservations sont activées.",
       labels: {
         buy_now: "Acheter maintenant",
         shop_now: "Voir la boutique",

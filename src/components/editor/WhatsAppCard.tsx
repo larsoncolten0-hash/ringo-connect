@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSectionSave } from "@/components/dashboard/sectionSave";
 import EditorCard from "./EditorCard";
 import PhoneCountryInput from "./PhoneCountryInput";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
@@ -25,13 +26,17 @@ export default function WhatsAppCard({
   const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
 
-  const save = async () => {
-    await supabase
+  const save = async (): Promise<boolean> => {
+    const { error } = await supabase
       .from("profiles")
       .update({ whatsapp_number: number, default_whatsapp_message: message })
       .eq("id", profileId);
+    if (error) return false;
     pulse.show();
+    return true;
   };
+  // The dropdown's single Save Changes button runs this; no button of our own inside it.
+  const inSection = useSectionSave(save);
 
   return (
     <EditorCard icon={MessageCircle} title={t.editor.whatsapp} action={<SavedPulse visible={pulse.visible} label={t.editor.saved} />}>
@@ -64,12 +69,14 @@ export default function WhatsAppCard({
             className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
           />
         </div>
-        <button
-          onClick={save}
-          className="self-start px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
-        >
-          {t.editor.save}
-        </button>
+        {!inSection && (
+          <button
+            onClick={save}
+            className="self-start px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
+          >
+            {t.editor.save}
+          </button>
+        )}
       </div>
     </EditorCard>
   );
