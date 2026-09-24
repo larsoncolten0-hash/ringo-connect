@@ -15,7 +15,14 @@ export const translations = {
       customOption: "Custom",
       customPlaceholder: "e.g. Reserve my spot",
       customHint: "Changes the button wording only, not what it does.",
-      noDestinationHint: "This button only appears once the item has a link, or bookings are turned on.",
+      // Shown when the chosen button has nowhere to go yet — what it needs depends on the action.
+      noDestinationHints: {
+        purchase: "Buy buttons need a link to your product for now — online checkout isn't available yet.",
+        order: "This button only appears once the item has a link, or on a restaurant profile with online ordering turned on.",
+        booking: "This button only appears once the item has a link, or bookings are turned on.",
+        quote: "Quote requests aren't available yet — for now this button only appears once the item has a link.",
+        other: "This button only appears once the item has a link.",
+      },
       labels: {
         buy_now: "Buy now",
         shop_now: "Shop now",
@@ -3249,7 +3256,13 @@ export const translations = {
       customOption: "Personnalisé",
       customPlaceholder: "ex. Réserver ma place",
       customHint: "Change uniquement le texte du bouton, pas son fonctionnement.",
-      noDestinationHint: "Ce bouton n'apparaît que lorsque l'article a un lien, ou que les réservations sont activées.",
+      noDestinationHints: {
+        purchase: "Les boutons d'achat nécessitent un lien vers votre produit pour le moment — le paiement en ligne n'est pas encore disponible.",
+        order: "Ce bouton n'apparaît que lorsque l'article a un lien, ou sur un profil de restaurant avec la commande en ligne activée.",
+        booking: "Ce bouton n'apparaît que lorsque l'article a un lien, ou que les réservations sont activées.",
+        quote: "Les demandes de devis ne sont pas encore disponibles — pour le moment, ce bouton n'apparaît que lorsque l'article a un lien.",
+        other: "Ce bouton n'apparaît que lorsque l'article a un lien.",
+      },
       labels: {
         buy_now: "Acheter maintenant",
         shop_now: "Voir la boutique",

@@ -61,6 +61,19 @@ export default function CustomerActionField({
       ? t.cta.labels[resolved.label.id]
       : t.cta.currentDefault;
 
+  // What the button is waiting for depends on its action: bookings only matter for booking-type
+  // buttons, so they are never offered as the way to make a Buy Now button appear.
+  const hintKey =
+    resolved.action === "purchase"
+      ? "purchase"
+      : resolved.action === "order"
+      ? "order"
+      : resolved.action === "booking" || resolved.action === "viewing"
+      ? "booking"
+      : resolved.action === "quote"
+      ? "quote"
+      : "other";
+
   const pickDefault = () => {
     setCustomMode(false);
     onChange({ cta_preset: null, cta_label: null });
@@ -132,7 +145,7 @@ export default function CustomerActionField({
       )}
 
       {resolved.label && resolved.destination === "none" && (
-        <p className="mt-2 text-xs text-ringo-muted">{t.cta.noDestinationHint}</p>
+        <p className="mt-2 text-xs text-ringo-muted">{t.cta.noDestinationHints[hintKey]}</p>
       )}
     </div>
   );
