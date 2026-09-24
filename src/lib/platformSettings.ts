@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
+import type { FapshiCredentialSource } from "@/lib/fapshiSafety";
 
 // The external shape stays exactly the same as before test/live mode
 // existed — getPlatformSettings() resolves which credential set is
@@ -24,6 +25,9 @@ export type PlatformSettings = {
   fapshiPayoutApiUser: string | null;
   fapshiPayoutApiKey: string | null;
   fapshiBaseUrl: string;
+  // Where the collection / payout credentials above came from. Used only by the safety guard in
+  // src/lib/fapshiSafety.ts (env-variable credentials carry no test/live label). Never a secret.
+  fapshiCredentialSource: { collection: FapshiCredentialSource; payout: FapshiCredentialSource };
   stripeSecretKey: string | null;
   stripeWebhookSecret: string | null;
   stripePriceBasic: string | null;
@@ -39,6 +43,12 @@ export type PlatformSettings = {
   manualPaymentMtnNumber: string;
   manualPaymentOrangeNumber: string;
 };
+
+// "environment" as soon as either half of the pair had to come from an env variable.
+function credentialSource(dbUser: string | null, dbKey: string | null, envUser?: string, envKey?: string): FapshiCredentialSource {
+  if ((!dbUser && envUser) || (!dbKey && envKey)) return "environment";
+  return dbUser && dbKey ? "database" : "none";
+}
 
 export async function getPlatformSettings(): Promise<PlatformSettings> {
   const admin = createAdminClient();
@@ -81,6 +91,10 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
     // Base URL is derived from the mode automatically — no separate field
     // to keep in sync with the credentials.
     fapshiBaseUrl: fapshiTestMode ? "https://sandbox.fapshi.com" : "https://live.fapshi.com",
+    fapshiCredentialSource: {
+      collection: credentialSource(fapshiApiUser, fapshiApiKey, process.env.FAPSHI_API_USER, process.env.FAPSHI_API_KEY),
+      payout: credentialSource(fapshiPayoutApiUser, fapshiPayoutApiKey, process.env.FAPSHI_PAYOUT_API_USER, process.env.FAPSHI_PAYOUT_API_KEY),
+    },
     stripeSecretKey: stripeSecretKey || process.env.STRIPE_SECRET_KEY || null,
     stripeWebhookSecret: stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET || null,
     stripePriceBasic:

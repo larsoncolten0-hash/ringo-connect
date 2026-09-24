@@ -85,6 +85,9 @@ export async function checkProductPayment(deps: CheckoutDeps, orderId: string): 
     .slice(0, 3);
 
   for (const p of candidates) {
+    // Provider rate limit: too soon since the last check of this transaction -> answer from what we
+    // know (still pending). Nothing is changed, so nothing can be duplicated.
+    if (deps.pollGate && !deps.pollGate.tryAcquire(p.provider_transaction_id as string, nowMs)) continue;
     let tx: { status: ProviderStatus; amount: number | null; reason?: string | null };
     try {
       tx = await deps.provider.getStatus(p.provider_transaction_id as string);

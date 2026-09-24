@@ -6,13 +6,18 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { HTTP_STATUS, type Result } from "./errors";
 import { createFapshiProvider } from "./fapshiProvider";
+import { createProviderPollGate } from "./pollGate";
 import { createSupabaseStore } from "./supabaseStore";
 import type { CheckoutDeps } from "./types";
+
+// One gate per server instance, shared by every request it serves.
+const providerPollGate = createProviderPollGate();
 
 export function buildCheckoutDeps(): CheckoutDeps {
   return {
     store: createSupabaseStore(createAdminClient()),
     provider: createFapshiProvider(),
+    pollGate: providerPollGate,
     now: () => new Date(),
     newId: () => randomUUID(),
     log: (event, data) => console.warn(`[product-checkout] ${event}`, data ?? {}),

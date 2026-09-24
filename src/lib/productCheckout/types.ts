@@ -149,6 +149,8 @@ export interface CheckoutDeps {
   newId: () => string;
   /** Called exactly once, by the caller that flips the order to paid. Best effort — never blocks settlement. */
   onOrderPaid?: (info: { order: OrderRow; profile: ProfileRow | null; gross: number }) => Promise<void>;
+  /** Optional: limits how often one transaction is asked about at the provider (Fapshi's 6/min/transaction). */
+  pollGate?: { tryAcquire(transactionId: string, nowMs: number): boolean };
   /** Server-side diagnostics only. Must never include phone numbers, emails or provider secrets. */
   log: (event: string, data?: Record<string, unknown>) => void;
 }

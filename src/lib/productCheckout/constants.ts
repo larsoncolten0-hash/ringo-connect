@@ -26,3 +26,13 @@ export const TARGET_TYPE = "product_order" as const;
 // payment_review on a mismatch. (Whether Fapshi's `amount` always equals the requested amount
 // in every mode is unverified — flip this off if sandbox testing shows it reports differently.)
 export const VERIFY_PROVIDER_AMOUNT = true;
+
+// Fapshi allows at most 6 payment-status requests per minute PER TRANSACTION ID (429 above that).
+// Two independent layers keep us under it:
+//  - the browser polls no more often than PAYMENT_STATUS_POLL_INTERVAL_MS (12s -> 5/min), and
+//  - the server never asks Fapshi about the same transaction more than once per
+//    PROVIDER_STATUS_MIN_GAP_MS (11s -> at most 6 in any 60s window), however many tabs/clients poll.
+// A skipped check simply answers from what we already know (still pending) — it never changes state.
+export const PAYMENT_STATUS_POLL_INTERVAL_MS = 12_000;
+export const PAYMENT_STATUS_FIRST_POLL_MS = 3_000;
+export const PROVIDER_STATUS_MIN_GAP_MS = 11_000;

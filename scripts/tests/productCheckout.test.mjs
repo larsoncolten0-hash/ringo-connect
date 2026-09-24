@@ -572,6 +572,67 @@ function clock0(w) { return w.clock.t; }
   })());
 }
 
+// ================================================================ 6. PROVIDER RATE LIMIT (Fapshi: 6 status requests / minute / transaction)
+{
+  const { createProviderPollGate } = L("pollGate.ts");
+  check("rate limit: constants respect 6/min/transaction", 60000 / C.PAYMENT_STATUS_POLL_INTERVAL_MS <= 6 && C.PROVIDER_STATUS_MIN_GAP_MS >= 10000 && C.PAYMENT_STATUS_POLL_INTERVAL_MS >= C.PROVIDER_STATUS_MIN_GAP_MS);
+  check("amount verification stays enabled", C.VERIFY_PROVIDER_AMOUNT === true);
+
+  const g = createProviderPollGate();
+  check("gate: first check allowed, second within the gap refused, allowed again once the gap has passed",
+    g.tryAcquire("T", 0) === true && g.tryAcquire("T", 5000) === false && g.tryAcquire("T", 10999) === false && g.tryAcquire("T", 11000) === true);
+  check("gate: a refused check does not extend the gap; transactions are independent", g.tryAcquire("T", 15000) === false && g.tryAcquire("OTHER", 15000) === true);
+  { const s = createProviderPollGate(11000, 3); for (let i = 0; i < 20; i++) s.tryAcquire("k" + i, 1000); check("gate: memory is bounded", s.tryAcquire("fresh", 1000) === true); }
+
+  // Hammer one payment: 5 concurrent "tabs", one request per second for 5 minutes, through the real status check.
+  const gated = () => { const w = makeWorld(); w.deps.pollGate = createProviderPollGate(); return w; };
+  {
+    const w = gated(); const p = await paying(w); const stamps = [];
+    const real = w.provider.getStatus.bind(w.provider); w.provider.getStatus = async (id) => { stamps.push(w.clock.t); return real(id); };
+    for (let sec = 0; sec < 300; sec++) { w.clock.t += 1000; for (let tab = 0; tab < 5; tab++) await checkProductPayment(w.deps, p.order.id); }
+    const worst = Math.max(...stamps.map((t) => stamps.filter((u) => u >= t && u < t + 60000).length));
+    check("rate limit: 5 tabs polling every second for 5 minutes never exceed 6 provider requests in any 60s window", worst <= 6 && stamps.length > 0, `worst=${worst} total=${stamps.length}`);
+  }
+  {
+    const w = gated(); const p = await paying(w);
+    w.clock.t += 1000; await checkProductPayment(w.deps, p.order.id); // consumes the slot (pending)
+    w.provider.statuses.set(p.transId, { status: "SUCCESSFUL", amount: 12000 });
+    w.clock.t += 2000; let s = await checkProductPayment(w.deps, p.order.id);
+    check("rate limit: a check inside the gap answers pending WITHOUT asking the provider and changes nothing", s.ok && s.data.status === "pending" && w.db.payments[0].status === "pending" && w.db.earnings.length === 0 && w.provider.statusCalls === 1);
+    w.clock.t += 9000; s = await checkProductPayment(w.deps, p.order.id);
+    check("rate limit: once the gap passes the success is picked up and settled", s.ok && s.data.status === "succeeded" && w.db.earnings.length === 1 && w.db.orders.get(p.order.id).status === "paid");
+    for (let i = 0; i < 4; i++) { w.clock.t += 12000; await checkProductPayment(w.deps, p.order.id); }
+    check("rate limit: repeated polling after success creates no second earning", w.db.earnings.length === 1);
+  }
+  // 429 (or any provider error) is safe: stays pending, changes nothing, and the slot is still consumed
+  {
+    const w = gated(); const p = await paying(w);
+    w.provider.failStatus = true;
+    const before = JSON.stringify([w.db.payments, [...w.db.orders.values()], w.db.earnings]);
+    w.clock.t += 1000; let s = await checkProductPayment(w.deps, p.order.id);
+    check("429: provider error -> pending, no state change, no earning", s.ok && s.data.status === "pending" && JSON.stringify([w.db.payments, [...w.db.orders.values()], w.db.earnings]) === before);
+    w.clock.t += 1000; await checkProductPayment(w.deps, p.order.id);
+    check("429: an errored request still counts against the gap (no retry storm)", w.provider.statusCalls === 1);
+    w.provider.failStatus = false; w.provider.statuses.set(p.transId, { status: "SUCCESSFUL", amount: 12000 });
+    w.clock.t += 12000; s = await checkProductPayment(w.deps, p.order.id);
+    check("429: after the limit clears, the payment settles exactly once", s.ok && s.data.status === "succeeded" && w.db.earnings.length === 1 && w.db.payments.length === 1);
+    const log429 = w.db.logs.filter((l) => l.e === "product_provider_status_error");
+    check("429: the failure is logged, bounded to 160 chars", log429.length === 1 && String(log429[0].d.error).length <= 160);
+  }
+  { const w = gated(); const p = await paying(w); w.provider.getStatus = async () => { throw new Error("Fapshi payment-status failed (429)"); };
+    w.clock.t += 1000; const s = await checkProductPayment(w.deps, p.order.id);
+    check("429: a literal 429 error is handled like any provider error", s.ok && s.data.status === "pending" && w.db.earnings.length === 0); }
+  // mutation: the tests can fail - with no gate the hammering exceeds the limit
+  {
+    const w = makeWorld(); const p = await paying(w); const stamps = [];
+    const real = w.provider.getStatus.bind(w.provider); w.provider.getStatus = async (id) => { stamps.push(w.clock.t); return real(id); };
+    for (let sec = 0; sec < 60; sec++) { w.clock.t += 1000; await checkProductPayment(w.deps, p.order.id); }
+    check("mutation: WITHOUT the gate the same hammering exceeds 6/min (so the test above can fail)", stamps.length > 6);
+  }
+  const httpSrc = fs.readFileSync(path.join(REPO, "src/lib/productCheckout/http.ts"), "utf8");
+  check("wiring: the real server deps use one shared poll gate", /pollGate:\s*providerPollGate/.test(httpSrc) && /createProviderPollGate\(\)/.test(httpSrc));
+}
+
 const failed = results.filter((x) => !x.pass);
 console.log(`${results.length - failed.length}/${results.length} passed`);
 process.exit(failed.length ? 1 : 0);

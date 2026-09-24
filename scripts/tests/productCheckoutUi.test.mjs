@@ -491,6 +491,27 @@ const fill = (c, over = {}) => c.edit({ name: "Amina Bello", phone: "+237 677 12
   check("safety: the checkout view never calls fetch itself (all traffic goes through the injectable API)", !/\bfetch\(/.test(comp));
 }
 
+// ================================================================ CLIENT POLL THROTTLE (Fapshi 6/min/transaction)
+{
+  const K = P("constants.ts");
+  let t = 0; const nowMs = () => t;
+  let api = mockApi(); let c = ctlOf(api, { minPollGapMs: 11000, nowMs }); fill(c); await c.submit(); api.calls.status.length = 0;
+  api.statuses = [view(api, "pending", { expires_at: "2026-11-03T10:15:00.000Z" })];
+  t = 3000; await c.poll();
+  t = 4000; await c.poll(); t = 8000; await c.poll(); t = 13999; await c.poll();
+  check("client throttle: polls inside the minimum gap (timer, tab-visible, 'check now') make no request", api.calls.status.length === 1, String(api.calls.status.length));
+  t = 14000; await c.poll();
+  check("client throttle: allowed again once the gap has passed", api.calls.status.length === 2);
+  { let n = 0; for (let s = 0; s < 300; s++) { t = 20000 + s * 1000; const b = api.calls.status.length; await c.poll(); n += api.calls.status.length - b; } check("client throttle: one poll attempt per second for 5 minutes stays at or under 6 requests per minute", n <= 6 * 5 + 1, String(n)); }
+  api = mockApi(); c = ctlOf(api, { minPollGapMs: 11000, nowMs }); t = 100000; api.statuses = [view(api, "pending", { expires_at: "2026-11-03T10:15:00.000Z" })];
+  await c.resume(U(500)); const afterResume = api.calls.status.length; t = 101500; await c.poll();
+  check("client throttle: a resume counts as a check (the first timer poll right after it is skipped)", afterResume === 1 && api.calls.status.length === 1);
+  api = mockApi(); c = ctlOf(api); fill(c); await c.submit(); api.calls.status.length = 0; await c.poll(); await c.poll();
+  check("client throttle: off by default, so existing behaviour is unchanged", api.calls.status.length >= 1);
+  const comp = fs.readFileSync(path.join(REPO, "src/components/checkout/ProductCheckout.tsx"), "utf8");
+  check("wiring: the view polls at PAYMENT_STATUS_POLL_INTERVAL_MS (>=10s) with a matching controller gap, no hard-coded 4000", /setInterval\(\(\) => void ctl\.poll\(\), PAYMENT_STATUS_POLL_INTERVAL_MS\)/.test(comp) && /minPollGapMs: PAYMENT_STATUS_POLL_INTERVAL_MS/.test(comp) && !/, 4000\)/.test(comp) && K.PAYMENT_STATUS_POLL_INTERVAL_MS >= 10000);
+}
+
 const failed = results.filter((x) => !x.pass);
 console.log(`${results.length - failed.length}/${results.length} passed`);
 process.exit(failed.length ? 1 : 0);

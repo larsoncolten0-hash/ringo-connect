@@ -20,6 +20,7 @@
 // dashboard configuration issue, not a bug in this file.
 
 import { getPlatformSettings } from "@/lib/platformSettings";
+import { assertFapshiConfigSafe } from "@/lib/fapshiSafety";
 
 function headers(apiUser: string, apiKey: string) {
   return {
@@ -84,6 +85,8 @@ async function resolveCredentials() {
   if (!settings.fapshiApiUser || !settings.fapshiApiKey) {
     throw new Error("Fapshi is not configured yet — set API keys in the admin settings page.");
   }
+  // Refuse unsafe mode / credential / deployment combinations before any request is made.
+  assertFapshiConfigSafe({ testMode: settings.fapshiTestMode, baseUrl: settings.fapshiBaseUrl, credentialSource: settings.fapshiCredentialSource.collection, env: process.env });
   return settings;
 }
 
@@ -104,6 +107,14 @@ async function resolvePayoutCredentials() {
   if (!apiUser || !apiKey) {
     throw new Error("Fapshi disbursement is not configured yet — set payout API keys in the admin settings page.");
   }
+  // The payout pair when one is configured, otherwise the collection pair it falls back to.
+  const usesPayoutPair = !!(settings.fapshiPayoutApiUser && settings.fapshiPayoutApiKey);
+  assertFapshiConfigSafe({
+    testMode: settings.fapshiTestMode,
+    baseUrl: settings.fapshiBaseUrl,
+    credentialSource: usesPayoutPair ? settings.fapshiCredentialSource.payout : settings.fapshiCredentialSource.collection,
+    env: process.env,
+  });
   return { ...settings, fapshiApiUser: apiUser, fapshiApiKey: apiKey };
 }
 

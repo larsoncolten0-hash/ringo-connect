@@ -105,6 +105,10 @@ export interface CheckoutConfig {
   unavailableCode?: CheckoutErrorCode | null;
   /** called whenever the current order id changes, so the view can keep ?order= in the URL */
   onOrderChange?: (orderId: string | null) => void;
+  /** Minimum ms between backend status checks (Fapshi rate limit). Omitted/0 = unthrottled (tests). */
+  minPollGapMs?: number;
+  /** Clock in ms, injectable for tests. */
+  nowMs?: () => number;
 }
 
 // ---------------------------------------------------------------- pure helpers
@@ -182,6 +186,7 @@ export class CheckoutController {
   private listeners = new Set<() => void>();
   private inFlight = false; // synchronous guard: a second submit while one is running is ignored
   private polling = false;
+  private lastPollAt: number | null = null;
   private payPhoneEdited = false;
 
   constructor(private cfg: CheckoutConfig) {
@@ -311,6 +316,11 @@ export class CheckoutController {
     const s = this.state;
     if (!s.order || (s.phase !== "waiting" && s.phase !== "resuming")) return;
     if (this.polling) return;
+    const gap = this.cfg.minPollGapMs ?? 0;
+    const nowMs = (this.cfg.nowMs ?? Date.now)();
+    // Too soon after the previous check (timer, tab-visible and "check now" can all fire): do nothing.
+    if (gap > 0 && this.lastPollAt !== null && nowMs - this.lastPollAt < gap) return;
+    this.lastPollAt = nowMs;
     this.polling = true;
     try {
       await this.refresh(s.order.id);
@@ -323,6 +333,7 @@ export class CheckoutController {
   async resume(orderId: string): Promise<void> {
     if (!isUuid(orderId)) return;
     this.set({ phase: "resuming", error: null });
+    this.lastPollAt = (this.cfg.nowMs ?? Date.now)();
     await this.refresh(orderId, true);
   }
 

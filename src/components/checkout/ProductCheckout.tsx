@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowLeft, Check, Clock, Loader2, Lock, Minus, Plus, Sho
 import { useLanguage } from "@/components/LanguageProvider";
 import { hexToRgba } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
+import { PAYMENT_STATUS_FIRST_POLL_MS, PAYMENT_STATUS_POLL_INTERVAL_MS } from "@/lib/productCheckout/constants";
 import { onAccent, readableAccent } from "@/lib/productCheckout/contrast";
 import type { CheckoutErrorCode } from "@/lib/productCheckout/errors";
 import {
@@ -97,6 +98,7 @@ export default function ProductCheckout(props: CheckoutProps) {
       api: props.api ?? createFetchApi(),
       prefill: props.prefill,
       unavailableCode: props.unavailableCode ?? null,
+      minPollGapMs: PAYMENT_STATUS_POLL_INTERVAL_MS - 1000, // Fapshi: max 6 status checks/min per transaction
       onOrderChange: (orderId) => {
         if (props.preview || typeof window === "undefined") return;
         const url = new URL(window.location.href);
@@ -120,8 +122,8 @@ export default function ProductCheckout(props: CheckoutProps) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     if (phase !== "waiting" && phase !== "resuming") return;
-    const first = window.setTimeout(() => void ctl.poll(), 1500);
-    const poll = window.setInterval(() => void ctl.poll(), 4000);
+    const first = window.setTimeout(() => void ctl.poll(), PAYMENT_STATUS_FIRST_POLL_MS);
+    const poll = window.setInterval(() => void ctl.poll(), PAYMENT_STATUS_POLL_INTERVAL_MS);
     const tick = window.setInterval(() => setNow(new Date()), 1000);
     const onVisible = () => document.visibilityState === "visible" && void ctl.poll();
     document.addEventListener("visibilitychange", onVisible);
