@@ -95,7 +95,7 @@ export function getRecommendedCta(category: string | null | undefined): {
   return { action: CTA_PRESETS[list[0]], recommended: list[0], alternatives: list };
 }
 
-export type CtaDestination = "external" | "music_storefront" | "booking_page" | "none";
+export type CtaDestination = "external" | "music_storefront" | "booking_page" | "restaurant_order_page" | "none";
 
 export interface ResolvedProductCta {
   action: CtaAction;
@@ -109,6 +109,9 @@ export function resolveProductCta(input: {
   isMusic: boolean;
   hasLandingUrl: boolean;
   bookingEnabled: boolean;
+  // The profile is a restaurant/food profile and hasn't turned ordering off —
+  // the existing /r/{username} order page is then a valid destination.
+  restaurantOrdering?: boolean;
   ctaPreset?: string | null;
   ctaLabel?: string | null;
 }): ResolvedProductCta {
@@ -124,20 +127,26 @@ export function resolveProductCta(input: {
 
   // Destination depends only on what the item can really do, and is decided by
   // the universal resolver (src/lib/customerAction.ts): the item's own link
-  // wins, then the music storefront, then the booking page — the latter only
-  // for a booking- or viewing-type button the creator explicitly chose, and
-  // only when the profile actually has bookings on. Resolver destinations this
-  // product page doesn't render yet map to "none" (no button, as before).
+  // wins, then the music storefront, then — only for a button the creator
+  // explicitly chose — the booking page (booking/viewing types, bookings on) or
+  // the restaurant order page (order type, restaurant with ordering on).
+  // Resolver destinations this product page doesn't render yet map to "none"
+  // (no button, as before); there is no fallback destination.
   const resolved = resolveCustomerAction({
     cta: { action, explicit: label !== null, presetId: preset },
     source: "product",
     hasLandingUrl: input.hasLandingUrl,
-    profile: { isMusic: input.isMusic, capabilities: { bookingsEnabled: input.bookingEnabled } },
+    profile: {
+      isMusic: input.isMusic,
+      capabilities: { bookingsEnabled: input.bookingEnabled, restaurantOrdering: !!input.restaurantOrdering },
+    },
   });
   const destination: CtaDestination =
     resolved.destination === "external_link"
       ? "external"
-      : resolved.destination === "music_storefront" || resolved.destination === "booking_page"
+      : resolved.destination === "music_storefront" ||
+        resolved.destination === "booking_page" ||
+        resolved.destination === "restaurant_order_page"
       ? resolved.destination
       : "none";
 

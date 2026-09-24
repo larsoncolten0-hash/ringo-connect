@@ -2,15 +2,16 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, BadgeCheck, CalendarCheck, ChevronRight, ShoppingBag, ShoppingCart } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, BadgeCheck, CalendarCheck, ChevronRight, ShoppingBag, ShoppingCart, UtensilsCrossed } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { useLanguage } from "@/components/LanguageProvider";
 import ShareButton from "@/components/ShareButton";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { LOW_INVENTORY_THRESHOLD } from "@/lib/ticketTypes";
-import { getCategory } from "@/lib/categories";
+import { getCategory, profileHasCategory } from "@/lib/categories";
 import { resolveProductCta } from "@/lib/cta";
+import { customerActionRoute } from "@/lib/customerActionRoutes";
 import { newEventId } from "@/lib/pixelClient";
 import { productHref, productImages } from "./productHref";
 
@@ -94,25 +95,28 @@ export default function ProductDetailView({
     isMusic,
     hasLandingUrl: !!product.landing_url,
     bookingEnabled: !!profile.bookings_enabled,
+    restaurantOrdering: profileHasCategory(profile, "restaurant_food") && profile.ordering_enabled !== false,
     ctaPreset: product.cta_preset,
     ctaLabel: product.cta_label,
   });
   const ctaLabel = cta.label ? (cta.label.kind === "custom" ? cta.label.text : t.cta.labels[cta.label.id]) : null;
 
-  const primary: { label: string; href: string; external: boolean; icon: any; onClick?: () => void } | null = soldOut
+  // The resolved destination decides where a tap goes (see customerActionRoutes.ts):
+  // only existing Ringo workflows, never a fallback. Sold out is checked first.
+  const route = soldOut ? null : customerActionRoute(cta.destination, { username, productId: product.id, landingUrl: product.landing_url });
+  const primary: { label: string; href: string; external: boolean; icon: any; onClick?: () => void } | null = !route
     ? null
-    : product.landing_url
+    : cta.destination === "external"
     ? {
         label: ctaLabel || (isMusic ? t.music.buyNowLabel : t.profilePage.viewDetails),
-        href: product.landing_url,
-        external: true,
+        ...route,
         icon: ArrowUpRight,
         onClick: () => track("product"),
       }
-    : isMusic
-    ? { label: ctaLabel || t.music.shopMerch, href: `/m/${username}?add=merch:${product.id}`, external: false, icon: ShoppingCart }
-    : ctaLabel && cta.destination === "booking_page"
-    ? { label: ctaLabel, href: `/${username}/book`, external: false, icon: CalendarCheck }
+    : cta.destination === "music_storefront"
+    ? { label: ctaLabel || t.music.shopMerch, ...route, icon: ShoppingCart }
+    : ctaLabel
+    ? { label: ctaLabel, ...route, icon: cta.destination === "restaurant_order_page" ? UtensilsCrossed : CalendarCheck }
     : null;
 
   const shareStrings = {

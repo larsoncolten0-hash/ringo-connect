@@ -185,6 +185,7 @@ export default function CatalogCard({
             category={draft.category}
             isMusic={profileHasCategory(draft, "music_entertainment")}
             bookingEnabled={!!draft.bookings_enabled}
+            restaurantOrdering={profileHasCategory(draft, "restaurant_food") && draft.ordering_enabled !== false}
             startExpanded={product.id === justAddedId}
             onChange={(patch) => updateProduct(product.id, patch)}
             onDelete={() => deleteProduct(product.id)}

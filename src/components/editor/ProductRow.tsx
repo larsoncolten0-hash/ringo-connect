@@ -22,6 +22,7 @@ export default function ProductRow({
   category,
   isMusic,
   bookingEnabled,
+  restaurantOrdering,
   onChange,
   onDelete,
   startExpanded,
@@ -37,6 +38,7 @@ export default function ProductRow({
   category?: string | null;
   isMusic?: boolean;
   bookingEnabled?: boolean;
+  restaurantOrdering?: boolean;
   onChange: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
@@ -187,6 +189,7 @@ export default function ProductRow({
                   isMusic={!!isMusic}
                   hasLandingUrl={!!product.landing_url?.trim()}
                   bookingEnabled={!!bookingEnabled}
+                  restaurantOrdering={!!restaurantOrdering}
                   preset={product.cta_preset}
                   label={product.cta_label}
                   onChange={onChange}
