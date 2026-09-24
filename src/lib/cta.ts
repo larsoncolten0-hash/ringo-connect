@@ -14,6 +14,8 @@
 // existing wording. The recommendation is only ever applied when the creator
 // explicitly picks it in the editor.
 
+import { resolveCustomerAction } from "./customerAction";
+
 export type CtaAction = "purchase" | "order" | "booking" | "ticket" | "quote" | "viewing" | "register" | "info";
 
 // Every preset belongs to exactly one action. To add a wording, add it here
@@ -120,13 +122,24 @@ export function resolveProductCta(input: {
 
   const action = preset ? CTA_PRESETS[preset] : getRecommendedCta(input.category).action;
 
-  // Destination depends only on what the item can really do. The booking page
-  // is offered only for a booking-type button the creator explicitly chose,
-  // and only when the profile actually has bookings on.
-  let destination: CtaDestination = "none";
-  if (input.hasLandingUrl) destination = "external";
-  else if (input.isMusic) destination = "music_storefront";
-  else if (label && action === "booking" && input.bookingEnabled) destination = "booking_page";
+  // Destination depends only on what the item can really do, and is decided by
+  // the universal resolver (src/lib/customerAction.ts): the item's own link
+  // wins, then the music storefront, then the booking page — the latter only
+  // for a booking- or viewing-type button the creator explicitly chose, and
+  // only when the profile actually has bookings on. Resolver destinations this
+  // product page doesn't render yet map to "none" (no button, as before).
+  const resolved = resolveCustomerAction({
+    cta: { action, explicit: label !== null, presetId: preset },
+    source: "product",
+    hasLandingUrl: input.hasLandingUrl,
+    profile: { isMusic: input.isMusic, capabilities: { bookingsEnabled: input.bookingEnabled } },
+  });
+  const destination: CtaDestination =
+    resolved.destination === "external_link"
+      ? "external"
+      : resolved.destination === "music_storefront" || resolved.destination === "booking_page"
+      ? resolved.destination
+      : "none";
 
   return { action, destination, label };
 }

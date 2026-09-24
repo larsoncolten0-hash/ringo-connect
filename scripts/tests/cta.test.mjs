@@ -86,12 +86,22 @@ r = cta.resolveProductCta({ ...base, ctaPreset: "book_now", bookingEnabled: fals
 check("booking preset, bookings off, no link → no destination", r.destination === "none");
 r = cta.resolveProductCta({ ...base, ctaPreset: "book_now", bookingEnabled: true });
 check("booking preset, bookings on, no link → booking page", r.destination === "booking_page");
-r = cta.resolveProductCta({ ...base, category: "real_estate", ctaPreset: "request_viewing", bookingEnabled: true });
+r = cta.resolveProductCta({ ...base, category: "real_estate", ctaPreset: "request_quote", bookingEnabled: true });
 check("non-booking preset never routes to booking page", r.destination === "none");
 r = cta.resolveProductCta({ ...base, category: "business_ecommerce", ctaLabel: "Get Yours", bookingEnabled: true });
 check("custom label on a purchase category never routes to booking page", r.destination === "none");
 r = cta.resolveProductCta({ ...base, hasLandingUrl: true, ctaPreset: "book_now", bookingEnabled: true });
 check("existing link wins over booking page", r.destination === "external");
+
+// --- real-estate viewing routes to the existing booking page (customerAction wiring) ---
+r = cta.resolveProductCta({ ...base, category: "real_estate", ctaPreset: "request_viewing", bookingEnabled: true });
+check("viewing preset, bookings on, no link → booking page", r.destination === "booking_page" && r.action === "viewing");
+r = cta.resolveProductCta({ ...base, category: "real_estate", ctaPreset: "request_viewing", bookingEnabled: false });
+check("viewing preset, bookings off → no destination", r.destination === "none");
+r = cta.resolveProductCta({ ...base, category: "real_estate", ctaPreset: "request_viewing", bookingEnabled: true, hasLandingUrl: true });
+check("viewing preset with a link → link still wins", r.destination === "external");
+r = cta.resolveProductCta({ ...base, category: "real_estate", bookingEnabled: true });
+check("real estate NULL/NULL + bookings on → unchanged", r.destination === "none" && r.label === null);
 
 // --- English / French parity --------------------------------------------
 const presetIds = Object.keys(cta.CTA_PRESETS);
