@@ -16,6 +16,7 @@ import { AdminInstallButton } from "@/components/admin/AdminAppControls";
 import AdminMoreMenu from "@/components/admin/AdminMoreMenu";
 import CountBadge from "@/components/admin/CountBadge";
 import type { AdminNavCounts } from "@/lib/adminNavCounts";
+import { useFreshOnReturn } from "@/lib/useFreshOnReturn";
 
 // `core: true` marks the 4 items the mobile bottom tab bar shows — kept
 // short on purpose, same reasoning as the creator dashboard's own
@@ -75,6 +76,10 @@ export default function AdminShell({
 }) {
   const pathname = usePathname();
   const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
+
+  // Keeps every admin page's server-rendered data trustworthy on return — see
+  // src/lib/useFreshOnReturn.ts. One mount here covers the whole /admin/** tree.
+  useFreshOnReturn();
 
   const [counts, setCounts] = useState(initialCounts);
 

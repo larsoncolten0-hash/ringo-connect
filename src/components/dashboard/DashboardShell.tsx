@@ -21,6 +21,7 @@ import ActivitySignals from "@/components/ActivitySignals";
 import OrgSwitcher, { type OrgOption } from "@/components/dashboard/OrgSwitcher";
 import OnboardingTourController from "@/components/dashboard/OnboardingTourController";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useFreshOnReturn } from "@/lib/useFreshOnReturn";
 import type { ProfileForTour } from "@/lib/onboardingTour";
 
 // Where a manual "pull down to check for new activity" gesture actually
@@ -188,6 +189,12 @@ export default function DashboardShell({
   const pathname = usePathname();
   const { t } = useLanguage();
   const shouldReduceMotion = useReducedMotion();
+
+  // Keeps every dashboard page's server-rendered data trustworthy on return (navigating back via
+  // the sidebar/tab bar, or reopening the installed PWA after switching away) — see
+  // src/lib/useFreshOnReturn.ts. Complements PullToRefresh below, which is a manual, touch-only
+  // gesture the operator has to know to use; this one needs no action at all.
+  useFreshOnReturn();
 
   // `core: true` marks the small set of items the mobile bottom tab bar
   // actually shows (Editor, Community, Ringo Card, Analytics,
