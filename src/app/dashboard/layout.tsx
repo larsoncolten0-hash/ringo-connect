@@ -6,6 +6,7 @@ import { getBrandingSettings } from "@/lib/branding";
 import { listUserOrganizations, pickActiveOrganization } from "@/lib/team/access";
 import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import { getAssociationNavAccess } from "@/lib/association/access";
+import { shopIsVisibleFor } from "@/lib/shopAuth";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 
@@ -109,6 +110,10 @@ export default async function DashboardLayout({
   // as visibleSubscriptionBanner above.
   const showOnboardingTour = !isActingAsStaff && !userRow?.onboarding_completed_at && !userRow?.onboarding_dismissed_at;
 
+  // Seller Shop nav entry: the viewer's OWN profile only (owner-only, like Music). Hidden while platform
+  // commerce is off unless the profile already has orders. Any failure just hides the entry.
+  const hasShop = !isActingAsStaff && ownProfile ? await shopIsVisibleFor(supabase, ownProfile) : false;
+
   return (
     <DashboardShell
       userId={user.id}
@@ -122,6 +127,7 @@ export default async function DashboardLayout({
       isRestaurant={profileHasCategory(profile, "restaurant_food")}
       isMusic={profileHasCategory(profile, "music_entertainment")}
       hasTicketing={profileHasTicketing(profile)}
+      hasShop={hasShop}
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
       canUseLoyalty={canUseLoyalty}

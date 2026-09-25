@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award, Gift } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award, Gift, ShoppingBag } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
@@ -52,6 +52,8 @@ const PULL_TO_REFRESH_PATHS = new Set([
   "/dashboard/music/customers",
   "/dashboard/music/sales",
   "/dashboard/music/earnings",
+  "/dashboard/shop",
+  "/dashboard/shop/earnings",
   "/dashboard/bookings",
   "/dashboard/community",
   "/dashboard/community/subscribers",
@@ -72,6 +74,7 @@ export default function DashboardShell({
   isRestaurant = false,
   isMusic = false,
   hasTicketing = false,
+  hasShop = false,
   canManageTeam = false,
   canManageAssociation = false,
   canUseLoyalty = false,
@@ -122,6 +125,9 @@ export default function DashboardShell({
   // Bookings' own button: events, ticket types, Gate Access, and Check-in
   // all live at /dashboard/tickets/*, not tucked inside the main editor.
   hasTicketing?: boolean;
+  // Seller Shop (/dashboard/shop: product orders, fulfillment, earnings). Computed in dashboard/layout.tsx:
+  // a non-music profile, with platform commerce on or existing orders. Owner only (hidden for staff).
+  hasShop?: boolean;
   // Team & Organization Management — whether this account can see/manage
   // the Team section: the owner always can, a staff member only with the
   // staff.view permission (see dashboard/layout.tsx). Never trusted as the
@@ -235,6 +241,7 @@ export default function DashboardShell({
       : []),
     // Its own section, not nested inside Music's editor — Events &
     // Experiences profiles get this without needing Music's other tools.
+    ...(hasShop && !organization?.isStaff ? [{ href: "/dashboard/shop", label: t.nav.shop, icon: ShoppingBag, core: false }] : []),
     ...(hasTicketing && !organization?.isStaff ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket, core: false }] : []),
     // Universal, unlike Restaurant/Music above — every category can turn
     // bookings on, so this is never gated by category. Always visible (not
