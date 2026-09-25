@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Handshake, Music2, Check, AlertTriangle, Clock } from "lucide-react";
+import { Handshake, Music2, ShoppingBag, Check, AlertTriangle, Clock } from "lucide-react";
 import type { AffiliateSettings } from "@/lib/affiliateSettings";
 import type { MusicPayoutSettings } from "@/lib/musicPayoutSettings";
+import type { ShopPayoutSettings } from "@/lib/shopPayoutSettings";
 import type { SubscriptionReminderSettings } from "@/lib/subscriptionReminderSettings";
 
 // One category = one self-contained card, each saving to its own settings
@@ -115,10 +116,12 @@ function CategoryCard({
 export default function AdminPriceControlsView({
   initialAffiliateSettings,
   initialMusicSettings,
+  initialShopSettings,
   initialSubscriptionReminderSettings,
 }: {
   initialAffiliateSettings: AffiliateSettings;
   initialMusicSettings: MusicPayoutSettings;
+  initialShopSettings: ShopPayoutSettings;
   initialSubscriptionReminderSettings: SubscriptionReminderSettings;
 }) {
   const router = useRouter();
@@ -153,6 +156,22 @@ export default function AdminPriceControlsView({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(music),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) router.refresh();
+    return { ok: res.ok, error: data.error };
+  };
+
+  const [shop, setShop] = useState({
+    commercePayoutHoldDays: initialShopSettings.commercePayoutHoldDays,
+    commerceMinPayoutXaf: initialShopSettings.commerceMinPayoutXaf,
+  });
+
+  const saveShop = async () => {
+    const res = await fetch("/api/admin/shop/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(shop),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) router.refresh();
@@ -249,6 +268,26 @@ export default function AdminPriceControlsView({
           },
         ]}
         onSave={saveMusic}
+      />
+
+      <CategoryCard
+        icon={ShoppingBag}
+        title="Shop Sales"
+        subtitle="Payout hold period and minimum for Shop product order earnings. The commission rate itself is set on the Commerce / Shop section of Admin Settings, not here."
+        fields={[
+          {
+            label: "Hold period before payable",
+            value: shop.commercePayoutHoldDays,
+            onChange: (v) => setShop((s) => ({ ...s, commercePayoutHoldDays: v })),
+            suffix: "days",
+          },
+          {
+            label: "Minimum payout — XAF",
+            value: shop.commerceMinPayoutXaf,
+            onChange: (v) => setShop((s) => ({ ...s, commerceMinPayoutXaf: v })),
+          },
+        ]}
+        onSave={saveShop}
       />
 
       <CategoryCard

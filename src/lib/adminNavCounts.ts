@@ -15,6 +15,7 @@ export type AdminNavCounts = {
   verification: number;
   affiliates: number;
   musicPayouts: number;
+  shopPayouts: number;
 };
 
 export async function getAdminNavCounts(admin: any): Promise<AdminNavCounts> {
@@ -24,6 +25,7 @@ export async function getAdminNavCounts(admin: any): Promise<AdminNavCounts> {
     { count: verification },
     { count: affiliates },
     { count: musicPayouts },
+    { count: shopPayouts },
   ] = await Promise.all([
     admin.from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
     // Just the two timestamps needed to judge "unread for admin" (same
@@ -33,6 +35,7 @@ export async function getAdminNavCounts(admin: any): Promise<AdminNavCounts> {
     admin.from("verification_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
     admin.from("affiliate_payouts").select("id", { count: "exact", head: true }).eq("status", "requested"),
     admin.from("music_payouts").select("id", { count: "exact", head: true }).eq("status", "requested"),
+    admin.from("commerce_payouts").select("id", { count: "exact", head: true }).eq("status", "requested"),
   ]);
 
   const support = (conversations || []).filter(
@@ -45,5 +48,6 @@ export async function getAdminNavCounts(admin: any): Promise<AdminNavCounts> {
     verification: verification || 0,
     affiliates: affiliates || 0,
     musicPayouts: musicPayouts || 0,
+    shopPayouts: shopPayouts || 0,
   };
 }
