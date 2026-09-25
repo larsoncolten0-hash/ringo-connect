@@ -1,6 +1,7 @@
 import { getAffiliateSettings } from "@/lib/affiliateSettings";
 import { getMusicPayoutSettings } from "@/lib/musicPayoutSettings";
 import { getShopPayoutSettings } from "@/lib/shopPayoutSettings";
+import { getProtectionSettings } from "@/lib/protectionSettings";
 import { getSubscriptionReminderSettings } from "@/lib/subscriptionReminderSettings";
 import AdminPriceControlsView from "@/components/admin/AdminPriceControlsView";
 
@@ -21,10 +22,11 @@ import AdminPriceControlsView from "@/components/admin/AdminPriceControlsView";
 export const dynamic = "force-dynamic";
 
 export default async function AdminPriceControlsPage() {
-  const [affiliateSettings, musicSettings, shopSettings, subscriptionReminderSettings] = await Promise.all([
+  const [affiliateSettings, musicSettings, shopSettings, protectionSettings, subscriptionReminderSettings] = await Promise.all([
     getAffiliateSettings(),
     getMusicPayoutSettings(),
     getShopPayoutSettings(),
+    getProtectionSettings(),
     getSubscriptionReminderSettings(),
   ]);
   return (
@@ -32,6 +34,7 @@ export default async function AdminPriceControlsPage() {
       initialAffiliateSettings={affiliateSettings}
       initialMusicSettings={musicSettings}
       initialShopSettings={shopSettings}
+      initialProtectionSettings={protectionSettings}
       initialSubscriptionReminderSettings={subscriptionReminderSettings}
     />
   );

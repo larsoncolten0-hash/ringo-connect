@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Handshake, Music2, ShoppingBag, Check, AlertTriangle, Clock } from "lucide-react";
+import { Handshake, Music2, ShoppingBag, ShieldCheck, Check, AlertTriangle, Clock } from "lucide-react";
 import type { AffiliateSettings } from "@/lib/affiliateSettings";
 import type { MusicPayoutSettings } from "@/lib/musicPayoutSettings";
 import type { ShopPayoutSettings } from "@/lib/shopPayoutSettings";
+import type { ProtectionSettings } from "@/lib/protectionSettings";
 import type { SubscriptionReminderSettings } from "@/lib/subscriptionReminderSettings";
 
 // One category = one self-contained card, each saving to its own settings
@@ -23,7 +24,10 @@ function CategoryCard({
   title: string;
   subtitle: string;
   enabledToggle?: { checked: boolean; onChange: (v: boolean) => void; label: string };
-  fields: { label: string; value: number; onChange: (v: number) => void; step?: number; suffix?: string }[];
+  // `value`/`onChange` accept null so a field can mean "not configured yet" (shown as an empty
+  // input) rather than being forced to a misleading 0 — used by Protection's fee rate, which must
+  // never silently default to a guessed percentage.
+  fields: { label: string; value: number | null; onChange: (v: number | null) => void; step?: number; suffix?: string; placeholder?: string }[];
   onSave: () => Promise<{ ok: boolean; error?: string }>;
 }) {
   const [saving, setSaving] = useState(false);
@@ -84,8 +88,9 @@ function CategoryCard({
                 type="number"
                 min={0}
                 step={f.step ?? 1}
-                value={f.value}
-                onChange={(e) => f.onChange(Number(e.target.value))}
+                value={f.value ?? ""}
+                placeholder={f.placeholder}
+                onChange={(e) => f.onChange(e.target.value === "" ? null : Number(e.target.value))}
                 className="w-full border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text"
               />
               {f.suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ringo-muted">{f.suffix}</span>}
@@ -117,11 +122,13 @@ export default function AdminPriceControlsView({
   initialAffiliateSettings,
   initialMusicSettings,
   initialShopSettings,
+  initialProtectionSettings,
   initialSubscriptionReminderSettings,
 }: {
   initialAffiliateSettings: AffiliateSettings;
   initialMusicSettings: MusicPayoutSettings;
   initialShopSettings: ShopPayoutSettings;
+  initialProtectionSettings: ProtectionSettings;
   initialSubscriptionReminderSettings: SubscriptionReminderSettings;
 }) {
   const router = useRouter();
@@ -178,6 +185,24 @@ export default function AdminPriceControlsView({
     return { ok: res.ok, error: data.error };
   };
 
+  const [protection, setProtection] = useState({
+    protectionEnabled: initialProtectionSettings.protectionEnabled,
+    protectionFeeRatePct:
+      initialProtectionSettings.protectionFeeRate != null ? Math.round(initialProtectionSettings.protectionFeeRate * 10000) / 100 : null,
+    protectionAutoReleaseHours: initialProtectionSettings.protectionAutoReleaseHours,
+  });
+
+  const saveProtection = async () => {
+    const res = await fetch("/api/admin/protection/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(protection),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) router.refresh();
+    return { ok: res.ok, error: data.error };
+  };
+
   const [subscriptionReminders, setSubscriptionReminders] = useState({
     gracePeriodDays: initialSubscriptionReminderSettings.gracePeriodDays,
     expiringSoonReminderDays: initialSubscriptionReminderSettings.expiringSoonReminderDays,
@@ -219,25 +244,25 @@ export default function AdminPriceControlsView({
           {
             label: "Commission rate",
             value: affiliate.affiliateCommissionRatePct,
-            onChange: (v) => setAffiliate((s) => ({ ...s, affiliateCommissionRatePct: v })),
+            onChange: (v) => setAffiliate((s) => ({ ...s, affiliateCommissionRatePct: v ?? 0 })),
             step: 0.5,
             suffix: "%",
           },
           {
             label: "Hold period before payable",
             value: affiliate.affiliateHoldDays,
-            onChange: (v) => setAffiliate((s) => ({ ...s, affiliateHoldDays: v })),
+            onChange: (v) => setAffiliate((s) => ({ ...s, affiliateHoldDays: v ?? 0 })),
             suffix: "days",
           },
           {
             label: "Minimum payout — XAF",
             value: affiliate.affiliateMinPayoutXaf,
-            onChange: (v) => setAffiliate((s) => ({ ...s, affiliateMinPayoutXaf: v })),
+            onChange: (v) => setAffiliate((s) => ({ ...s, affiliateMinPayoutXaf: v ?? 0 })),
           },
           {
             label: "Minimum payout — USD",
             value: affiliate.affiliateMinPayoutUsd,
-            onChange: (v) => setAffiliate((s) => ({ ...s, affiliateMinPayoutUsd: v })),
+            onChange: (v) => setAffiliate((s) => ({ ...s, affiliateMinPayoutUsd: v ?? 0 })),
           },
         ]}
         onSave={saveAffiliate}
@@ -251,20 +276,20 @@ export default function AdminPriceControlsView({
           {
             label: "Platform fee",
             value: music.musicCommissionRatePct,
-            onChange: (v) => setMusic((s) => ({ ...s, musicCommissionRatePct: v })),
+            onChange: (v) => setMusic((s) => ({ ...s, musicCommissionRatePct: v ?? 0 })),
             step: 0.5,
             suffix: "%",
           },
           {
             label: "Hold period before payable",
             value: music.musicPayoutHoldDays,
-            onChange: (v) => setMusic((s) => ({ ...s, musicPayoutHoldDays: v })),
+            onChange: (v) => setMusic((s) => ({ ...s, musicPayoutHoldDays: v ?? 0 })),
             suffix: "days",
           },
           {
             label: "Minimum payout — XAF",
             value: music.musicMinPayoutXaf,
-            onChange: (v) => setMusic((s) => ({ ...s, musicMinPayoutXaf: v })),
+            onChange: (v) => setMusic((s) => ({ ...s, musicMinPayoutXaf: v ?? 0 })),
           },
         ]}
         onSave={saveMusic}
@@ -278,16 +303,44 @@ export default function AdminPriceControlsView({
           {
             label: "Hold period before payable",
             value: shop.commercePayoutHoldDays,
-            onChange: (v) => setShop((s) => ({ ...s, commercePayoutHoldDays: v })),
+            onChange: (v) => setShop((s) => ({ ...s, commercePayoutHoldDays: v ?? 0 })),
             suffix: "days",
           },
           {
             label: "Minimum payout — XAF",
             value: shop.commerceMinPayoutXaf,
-            onChange: (v) => setShop((s) => ({ ...s, commerceMinPayoutXaf: v })),
+            onChange: (v) => setShop((s) => ({ ...s, commerceMinPayoutXaf: v ?? 0 })),
           },
         ]}
         onSave={saveShop}
+      />
+
+      <CategoryCard
+        icon={ShieldCheck}
+        title="Ringo Protection"
+        subtitle="Optional buyer-protection payment mode (foundation only — not yet enabled for checkout). This card only controls the configuration new protected transactions will snapshot once the feature is activated in a later increment."
+        enabledToggle={{
+          checked: protection.protectionEnabled,
+          onChange: (v) => setProtection((s) => ({ ...s, protectionEnabled: v })),
+          label: "Ringo Protection enabled",
+        }}
+        fields={[
+          {
+            label: "Protection fee",
+            value: protection.protectionFeeRatePct,
+            onChange: (v) => setProtection((s) => ({ ...s, protectionFeeRatePct: v })),
+            step: 0.25,
+            suffix: "%",
+            placeholder: "Not set",
+          },
+          {
+            label: "Auto-release period",
+            value: protection.protectionAutoReleaseHours,
+            onChange: (v) => setProtection((s) => ({ ...s, protectionAutoReleaseHours: v ?? 0 })),
+            suffix: "hours",
+          },
+        ]}
+        onSave={saveProtection}
       />
 
       <CategoryCard
@@ -298,19 +351,19 @@ export default function AdminPriceControlsView({
           {
             label: '"Expiring soon" reminder',
             value: subscriptionReminders.expiringSoonReminderDays,
-            onChange: (v) => setSubscriptionReminders((s) => ({ ...s, expiringSoonReminderDays: v })),
+            onChange: (v) => setSubscriptionReminders((s) => ({ ...s, expiringSoonReminderDays: v ?? 0 })),
             suffix: "days before",
           },
           {
             label: "Grace period",
             value: subscriptionReminders.gracePeriodDays,
-            onChange: (v) => setSubscriptionReminders((s) => ({ ...s, gracePeriodDays: v })),
+            onChange: (v) => setSubscriptionReminders((s) => ({ ...s, gracePeriodDays: v ?? 0 })),
             suffix: "days after expiry",
           },
           {
             label: '"Grace ending" reminder',
             value: subscriptionReminders.graceEndingReminderDays,
-            onChange: (v) => setSubscriptionReminders((s) => ({ ...s, graceEndingReminderDays: v })),
+            onChange: (v) => setSubscriptionReminders((s) => ({ ...s, graceEndingReminderDays: v ?? 0 })),
             suffix: "days before grace ends",
           },
         ]}
