@@ -121,6 +121,9 @@ export type ActivityKind =
   | "music_order"
   | "restaurant_order"
   | "booking"
+  // Shop orders (Increment 5B). Resolved directly from product_orders.customer_id — a real FK
+  // set at checkout — rather than customer_order_links, which the other three kinds use.
+  | "shop_order"
   // Ringo Loyalty (see src/lib/loyalty/customerFeed.ts). Rendered from structured data + translations.
   | "loyalty_progress"
   | "loyalty_correction"
@@ -193,7 +196,7 @@ export async function listActivity(customer: Customer, limit = 100): Promise<Act
     resolveOwnedOrderIds(customer, "booking"),
   ]);
 
-  const [musicOrders, restaurantOrders, bookings] = await Promise.all([
+  const [musicOrders, restaurantOrders, bookings, shopOrders] = await Promise.all([
     fetchByIds(musicIds, (chunk) =>
       admin
         .from("music_orders")
@@ -212,6 +215,20 @@ export async function listActivity(customer: Customer, limit = 100): Promise<Act
         .select("id, created_at, status, service_name_snapshot, profiles(name, username)")
         .in("id", chunk)
     ),
+    // Shop orders (Increment 5A/5B): product_orders.customer_id is a direct FK set at checkout,
+    // so — unlike the three kinds above — this needs no customer_order_links lookup at all.
+    // Only this customer's own rows; only customer-facing fields (no phone/email/profile_id,
+    // no payout/earnings columns).
+    (async () => {
+      const { data, error } = await admin
+        .from("product_orders")
+        .select("id, order_number, created_at, total, currency, status, profiles(name, username), product_order_items(name_snapshot)")
+        .eq("customer_id", customer.id)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) console.error("customer activity shop orders failed:", error.message);
+      return data || [];
+    })(),
   ]);
 
   const profileOf = (row: any) => {
@@ -261,6 +278,21 @@ export async function listActivity(customer: Customer, limit = 100): Promise<Act
       summary: b.service_name_snapshot,
       status: b.status,
       href: null,
+    });
+  }
+  for (const o of shopOrders as any[]) {
+    const p = profileOf(o);
+    items.push({
+      id: o.id,
+      kind: "shop_order",
+      at: o.created_at,
+      profile: p && { name: p.name, username: p.username },
+      orderNumber: o.order_number,
+      summary: summarize((o.product_order_items || []).map((i: any) => i.name_snapshot)),
+      amount: Number(o.total),
+      currency: o.currency,
+      status: o.status,
+      href: `/shop/orders/${o.id}`,
     });
   }
 

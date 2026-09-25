@@ -7,6 +7,8 @@ import { createFapshiProvider } from "./fapshiProvider";
 import { createSupabaseRateLimiter } from "./commerceRateLimiter";
 import { createProviderPollGate } from "./pollGate";
 import { createSupabaseStore } from "./supabaseStore";
+import { sendShopOrderReceiptEmail } from "@/lib/email/sendShopOrderReceiptEmail";
+import { notifyShopOrderConfirmed } from "@/lib/customer/shopOrderPush";
 import type { CheckoutDeps } from "./types";
 
 // One gate per server instance, shared by every request it serves.
@@ -22,8 +24,13 @@ export function buildCheckoutDeps(): CheckoutDeps {
     now: () => new Date(),
     newId: () => randomUUID(),
     log: (event, data) => console.warn(`[product-checkout] ${event}`, data ?? {}),
-    // No creator notification yet: receipts and notifications arrive with the next increment,
-    // in both languages, rather than as hard-coded English here.
+    // Increment 5B: the customer's receipt email and My Ringo notification. settleProductPayment
+    // already calls this at most once (only the caller that flips the order to paid) and already
+    // wraps it in a try/catch that never blocks or reverses settlement — both senders below are
+    // independently best-effort and non-throwing on top of that.
+    onOrderPaid: async ({ order }) => {
+      await Promise.allSettled([sendShopOrderReceiptEmail(order.id), notifyShopOrderConfirmed(order.id)]);
+    },
   };
 }
 

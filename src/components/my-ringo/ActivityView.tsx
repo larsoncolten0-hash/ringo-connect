@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarCheck, ChevronRight, Gift, History, Link2, Music, Package, RotateCcw, TrendingUp, Unlink, Utensils } from "lucide-react";
+import { CalendarCheck, ChevronRight, Gift, History, Link2, Music, Package, RotateCcw, ShoppingBag, TrendingUp, Unlink, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
@@ -21,6 +21,7 @@ const ICONS: Record<ActivityItem["kind"], LucideIcon> = {
   music_order: Music,
   restaurant_order: Utensils,
   booking: CalendarCheck,
+  shop_order: ShoppingBag,
   // Ringo Loyalty events (same feed, same row layout)
   loyalty_progress: TrendingUp,
   loyalty_correction: RotateCcw,
@@ -35,14 +36,18 @@ const STATUS_TONE: Record<string, string> = {
   served: "bg-emerald-500/10 text-emerald-600",
   confirmed: "bg-emerald-500/10 text-emerald-600",
   paid: "bg-emerald-500/10 text-emerald-600",
+  fulfilled: "bg-emerald-500/10 text-emerald-600",
   pending: "bg-amber-500/10 text-amber-600",
   unpaid: "bg-amber-500/10 text-amber-600",
+  awaiting_payment: "bg-amber-500/10 text-amber-600",
+  payment_review: "bg-amber-500/10 text-amber-600",
   accepted: "bg-sky-500/10 text-sky-600",
   preparing: "bg-sky-500/10 text-sky-600",
   ready: "bg-sky-500/10 text-sky-600",
   cancelled: "bg-red-500/10 text-red-600",
   declined: "bg-red-500/10 text-red-600",
   refunded: "bg-ringo-muted/15 text-ringo-muted",
+  expired: "bg-ringo-muted/15 text-ringo-muted",
   failed: "bg-red-500/10 text-red-600",
 };
 
@@ -94,6 +99,7 @@ export default function ActivityView({ items }: { items: ActivityItem[] }) {
           music_order: a.musicPurchase,
           restaurant_order: a.restaurantOrder,
           booking: a.booking,
+          shop_order: a.shopOrder,
         }[item.kind];
 
   return (
@@ -115,7 +121,7 @@ export default function ActivityView({ items }: { items: ActivityItem[] }) {
               <ul className="overflow-hidden rounded-2xl border border-ringo-border/70 bg-ringo-surface">
                 {group.items.map((item) => {
                   const Icon = ICONS[item.kind];
-                  const isOrder = item.kind === "music_order" || item.kind === "restaurant_order";
+                  const isOrder = item.kind === "music_order" || item.kind === "restaurant_order" || item.kind === "shop_order";
                   const summaryText = item.summary ?? loyaltyLine(t, locale, item);
                   const body = (
                     <div className="flex items-start gap-3 px-4 py-3.5">

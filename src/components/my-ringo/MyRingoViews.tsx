@@ -111,6 +111,7 @@ export function HomeView({
                     music_order: t.myRingo.activity.musicPurchase,
                     restaurant_order: t.myRingo.activity.restaurantOrder,
                     booking: t.myRingo.activity.booking,
+                    shop_order: t.myRingo.activity.shopOrder,
                   }[item.kind];
               return (
                 <li key={item.id} className="border-b border-ringo-border/60 last:border-0">

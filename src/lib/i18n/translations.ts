@@ -99,6 +99,55 @@ export const translations = {
         generic: "Something went wrong. Please try again.",
       },
     },
+    // The customer-facing Shop order receipt (Increment 5B): the persistent page at
+    // /shop/orders/[id], and the strings the receipt email builds itself from (see
+    // sendShopOrderReceiptEmail.ts). Distinct from `shopOrders` below, which is the seller's own
+    // dashboard vocabulary.
+    shopReceipt: {
+      title: "Order receipt",
+      orderLabel: (n: string) => `Order ${n}`,
+      receiptLabel: (n: string) => `Receipt ${n}`,
+      from: (seller: string) => `From ${seller}`,
+      itemsTitle: "Items",
+      quantityTimesPrice: (qty: number, price: string) => `${qty} × ${price}`,
+      subtotal: "Subtotal",
+      total: "Total",
+      paymentTitle: "Payment",
+      paymentMethod: {
+        "mobile money": "MTN Mobile Money",
+        "orange money": "Orange Money",
+      } as Record<string, string>,
+      paymentStatus: {
+        succeeded: "Paid",
+        initiated: "Payment in progress",
+        pending: "Payment in progress",
+        failed: "Payment failed",
+        expired: "Payment expired",
+        cancelled: "Payment cancelled",
+      } as Record<string, string>,
+      noPayment: "No payment recorded yet.",
+      status: {
+        awaiting_payment: "Awaiting payment",
+        paid: "Paid",
+        fulfilled: "Fulfilled",
+        cancelled: "Cancelled",
+        expired: "Expired",
+        refunded: "Refunded",
+        payment_review: "Under review",
+      } as Record<string, string>,
+      placedOn: (date: string) => `Placed ${date}`,
+      paidOn: (date: string) => `Paid ${date}`,
+      notFoundTitle: "Order not found",
+      notFoundBody: "We couldn't find this order. Double-check the link.",
+      email: {
+        heading: "Purchase confirmed",
+        subheading: (orderNumber: string, seller: string) => `Order ${orderNumber} · ${seller}`,
+        ctaLabel: "View your receipt",
+        totalLabel: "Total",
+        footerNote: (seller: string) => `Thanks for your purchase from ${seller}.`,
+        subject: (seller: string) => `Your receipt from ${seller}`,
+      },
+    },
     // Seller Shop section (/dashboard/shop, Increment 5A): product orders, order detail, fulfillment and
     // earnings. Every string a seller reads there lives here, in both languages.
     shopOrders: {
@@ -401,6 +450,10 @@ export const translations = {
         title: "Booking confirmed",
         body: (service: string, business: string, date: string, time: string) =>
           `${business} confirmed your booking${service ? ` for ${service}` : ""}${date ? ` on ${date}` : ""}${time ? ` at ${time}` : ""}.`,
+      },
+      shopOrderConfirmed: {
+        title: "Order confirmed",
+        body: (orderNumber: string, seller: string) => `Your order ${orderNumber} from ${seller} was confirmed.`,
       },
     },
     communityJoin: {
@@ -984,6 +1037,7 @@ export const translations = {
         musicPurchase: "Music purchase",
         restaurantOrder: "Order",
         booking: "Booking",
+        shopOrder: "Shop order",
         connected: "Connected",
         disconnected: "Disconnected",
         orderNumber: (n: number) => `Order #${n}`,
@@ -1004,6 +1058,12 @@ export const translations = {
           cancelled: "Cancelled",
           refunded: "Refunded",
           failed: "Failed",
+          // Shop order statuses (Increment 5B; product_orders.status)
+          awaiting_payment: "Awaiting payment",
+          paid: "Paid",
+          fulfilled: "Fulfilled",
+          expired: "Expired",
+          payment_review: "Under review",
         } as Record<string, string>,
       },
       pwa: {
@@ -3541,6 +3601,55 @@ export const translations = {
         generic: "Une erreur est survenue. Veuillez réessayer.",
       },
     },
+    // Le reçu de commande boutique côté client (Incrément 5B) : la page persistante à
+    // /shop/orders/[id], et les textes utilisés par l'e-mail de reçu (voir
+    // sendShopOrderReceiptEmail.ts). Distinct de `shopOrders` ci-dessous, qui est le vocabulaire
+    // du tableau de bord du vendeur.
+    shopReceipt: {
+      title: "Reçu de commande",
+      orderLabel: (n: string) => `Commande ${n}`,
+      receiptLabel: (n: string) => `Reçu ${n}`,
+      from: (seller: string) => `De ${seller}`,
+      itemsTitle: "Articles",
+      quantityTimesPrice: (qty: number, price: string) => `${qty} × ${price}`,
+      subtotal: "Sous-total",
+      total: "Total",
+      paymentTitle: "Paiement",
+      paymentMethod: {
+        "mobile money": "MTN Mobile Money",
+        "orange money": "Orange Money",
+      } as Record<string, string>,
+      paymentStatus: {
+        succeeded: "Payé",
+        initiated: "Paiement en cours",
+        pending: "Paiement en cours",
+        failed: "Paiement échoué",
+        expired: "Paiement expiré",
+        cancelled: "Paiement annulé",
+      } as Record<string, string>,
+      noPayment: "Aucun paiement enregistré pour le moment.",
+      status: {
+        awaiting_payment: "En attente de paiement",
+        paid: "Payée",
+        fulfilled: "Traitée",
+        cancelled: "Annulée",
+        expired: "Expirée",
+        refunded: "Remboursée",
+        payment_review: "En vérification",
+      } as Record<string, string>,
+      placedOn: (date: string) => `Passée le ${date}`,
+      paidOn: (date: string) => `Payée le ${date}`,
+      notFoundTitle: "Commande introuvable",
+      notFoundBody: "Nous n'avons pas trouvé cette commande. Vérifiez le lien.",
+      email: {
+        heading: "Achat confirmé",
+        subheading: (orderNumber: string, seller: string) => `Commande ${orderNumber} · ${seller}`,
+        ctaLabel: "Voir votre reçu",
+        totalLabel: "Total",
+        footerNote: (seller: string) => `Merci pour votre achat chez ${seller}.`,
+        subject: (seller: string) => `Votre reçu de ${seller}`,
+      },
+    },
     // Section Boutique du vendeur (/dashboard/shop, Incrément 5A) : commandes produits, détail d'une
     // commande, traitement et gains. Tout le texte lu par le vendeur est ici, dans les deux langues.
     shopOrders: {
@@ -3796,6 +3905,10 @@ export const translations = {
         title: "Réservation confirmée",
         body: (service: string, business: string, date: string, time: string) =>
           `${business} a confirmé votre réservation${service ? ` pour ${service}` : ""}${date ? ` le ${date}` : ""}${time ? ` à ${time}` : ""}.`,
+      },
+      shopOrderConfirmed: {
+        title: "Commande confirmée",
+        body: (orderNumber: string, seller: string) => `Votre commande ${orderNumber} chez ${seller} a été confirmée.`,
       },
     },
     communityJoin: {
@@ -4371,6 +4484,7 @@ export const translations = {
         musicPurchase: "Achat de musique",
         restaurantOrder: "Commande",
         booking: "Réservation",
+        shopOrder: "Commande boutique",
         connected: "Connecté",
         disconnected: "Déconnecté",
         orderNumber: (n: number) => `Commande n° ${n}`,
@@ -4391,6 +4505,12 @@ export const translations = {
           cancelled: "Annulée",
           refunded: "Remboursée",
           failed: "Échouée",
+          // Statuts de commande boutique (Incrément 5B ; product_orders.status)
+          awaiting_payment: "En attente de paiement",
+          paid: "Payée",
+          fulfilled: "Traitée",
+          expired: "Expirée",
+          payment_review: "En vérification",
         } as Record<string, string>,
       },
       pwa: {
