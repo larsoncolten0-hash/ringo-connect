@@ -145,6 +145,13 @@ export async function getMaskedPlatformSettings() {
     fapshiTestMode: data?.fapshi_test_mode ?? true,
     stripeTestMode: data?.stripe_test_mode ?? true,
 
+    // Internal Shop checkout master switch (consumed by productCheckout/eligibility.ts via its
+    // own narrow reader, supabaseStore.ts::getSettings() — untouched here). Defaults to false/null,
+    // never true/a guessed rate: the 5A migration deliberately ships this off until an admin sets
+    // both explicitly.
+    commerceEnabled: data?.commerce_enabled === true,
+    commerceCommissionRate: data?.commerce_commission_rate != null ? Number(data.commerce_commission_rate) : null,
+
     fapshiApiUserTestSet: !!data?.fapshi_api_user_test_encrypted,
     fapshiApiKeyTestSet: !!data?.fapshi_api_key_test_encrypted,
     fapshiApiUserLiveSet: !!data?.fapshi_api_user_live_encrypted,
@@ -185,6 +192,11 @@ export type PlatformSettingsPatch = Partial<{
   allowCustomerPaymentAtSignup: boolean;
   fapshiTestMode: boolean;
   stripeTestMode: boolean;
+
+  commerceEnabled: boolean;
+  // A fraction (0.05 = 5%), or null to explicitly clear it back to "not configured" — never
+  // omit this to mean null; omitting the key entirely leaves the stored value untouched.
+  commerceCommissionRate: number | null;
 
   fapshiApiUserTest: string;
   fapshiApiKeyTest: string;
@@ -238,6 +250,19 @@ export async function updatePlatformSettings(patch: PlatformSettingsPatch, updat
     dbPatch.allow_customer_payment_at_signup = patch.allowCustomerPaymentAtSignup;
   if (patch.fapshiTestMode !== undefined) dbPatch.fapshi_test_mode = patch.fapshiTestMode;
   if (patch.stripeTestMode !== undefined) dbPatch.stripe_test_mode = patch.stripeTestMode;
+
+  if (patch.commerceEnabled !== undefined) dbPatch.commerce_enabled = patch.commerceEnabled;
+  if (patch.commerceCommissionRate !== undefined) {
+    if (patch.commerceCommissionRate === null) {
+      dbPatch.commerce_commission_rate = null;
+    } else {
+      const rate = patch.commerceCommissionRate;
+      if (typeof rate !== "number" || !Number.isFinite(rate) || rate < 0 || rate > 1) {
+        throw new Error("Commerce commission rate must be a number between 0 and 1 (e.g. 0.05 for 5%).");
+      }
+      dbPatch.commerce_commission_rate = rate;
+    }
+  }
 
   // Price IDs aren't secret — stored plainly, overwritten whenever a
   // value is explicitly provided (including clearing to empty).

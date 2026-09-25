@@ -24,6 +24,8 @@ export async function POST(request: Request) {
     "stripeEnabled",
     "fapshiTestMode",
     "stripeTestMode",
+    "commerceEnabled",
+    "commerceCommissionRate",
     "stripePriceProTest",
     "stripePriceProYearlyTest",
     "stripePriceBusinessTest",

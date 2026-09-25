@@ -9,6 +9,9 @@ type Settings = {
   fapshiEnabled: boolean;
   stripeEnabled: boolean;
   allowCustomerPaymentAtSignup: boolean;
+  commerceEnabled: boolean;
+  // A fraction (0.05 = 5%), or null when not configured — never guessed/defaulted.
+  commerceCommissionRate: number | null;
   fapshiTestMode: boolean;
   stripeTestMode: boolean;
   fapshiApiUserTestSet: boolean;
@@ -100,17 +103,33 @@ function Field({
   );
 }
 
+// Stored/wired as a fraction (0.05); typed and shown as a percentage (5) — this is the only
+// place that conversion happens, so the API and the DB column stay in plain fractions throughout.
+const pctFromFraction = (rate: number | null): string => (rate == null ? "" : String(Math.round(rate * 10000) / 100));
+
+/** "" -> null (explicitly clear). Otherwise a finite 0–100 percentage, else an error string. */
+function parseCommissionPct(raw: string): { ok: true; rate: number | null } | { ok: false; error: string } {
+  const trimmed = raw.trim();
+  if (trimmed === "") return { ok: true, rate: null };
+  const pct = Number(trimmed);
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+    return { ok: false, error: "Commission rate must be a number between 0 and 100 (%)." };
+  }
+  return { ok: true, rate: pct / 100 };
+}
+
 export default function SettingsForm({ initial }: { initial: Settings }) {
   const router = useRouter();
   const [settings, setSettings] = useState(initial);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [commissionPct, setCommissionPct] = useState(() => pctFromFraction(initial.commerceCommissionRate));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
   const setDraftField = (key: string, value: string) => setDraft((d) => ({ ...d, [key]: value }));
 
-  const toggle = async (field: "fapshiEnabled" | "stripeEnabled" | "allowCustomerPaymentAtSignup") => {
+  const toggle = async (field: "fapshiEnabled" | "stripeEnabled" | "allowCustomerPaymentAtSignup" | "commerceEnabled") => {
     const next = { ...settings, [field]: !settings[field] };
     setSettings(next);
     await fetch("/api/admin/settings", {
@@ -137,10 +156,16 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
   };
 
   const save = async () => {
-    setSaving(true);
     setError("");
+    const parsedRate = parseCommissionPct(commissionPct);
+    if (!parsedRate.ok) {
+      setError(parsedRate.error);
+      return;
+    }
+    setSaving(true);
 
     const body: Record<string, any> = {
+      commerceCommissionRate: parsedRate.rate,
       stripePriceBasicTest: settings.stripePriceBasicTest,
       stripePriceBasicYearlyTest: settings.stripePriceBasicYearlyTest,
       stripePriceProTest: settings.stripePriceProTest,
@@ -190,6 +215,7 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
     }
 
     setSettings(data.settings);
+    setCommissionPct(pctFromFraction(data.settings.commerceCommissionRate));
     setDraft({});
     setSaved(true);
     router.refresh();
@@ -237,6 +263,58 @@ export default function SettingsForm({ initial }: { initial: Settings }) {
             </label>
           ))}
         </div>
+      </div>
+
+      {/* Commerce / Shop checkout */}
+      <div className="rounded-card border border-ringo-border/70 bg-ringo-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <h2 className="text-sm font-medium text-ringo-text mb-1">Commerce / Shop</h2>
+        <p className="text-xs text-ringo-muted mb-4">
+          Controls whether a Business &amp; E-commerce product's "Buy Now" button can use Ringo's own checkout
+          (Mobile Money via Fapshi) instead of just linking out. Off by default — both settings below must be set
+          before any product's checkout activates.
+        </p>
+        <label className="flex items-center justify-between mb-4">
+          <p className="text-sm text-ringo-text">Enable Shop Checkout</p>
+          <button
+            onClick={() => toggle("commerceEnabled")}
+            role="switch"
+            aria-checked={settings.commerceEnabled}
+            className={`shrink-0 w-10 h-6 rounded-full relative border transition-colors ${
+              settings.commerceEnabled ? "bg-ringo-teal border-ringo-teal" : "bg-slate-700 border-slate-700"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                settings.commerceEnabled ? "translate-x-[18px]" : ""
+              }`}
+            />
+          </button>
+        </label>
+        <label className="flex flex-col gap-1 max-w-xs">
+          <span className="text-xs text-ringo-muted">Commerce commission rate</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step="0.1"
+              value={commissionPct}
+              onChange={(e) => setCommissionPct(e.target.value)}
+              placeholder="Not set"
+              className="border border-ringo-border rounded-card px-3 py-2 text-sm bg-ringo-bg text-ringo-text w-28"
+            />
+            <span className="text-sm text-ringo-muted">%</span>
+          </div>
+          <span className="text-xs text-ringo-muted">
+            Ringo's cut of each Shop sale — e.g. 5 means 5% (stored as 0.05). Leave blank to keep it unset.
+          </span>
+        </label>
+        {settings.commerceEnabled && settings.commerceCommissionRate == null && (
+          <p className="mt-3 text-xs text-amber-600 flex items-center gap-1.5">
+            <AlertTriangle size={14} />
+            Checkout won't actually activate for any product until a commission rate is also set.
+          </p>
+        )}
       </div>
 
       {/* Get Started form behavior */}
