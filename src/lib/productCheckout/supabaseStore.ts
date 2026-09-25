@@ -136,6 +136,17 @@ export function createSupabaseStore(admin: Admin): CheckoutStore {
       return groups.flat().filter((id, i, a) => live.has(id) && a.indexOf(id) === i).slice(0, limit);
     },
 
+    async setOrderLanguage(orderId: string, lang: "en" | "fr") {
+      // Nullable additive column (customer_language). Any error - including "column does not exist" before the
+      // migration is applied - is swallowed: the language is a convenience, never a reason to fail an order.
+      try {
+        const { error } = await admin.from("product_orders").update({ customer_language: lang }).eq("id", orderId);
+        return !error;
+      } catch {
+        return false;
+      }
+    },
+
     async insertEarning(row: EarningRow) {
       const { error } = await admin.from("commerce_sale_earnings").insert(row);
       if (!error) return "inserted" as const;

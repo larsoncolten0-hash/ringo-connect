@@ -28,6 +28,8 @@ export interface CreateOrderBody {
   customer_phone: string;
   customer_email?: string;
   note?: string;
+  /** the language the customer is using, so their receipt arrives in it */
+  lang?: "en" | "fr";
 }
 export interface PayBody {
   phone: string;
@@ -106,6 +108,8 @@ export interface CheckoutConfig {
   /** called whenever the current order id changes, so the view can keep ?order= in the URL */
   onOrderChange?: (orderId: string | null) => void;
   /** Minimum ms between backend status checks (Fapshi rate limit). Omitted/0 = unthrottled (tests). */
+  /** the customer's current language ("en" | "fr"), sent with the order for the receipt */
+  getLang?: () => string;
   minPollGapMs?: number;
   /** Clock in ms, injectable for tests. */
   nowMs?: () => number;
@@ -129,7 +133,7 @@ export const clampQuantity = (n: number, maxQuantity: number): number => {
   return Math.max(1, Math.min(cap, Math.trunc(Number.isFinite(n) ? n : 1)));
 };
 
-export function buildCreateBody(productId: string, f: FormValues): CreateOrderBody {
+export function buildCreateBody(productId: string, f: FormValues, lang?: string | null): CreateOrderBody {
   const body: CreateOrderBody = {
     product_id: productId,
     quantity: f.quantity,
@@ -138,6 +142,7 @@ export function buildCreateBody(productId: string, f: FormValues): CreateOrderBo
   };
   if (f.email.trim()) body.customer_email = f.email.trim();
   if (f.note.trim()) body.note = f.note.trim();
+  if (lang === "en" || lang === "fr") body.lang = lang;
   return body;
 }
 
@@ -253,7 +258,7 @@ export class CheckoutController {
     try {
       let order = s.order;
       if (!order) {
-        const created = await this.cfg.api.createOrder(buildCreateBody(this.cfg.productId, s.form));
+        const created = await this.cfg.api.createOrder(buildCreateBody(this.cfg.productId, s.form, this.cfg.getLang?.()));
         if (!created.ok) return this.failCreate(created.code);
         order = created.data;
         this.set({ order });

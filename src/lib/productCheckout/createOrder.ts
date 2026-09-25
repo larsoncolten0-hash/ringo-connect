@@ -75,5 +75,15 @@ export async function createProductOrder(
   });
   if (!created.ok) return fail(created.code);
 
+  // Remember the customer's language for their receipt. Best effort and after the RPC (which is untouched):
+  // if the optional column is not there yet this just logs and the receipt falls back to French.
+  if (input.lang && deps.store.setOrderLanguage) {
+    try {
+      if (!(await deps.store.setOrderLanguage(created.order.id, input.lang))) deps.log("product_order_language_not_saved", { orderId: created.order.id });
+    } catch {
+      deps.log("product_order_language_not_saved", { orderId: created.order.id });
+    }
+  }
+
   return ok(toOrderView(created.order, [created.item]));
 }

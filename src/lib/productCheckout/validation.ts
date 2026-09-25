@@ -23,6 +23,8 @@ export interface CreateOrderInput {
   phone: string; // contact number as typed (normalised), not necessarily the payer's
   email: string | null;
   note: string | null;
+  /** the language the customer was using (optional; anything else is ignored, never an error) */
+  lang: "en" | "fr" | null;
 }
 
 export function parseCreateOrderInput(raw: unknown): Parsed<CreateOrderInput> {
@@ -58,7 +60,9 @@ export function parseCreateOrderInput(raw: unknown): Parsed<CreateOrderInput> {
     note = n || null;
   }
 
-  return { ok: true, value: { productId: raw.product_id, quantity: q, name, phone, email, note } };
+  const lang = raw.lang === "en" || raw.lang === "fr" ? raw.lang : null;
+
+  return { ok: true, value: { productId: raw.product_id, quantity: q, name, phone, email, note, lang } };
 }
 
 export interface PayInput {

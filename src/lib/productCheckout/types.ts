@@ -133,6 +133,8 @@ export interface CheckoutStore {
   getEarningByOrder(orderId: string): Promise<EarningRow | null>;
   /** 'exists' when the unique (order / payment) constraint already holds an earning. */
   insertEarning(row: EarningRow): Promise<"inserted" | "exists">;
+  /** Best effort: remember the customer's language for their receipt (nullable customer_language column). Never throws. */
+  setOrderLanguage?(orderId: string, lang: "en" | "fr"): Promise<boolean>;
   /**
    * Orders the reconciliation sweep should look at, most useful first: succeeded payments whose order
    * never got settled, then open attempts, then recently expired/cancelled attempts (a late
