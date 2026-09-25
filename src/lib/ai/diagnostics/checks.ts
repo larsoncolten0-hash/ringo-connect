@@ -69,6 +69,15 @@ export const DIAGNOSTIC_CHECKS: DiagnosticCheck[] = [
         : null,
   },
   {
+    id: "shop_currency_blocks_checkout",
+    knowledge: "commerce",
+    rule: "computeCheckoutAvailability()/checkCommerceEligibility() only ever offer Ringo's own Shop checkout when the store currency is XAF — everything else always falls back to no online checkout.",
+    evaluate: (s) =>
+      !s.isMusic && s.platformCommerceEnabled && s.profile.currency !== "XAF" && s.counts.products !== null && s.counts.products > 0
+        ? { severity: "tip", facts: { store_currency: s.profile.currency, required_currency: "XAF" }, fixPath: "/dashboard?section=catalog" }
+        : null,
+  },
+  {
     id: "restaurant_ordering_disabled",
     knowledge: "restaurant",
     rule: "/api/orders rejects every order when profiles.ordering_enabled = false.",

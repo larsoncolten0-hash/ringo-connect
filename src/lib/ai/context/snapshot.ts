@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getLoyaltyOptions, type LoyaltyAvailability } from "@/lib/loyalty/categories";
 import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import type { AiWorkspace } from "@/lib/ai/types";
@@ -42,6 +42,10 @@ export interface WorkspaceSnapshot {
   isRestaurant: boolean;
   hasTicketing: boolean;
   restaurant: { orderingEnabled: boolean; dineInEnabled: boolean; takeawayEnabled: boolean; deliveryEnabled: boolean } | null;
+  /** Platform-wide switch (Admin Settings → Commerce/Shop) — not something this profile controls. */
+  platformCommerceEnabled: boolean;
+  /** Shop (Increment 5A+) applies to any non-music profile; null when not applicable. */
+  shop: { ordersToFulfill: number | null } | null;
   plan: {
     name: string;
     displayName: string;
@@ -145,6 +149,8 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
     eventRows,
     activeConnections,
     activeLoyaltyPrograms,
+    shopOrdersToFulfill,
+    platformCommerceEnabled,
   ] = await Promise.all([
     countRows(db, "links", pid),
     countRows(db, "social_links", pid),
@@ -160,6 +166,20 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
     db.from("events").select("status, event_date, price, event_ticket_types(is_active)").eq("profile_id", pid).limit(300),
     countActiveConnections(pid),
     countActiveLoyaltyPrograms(pid),
+    // Shop (Increment 5A+) applies to any non-music profile; skip the query for a music profile
+    // rather than counting rows that could never exist for it.
+    isMusic ? Promise.resolve(null) : countRows(db, "product_orders", pid, (q) => q.eq("status", "paid")),
+    // Admin-only column (platform_settings has no authenticated-role RLS policy) — the same
+    // service-role read every other Shop settings reader already uses for this table.
+    createAdminClient()
+      .from("platform_settings")
+      .select("commerce_enabled")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }: { data: any; error: any }) => {
+        if (error) console.error("ai snapshot platform_settings failed:", error.message);
+        return data?.commerce_enabled === true;
+      }),
   ]);
 
   const tracksOk = !trackRows.error;
@@ -218,6 +238,8 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
           deliveryEnabled: profile.delivery_enabled === true,
         }
       : null,
+    platformCommerceEnabled,
+    shop: isMusic ? null : { ordersToFulfill: shopOrdersToFulfill },
     plan: {
       name: planRow.name ?? "free",
       displayName: planRow.display_name ?? planRow.name ?? "Free",

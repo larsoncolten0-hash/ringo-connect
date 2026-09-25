@@ -40,8 +40,10 @@ export function buildUserContext(workspace: AiWorkspace, snapshot: WorkspaceSnap
       tickets: s.hasTicketing,
       bookings_enabled: s.profile.bookingsEnabled,
       loyalty: s.loyaltyAvailability,
+      // Platform-wide switch, not this profile's own setting — see the "commerce" knowledge topic.
+      shop_platform_enabled: s.platformCommerceEnabled,
     },
-    counts: s.counts,
+    counts: { ...s.counts, shop_orders_to_fulfill: s.shop?.ordersToFulfill ?? null },
     setup_check: findings.map((f) => ({ id: f.id, severity: f.severity, facts: f.facts, fix: f.fixPath })),
   };
 

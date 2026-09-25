@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "validate:ai-knowledge": "node scripts/tests/ringo_ai_knowledge.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
