@@ -136,7 +136,12 @@ function EditorCards({
         <Accordion defaultOpenId={initialSection} className="rounded-[20px] border border-ringo-border/60 bg-ringo-surface px-4 sm:px-5">
           <EditorSection id="category" icon={Tag} title={t.editor.category.title}>
             <EditorCardBareGroup>
-              <CategoryCard profileId={profile.id} initialCategory={profile.category} initialCategories={profile.categories} />
+              <CategoryCard
+                profileId={profile.id}
+                initialCategory={profile.category}
+                initialCategories={profile.categories}
+                initialSubcategory={profile.subcategory}
+              />
             </EditorCardBareGroup>
           </EditorSection>
 

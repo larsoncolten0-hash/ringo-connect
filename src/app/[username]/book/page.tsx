@@ -39,7 +39,7 @@ export default async function BookingRoute({ params, searchParams }: { params: {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      `id, username, name, category, theme_color, bookings_enabled, booking_button_text, booking_description, booking_services(*)`
+      `id, username, name, category, subcategory, theme_color, bookings_enabled, booking_button_text, booking_description, booking_services(*)`
     )
     .eq("username", params.username)
     .eq("published", true)

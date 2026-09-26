@@ -35,7 +35,7 @@ export async function applyCardBundleGrant(userId: string, planName: string, dur
 
   const [{ data: user }, { data: targetPlan }] = await Promise.all([
     admin.from("users").select("plan_id, payment_provider, plan_expires_at, plans(name)").eq("id", userId).maybeSingle(),
-    admin.from("plans").select("id, name").eq("name", planName).maybeSingle(),
+    admin.from("plans").select("id, name, bookings_feature_enabled").eq("name", planName).maybeSingle(),
   ]);
 
   if (!user) return { applied: false, reason: "user_not_found" };
@@ -58,6 +58,17 @@ export async function applyCardBundleGrant(userId: string, planName: string, dur
       .from("users")
       .update({ plan_id: targetPlan.id, payment_provider: "fapshi", plan_expires_at: expires.toISOString() })
       .eq("id", userId);
+
+    // Bookings default ON the same way a brand-new eligible signup already gets it (see
+    // api/admin/requests/[id]/approve/route.ts) — this is the exact same "was ineligible (Free),
+    // now becomes eligible" moment, just reached via a card bundle instead of initial signup. Only
+    // applied here, in the FREE -> paid transition, never in the "extend an existing paid plan"
+    // branch below — a creator who already had the chance to turn bookings off on their current
+    // paid plan never has that choice silently overridden by buying another bundle.
+    if (targetPlan.bookings_feature_enabled) {
+      await admin.from("profiles").update({ bookings_enabled: true }).eq("user_id", userId);
+    }
+
     return { applied: true, outcome: "granted_from_free" };
   }
 

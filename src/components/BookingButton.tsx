@@ -28,7 +28,7 @@ export default function BookingButton({
 
   if (!profile?.bookings_enabled) return null;
 
-  const config = getBookingConfig(profile.category);
+  const config = getBookingConfig(profile.category, profile.subcategory);
   const label = profile.booking_button_text?.trim() || config.buttonLabel[locale];
 
   return (

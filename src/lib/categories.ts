@@ -72,6 +72,22 @@ export interface BookingConfig {
   fields: BookingFieldConfig[];
 }
 
+// Sub-type within any category other than Music & Entertainment or Restaurant & Food (which already
+// have their own dedicated, unchanged mechanisms — MusicRole/music_role and
+// RestaurantSubcategory/restaurant_subcategory). Same purely-cosmetic role by default (just a more
+// specific label than the parent category) — no gating anywhere, exactly like those two. The one
+// deliberate addition: `booking` is an OPTIONAL override of the category's own booking config, used
+// ONLY where the category's single generic default would otherwise be a real mismatch for this
+// specific sub-type (e.g. Creative & Media's photography-biased "Book a Photoshoot" default doesn't
+// fit a graphic designer) — omitted everywhere the category's existing default already fits every
+// sub-type reasonably well, which is most of them.
+export interface SubcategoryOption {
+  id: string;
+  emoji: string;
+  label: Bilingual;
+  booking?: BookingConfig;
+}
+
 export interface CategoryDefaults {
   // Overrides t.editor.catalog / t.profilePage.catalogHeading / t.getStarted.catalogHeading
   // wherever the profile (or a pending signup request) has a category set.
@@ -92,6 +108,11 @@ export interface CategoryDefaults {
   // back to GENERIC_BOOKING_CONFIG via getBookingConfig() — booking still
   // works everywhere, just with a plain, generic form.
   booking?: BookingConfig;
+  // Optional list of sub-types a creator can pick within this category (see
+  // SubcategoryOption above) — stored in profiles.subcategory. Undefined for
+  // music_entertainment and restaurant_food (which keep their own separate,
+  // unchanged music_role/restaurant_subcategory mechanisms) and for "other".
+  subcategories?: SubcategoryOption[];
 }
 
 // The "no category-specific config" fallback — a plain date/time/message
@@ -181,6 +202,15 @@ export const CATEGORIES: Category[] = [
         fr: "Salut ! Je suis intéressé(e) par un de vos produits.",
       },
       notePlaceholder: { en: "e.g. I sell shoes in Yaounde", fr: "ex. Je vends des chaussures à Yaoundé" },
+      subcategories: [
+        { id: "retailer", emoji: "🏪", label: { en: "Retail Shop", fr: "Boutique de détail" } },
+        { id: "wholesaler", emoji: "📦", label: { en: "Wholesaler", fr: "Grossiste" } },
+        { id: "fashion_apparel", emoji: "👗", label: { en: "Fashion & Apparel", fr: "Mode & Vêtements" } },
+        { id: "electronics", emoji: "📱", label: { en: "Electronics", fr: "Électronique" } },
+        { id: "cosmetics_beauty", emoji: "💄", label: { en: "Cosmetics & Beauty Products", fr: "Cosmétiques & Beauté" } },
+        { id: "grocery", emoji: "🛒", label: { en: "Grocery", fr: "Épicerie" } },
+        { id: "other", emoji: "✨", label: { en: "Other Shop", fr: "Autre boutique" } },
+      ],
     },
   },
   {
@@ -256,6 +286,14 @@ export const CATEGORIES: Category[] = [
           { key: "location", label: { en: "Property / listing", fr: "Bien / annonce" } },
         ],
       },
+      subcategories: [
+        { id: "agency", emoji: "🏢", label: { en: "Real Estate Agency", fr: "Agence immobilière" } },
+        { id: "individual_owner", emoji: "🔑", label: { en: "Individual Owner", fr: "Propriétaire individuel" } },
+        { id: "agent", emoji: "🤝", label: { en: "Agent / Broker", fr: "Agent / Courtier" } },
+        { id: "developer", emoji: "🏗️", label: { en: "Property Developer", fr: "Promoteur immobilier" } },
+        { id: "property_manager", emoji: "📋", label: { en: "Property Manager", fr: "Gestionnaire immobilier" } },
+        { id: "other", emoji: "✨", label: { en: "Other Real Estate", fr: "Autre activité immobilière" } },
+      ],
     },
   },
   {
@@ -284,6 +322,15 @@ export const CATEGORIES: Category[] = [
           { key: "location", label: { en: "Pickup / destination", fr: "Départ / destination" } },
         ],
       },
+      subcategories: [
+        { id: "bus_agency", emoji: "🚌", label: { en: "Bus Agency", fr: "Agence de bus" } },
+        { id: "taxi_ride", emoji: "🚕", label: { en: "Taxi / Ride Service", fr: "Taxi / Service de transport" } },
+        { id: "delivery_courier", emoji: "🛵", label: { en: "Delivery / Courier", fr: "Livraison / Coursier" } },
+        { id: "freight_cargo", emoji: "🚛", label: { en: "Freight / Cargo", fr: "Fret / Cargaison" } },
+        { id: "movers", emoji: "📦", label: { en: "Movers", fr: "Déménageurs" } },
+        { id: "car_rental", emoji: "🚗", label: { en: "Car Rental", fr: "Location de voiture" } },
+        { id: "other", emoji: "✨", label: { en: "Other Transport", fr: "Autre transport" } },
+      ],
     },
   },
   {
@@ -316,6 +363,14 @@ export const CATEGORIES: Category[] = [
           },
         ],
       },
+      subcategories: [
+        { id: "consultant", emoji: "📊", label: { en: "Consultant", fr: "Consultant" } },
+        { id: "lawyer", emoji: "⚖️", label: { en: "Lawyer / Legal", fr: "Avocat / Juridique" } },
+        { id: "accountant", emoji: "🧮", label: { en: "Accountant", fr: "Comptable" } },
+        { id: "agency", emoji: "🏢", label: { en: "Agency", fr: "Agence" } },
+        { id: "it_services", emoji: "💻", label: { en: "IT / Tech Services", fr: "Services informatiques" } },
+        { id: "other", emoji: "✨", label: { en: "Other Professional Service", fr: "Autre service professionnel" } },
+      ],
     },
   },
   {
@@ -343,6 +398,14 @@ export const CATEGORIES: Category[] = [
           { key: "time", label: { en: "Preferred time", fr: "Heure souhaitée" } },
         ],
       },
+      subcategories: [
+        { id: "hair_salon", emoji: "💇🏾", label: { en: "Hair Salon", fr: "Salon de coiffure" } },
+        { id: "barber", emoji: "💈", label: { en: "Barber", fr: "Barbier" } },
+        { id: "nail_tech", emoji: "💅", label: { en: "Nail Technician", fr: "Prothésiste ongulaire" } },
+        { id: "makeup_artist", emoji: "💄", label: { en: "Makeup Artist", fr: "Maquilleur" } },
+        { id: "spa", emoji: "🧖🏾", label: { en: "Spa", fr: "Spa" } },
+        { id: "other", emoji: "✨", label: { en: "Other Beauty & Wellness", fr: "Autre beauté & bien-être" } },
+      ],
     },
   },
   {
@@ -367,6 +430,13 @@ export const CATEGORIES: Category[] = [
           { key: "time", label: { en: "Preferred time", fr: "Heure souhaitée" } },
         ],
       },
+      subcategories: [
+        { id: "clinic", emoji: "🏥", label: { en: "Clinic", fr: "Clinique" } },
+        { id: "pharmacy", emoji: "💊", label: { en: "Pharmacy", fr: "Pharmacie" } },
+        { id: "dental", emoji: "🦷", label: { en: "Dental Practice", fr: "Cabinet dentaire" } },
+        { id: "laboratory", emoji: "🧪", label: { en: "Laboratory", fr: "Laboratoire" } },
+        { id: "other", emoji: "✨", label: { en: "Other Health & Medical", fr: "Autre santé & médical" } },
+      ],
     },
   },
   {
@@ -394,6 +464,14 @@ export const CATEGORIES: Category[] = [
           { key: "time", label: { en: "Preferred time", fr: "Heure souhaitée" } },
         ],
       },
+      subcategories: [
+        { id: "school", emoji: "🏫", label: { en: "School", fr: "École" } },
+        { id: "tutor", emoji: "📖", label: { en: "Tutor", fr: "Tuteur" } },
+        { id: "training_center", emoji: "🎓", label: { en: "Training Center", fr: "Centre de formation" } },
+        { id: "coach", emoji: "🧑🏾‍🏫", label: { en: "Coach", fr: "Coach" } },
+        { id: "online_courses", emoji: "💻", label: { en: "Online Courses", fr: "Cours en ligne" } },
+        { id: "other", emoji: "✨", label: { en: "Other Education & Training", fr: "Autre éducation & formation" } },
+      ],
     },
   },
   {
@@ -422,6 +500,13 @@ export const CATEGORIES: Category[] = [
           { key: "budget", label: { en: "Budget", fr: "Budget" } },
         ],
       },
+      subcategories: [
+        { id: "hotel", emoji: "🏨", label: { en: "Hotel", fr: "Hôtel" } },
+        { id: "guest_house", emoji: "🏡", label: { en: "Guest House", fr: "Auberge" } },
+        { id: "travel_agency", emoji: "🧳", label: { en: "Travel Agency", fr: "Agence de voyage" } },
+        { id: "tour_operator", emoji: "🗺️", label: { en: "Tour Operator", fr: "Tour-opérateur" } },
+        { id: "other", emoji: "✨", label: { en: "Other Travel & Hospitality", fr: "Autre voyage & hôtellerie" } },
+      ],
     },
   },
   {
@@ -451,6 +536,14 @@ export const CATEGORIES: Category[] = [
           { key: "budget", label: { en: "Budget", fr: "Budget" } },
         ],
       },
+      subcategories: [
+        { id: "event_organizer", emoji: "🗓️", label: { en: "Event Organizer", fr: "Organisateur d'événements" } },
+        { id: "concerts_shows", emoji: "🎤", label: { en: "Concerts & Shows", fr: "Concerts & Spectacles" } },
+        { id: "conferences", emoji: "🎙️", label: { en: "Conferences", fr: "Conférences" } },
+        { id: "weddings", emoji: "💍", label: { en: "Weddings", fr: "Mariages" } },
+        { id: "festivals", emoji: "🎡", label: { en: "Festivals", fr: "Festivals" } },
+        { id: "other", emoji: "✨", label: { en: "Other Events & Experiences", fr: "Autre événement & expérience" } },
+      ],
     },
   },
   {
@@ -471,6 +564,10 @@ export const CATEGORIES: Category[] = [
         en: "e.g. Wedding photographer based in Yaounde",
         fr: "ex. Photographe de mariage basé à Yaoundé",
       },
+      // Generic default — still "Book a Photoshoot" for a creative_media profile with no
+      // subcategory picked, unchanged from before. Non-photography sub-types below override this via
+      // their own `booking` — see SubcategoryOption's doc comment for why creative_media specifically
+      // gets this treatment while every other category's sub-options don't.
       booking: {
         buttonLabel: { en: "Book a Photoshoot", fr: "Réserver une séance photo" },
         fields: [
@@ -481,6 +578,65 @@ export const CATEGORIES: Category[] = [
           { key: "budget", label: { en: "Budget", fr: "Budget" } },
         ],
       },
+      subcategories: [
+        {
+          id: "photographer",
+          emoji: "📷",
+          label: { en: "Photographer", fr: "Photographe" },
+          booking: {
+            buttonLabel: { en: "Book a Photoshoot", fr: "Réserver une séance photo" },
+            fields: [
+              { key: "date", label: { en: "Date", fr: "Date" } },
+              { key: "time", label: { en: "Time", fr: "Heure" } },
+              { key: "location", label: { en: "Location", fr: "Lieu" } },
+              { key: "partySize", label: { en: "Number of people", fr: "Nombre de personnes" } },
+              { key: "budget", label: { en: "Budget", fr: "Budget" } },
+            ],
+          },
+        },
+        {
+          id: "videographer",
+          emoji: "🎥",
+          label: { en: "Videographer", fr: "Vidéaste" },
+          booking: {
+            buttonLabel: { en: "Book a Videoshoot", fr: "Réserver un tournage" },
+            fields: [
+              { key: "date", label: { en: "Date", fr: "Date" } },
+              { key: "time", label: { en: "Time", fr: "Heure" } },
+              { key: "location", label: { en: "Location", fr: "Lieu" } },
+              { key: "partySize", label: { en: "Number of people", fr: "Nombre de personnes" } },
+              { key: "budget", label: { en: "Budget", fr: "Budget" } },
+            ],
+          },
+        },
+        {
+          id: "graphic_designer",
+          emoji: "🖌️",
+          label: { en: "Graphic Designer", fr: "Designer graphique" },
+          booking: {
+            buttonLabel: { en: "Request a Design", fr: "Demander un design" },
+            fields: [
+              { key: "date", label: { en: "Preferred date", fr: "Date souhaitée" } },
+              { key: "budget", label: { en: "Budget", fr: "Budget" } },
+            ],
+          },
+        },
+        {
+          id: "studio",
+          emoji: "🎬",
+          label: { en: "Studio", fr: "Studio" },
+          booking: {
+            buttonLabel: { en: "Book the Studio", fr: "Réserver le studio" },
+            fields: [
+              { key: "date", label: { en: "Date", fr: "Date" } },
+              { key: "time", label: { en: "Time", fr: "Heure" } },
+              { key: "partySize", label: { en: "Number of people", fr: "Nombre de personnes" } },
+              { key: "budget", label: { en: "Budget", fr: "Budget" } },
+            ],
+          },
+        },
+        { id: "other", emoji: "✨", label: { en: "Other Creative & Media", fr: "Autre créatif & média" } },
+      ],
     },
   },
   {
@@ -501,6 +657,14 @@ export const CATEGORIES: Category[] = [
         en: "e.g. Content creator and graphic designer",
         fr: "ex. Créateur de contenu et designer graphique",
       },
+      subcategories: [
+        { id: "youtuber", emoji: "📹", label: { en: "YouTuber", fr: "YouTubeur" } },
+        { id: "influencer", emoji: "📸", label: { en: "Influencer", fr: "Influenceur" } },
+        { id: "blogger", emoji: "✍️", label: { en: "Blogger", fr: "Blogueur" } },
+        { id: "streamer", emoji: "🎮", label: { en: "Streamer", fr: "Streamer" } },
+        { id: "freelancer", emoji: "💼", label: { en: "Freelancer", fr: "Freelance" } },
+        { id: "other", emoji: "✨", label: { en: "Other Freelancer / Creator", fr: "Autre freelance / créateur" } },
+      ],
     },
   },
   {
@@ -529,6 +693,14 @@ export const CATEGORIES: Category[] = [
           { key: "budget", label: { en: "Budget", fr: "Budget" } },
         ],
       },
+      subcategories: [
+        { id: "contractor", emoji: "👷🏾", label: { en: "Contractor", fr: "Entrepreneur" } },
+        { id: "architect", emoji: "📐", label: { en: "Architect", fr: "Architecte" } },
+        { id: "plumber", emoji: "🔧", label: { en: "Plumber", fr: "Plombier" } },
+        { id: "electrician", emoji: "🔌", label: { en: "Electrician", fr: "Électricien" } },
+        { id: "painter", emoji: "🎨", label: { en: "Painter", fr: "Peintre" } },
+        { id: "other", emoji: "✨", label: { en: "Other Construction & Home Service", fr: "Autre construction & service à domicile" } },
+      ],
     },
   },
   {
@@ -549,6 +721,14 @@ export const CATEGORIES: Category[] = [
         en: "e.g. Fresh produce from our farm in the West region",
         fr: "ex. Produits frais de notre ferme dans la région de l'Ouest",
       },
+      subcategories: [
+        { id: "farmer", emoji: "🌱", label: { en: "Farmer", fr: "Agriculteur" } },
+        { id: "cooperative", emoji: "🤝", label: { en: "Cooperative", fr: "Coopérative" } },
+        { id: "agro_dealer", emoji: "🚜", label: { en: "Agro-dealer", fr: "Agro-distributeur" } },
+        { id: "livestock", emoji: "🐄", label: { en: "Livestock", fr: "Élevage" } },
+        { id: "food_producer", emoji: "🌽", label: { en: "Food Producer", fr: "Producteur alimentaire" } },
+        { id: "other", emoji: "✨", label: { en: "Other Agriculture & Agro-business", fr: "Autre agriculture & agro-business" } },
+      ],
     },
   },
   {
@@ -578,9 +758,35 @@ export function getCategory(id?: string | null): Category | undefined {
 
 // The one lookup point BookingButton/BookingPage use — a category with no
 // specific config (see GENERIC_BOOKING_CONFIG above) still gets a working,
-// generic booking form rather than no booking at all.
-export function getBookingConfig(id?: string | null): BookingConfig {
-  return getCategory(id)?.defaults.booking ?? GENERIC_BOOKING_CONFIG;
+// generic booking form rather than no booking at all. `subcategoryId` is
+// optional and only ever changes the result when the matching
+// SubcategoryOption itself defines a `booking` override (currently only
+// some of creative_media's) — every other subcategory falls through to the
+// category's own default exactly as if no subcategory were passed at all,
+// so this stays fully backward compatible with the existing Restaurant/
+// Music call sites, which never pass a second argument.
+export function getBookingConfig(id?: string | null, subcategoryId?: string | null): BookingConfig {
+  const category = getCategory(id);
+  const subcategoryBooking = subcategoryId ? getSubcategoryOption(id, subcategoryId)?.booking : undefined;
+  return subcategoryBooking ?? category?.defaults.booking ?? GENERIC_BOOKING_CONFIG;
+}
+
+// Looks up a single sub-type within a given category's own subcategories
+// list (see SubcategoryOption above) — returns undefined for a category
+// with no subcategories list at all (music_entertainment, restaurant_food,
+// other) or an id that isn't one of that category's own options.
+export function getSubcategoryOption(categoryId?: string | null, subcategoryId?: string | null): SubcategoryOption | undefined {
+  if (!subcategoryId) return undefined;
+  return getCategory(categoryId)?.defaults.subcategories?.find((s) => s.id === subcategoryId);
+}
+
+// True when `subcategoryId` is a real option within `categoryId`'s own
+// subcategories list — used to validate profiles.subcategory before saving
+// (never trusts client input directly), the same role isCategoryId plays
+// for profiles.category.
+export function isValidSubcategoryId(categoryId: unknown, subcategoryId: unknown): boolean {
+  if (typeof categoryId !== "string" || typeof subcategoryId !== "string") return false;
+  return !!getSubcategoryOption(categoryId, subcategoryId);
 }
 
 export function isCategoryId(id: unknown): id is CategoryId {

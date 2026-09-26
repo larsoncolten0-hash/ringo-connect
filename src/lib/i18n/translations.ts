@@ -2680,6 +2680,8 @@ export const translations = {
         morePrompt: "+ Add more categories (optional)",
         moreHint: "Your page fits more than one? Select as many as apply.",
         noneSet: "No category set yet.",
+        subcategoryLabel: "Sub-category (optional)",
+        subcategoryHint: "Get more specific so your booking button and labels match what you actually do.",
       },
       completion: {
         title: "Complete your profile",
@@ -6199,6 +6201,8 @@ export const translations = {
         morePrompt: "+ Ajouter d'autres catégories (optionnel)",
         moreHint: "Votre page correspond à plusieurs catégories ? Sélectionnez-en autant que nécessaire.",
         noneSet: "Aucune catégorie définie pour l'instant.",
+        subcategoryLabel: "Sous-catégorie (optionnel)",
+        subcategoryHint: "Précisez votre activité pour que le bouton de réservation et les intitulés correspondent à ce que vous faites vraiment.",
       },
       completion: {
         title: "Complétez votre profil",

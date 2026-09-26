@@ -18,7 +18,7 @@ import { getBookingConfig, type BookingFieldConfig } from "@/lib/categories";
 export default function BookingPage({ profile, initialServiceId = "" }: { profile: any; initialServiceId?: string }) {
   const { t, locale } = useLanguage();
   const accent = profile.theme_color || "#D4A954";
-  const config = getBookingConfig(profile.category);
+  const config = getBookingConfig(profile.category, profile.subcategory);
   const services: any[] = (profile.booking_services || []).slice().sort((a: any, b: any) => a.sort_order - b.sort_order);
   const displayName = profile.name || profile.username;
   const profileHref = `/${profile.username}`;
