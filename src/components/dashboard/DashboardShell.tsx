@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Award, Gift, ShoppingBag } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
@@ -164,12 +164,19 @@ export default function DashboardShell({
   // belongs in.
   ownProfileId?: string | null;
   teamBadgesEnabled?: boolean;
-  // Persistent "renew soon" banner for a Fapshi/manual (fixed-duration)
-  // account approaching or past its plan_expires_at — see
-  // src/lib/subscriptionReminderSettings.ts's getSubscriptionBannerState,
-  // computed server-side in dashboard/layout.tsx. Null (the common case:
-  // Free, Stripe, or a paid-up fixed-duration plan) renders nothing.
-  subscriptionBanner?: { state: "expiring_soon" | "grace_period"; daysRemaining: number } | null;
+  // Persistent subscription banner — either a "renew soon" state for a Fapshi/manual (fixed-
+  // duration) account approaching or past its plan_expires_at (see
+  // src/lib/subscriptionReminderSettings.ts's getSubscriptionBannerState), or a "some of your saved
+  // content is currently hidden because of your plan" state once a downgrade (by expiry, self-
+  // service, or an admin change) leaves more links/products stored than the current plan shows
+  // publicly — never both at once (dashboard/layout.tsx only computes the second when the first
+  // isn't active). Computed server-side in dashboard/layout.tsx. Null (the common case) renders
+  // nothing. Subscription controls access, never data retention: this is purely informational —
+  // nothing behind it was ever deleted.
+  subscriptionBanner?:
+    | { state: "expiring_soon" | "grace_period"; daysRemaining: number }
+    | { state: "content_hidden"; hiddenLinksCount: number; hiddenProductsCount: number }
+    | null;
   // "Try the dashboard" demo accounts (see
   // supabase/migrations/2026-10-13_demo_accounts.sql) — true for the
   // signed-in account's own profile, independent of which organization's
@@ -495,7 +502,7 @@ export default function DashboardShell({
             period, the last stretch before downgrade to Free). Shown on
             every dashboard page, not dismissible, so it can't be missed
             and forgotten about the way a one-time toast could be. */}
-        {subscriptionBanner && (
+        {subscriptionBanner && subscriptionBanner.state !== "content_hidden" && (
           <Link
             href="/dashboard/subscription"
             className={`px-4 lg:px-10 py-2 border-b flex items-center gap-2 text-xs font-medium transition-colors ${
@@ -515,6 +522,29 @@ export default function DashboardShell({
                   } — renew now to avoid losing access.`}
             </span>
             <span className="shrink-0 underline underline-offset-2">Renew</span>
+          </Link>
+        )}
+
+        {/* Current plan's link/product limit leaves some of the owner's own saved content hidden
+            from their public profile — e.g. after an expiry/self-service/admin downgrade. Never
+            shown alongside the expiring-soon/grace-period banner above (dashboard/layout.tsx only
+            computes this when that one isn't active). Informational tone (indigo, not amber/red):
+            nothing was deleted and nothing is actively at risk right now. */}
+        {subscriptionBanner && subscriptionBanner.state === "content_hidden" && (
+          <Link
+            href="/dashboard/subscription"
+            className="px-4 lg:px-10 py-2 border-b border-ringo-indigo/20 bg-ringo-indigo/10 text-ringo-indigo flex items-center gap-2 text-xs font-medium transition-colors hover:bg-ringo-indigo/15"
+          >
+            <Info size={13} className="shrink-0" />
+            <span className="truncate">
+              {(() => {
+                const parts: string[] = [];
+                if (subscriptionBanner.hiddenLinksCount > 0) parts.push(`${subscriptionBanner.hiddenLinksCount} link${subscriptionBanner.hiddenLinksCount === 1 ? "" : "s"}`);
+                if (subscriptionBanner.hiddenProductsCount > 0) parts.push(`${subscriptionBanner.hiddenProductsCount} product${subscriptionBanner.hiddenProductsCount === 1 ? "" : "s"}`);
+                return `${parts.join(" and ")} ${parts.length === 1 && (subscriptionBanner.hiddenLinksCount === 1 || subscriptionBanner.hiddenProductsCount === 1) ? "is" : "are"} hidden from your public profile because of your current plan — your data is safe and nothing was deleted.`;
+              })()}
+            </span>
+            <span className="shrink-0 underline underline-offset-2">Resubscribe to Pro</span>
           </Link>
         )}
 

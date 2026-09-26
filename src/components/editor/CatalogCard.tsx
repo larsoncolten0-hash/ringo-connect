@@ -16,6 +16,7 @@ import ProductRow from "./ProductRow";
 import CurrencySelect from "./CurrencySelect";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
+import { countHidden } from "@/lib/planEntitlements";
 
 export default function CatalogCard({
   profileId,
@@ -51,6 +52,9 @@ export default function CatalogCard({
   const title = getCategory(draft.category)?.defaults.catalogLabel?.[locale] || t.editor.catalog;
 
   const limitReached = maxProducts != null && products.length >= maxProducts;
+  // Existing products past the plan's current limit are never removed here (still fully editable,
+  // still reorderable) — this only surfaces that a real visitor won't currently see all of them.
+  const hiddenCount = countHidden(products.length, maxProducts);
 
   const changeCurrency = async (code: string) => {
     setCurrency(code);
@@ -173,6 +177,14 @@ export default function CatalogCard({
         </>
       }
     >
+      {hiddenCount > 0 && (
+        <p className="text-xs text-ringo-coral mb-3">
+          {t.editor.productsHiddenByPlan(hiddenCount, maxProducts!)}{" "}
+          <Link href="/dashboard/subscription" className="font-medium underline">
+            {t.sidebar.upgradePlan}
+          </Link>
+        </p>
+      )}
       {products.length === 0 && <EmptyState icon={ShoppingBag} title={t.editor.noProductsYet} />}
 
       <Reorder.Group axis="y" values={products} onReorder={handleReorder} className="flex flex-col gap-2">

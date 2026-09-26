@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import { extractRequestContext } from "@/lib/requestContext";
 import { buildPixelConfigFromRow, isPixelsEnabledForUser, sendMetaPageView, extractClientIp } from "@/lib/pixelTracking";
+import { splitByPlanLimit, isCustomThemeAllowed } from "@/lib/planEntitlements";
 import ProfileView from "@/components/ProfileView";
 
 // Per-profile PWA installability (manifest link, iOS home-screen name/
@@ -29,13 +30,37 @@ export default async function PublicProfilePage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_items(*), music_releases(*), booking_services(*)`
+      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_items(*), music_releases(*), booking_services(*),
+       users!user_id(plans(max_links, max_products, custom_theme_enabled))`
     )
     .eq("username", params.username)
     .eq("published", true)
     .single();
 
   if (!profile) return notFound();
+
+  // Subscription controls ACCESS, never data retention (see planEntitlements.ts): a downgraded
+  // creator's extra links/products/theme customization stay fully intact in the database — only
+  // what's currently visible on THIS public page is limited to what their CURRENT plan allows. The
+  // owner viewing their own dashboard still sees and can edit everything regardless (see
+  // dashboard/page.tsx, untouched by this).
+  const ownerPlan = (profile as any).users?.plans ?? null;
+  const { visible: visibleLinks } = splitByPlanLimit(profile.links || [], ownerPlan?.max_links ?? null);
+  const { visible: visibleProducts } = splitByPlanLimit(profile.products || [], ownerPlan?.max_products ?? null);
+  profile.links = visibleLinks;
+  profile.products = visibleProducts;
+  if (!isCustomThemeAllowed(ownerPlan)) {
+    // Same literal values as the profiles table's own column defaults (see ThemeCard.tsx's own
+    // DEFAULTS constant) — never touches what's actually stored, so upgrading again immediately
+    // restores the creator's real saved theme with no extra step.
+    profile.theme_color = "#D4A954";
+    profile.background_style = "solid";
+    profile.background_color = "#0A0A0A";
+    profile.background_gradient_end = null;
+    profile.text_color = "#FAFAFA";
+    profile.button_style = "outline";
+    profile.button_radius = "rounded";
+  }
 
   // Only ever used to suppress FanRecognitionHeader for the owner's own
   // live view (see that component's comment) — this page is already
@@ -96,7 +121,7 @@ export default async function PublicProfilePage({
   // Server Components serialize every prop passed to a "use client"
   // child into the page's own payload, so even fields ProfileView never
   // reads would otherwise ship to every anonymous visitor.
-  const { facebook_capi_token_encrypted, tiktok_events_token_encrypted, ...publicProfile } = profile;
+  const { facebook_capi_token_encrypted, tiktok_events_token_encrypted, users: _ownerUsersRow, ...publicProfile } = profile as any;
 
   // Public "current role" badge(s) — e.g. "Chef at Mama's Kitchen" — live-
   // derived from active organization_members rows every render (never a

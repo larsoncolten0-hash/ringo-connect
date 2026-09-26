@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { profileHasTicketing } from "@/lib/categories";
+import { splitByPlanLimit } from "@/lib/planEntitlements";
 import MusicStorePage from "@/components/music/MusicStorePage";
 
 // See src/app/[username]/page.tsx's own comment.
@@ -21,12 +22,20 @@ export default async function MusicStoreRoute({ params }: { params: { username: 
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select(`*, tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*))`)
+    .select(`*, tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*)), users!user_id(plans(max_products))`)
     .eq("username", params.username)
     .eq("published", true)
     .single();
 
   if (!profile || !profileHasTicketing(profile)) return notFound();
 
-  return <MusicStorePage profile={profile} />;
+  // Same plan-based visibility limit as the main profile page (see
+  // planEntitlements.ts) — this storefront reads from the same `products`
+  // table, so it must never show more than the creator's current plan allows
+  // just because a visitor reached it through a different URL.
+  const { users: ownerUsersRow, ...storeProfile } = profile as any;
+  const { visible: visibleProducts } = splitByPlanLimit(profile.products || [], ownerUsersRow?.plans?.max_products ?? null);
+  storeProfile.products = visibleProducts;
+
+  return <MusicStorePage profile={storeProfile} />;
 }

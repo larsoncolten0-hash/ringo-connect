@@ -9,6 +9,7 @@ import { getAssociationNavAccess } from "@/lib/association/access";
 import { shopIsVisibleFor } from "@/lib/shopAuth";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
+import { countHidden } from "@/lib/planEntitlements";
 
 // Per-creator PWA installability (manifest link, iOS home-screen name/
 // icon, theme color) for the whole /dashboard/** tree — see
@@ -34,7 +35,7 @@ export default async function DashboardLayout({
 
   const { data: userRow } = await supabase
     .from("users")
-    .select("email, role, can_approve_requests, plan_expires_at, payment_provider, plans(name), onboarding_completed_at, onboarding_dismissed_at")
+    .select("email, role, can_approve_requests, plan_expires_at, payment_provider, plans(name, max_links, max_products), onboarding_completed_at, onboarding_dismissed_at")
     .eq("id", user.id)
     .single();
 
@@ -80,7 +81,32 @@ export default async function DashboardLayout({
   // meaningless while acting as staff inside someone else's organization
   // (there's nothing of theirs to renew from that context), so the banner
   // only ever shows for an owner looking at their own account/business.
-  const visibleSubscriptionBanner = isActingAsStaff ? null : subscriptionBanner;
+  // Subscription controls access, never data retention (see planEntitlements.ts): when a downgrade
+  // (by expiry, self-service, or an admin change) leaves the owner with more links/products than
+  // their CURRENT plan shows publicly, nothing was deleted — surface that plainly here rather than
+  // let the dashboard look broken with no explanation. Only ever computed for the owner's own
+  // account, same scope as the time-based banner above, and only when there's nothing more urgent
+  // (an active expiring-soon/grace-period banner) already showing.
+  let contentHiddenBanner: { hiddenLinksCount: number; hiddenProductsCount: number } | null = null;
+  if (!isActingAsStaff && ownProfile && !subscriptionBanner) {
+    const ownerPlan = userRow?.plans as any;
+    const [{ count: linksCount }, { count: productsCount }] = await Promise.all([
+      supabase.from("links").select("id", { count: "exact", head: true }).eq("profile_id", ownProfile.id),
+      supabase.from("products").select("id", { count: "exact", head: true }).eq("profile_id", ownProfile.id),
+    ]);
+    const hiddenLinksCount = countHidden(linksCount ?? 0, ownerPlan?.max_links ?? null);
+    const hiddenProductsCount = countHidden(productsCount ?? 0, ownerPlan?.max_products ?? null);
+    if (hiddenLinksCount > 0 || hiddenProductsCount > 0) {
+      contentHiddenBanner = { hiddenLinksCount, hiddenProductsCount };
+    }
+  }
+  const visibleSubscriptionBanner = isActingAsStaff
+    ? null
+    : subscriptionBanner
+    ? subscriptionBanner
+    : contentHiddenBanner
+    ? { state: "content_hidden" as const, ...contentHiddenBanner }
+    : null;
   // Team nav only ever shows for an Enterprise-plan organization (see
   // 2026-10-02_team_plan_gate.sql) — a Personal-plan owner never sees it,
   // even though they're the owner, and hiding it here is only the UX

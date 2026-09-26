@@ -2639,6 +2639,8 @@ export const translations = {
       addLink: "+ Add link",
       linkLimitReached: (n: number) =>
         `You've hit your plan's link limit (${n}). Upgrade to add more.`,
+      linksHiddenByPlan: (n: number, max: number) =>
+        `${n} link${n === 1 ? "" : "s"} ${n === 1 ? "is" : "are"} saved but hidden from your public profile — your current plan shows only the first ${max}. Nothing was deleted; upgrade to show them all again.`,
       delete: "Delete",
       linkTitlePlaceholder: "Link title",
       linkUrlPlaceholder: "https://",
@@ -2648,6 +2650,8 @@ export const translations = {
       catalog: "Catalog",
       addProduct: "+ Add product",
       catalogLocked: "Catalog is a Pro feature. Upgrade your plan to sell products from your page.",
+      productsHiddenByPlan: (n: number, max: number) =>
+        `${n} product${n === 1 ? "" : "s"} ${n === 1 ? "is" : "are"} saved but hidden from your public profile — your current plan shows only the first ${max}. Nothing was deleted; upgrade to show them all again.`,
       price: "Price",
       productName: "Product name",
       productDescription: "Description",
@@ -6140,6 +6144,8 @@ export const translations = {
       addLink: "+ Ajouter un lien",
       linkLimitReached: (n: number) =>
         `Vous avez atteint la limite de liens de votre offre (${n}). Changez d'offre pour en ajouter.`,
+      linksHiddenByPlan: (n: number, max: number) =>
+        `${n} lien${n === 1 ? "" : "s"} ${n === 1 ? "est enregistré" : "sont enregistrés"} mais masqué${n === 1 ? "" : "s"} de votre profil public — votre offre actuelle affiche seulement les ${max} premiers. Rien n'a été supprimé ; changez d'offre pour tous les réafficher.`,
       delete: "Supprimer",
       linkTitlePlaceholder: "Titre du lien",
       linkUrlPlaceholder: "https://",
@@ -6149,6 +6155,8 @@ export const translations = {
       catalog: "Catalogue",
       addProduct: "+ Ajouter un produit",
       catalogLocked: "Le catalogue est une fonctionnalité Pro. Changez d'offre pour vendre des produits depuis votre page.",
+      productsHiddenByPlan: (n: number, max: number) =>
+        `${n} produit${n === 1 ? "" : "s"} ${n === 1 ? "est enregistré" : "sont enregistrés"} mais masqué${n === 1 ? "" : "s"} de votre profil public — votre offre actuelle affiche seulement les ${max} premiers. Rien n'a été supprimé ; changez d'offre pour tous les réafficher.`,
       price: "Prix",
       productName: "Nom du produit",
       productDescription: "Description",

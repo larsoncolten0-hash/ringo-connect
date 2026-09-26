@@ -12,6 +12,7 @@ import EmptyState from "./EmptyState";
 import LinkRow from "./LinkRow";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
+import { countHidden } from "@/lib/planEntitlements";
 
 export default function LinksCard({
   profileId,
@@ -35,6 +36,9 @@ export default function LinksCard({
   const { updateDraft } = useEditorPreview();
 
   const limitReached = maxLinks != null && links.length >= maxLinks;
+  // Existing links past the plan's current limit are never removed here (still fully editable,
+  // still reorderable) — this only surfaces that a real visitor won't currently see all of them.
+  const hiddenCount = countHidden(links.length, maxLinks);
 
   const addLink = async () => {
     if (limitReached) return;
@@ -123,13 +127,22 @@ export default function LinksCard({
         </>
       }
     >
-      {limitReached && (
+      {hiddenCount > 0 ? (
         <p className="text-xs text-ringo-coral mb-3">
-          {t.editor.linkLimitReached(maxLinks!)}{" "}
+          {t.editor.linksHiddenByPlan(hiddenCount, maxLinks!)}{" "}
           <NextLink href="/dashboard/subscription" className="font-medium underline">
             {t.sidebar.upgradePlan}
           </NextLink>
         </p>
+      ) : (
+        limitReached && (
+          <p className="text-xs text-ringo-coral mb-3">
+            {t.editor.linkLimitReached(maxLinks!)}{" "}
+            <NextLink href="/dashboard/subscription" className="font-medium underline">
+              {t.sidebar.upgradePlan}
+            </NextLink>
+          </p>
+        )
       )}
       {links.length === 0 && (
         <div className="mb-2">
