@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
 import { getCustomerFromCookie } from "@/lib/customer/session";
-import ProductCheckout from "@/components/checkout/ProductCheckout";
+import CheckoutModeSwitch from "@/components/checkout/CheckoutModeSwitch";
 import { productImages } from "@/components/catalog/productHref";
 import { getCheckoutBlock } from "@/lib/productCheckout/availability";
 import { MAX_QUANTITY } from "@/lib/productCheckout/constants";
 import { isUuid } from "@/lib/productCheckout/validation";
 import { LOW_INVENTORY_THRESHOLD } from "@/lib/ticketTypes";
+import { getProtectionSettings } from "@/lib/protectionSettings";
 
 // The customer checkout for a catalogue product (V1: single product, Fapshi Mobile Money, XAF).
 // Server component: it loads the profile + product, asks the SAME eligibility rules the order API
@@ -54,6 +55,13 @@ export default async function ProductCheckoutRoute({
   const orderId = typeof searchParams?.order === "string" && isUuid(searchParams.order) ? searchParams.order : null;
   const block = await getCheckoutBlock(profile, product, 1);
 
+  // Ringo Protection is only ever offered when Normal Payment itself would be available (same
+  // underlying commerce/Fapshi plumbing) AND an admin has explicitly turned it on with a configured
+  // fee rate — never assumed, never enabled client-side. See getProtectionSettings() (Phase 1,
+  // unmodified here).
+  const protectionSettings = await getProtectionSettings();
+  const protectionAvailable = block === null && protectionSettings.protectionEnabled && protectionSettings.protectionFeeRate !== null;
+
   // A signed-in Ringo customer's own details, to prefill their own form. Guests are unaffected.
   const session = await getCustomerFromCookie();
 
@@ -61,7 +69,9 @@ export default async function ProductCheckoutRoute({
   const price = Number(product.price);
 
   return (
-    <ProductCheckout
+    <CheckoutModeSwitch
+      protectionAvailable={protectionAvailable}
+      protectionFeeRate={protectionSettings.protectionFeeRate}
       product={{
         id: product.id,
         name: product.name || "",
