@@ -1,4 +1,5 @@
 import { fapshiPayout } from "@/lib/fapshi";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { ProtectionRefundDestination } from "./refundTypes";
 
 // The ONE function in Phase 3 that can perform a real, live Fapshi call — and, as of this phase,
@@ -28,6 +29,18 @@ export async function performProtectionRefundPayout(params: {
   destination: ProtectionRefundDestination;
   message?: string;
 }): Promise<{ transId: string }> {
+  // Phase 7 addition: an explicit, fail-closed capability gate. Fapshi's permission for using
+  // payout/disbursement as a CUSTOMER refund mechanism (as opposed to seller/artist/affiliate
+  // payout, its only confirmed use) has not been confirmed — see the Phase 3 report. Until an admin
+  // has explicitly and deliberately flipped this flag at the database level (there is no admin UI
+  // control for it — see the Phase 7 report for why), this function refuses to run at all, so a
+  // future caller can never reach fapshiPayout() by accident.
+  const admin = createAdminClient();
+  const { data: settings } = await admin.from("platform_settings").select("protection_refund_provider_enabled").limit(1).single();
+  if (settings?.protection_refund_provider_enabled !== true) {
+    throw new Error("Protection refund provider execution is disabled (protection_refund_provider_enabled is not true).");
+  }
+
   const medium = params.destination.network === "orange" ? "orange money" : "mobile money";
   const result = await fapshiPayout({
     amount: Math.round(params.amount),

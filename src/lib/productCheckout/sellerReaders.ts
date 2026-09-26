@@ -124,13 +124,32 @@ export function createSellerReader(rls: Client, admin: Client): SellerReader {
       try {
         const { data, error } = await rls
           .from("protection_transactions")
-          .select("status, product_amount, protection_fee_amount")
+          .select("id, status, product_amount, protection_fee_amount")
           .eq("target_type", "product_order")
           .eq("target_id", orderId)
           .eq("profile_id", profileId)
           .maybeSingle();
         if (error || !data) return null;
-        return { status: data.status as string, protectedAmount: Number(data.product_amount), feeAmount: Number(data.protection_fee_amount) };
+
+        // Ringo Protection (Phase 7): reused, unmodified "owner read" RLS policy on
+        // protection_disputes too. `null` unless a dispute actually exists — a read-only view for
+        // the seller (they cannot resolve it; see disputeEngine.ts, admin-only).
+        let dispute: { reason: string; message: string | null; openedAt: string; resolution: string | null } | null = null;
+        try {
+          const { data: disputeRow } = await rls
+            .from("protection_disputes")
+            .select("reason, message, opened_at, status")
+            .eq("protection_transaction_id", data.id)
+            .eq("profile_id", profileId)
+            .maybeSingle();
+          if (disputeRow) {
+            dispute = { reason: disputeRow.reason, message: disputeRow.message ?? null, openedAt: disputeRow.opened_at, resolution: disputeRow.status !== "open" ? disputeRow.status : null };
+          }
+        } catch {
+          dispute = null;
+        }
+
+        return { status: data.status as string, protectedAmount: Number(data.product_amount), feeAmount: Number(data.protection_fee_amount), dispute };
       } catch {
         return null;
       }

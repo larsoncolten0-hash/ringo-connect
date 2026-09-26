@@ -1,6 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { legalFromStatusesFor } from "@/lib/protection/transitions";
 import { formatProductOrderNumber, formatProductReceiptNumber } from "./format";
 import type { OrderStatus } from "./types";
+
+const DISPUTE_ELIGIBLE_STATUSES = new Set(legalFromStatusesFor("disputed"));
 
 // The one place a product_orders row is turned into "everything a receipt needs to render" —
 // shared by the customer receipt page (src/app/shop/orders/[id]/page.tsx), the customer-facing
@@ -42,6 +45,8 @@ export type ShopReceiptProtection = {
   feeAmount: number;
   customerTotal: number;
   awaitingConfirmation: boolean;
+  /** Phase 7: true while the transaction is in a status the customer may open a dispute from. */
+  disputeEligible: boolean;
 };
 
 export type ShopReceiptData = {
@@ -111,6 +116,7 @@ export async function getShopOrderReceiptData(orderId: string): Promise<ShopRece
         feeAmount: Number(txn.protection_fee_amount),
         customerTotal: Number(txn.customer_total),
         awaitingConfirmation: txn.status === "awaiting_confirmation",
+        disputeEligible: DISPUTE_ELIGIBLE_STATUSES.has(txn.status),
       };
     }
   } catch {

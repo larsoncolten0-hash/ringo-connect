@@ -32,7 +32,17 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const inFlight = useRef(false);
 
-  const protectionStatus = confirmStatus ?? data.protection?.status ?? null;
+  // Ringo Protection (Phase 7): same optimistic-override pattern for opening a dispute.
+  const [disputeStatus, setDisputeStatus] = useState<"disputed" | null>(null);
+  const [disputeFormOpen, setDisputeFormOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [disputeMessage, setDisputeMessage] = useState("");
+  const [disputing, setDisputing] = useState(false);
+  const [disputeError, setDisputeError] = useState<string | null>(null);
+  const disputeInFlight = useRef(false);
+
+  const protectionStatus = disputeStatus ?? confirmStatus ?? data.protection?.status ?? null;
+  const disputeEligible = protectionStatus === "protected" || protectionStatus === "fulfillment_started" || protectionStatus === "awaiting_confirmation";
 
   const confirmReceipt = async () => {
     if (inFlight.current || !data.protection) return;
@@ -52,6 +62,36 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
     } finally {
       inFlight.current = false;
       setConfirming(false);
+    }
+  };
+
+  const submitDispute = async () => {
+    if (disputeInFlight.current || !data.protection) return;
+    if (!disputeReason.trim()) {
+      setDisputeError("invalid_request");
+      return;
+    }
+    disputeInFlight.current = true;
+    setDisputing(true);
+    setDisputeError(null);
+    try {
+      const res = await fetch(`/api/protection/transactions/${data.protection.transactionId}/dispute`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ reason: disputeReason.trim(), message: disputeMessage.trim() || undefined }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDisputeError(typeof body?.error === "string" ? body.error : "internal_error");
+      } else {
+        setDisputeStatus("disputed");
+        setDisputeFormOpen(false);
+      }
+    } catch {
+      setDisputeError("network_error");
+    } finally {
+      disputeInFlight.current = false;
+      setDisputing(false);
     }
   };
 
@@ -185,7 +225,19 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
                 </p>
               )}
 
-              {protectionStatus === "awaiting_confirmation" && !confirmStatus && (
+              {protectionStatus === "disputed" && (
+                <p className="mt-2 text-xs" style={{ opacity: 0.6 }}>
+                  {p.disputedBody}
+                </p>
+              )}
+
+              {(protectionStatus === "resolved_release" || protectionStatus === "resolved_refund") && (
+                <p className="mt-2 text-xs" style={{ opacity: 0.6 }}>
+                  {protectionStatus === "resolved_refund" ? p.refundRequestedNote : p.awaitingConfirmationNote}
+                </p>
+              )}
+
+              {protectionStatus === "awaiting_confirmation" && !confirmStatus && !disputeFormOpen && (
                 <div className="mt-3 flex flex-col gap-2">
                   <p className="text-xs" style={{ opacity: 0.6 }}>
                     {p.awaitingConfirmationNote}
@@ -209,6 +261,84 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
                     {confirming && <Loader2 size={14} className="animate-spin" />}
                     {confirming ? p.confirming : p.confirmButton}
                   </button>
+                </div>
+              )}
+
+              {disputeEligible && !disputeFormOpen && (
+                <button
+                  type="button"
+                  onClick={() => setDisputeFormOpen(true)}
+                  className="mt-3 inline-flex min-h-[40px] items-center justify-center rounded-full px-4 text-xs font-semibold"
+                  style={{ border: "1px solid #DC2626", color: "#DC2626" }}
+                >
+                  {p.disputeButton}
+                </button>
+              )}
+
+              {disputeEligible && disputeFormOpen && (
+                <div className="mt-3 flex flex-col gap-2 rounded-2xl p-3" style={{ backgroundColor: "#FEF2F2" }}>
+                  <p className="text-xs font-semibold" style={{ color: "#991B1B" }}>
+                    {p.disputeTitle}
+                  </p>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[11px] font-medium" style={{ opacity: 0.7 }}>
+                      {p.disputeReasonLabel}
+                    </span>
+                    <input
+                      value={disputeReason}
+                      onChange={(e) => setDisputeReason(e.target.value)}
+                      placeholder={p.disputeReasonPlaceholder}
+                      maxLength={100}
+                      disabled={disputing}
+                      className="rounded-xl border px-3 py-2 text-sm"
+                      style={{ borderColor: "#E5E7EB" }}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-[11px] font-medium" style={{ opacity: 0.7 }}>
+                      {p.disputeMessageLabel}
+                    </span>
+                    <textarea
+                      value={disputeMessage}
+                      onChange={(e) => setDisputeMessage(e.target.value)}
+                      placeholder={p.disputeMessagePlaceholder}
+                      maxLength={2000}
+                      rows={3}
+                      disabled={disputing}
+                      className="resize-none rounded-xl border px-3 py-2 text-sm"
+                      style={{ borderColor: "#E5E7EB" }}
+                    />
+                  </label>
+                  <p className="text-[11px]" style={{ opacity: 0.6 }}>
+                    {p.disputeConfirmPrompt}
+                  </p>
+                  {disputeError && (
+                    <p role="alert" className="text-xs" style={{ color: "#DC2626" }}>
+                      {(p.errors as Record<string, string>)[disputeError] ?? p.errors.internal_error}
+                    </p>
+                  )}
+                  <div className="mt-1 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void submitDispute()}
+                      disabled={disputing}
+                      aria-busy={disputing}
+                      className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-full text-sm font-semibold text-white disabled:opacity-60"
+                      style={{ backgroundColor: "#DC2626" }}
+                    >
+                      {disputing && <Loader2 size={14} className="animate-spin" />}
+                      {disputing ? p.disputeSubmitting : p.disputeSubmit}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDisputeFormOpen(false)}
+                      disabled={disputing}
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-full px-4 text-sm font-semibold"
+                      style={{ border: "1px solid #E5E7EB" }}
+                    >
+                      {p.disputeCancel}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

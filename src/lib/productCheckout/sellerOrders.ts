@@ -89,6 +89,9 @@ export interface SellerProtectionSummary {
   status: string;
   protectedAmount: number;
   feeAmount: number;
+  /** Phase 7: present only once a dispute has been opened on this transaction. Read-only for the
+   *  seller — sellers cannot resolve disputes, release funds or approve refunds (admin-only). */
+  dispute: { reason: string; message: string | null; openedAt: string; resolution: string | null } | null;
 }
 
 export interface SellerReader {

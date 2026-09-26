@@ -30,7 +30,11 @@ export interface ProtectionReleaseTransactionRow {
   seller_protected_amount: number | string;
 }
 
-export type ProtectionReleaseActor = { type: "customer"; customerId: string } | { type: "system" };
+// Phase 7 addition: an authorized admin resolving a dispute toward release is a THIRD legal actor
+// for this exact function — reused, not duplicated (see disputeEngine.ts). The engine's own
+// transitions.ts already lists "admin" as an allowed actor for resolved_release -> released; this
+// widening only exposes that existing capability to a new caller, it adds nothing to the engine.
+export type ProtectionReleaseActor = { type: "customer"; customerId: string } | { type: "system" } | { type: "admin"; userId: string };
 
 export type ReleaseFailureCode = "not_found" | "unauthorized" | "not_eligible" | "earnings_failed" | "conflict";
 
@@ -70,26 +74,37 @@ export interface ProtectionReleaseDeps {
   log: (event: string, data?: Record<string, unknown>) => void;
 }
 
-async function ensureProtectionEarning(store: ProtectionReleaseStore, txn: ProtectionReleaseTransactionRow): Promise<{ ok: boolean }> {
+async function ensureProtectionEarning(store: ProtectionReleaseStore, txn: ProtectionReleaseTransactionRow, log: (event: string, data?: Record<string, unknown>) => void): Promise<{ ok: boolean }> {
   const existing = await store.getEarningByProtectionTransaction(txn.id);
   if (existing) return { ok: true };
 
   const amount = Number(txn.seller_protected_amount);
   if (!Number.isFinite(amount) || amount <= 0) return { ok: false };
 
-  const inserted = await store.insertProtectionEarning({
-    orderId: txn.target_id,
-    protectionTransactionId: txn.id,
-    profileId: txn.profile_id,
-    creatorUserId: txn.creator_user_id,
-    grossAmount: amount,
-    currency: txn.currency,
-  });
-  if (!inserted.ok) {
-    if (inserted.reason === "exists") return { ok: true }; // lost a race — the earning exists either way
+  // Phase 7 addition: the insert can now be rejected by a DB-level guard
+  // (commerce_sale_earnings_protection_status_guard) if the transaction's LIVE status is no longer
+  // eligible (e.g. a customer's dispute won a race against a stale read taken above) — that surfaces
+  // as a thrown error here, not a unique violation. Caught and converted into the same clean
+  // "earnings_failed" outcome a genuine insert failure already produces: the transaction is left
+  // exactly where it is, safely retryable, never released without a real earning behind it.
+  try {
+    const inserted = await store.insertProtectionEarning({
+      orderId: txn.target_id,
+      protectionTransactionId: txn.id,
+      profileId: txn.profile_id,
+      creatorUserId: txn.creator_user_id,
+      grossAmount: amount,
+      currency: txn.currency,
+    });
+    if (!inserted.ok) {
+      if (inserted.reason === "exists") return { ok: true }; // lost a race — the earning exists either way
+      return { ok: false };
+    }
+    return { ok: true };
+  } catch (err) {
+    log("protection_release_earnings_insert_rejected", { transactionId: txn.id, error: String((err as Error)?.message || err).slice(0, 160) });
     return { ok: false };
   }
-  return { ok: true };
 }
 
 /**
@@ -107,14 +122,20 @@ export async function releaseProtectionTransaction(deps: ProtectionReleaseDeps, 
 
   if (txn.status === "released") return { ok: true, status: "released", alreadyReleased: true };
 
-  // Ownership: never trust anything but the server-resolved customerId. "system" (auto-release)
-  // skips this — the engine's own actors list for this transition still only allows customer/system.
+  // Ownership: never trust anything but the server-resolved customerId. "system" (auto-release) and
+  // "admin" (dispute resolution) skip this — authorization for those is enforced by the engine's own
+  // actors list for the transition actually being requested, and (for admin) by assertAdmin() at the
+  // route layer before this function is ever called.
   if (actor.type === "customer" && txn.customer_id !== actor.customerId) return { ok: false, code: "unauthorized" };
 
-  if (txn.status !== "awaiting_confirmation") return { ok: false, code: "not_eligible" };
+  // Phase 7 addition: `resolved_release` is the second legal entry point into `released` — the one
+  // an admin's dispute resolution uses (disputed -> resolved_release -> released). Reusing THIS
+  // function for that second leg, rather than a parallel release implementation, is exactly what the
+  // Phase 7 spec requires ("do not duplicate the earnings/release implementation").
+  if (txn.status !== "awaiting_confirmation" && txn.status !== "resolved_release") return { ok: false, code: "not_eligible" };
 
   // 1. Earnings FIRST — see the file header for why. If this fails, the transaction is untouched.
-  const earning = await ensureProtectionEarning(deps.store, txn);
+  const earning = await ensureProtectionEarning(deps.store, txn, deps.log);
   if (!earning.ok) {
     deps.log("protection_release_earnings_failed", { transactionId: txn.id });
     return { ok: false, code: "earnings_failed" };
@@ -133,7 +154,10 @@ export async function releaseProtectionTransaction(deps: ProtectionReleaseDeps, 
   }
 
   // 3. ONLY NOW attempt the transition — the earning already exists regardless of this outcome.
-  const engineActor: ProtectionActor = actor.type === "customer" ? { type: "customer", customerId: actor.customerId } : { type: "system" };
+  //    From `awaiting_confirmation` this legally requires a customer/system actor; from
+  //    `resolved_release` it legally requires a system/admin actor — the engine's own conditional
+  //    UPDATE (keyed on the transaction's CURRENT status) picks the right one automatically.
+  const engineActor: ProtectionActor = actor.type === "customer" ? { type: "customer", customerId: actor.customerId } : actor.type === "admin" ? { type: "admin", userId: actor.userId } : { type: "system" };
   const transitioned = await deps.transition(txn.id, "released", engineActor);
   if (!transitioned.ok) {
     const recheck = await deps.store.getProtectionTransaction(txn.id);

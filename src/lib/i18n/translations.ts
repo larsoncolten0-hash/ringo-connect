@@ -160,6 +160,19 @@ export const translations = {
       confirmedTitle: "Released",
       confirmedBody: "You confirmed your order. The protected payment has been released to the seller.",
       autoReleaseNote: (when: string) => `If you don't confirm, this will release automatically on ${when}.`,
+      disputeButton: "Report a problem",
+      disputeTitle: "What went wrong?",
+      disputeReasonLabel: "Reason",
+      disputeReasonPlaceholder: "e.g. Item not received, not as described…",
+      disputeMessageLabel: "Details (optional)",
+      disputeMessagePlaceholder: "Add any details that will help resolve this",
+      disputeSubmitting: "Submitting…",
+      disputeSubmit: "Submit dispute",
+      disputeCancel: "Cancel",
+      disputeConfirmPrompt: "This opens a dispute with Ringo. It doesn't guarantee a refund — an admin will review it.",
+      disputedTitle: "Dispute opened",
+      disputedBody: "We've received your dispute. Ringo will review it and follow up.",
+      refundRequestedNote: "A refund has been requested for this order and is pending manual review — it has not been completed yet.",
       errors: {
         not_found: "We couldn't find that Protection order.",
         not_authenticated: "Please sign in to confirm this order.",
@@ -575,6 +588,14 @@ export const translations = {
       protectionReleased: {
         title: "Order released",
         body: (orderNumber: string, seller: string) => `Your protected payment for order ${orderNumber} from ${seller} has been released.`,
+      },
+      protectionDisputeResolvedRelease: {
+        title: "Dispute resolved",
+        body: (orderNumber: string, seller: string) => `Your dispute for order ${orderNumber} from ${seller} was resolved — the payment has been released.`,
+      },
+      protectionRefundRequested: {
+        title: "Refund requested",
+        body: (orderNumber: string, seller: string) => `A refund was requested for your order ${orderNumber} from ${seller} and is pending review.`,
       },
     },
     communityJoin: {
@@ -3776,6 +3797,19 @@ export const translations = {
       confirmedTitle: "Libéré",
       confirmedBody: "Vous avez confirmé votre commande. Le paiement protégé a été libéré au vendeur.",
       autoReleaseNote: (when: string) => `Si vous ne confirmez pas, ceci se libérera automatiquement le ${when}.`,
+      disputeButton: "Signaler un problème",
+      disputeTitle: "Qu'est-ce qui s'est mal passé ?",
+      disputeReasonLabel: "Motif",
+      disputeReasonPlaceholder: "ex. Article non reçu, non conforme…",
+      disputeMessageLabel: "Détails (facultatif)",
+      disputeMessagePlaceholder: "Ajoutez des détails qui aideront à résoudre le problème",
+      disputeSubmitting: "Envoi…",
+      disputeSubmit: "Soumettre le litige",
+      disputeCancel: "Annuler",
+      disputeConfirmPrompt: "Ceci ouvre un litige avec Ringo. Cela ne garantit pas un remboursement — un administrateur l'examinera.",
+      disputedTitle: "Litige ouvert",
+      disputedBody: "Nous avons bien reçu votre litige. Ringo l'examinera et vous tiendra informé.",
+      refundRequestedNote: "Un remboursement a été demandé pour cette commande et est en attente d'examen manuel — il n'a pas encore été effectué.",
       errors: {
         not_found: "Nous n'avons pas trouvé cette commande protégée.",
         not_authenticated: "Veuillez vous connecter pour confirmer cette commande.",
@@ -4144,6 +4178,14 @@ export const translations = {
       protectionReleased: {
         title: "Commande libérée",
         body: (orderNumber: string, seller: string) => `Votre paiement protégé pour la commande ${orderNumber} chez ${seller} a été libéré.`,
+      },
+      protectionDisputeResolvedRelease: {
+        title: "Litige résolu",
+        body: (orderNumber: string, seller: string) => `Votre litige pour la commande ${orderNumber} chez ${seller} a été résolu — le paiement a été libéré.`,
+      },
+      protectionRefundRequested: {
+        title: "Remboursement demandé",
+        body: (orderNumber: string, seller: string) => `Un remboursement a été demandé pour votre commande ${orderNumber} chez ${seller} et est en attente d'examen.`,
       },
     },
     communityJoin: {

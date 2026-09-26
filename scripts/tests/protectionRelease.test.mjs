@@ -351,7 +351,13 @@ function makeWorld(opts = {}) {
     const releaseSrc = read("src/lib/protection/release.ts");
     const httpSrc = read("src/lib/protection/releaseHttp.ts");
     check("release.ts never invokes the refund adapter/engine", !/fapshiRefundAdapter|refundEngine|fapshiPayout/.test(releaseSrc));
-    check("release.ts never requests resolved_release/resolved_refund/refunded (dispute resolution is a later phase)", !/"resolved_release"|"resolved_refund"|"refunded"/.test(releaseSrc));
+    // Updated by Phase 7: release.ts now legitimately checks for (never requests INTO)
+    // `resolved_release` as its second valid starting status — the dispute-resolution-to-release
+    // path (disputeEngine.ts) reuses this exact function rather than duplicating it. It must still
+    // never request/mention `resolved_refund` or `refunded` at all — those belong entirely to the
+    // dispute/refund workflow, which release.ts has no part in.
+    check("release.ts's only transition TARGET is \"released\" (it never requests any other status)", (releaseSrc.match(/deps\.transition\(txn\.id, "(\w+)"/g) || []).every((m) => m.endsWith('"released"')));
+    check("release.ts never mentions resolved_refund or refunded (those belong to the dispute/refund workflow only)", !/"resolved_refund"|"refunded"/.test(releaseSrc));
     check("releaseHttp.ts writes ONLY to commerce_sale_earnings and protection_ledger_entries — no new payout table", !/\.from\("(commerce_payouts|music_payouts|affiliate_payouts)"\)/.test(httpSrc));
     check("releaseHttp.ts never grants a client-side write path (server-only, service-role admin client)", /createAdminClient/.test(httpSrc));
   }

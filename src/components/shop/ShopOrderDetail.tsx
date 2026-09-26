@@ -184,6 +184,19 @@ export default function ShopOrderDetail({ order }: { order: SellerOrderDetail })
             <Row name={s.paymentStatus}>{p.statusLabels[order.protection.status as keyof typeof p.statusLabels] ?? order.protection.status}</Row>
           </dl>
           <p className="mt-3 text-xs text-ringo-muted">{p.sellerReleaseNote}</p>
+          {order.protection.dispute && (
+            <div className="mt-3 rounded-xl bg-red-500/5 p-3">
+              <p className="text-xs font-semibold text-red-600">{p.disputeTitle}</p>
+              <p className="mt-1 text-xs text-ringo-text">{order.protection.dispute.reason}</p>
+              {order.protection.dispute.message && <p className="mt-1 text-xs text-ringo-muted">{order.protection.dispute.message}</p>}
+              <p className="mt-1 text-[11px] text-ringo-muted" suppressHydrationWarning>
+                {formatWhen(order.protection.dispute.openedAt, locale)}
+              </p>
+              {order.protection.dispute.resolution && (
+                <p className="mt-1 text-[11px] font-medium text-ringo-text">{p.statusLabels[order.protection.dispute.resolution as keyof typeof p.statusLabels] ?? order.protection.dispute.resolution}</p>
+              )}
+            </div>
+          )}
         </section>
       )}
 

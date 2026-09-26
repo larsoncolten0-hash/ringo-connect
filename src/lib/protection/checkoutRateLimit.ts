@@ -13,6 +13,10 @@ export const PROTECTION_RATE_RULES = {
   protection_pay_ip: { windowSeconds: 600, max: 10 }, // payment prompts per client IP per 10 min
   protection_pay_phone: { windowSeconds: 600, max: 3 }, // prompts to ONE payer number per 10 min
   protection_pay_phone_day: { windowSeconds: 86_400, max: 10 }, // ...and per 24 hours
+  // Phase 7: dispute opening, per customer — a dispute row is itself unique-per-transaction (so this
+  // never blocks a legitimate single dispute), this only bounds how many DIFFERENT transactions one
+  // customer can attempt to dispute in a window.
+  protection_dispute_customer: { windowSeconds: 3600, max: 5 },
 } as const;
 export type ProtectionRateKind = keyof typeof PROTECTION_RATE_RULES;
 
