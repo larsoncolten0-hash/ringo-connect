@@ -126,6 +126,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
       // change to any other currency afterward from the editor.
       currency: defaultCurrencyForWhatsapp(whatsappNumber),
       about_long_bio: note || null,
+      // Bookings default ON for any plan that includes the feature (every paid plan today — see
+      // plans.bookings_feature_enabled), OFF for Free, exactly like every other category/theme
+      // default above: safe to set unconditionally because this profile was only just created and
+      // has no bookings_enabled choice of its own yet. The creator can still switch it off any time
+      // from Bookings settings — this only changes the starting value, never removes the toggle.
+      ...(plan.bookings_feature_enabled ? { bookings_enabled: true } : {}),
       ...(requestCategory
         ? {
             category: requestCategory,
