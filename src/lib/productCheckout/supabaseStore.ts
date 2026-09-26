@@ -35,7 +35,11 @@ export function createSupabaseStore(admin: Admin): CheckoutStore {
     },
 
     async getProduct(id: string): Promise<ProductRow | null> {
-      const { data } = await admin.from("products").select("id, profile_id, name, price, available, inventory_count").eq("id", id).maybeSingle();
+      const { data } = await admin
+        .from("products")
+        .select("id, profile_id, name, price, available, inventory_count, product_type, digital_file_path")
+        .eq("id", id)
+        .maybeSingle();
       return (data as ProductRow) ?? null;
     },
 

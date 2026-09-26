@@ -32,6 +32,9 @@ export interface ProductRow {
   price: number | string | null;
   available: boolean | null;
   inventory_count: number | null;
+  /** Digital Products V1. Absent (undefined) on a pre-migration read — never treated as "digital". */
+  product_type?: string | null;
+  digital_file_path?: string | null;
 }
 
 export interface OrderRow {

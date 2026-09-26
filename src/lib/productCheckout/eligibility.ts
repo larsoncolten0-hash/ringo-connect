@@ -43,6 +43,9 @@ export function checkProductEligibility(input: { product: ProductRow | null; pro
   if (priceCents === null || priceCents <= 0) return "product_unavailable";
   if (!isWholeAmount((priceCents * quantity) / 100)) return "product_price_unsupported"; // Fapshi moves whole XAF
   if (product.inventory_count !== null && product.inventory_count !== undefined && product.inventory_count < quantity) return "insufficient_stock";
+  // Digital Products V1: a digital product with no file uploaded yet can't be purchased — mirrors
+  // the "name must be non-empty" gate above for the same reason (nothing to actually deliver).
+  if (product.product_type === "digital" && !product.digital_file_path) return "product_unavailable";
   return null;
 }
 

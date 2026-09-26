@@ -113,6 +113,16 @@ export default function CatalogCard({
                   cta_label: normalizeCtaLabel(p.cta_label),
                 }
               : {}),
+            // Same backward-compatible guard, for Digital Products V1's new columns.
+            ...(p.product_type !== undefined
+              ? {
+                  product_type: p.product_type === "digital" ? "digital" : "physical",
+                  digital_file_path: p.product_type === "digital" ? p.digital_file_path || null : null,
+                  digital_file_name: p.product_type === "digital" ? p.digital_file_name || null : null,
+                  digital_file_size_bytes: p.product_type === "digital" ? p.digital_file_size_bytes ?? null : null,
+                  digital_file_mime: p.product_type === "digital" ? p.digital_file_mime || null : null,
+                }
+              : {}),
           })
           .eq("id", p.id)
       )

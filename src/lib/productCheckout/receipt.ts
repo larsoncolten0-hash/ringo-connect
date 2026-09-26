@@ -28,6 +28,10 @@ export type ShopReceiptItem = {
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  /** Digital Products V1. Never the storage path itself — just enough for the receipt to show a
+   *  Download button and call /api/products/download, which independently re-verifies everything. */
+  productId: string | null;
+  isDigital: boolean;
 };
 
 export type ShopReceiptPayment = {
@@ -80,7 +84,7 @@ export async function getShopOrderReceiptData(orderId: string): Promise<ShopRece
     .from("product_orders")
     .select(
       `id, order_number, status, currency, subtotal, total, created_at, paid_at,
-       product_order_items(name_snapshot, image_snapshot, unit_price_snapshot, quantity, line_total),
+       product_order_items(product_id, name_snapshot, image_snapshot, unit_price_snapshot, quantity, line_total, digital_file_path_snapshot),
        profiles(name, username)`
     )
     .eq("id", orderId)
@@ -154,6 +158,9 @@ export async function getShopOrderReceiptData(orderId: string): Promise<ShopRece
       quantity: i.quantity,
       unitPrice: Number(i.unit_price_snapshot),
       lineTotal: Number(i.line_total),
+      productId: i.product_id ?? null,
+      // Only ever a boolean — the actual digital_file_path_snapshot value never leaves this function.
+      isDigital: !!i.digital_file_path_snapshot,
     })),
     protection,
   };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, Loader2, Package, ShieldCheck } from "lucide-react";
+import { Check, Download, Loader2, Package, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import type { ShopReceiptData } from "@/lib/productCheckout/receipt";
@@ -95,6 +95,26 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
     }
   };
 
+  // Digital Products V1 — per-item download state, keyed by productId. The button only ever calls
+  // the secure /api/products/download route; nothing here decides eligibility itself (the server
+  // re-verifies the order/item/session on every request, per src/lib/digitalProducts/downloadAuth.ts).
+  const [downloading, setDownloading] = useState<Record<string, boolean>>({});
+  const [downloadError, setDownloadError] = useState<Record<string, boolean>>({});
+  const downloadFile = async (productId: string) => {
+    setDownloadError((prev) => ({ ...prev, [productId]: false }));
+    setDownloading((prev) => ({ ...prev, [productId]: true }));
+    try {
+      const res = await fetch(`/api/products/download?order=${encodeURIComponent(data.orderId)}&product=${encodeURIComponent(productId)}`);
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.url) throw new Error("download_failed");
+      window.location.href = body.url;
+    } catch {
+      setDownloadError((prev) => ({ ...prev, [productId]: true }));
+    } finally {
+      setDownloading((prev) => ({ ...prev, [productId]: false }));
+    }
+  };
+
   const dateLocale = locale === "fr" ? "fr-FR" : "en-US";
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" });
 
@@ -133,27 +153,58 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
             </p>
             <ul className="flex flex-col gap-3">
               {data.items.map((item, idx) => (
-                <li key={idx} className="flex items-center gap-3">
-                  {item.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.image}
-                      alt=""
-                      className="h-12 w-12 shrink-0 rounded-xl object-cover"
-                      style={{ border: "1px solid #E5E7EB" }}
-                    />
-                  ) : (
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "#F3F4F6" }}>
-                      <Package size={18} style={{ opacity: 0.4 }} />
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{item.name}</p>
-                    <p className="text-xs" style={{ opacity: 0.6 }}>
-                      {r.quantityTimesPrice(item.quantity, formatPrice(item.unitPrice, data.currency, locale))}
-                    </p>
+                <li key={idx} className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    {item.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.image}
+                        alt=""
+                        className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                        style={{ border: "1px solid #E5E7EB" }}
+                      />
+                    ) : (
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "#F3F4F6" }}>
+                        <Package size={18} style={{ opacity: 0.4 }} />
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{item.name}</p>
+                      <p className="text-xs" style={{ opacity: 0.6 }}>
+                        {r.quantityTimesPrice(item.quantity, formatPrice(item.unitPrice, data.currency, locale))}
+                      </p>
+                      {item.isDigital && (
+                        <span
+                          className="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={{ backgroundColor: "#EEF2FF", color: "#4338CA" }}
+                        >
+                          {r.digitalBadge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold">{formatPrice(item.lineTotal, data.currency, locale)}</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold">{formatPrice(item.lineTotal, data.currency, locale)}</p>
+
+                  {item.isDigital && (data.status === "paid" || data.status === "fulfilled") && item.productId && (
+                    <div className="flex flex-col gap-1 pl-[60px]">
+                      <button
+                        type="button"
+                        onClick={() => void downloadFile(item.productId as string)}
+                        disabled={!!downloading[item.productId]}
+                        aria-busy={!!downloading[item.productId]}
+                        className="inline-flex min-h-[40px] w-fit items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold text-white disabled:opacity-60"
+                        style={{ backgroundColor: "#4338CA" }}
+                      >
+                        {downloading[item.productId] ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                        {r.downloadButton}
+                      </button>
+                      {downloadError[item.productId] && (
+                        <p role="alert" className="text-xs" style={{ color: "#DC2626" }}>
+                          {r.downloadFailed}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

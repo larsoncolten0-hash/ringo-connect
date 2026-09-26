@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import { formatPrice } from "@/lib/currency";
 import ImageGalleryUploadField from "./ImageGalleryUploadField";
+import DigitalFileUploadField from "./DigitalFileUploadField";
 import CustomerActionField from "./CustomerActionField";
 
 // Field edits here only update local state (via onChange, which also
@@ -146,6 +147,30 @@ export default function ProductRow({
             className="overflow-hidden"
           >
             <div className="px-2.5 pb-2.5 pt-1 border-t border-ringo-border flex flex-col gap-2">
+              {/* Only once the product_type column exists on the row (post-migration) — same
+                  backward-compatible guard the cta fields below already use. */}
+              {product.product_type !== undefined && (
+                <div>
+                  <p className="text-xs text-ringo-muted mb-1.5">{t.editor.digitalProduct.typeLabel}</p>
+                  <div className="flex gap-1.5">
+                    {(["physical", "digital"] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => onChange({ product_type: type })}
+                        className={`text-xs px-2.5 py-1.5 rounded-full border transition ${
+                          (product.product_type || "physical") === type
+                            ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo font-medium"
+                            : "border-ringo-border text-ringo-muted"
+                        }`}
+                      >
+                        {type === "physical" ? t.editor.digitalProduct.physical : t.editor.digitalProduct.digital}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <p className="text-xs text-ringo-muted mb-1.5">{t.editor.photosLabel}</p>
                 <ImageGalleryUploadField
@@ -156,6 +181,20 @@ export default function ProductRow({
                   errorText={t.editor.upload}
                 />
               </div>
+
+              {product.product_type === "digital" && (
+                <>
+                  <DigitalFileUploadField
+                    path={product.digital_file_path}
+                    fileName={product.digital_file_name}
+                    fileSizeBytes={product.digital_file_size_bytes}
+                    userId={userId}
+                    onChange={(patch) => onChange(patch)}
+                    label={t.editor.digitalProduct}
+                  />
+                  {!product.digital_file_path && <p className="text-xs text-ringo-coral">{t.editor.digitalProduct.noFileYet}</p>}
+                </>
+              )}
               <div className="flex gap-2">
                 <input
                   ref={nameRef}

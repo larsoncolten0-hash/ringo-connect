@@ -60,7 +60,11 @@ export default async function ProductCheckoutRoute({
   // fee rate — never assumed, never enabled client-side. See getProtectionSettings() (Phase 1,
   // unmodified here).
   const protectionSettings = await getProtectionSettings();
-  const protectionAvailable = block === null && protectionSettings.protectionEnabled && protectionSettings.protectionFeeRate !== null;
+  // Digital Products V1: Ringo Protection is Normal Payment only — never offered for a digital
+  // product, regardless of the platform-wide setting. See checkProtectionEligibility for the
+  // matching server-side backstop (defense in depth, same posture as the Music refusal there).
+  const protectionAvailable =
+    block === null && protectionSettings.protectionEnabled && protectionSettings.protectionFeeRate !== null && product.product_type !== "digital";
 
   // A signed-in Ringo customer's own details, to prefill their own form. Guests are unaffected.
   const session = await getCustomerFromCookie();

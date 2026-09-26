@@ -27,6 +27,9 @@ export interface ProtectionOrderRow {
   status: "awaiting_payment" | "paid" | "fulfilled" | "cancelled" | "expired" | "refunded" | "payment_review";
   expires_at: string;
   paid_at: string | null;
+  /** Digital Products V1 — true when this order's item carries a digital file snapshot. Ringo
+   *  Protection is Normal-Payment-only for digital products (see checkProtectionEligibility). */
+  isDigital?: boolean;
 }
 
 export interface ProtectionProfileRow {

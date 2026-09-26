@@ -32,8 +32,15 @@ export function createProtectionCheckoutStore(admin: Admin): ProtectionCheckoutS
     },
 
     async getOrder(orderId: string): Promise<ProtectionOrderRow | null> {
-      const { data } = await admin.from("product_orders").select("id, profile_id, customer_id, currency, total, status, expires_at, paid_at").eq("id", orderId).maybeSingle();
-      return (data as ProtectionOrderRow) ?? null;
+      const { data } = await admin
+        .from("product_orders")
+        .select("id, profile_id, customer_id, currency, total, status, expires_at, paid_at, product_order_items(digital_file_path_snapshot)")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (!data) return null;
+      const { product_order_items, ...order } = data as any;
+      const isDigital = ((product_order_items || []) as { digital_file_path_snapshot: string | null }[]).some((i) => !!i.digital_file_path_snapshot);
+      return { ...order, isDigital } as ProtectionOrderRow;
     },
 
     async getProfile(profileId: string): Promise<ProtectionProfileRow | null> {

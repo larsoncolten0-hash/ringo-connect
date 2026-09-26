@@ -30,6 +30,10 @@ export function checkProtectionEligibility(input: {
   if (!commerce.fapshiEnabled) return "payment_provider_unavailable";
   if (!profile || !profile.published || profile.is_demo) return "order_not_payable";
   if (isMusicProfile(profile)) return "order_not_payable";
+  // Digital Products V1: Normal Payment only — never offered for a digital purchase. Defense in
+  // depth alongside the checkout page's own UI gate (product.product_type !== 'digital'), same
+  // reasoning this file already documents for the Music refusal above.
+  if (order.isDigital) return "order_not_payable";
   if (profile.id !== order.profile_id) return "order_not_payable";
   const currency = (profile.currency && profile.currency.trim() ? profile.currency.trim() : "USD").toUpperCase();
   if (currency !== SUPPORTED_CURRENCY || order.currency !== SUPPORTED_CURRENCY) return "order_not_payable";
