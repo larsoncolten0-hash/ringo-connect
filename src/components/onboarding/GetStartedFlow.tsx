@@ -572,7 +572,7 @@ export default function GetStartedFlow({
                 className="text-left rounded-card border border-ringo-border bg-ringo-surface p-5 transition hover:border-ringo-indigo active:scale-[0.98]"
               >
                 <span className="block font-display text-base font-bold mb-1">Yes, I want a Ringo Card</span>
-                <span className="block text-sm text-ringo-muted">See the two card + subscription bundle options.</span>
+                <span className="block text-sm text-ringo-muted">{t.getStarted.bundlePickerSubtitle}</span>
               </button>
 
               <button

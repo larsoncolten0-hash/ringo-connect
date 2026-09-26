@@ -93,9 +93,9 @@ export default function LandingView({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Every "get started"/"create your Ringo" CTA on this page funnels into
-  // the assisted /get-started form (plan pick → info → optional payment),
-  // not straight to self-serve /auth/signup — that's still reachable from
-  // "Log in" → "sign up" for anyone who lands there directly.
+  // the assisted /get-started form (plan pick → info → optional payment) —
+  // "Log in" → "Create one" now lands here too, not on self-serve
+  // /auth/signup (still reachable directly, just no longer linked to).
   const primaryHref = isLoggedIn ? dashboardHref : "/get-started";
   const affiliateWhatsappHref = `https://wa.me/237694028846?text=${encodeURIComponent(
     "Hi! I'd like to become a Ringo Connect affiliate."

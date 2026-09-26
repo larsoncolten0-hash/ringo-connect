@@ -1,7 +1,8 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowUpRight, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -9,10 +10,13 @@ import { productHref, productImages } from "./productHref";
 
 // The public profile's Catalog / Merch / Services section. An editorial
 // grid instead of a collapsible list: one large feature card up top, then
-// portrait cards two-up — big photography, a frosted price tag, a quiet
-// arrow, soft rounded corners, a gentle fade-up as each card enters view.
-// Every card opens the item's own detail page (see ProductDetailView);
-// the buy/WhatsApp actions live there, not crammed onto a half-width card.
+// portrait cards two-up — big photography, a frosted price tag, a real
+// labeled button (not just an arrow), soft rounded corners, a gentle
+// fade-up as each card enters view. Every card opens the item's own detail
+// page (see ProductDetailView); the buy/WhatsApp actions live there, not
+// crammed onto a half-width card — the card's own button leads there too,
+// same destination as tapping the card itself, just an explicit, visible
+// call to action instead of an icon-only affordance.
 export default function CatalogSection({
   label,
   products,
@@ -23,6 +27,8 @@ export default function CatalogSection({
   textColor,
   borderTint,
   squareCorners,
+  buttonStyle,
+  radiusClass,
   preview,
   onOpen,
 }: {
@@ -35,6 +41,11 @@ export default function CatalogSection({
   textColor: string;
   borderTint: string;
   squareCorners: boolean;
+  // The profile's own themed button treatment (see getButtonStyle/
+  // getRadiusClass in ProfileView.tsx) — reused here so the card's CTA
+  // matches every other button on the page, not a one-off style.
+  buttonStyle: CSSProperties;
+  radiusClass: string;
   // Inside the dashboard editor's live preview, cards shouldn't navigate away.
   preview?: boolean;
   onOpen: (product: any) => void;
@@ -71,6 +82,8 @@ export default function CatalogSection({
             accent={accent}
             textColor={textColor}
             squareCorners={squareCorners}
+            buttonStyle={buttonStyle}
+            radiusClass={radiusClass}
             preview={preview}
             onOpen={() => onOpen(product)}
           />
@@ -89,6 +102,8 @@ function ProductCard({
   accent,
   textColor,
   squareCorners,
+  buttonStyle,
+  radiusClass,
   preview,
   onOpen,
 }: {
@@ -100,6 +115,8 @@ function ProductCard({
   accent: string;
   textColor: string;
   squareCorners: boolean;
+  buttonStyle: CSSProperties;
+  radiusClass: string;
   preview?: boolean;
   onOpen: () => void;
 }) {
@@ -154,23 +171,29 @@ function ProductCard({
             {t.profilePage.photosCount(images.length)}
           </span>
         ) : null}
-
-        <span
-          className="absolute bottom-2.5 right-2.5 flex h-9 w-9 items-center justify-center rounded-full backdrop-blur-md transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-          style={{ backgroundColor: "rgba(255,255,255,0.92)", color: "#111" }}
-          aria-hidden
-        >
-          <ArrowUpRight size={16} strokeWidth={2.2} />
-        </span>
       </div>
 
-      <div className="px-1 pt-3">
-        <p className={`font-semibold leading-snug tracking-[-0.01em] line-clamp-2 ${featured ? "text-base" : "text-[15px]"}`}>{product.name}</p>
-        {product.description && (
-          <p className="mt-1 text-xs leading-relaxed line-clamp-2" style={{ opacity: 0.6 }}>
-            {product.description}
-          </p>
-        )}
+      <div className="px-1 pt-3 flex flex-col gap-2.5">
+        <div>
+          <p className={`font-semibold leading-snug tracking-[-0.01em] line-clamp-2 ${featured ? "text-base" : "text-[15px]"}`}>{product.name}</p>
+          {product.description && (
+            <p className="mt-1 text-xs leading-relaxed line-clamp-2" style={{ opacity: 0.6 }}>
+              {product.description}
+            </p>
+          )}
+        </div>
+
+        {/* A real, labeled button — not just an icon — so it's obvious this
+            card can be acted on directly, not only tapped as a whole. Same
+            destination as the card itself (the item's detail page): this is
+            a second, explicit way in, never a different action. */}
+        <span
+          aria-hidden
+          className={`inline-flex w-full items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-transform duration-300 group-hover:-translate-y-0.5 ${radiusClass}`}
+          style={buttonStyle}
+        >
+          {t.profilePage.viewItem}
+        </span>
       </div>
     </>
   );

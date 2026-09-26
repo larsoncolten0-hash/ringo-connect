@@ -127,7 +127,7 @@ function LoginForm() {
 
       <p className="text-sm text-ringo-muted text-center mt-6">
         Don't have a page yet?{" "}
-        <Link href="/auth/signup" className="text-ringo-indigo font-medium hover:underline">
+        <Link href="/get-started" className="text-ringo-indigo font-medium hover:underline">
           Create one
         </Link>
       </p>

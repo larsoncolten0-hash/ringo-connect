@@ -101,7 +101,7 @@ export default function PricingSection({
       </div>
 
       {track === "card" ? (
-        <div className="grid gap-5 max-w-3xl mx-auto sm:grid-cols-2">
+        <div className={`grid gap-5 mx-auto ${bundleAddons.length >= 3 ? "max-w-5xl sm:grid-cols-3" : "max-w-3xl sm:grid-cols-2"}`}>
           {bundleAddons.map((bundle) => {
             // Same fallback pattern as GetStartedFlow.tsx's bundlePicker
             // step — admin-editable via /admin/addons (bundle_features).

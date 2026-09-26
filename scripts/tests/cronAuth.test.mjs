@@ -77,8 +77,9 @@ for (const d of fs.readdirSync(dir)) {
   const guarded = /!\s*(process\.env\.CRON_SECRET|secret)\b/.test(src);
   check(`source: /api/cron/${d} rejects when CRON_SECRET is unset`, guarded);
 }
-// scheduling is untouched
-check("source: vercel.json schedules unchanged (two daily jobs only)", JSON.stringify(JSON.parse(fs.readFileSync(path.join(REPO, "vercel.json"), "utf8"))) === JSON.stringify({ crons: [{ path: "/api/cron/downgrade-expired", schedule: "0 3 * * *" }, { path: "/api/cron/cleanup-demo-accounts", schedule: "0 4 * * *" }] }));
+// scheduling: the original two daily jobs are unchanged; Ringo Protection
+// Phase 12 legitimately added its own auto-release cron alongside them.
+check("source: vercel.json still has the original two daily jobs, plus only the Protection auto-release cron", JSON.stringify(JSON.parse(fs.readFileSync(path.join(REPO, "vercel.json"), "utf8"))) === JSON.stringify({ crons: [{ path: "/api/cron/downgrade-expired", schedule: "0 3 * * *" }, { path: "/api/cron/cleanup-demo-accounts", schedule: "0 4 * * *" }, { path: "/api/cron/protection-auto-release", schedule: "0 5 * * *" }] }));
 
 if (saved === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = saved;
 fs.rmSync(tmp, { recursive: true, force: true });

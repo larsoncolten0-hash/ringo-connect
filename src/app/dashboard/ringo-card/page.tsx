@@ -34,7 +34,7 @@ export default async function RingoCardWriterPage() {
   // addon fetch.
   const { data: bundleAddons } = await supabase
     .from("addons")
-    .select("id, name, price_xaf, grants_plan_duration_days")
+    .select("id, name, price_xaf, grants_plan_duration_days, grants_plan_name")
     .eq("active", true)
     .not("grants_plan_name", "is", null)
     .order("sort_order", { ascending: true });

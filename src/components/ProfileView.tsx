@@ -784,6 +784,8 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               textColor={contentTextColor}
               borderTint={contentBorderTint}
               squareCorners={profile.button_radius === "square"}
+              buttonStyle={linkButtonStyle}
+              radiusClass={radiusClass}
               preview={preview}
               onOpen={(product) =>
                 logClick("product", product.id, {
