@@ -2,21 +2,22 @@
 
 Internal reference for anyone investigating a Ringo Protection transaction. Ringo Protection is an
 optional, additive escrow-like payment protection layer for Shop orders, entirely separate from
-Normal Shop Payment. As of this document, it is **not live** — see "Activation status" below.
+Normal Shop Payment.
 
-## Activation status
+## Activation status (V1: manual refunds)
 
-- `platform_settings.protection_enabled` — **must be `false`** until Phase 12's external gates are
-  satisfied. When `true`, customers are offered Protection at checkout.
-- `platform_settings.protection_refund_provider_enabled` — **must be `false`** indefinitely, or until
-  a real, confirmed Fapshi refund/payout model exists. When `true`, admin-approved refunds are
-  actually paid out via Fapshi; while `false`, refunds only ever reach `requested` and no money moves.
-- **These two flags are the entire kill switch.** Setting either back to `false` immediately stops
-  new activity of that kind without any code change or deploy.
-- Activation additionally requires: Cameroon/CEMAC legal/compliance review of Ringo holding customer
-  funds in escrow, and Fapshi's own confirmation of the intended payment/refund model (Fapshi has no
-  dedicated refund endpoint today). **Technical completion of Phases 1–11 does not by itself
-  authorize enabling either flag.**
+- `platform_settings.protection_enabled` — turned on via the existing Protection settings card at
+  `/admin/price-controls`. Legal/compliance review is confirmed cleared (per Phase 12). When `true`,
+  customers are offered Protection at checkout.
+- `platform_settings.protection_refund_provider_enabled` — **stays `false` indefinitely under the V1
+  operating model.** Refunds are handled by an admin manually sending the transfer via Fapshi's own
+  app, then recording the result in Ringo (see "Manual refunds" below) — this flag represents
+  *automatic* provider refunds, a future phase, not required for V1. While `false`, no code path can
+  ever call Fapshi's payout API for a refund.
+- **This flag is the automatic-refund kill switch** — it was never enabled and there is nothing to
+  turn off. `protection_enabled` is the checkout kill switch: setting it back to `false` immediately
+  stops new Protection checkouts without any code change or deploy; existing protected orders keep
+  moving through their normal lifecycle (fulfillment, confirmation, auto-release, disputes) regardless.
 
 ## Transaction lifecycle
 
@@ -53,22 +54,48 @@ awaiting_payment -> protected -> fulfillment_started -> awaiting_confirmation ->
   "conflict" response instead of a clean "already resolved" message. This is a UX rough edge, not a
   data-integrity issue — refreshing the dispute in the admin UI always shows the true, single outcome.
 
-## Refunds
+## Manual refunds (V1 operating model)
 
-- `protection_refunds` rows only ever reach `requested` while `protection_refund_provider_enabled` is
-  `false`. There is no code path that marks a refund `completed` without that flag being `true` and a
-  real Fapshi payout call succeeding (`fapshiRefundAdapter.ts`).
-- A refund can never be requested for a transaction that is `released` or already `refunded`.
+1. An admin resolves a dispute toward refund (`resolved_refund`) — this creates the one
+   `protection_refunds` row at `requested`, via the existing Phase 3/7 mechanism. **No money has
+   moved yet and no automatic call is ever made.**
+2. The admin independently verifies the destination Mobile Money number and network with the
+   customer through the established operational process — never assumed from
+   `product_orders.customer_phone`.
+3. The admin manually sends the refund amount (the transaction's own `seller_protected_amount`
+   snapshot — never a newly calculated figure) via Fapshi's own app.
+4. The admin opens the transaction at `/admin/protection/[id]` and uses "Record manual refund
+   result" to report what happened:
+   - **Transfer succeeded** — requires the destination phone/network and the Fapshi
+     transaction/reference. This calls `POST /api/admin/protection/transactions/[id]/refund-outcome`
+     with `{outcome: "completed", ...}`, which marks the refund `completed`
+     (`provider_status: "MANUAL_CONFIRMED"`) and moves the parent transaction to `refunded`. The
+     customer is notified only now, never earlier.
+   - **Transfer failed** — requires a failure reason. The refund is marked `failed`; the parent
+     transaction is left exactly where it was (never `refunded`). The admin can retry the same
+     action later once the problem is understood — a `failed` refund is always re-claimable.
+5. `recordManualProtectionRefundOutcome()` (`refundEngine.ts`) is the one place this happens — it
+   composes the existing `beginProtectionRefundProcessing`/`completeProtectionRefund`/
+   `failProtectionRefund` primitives, never adds a second refund-mutation path, and never accepts an
+   amount from the caller.
+6. A refund can never be requested for a transaction that is `released` or already `refunded`, and an
+   already-`completed` refund rejects a second manual-outcome submission as a conflict rather than
+   silently reprocessing it.
+7. `fapshiRefundAdapter.ts` (the one function that *can* make a real automatic Fapshi payout call)
+   stays completely dormant and unwired in V1 — nothing manual touches it, and it remains fail-closed
+   on `protection_refund_provider_enabled`.
 
 ## Cron
 
 - `/api/cron/protection-auto-release` releases every `awaiting_confirmation` transaction whose
   `auto_release_at` has passed. It requires the `CRON_SECRET` bearer token (constant-time compare) and
   is idempotent (safe to call repeatedly or concurrently).
-- **It is intentionally NOT in `vercel.json`'s `crons` list yet** (mirrors the pre-existing, also
-  unscheduled `reconcile-product-payments` cron). Before Phase 12 activation, this must be added with
-  an appropriate schedule (e.g. hourly) — otherwise every Protection order will sit in
-  `awaiting_confirmation` forever past its deadline with nothing to advance it.
+- Scheduled in `vercel.json` at `0 5 * * *` (once daily) as of Phase 12 — chosen conservatively to
+  match this project's existing crons, which are also daily-only (suggesting a Vercel plan tier that
+  doesn't support more frequent schedules). Worst case this adds up to ~24h of delay on top of
+  `protection_auto_release_hours` (currently 48h) before an unconfirmed order auto-releases. If the
+  Vercel plan supports more frequent crons, tightening this to hourly (`0 * * * *`) is a safe,
+  independent follow-up.
 
 ## Investigating a specific transaction
 
@@ -90,6 +117,7 @@ awaiting_payment -> protected -> fulfillment_started -> awaiting_confirmation ->
   anon`; RLS correctly filters it to zero rows for an anonymous request, so there is no actual leak,
   but it is architecturally inconsistent with Protection's own stricter "revoke-first" posture.
   Out of Protection's scope to change unilaterally.
-- `platform_settings.protection_fee_rate` is currently `null` in production. Checkout code already
-  fails closed on this (`protection_not_configured`), so nothing is broken today — but this value
-  **must be set to a real rate before `protection_enabled` is ever flipped to `true`**.
+- The admin dispute-resolution race (two admins, or a double-click, resolving toward release and
+  refund at nearly the same instant): exactly one outcome ever wins financially (proven by
+  `protectionSecurityAudit.test.mjs`), but the losing side can occasionally see a raw "conflict"
+  response instead of a clean "already resolved" message. Refreshing always shows the true outcome.

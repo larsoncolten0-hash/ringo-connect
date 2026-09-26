@@ -25,6 +25,46 @@ export default function AdminProtectionDetail({ detail }: { detail: AdminProtect
   const [error, setError] = useState<string | null>(null);
   const [resolvedNote, setResolvedNote] = useState<string | null>(null);
 
+  // Phase 12: manual refund outcome recording — the admin has ALREADY sent (or attempted) the
+  // transfer via Fapshi's own app; this form only reports that result back to Ringo. It never calls
+  // Fapshi itself.
+  const [refundFormOpen, setRefundFormOpen] = useState(false);
+  const [refundOutcome, setRefundOutcome] = useState<"completed" | "failed">("completed");
+  const [destinationPhone, setDestinationPhone] = useState("");
+  const [destinationNetwork, setDestinationNetwork] = useState<"mtn" | "orange">("mtn");
+  const [providerReference, setProviderReference] = useState("");
+  const [failureReason, setFailureReason] = useState("");
+  const [submittingRefund, setSubmittingRefund] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
+  const [refundNote, setRefundNote] = useState<string | null>(null);
+
+  const submitRefundOutcome = async () => {
+    setRefundError(null);
+    setSubmittingRefund(true);
+    try {
+      const body: Record<string, unknown> = { outcome: refundOutcome, destinationPhone, destinationNetwork };
+      if (refundOutcome === "completed") body.providerReference = providerReference;
+      else body.failureReason = failureReason;
+
+      const res = await fetch(`/api/admin/protection/transactions/${detail.id}/refund-outcome`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const responseBody = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRefundError(typeof responseBody?.error === "string" ? responseBody.error : "internal_error");
+      } else {
+        setRefundNote(refundOutcome === "completed" ? "Refund recorded as completed." : "Refund recorded as failed — you can retry after investigating.");
+        setRefundFormOpen(false);
+      }
+    } catch {
+      setRefundError("network_error");
+    } finally {
+      setSubmittingRefund(false);
+    }
+  };
+
   const resolveDispute = async (action: "release" | "refund") => {
     const label = action === "release" ? "release the protected funds to the seller" : "request a refund (this only creates a pending refund record — it does NOT move real money)";
     if (!window.confirm(`Resolve this dispute to ${label}?`)) return;
@@ -186,7 +226,112 @@ export default function AdminProtectionDetail({ detail }: { detail: AdminProtect
             {detail.refund.completedAt && <Row name="Completed">{fmt(detail.refund.completedAt)}</Row>}
             {detail.refund.failedAt && <Row name="Failed">{fmt(detail.refund.failedAt)}</Row>}
           </dl>
-          {detail.refund.status === "requested" && <p className="mt-2 text-xs text-ringo-muted">Pending manual/provider action — no money has moved yet.</p>}
+          {(detail.refund.status === "requested" || detail.refund.status === "failed") && (
+            <p className="mt-2 text-xs text-ringo-muted">
+              {detail.refund.status === "requested" ? "Pending manual action — no money has moved yet." : "Previous manual attempt failed — investigate and retry below."}
+            </p>
+          )}
+
+          {refundNote && (
+            <p role="status" className="mt-3 flex items-center gap-2 rounded-xl bg-ringo-teal/10 px-3.5 py-2.5 text-sm font-medium text-ringo-teal">
+              <Check size={15} />
+              {refundNote}
+            </p>
+          )}
+
+          {(detail.refund.status === "requested" || detail.refund.status === "failed") && !refundNote && (
+            <div className="mt-4">
+              {!refundFormOpen ? (
+                <button
+                  onClick={() => setRefundFormOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-ringo-border px-4 py-2 text-xs font-medium text-ringo-text"
+                >
+                  Record manual refund result
+                </button>
+              ) : (
+                <div className="flex flex-col gap-3 rounded-xl border border-ringo-border/70 p-4">
+                  <p className="text-xs text-ringo-muted">
+                    Only fill this in AFTER you have manually sent (or attempted) the transfer via Fapshi's own app. This never triggers a transfer itself.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex flex-col gap-1 text-xs text-ringo-muted">
+                      Recipient Mobile Money number
+                      <input
+                        value={destinationPhone}
+                        onChange={(e) => setDestinationPhone(e.target.value)}
+                        placeholder="6XXXXXXXX"
+                        className="rounded-lg border border-ringo-border px-2.5 py-1.5 text-sm text-ringo-text"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-ringo-muted">
+                      Network
+                      <select
+                        value={destinationNetwork}
+                        onChange={(e) => setDestinationNetwork(e.target.value as "mtn" | "orange")}
+                        className="rounded-lg border border-ringo-border px-2.5 py-1.5 text-sm text-ringo-text"
+                      >
+                        <option value="mtn">MTN</option>
+                        <option value="orange">Orange</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="flex gap-1 rounded-full bg-ringo-muted/10 p-1 w-fit">
+                    <button
+                      onClick={() => setRefundOutcome("completed")}
+                      className={`text-xs font-medium px-3 py-1 rounded-full transition ${refundOutcome === "completed" ? "bg-ringo-surface text-ringo-text shadow-sm" : "text-ringo-muted"}`}
+                    >
+                      Transfer succeeded
+                    </button>
+                    <button
+                      onClick={() => setRefundOutcome("failed")}
+                      className={`text-xs font-medium px-3 py-1 rounded-full transition ${refundOutcome === "failed" ? "bg-ringo-surface text-ringo-text shadow-sm" : "text-ringo-muted"}`}
+                    >
+                      Transfer failed
+                    </button>
+                  </div>
+
+                  {refundOutcome === "completed" ? (
+                    <label className="flex flex-col gap-1 text-xs text-ringo-muted">
+                      Fapshi transaction/reference
+                      <input
+                        value={providerReference}
+                        onChange={(e) => setProviderReference(e.target.value)}
+                        placeholder="e.g. the reference shown in the Fapshi app"
+                        className="rounded-lg border border-ringo-border px-2.5 py-1.5 text-sm text-ringo-text"
+                      />
+                    </label>
+                  ) : (
+                    <label className="flex flex-col gap-1 text-xs text-ringo-muted">
+                      What went wrong
+                      <input
+                        value={failureReason}
+                        onChange={(e) => setFailureReason(e.target.value)}
+                        placeholder="e.g. wrong number, insufficient balance"
+                        className="rounded-lg border border-ringo-border px-2.5 py-1.5 text-sm text-ringo-text"
+                      />
+                    </label>
+                  )}
+
+                  {refundError && <p role="alert" className="rounded-xl bg-red-500/10 px-3.5 py-2.5 text-xs text-red-500">{refundError}</p>}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => void submitRefundOutcome()}
+                      disabled={submittingRefund || !destinationPhone || (refundOutcome === "completed" ? !providerReference : !failureReason)}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-ringo-teal px-4 py-2 text-xs font-medium text-white disabled:opacity-60"
+                    >
+                      {submittingRefund && <Loader2 size={12} className="animate-spin" />}
+                      Save result
+                    </button>
+                    <button onClick={() => setRefundFormOpen(false)} disabled={submittingRefund} className="rounded-full border border-ringo-border px-4 py-2 text-xs font-medium text-ringo-muted">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
       )}
 

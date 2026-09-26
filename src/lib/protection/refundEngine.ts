@@ -5,11 +5,13 @@ import type { ProtectionRefundDestination, ProtectionRefundStatus, ProviderPayou
 // protection_refunds row is ever created or moved — mirrors engine.ts being the one place
 // protection_transactions.status changes.
 //
-// STILL DORMANT: nothing in this file is called from any route, cron, or UI. It exists to be
-// unit- and concurrency-tested on its own, exactly like Phase 2's engine was before anything used
-// it. No live Fapshi call is ever made by anything in this file — see fapshiRefundAdapter.ts for
-// the one function that CAN make a real fapshiPayout() call, which is itself never invoked by
-// anything in this phase either.
+// Phase 12: requestProtectionRefund is called from dispute resolution (disputeEngine.ts), and
+// recordManualProtectionRefundOutcome (below) is called from the admin manual-refund route — the
+// admin/operator sends the actual Mobile Money transfer themselves, outside this codebase, using
+// Fapshi's own operational interface, and this function only RECORDS that already-happened result.
+// No live Fapshi call is ever made by anything in this file — see fapshiRefundAdapter.ts for the
+// one function that CAN make a real fapshiPayout() call, which stays dormant and unwired
+// (protection_refund_provider_enabled remains false; automatic provider refunds are a future phase).
 //
 // Money safety is enforced in THREE independent layers, not just here:
 //   1. protection_refunds_amount_guard_trg (DB trigger) — refund_amount can never exceed the
@@ -234,4 +236,67 @@ export async function reconcileProtectionRefundPayout(
   }
   // CREATED: still in flight at the provider — not a timeout, not a failure, not a success.
   return { ok: true, data: { id: refund.id, status: "processing", providerStatus: tx.status } };
+}
+
+const NETWORKS = new Set<ProtectionRefundDestination["network"]>(["mtn", "orange"]);
+
+function normalizeManualPhone(phone: string): string {
+  let digits = phone.replace(/[^0-9]/g, "");
+  if (digits.startsWith("237") && digits.length > 9) digits = digits.slice(3);
+  return digits;
+}
+
+export type ParseManualRefundFailureCode = "invalid_request" | "invalid_phone" | "invalid_network" | "invalid_reference" | "invalid_reason";
+
+export type ManualRefundInput =
+  | { outcome: "completed"; destination: ProtectionRefundDestination; providerReference: string }
+  | { outcome: "failed"; destination: ProtectionRefundDestination; failureReason: string };
+
+/**
+ * Pure — no DB access. The admin/operator has ALREADY sent (or attempted) the transfer manually via
+ * Fapshi's own operational interface; this only validates the shape of what they're reporting back.
+ * The destination is always admin-supplied here — never inferred from product_orders.customer_phone
+ * or any other assumed source (see Phase 12 spec section 6).
+ */
+export function parseManualRefundInput(raw: unknown): { ok: true; value: ManualRefundInput } | { ok: false; code: ParseManualRefundFailureCode } {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ok: false, code: "invalid_request" };
+  const r = raw as Record<string, unknown>;
+  if (r.outcome !== "completed" && r.outcome !== "failed") return { ok: false, code: "invalid_request" };
+  if (typeof r.destinationPhone !== "string") return { ok: false, code: "invalid_phone" };
+  const phone = normalizeManualPhone(r.destinationPhone);
+  if (!/^6\d{8}$/.test(phone)) return { ok: false, code: "invalid_phone" };
+  if (typeof r.destinationNetwork !== "string" || !NETWORKS.has(r.destinationNetwork as any)) return { ok: false, code: "invalid_network" };
+  const destination: ProtectionRefundDestination = { phone, network: r.destinationNetwork as ProtectionRefundDestination["network"] };
+
+  if (r.outcome === "completed") {
+    if (typeof r.providerReference !== "string" || r.providerReference.trim().length < 1) return { ok: false, code: "invalid_reference" };
+    return { ok: true, value: { outcome: "completed", destination, providerReference: r.providerReference.trim().slice(0, 200) } };
+  }
+  if (typeof r.failureReason !== "string" || r.failureReason.trim().length < 1) return { ok: false, code: "invalid_reason" };
+  return { ok: true, value: { outcome: "failed", destination, failureReason: r.failureReason.trim().slice(0, 500) } };
+}
+
+/**
+ * Records the outcome of a refund transfer the admin/operator performed MANUALLY, outside this
+ * codebase, via Fapshi's own operational interface — this function never calls Fapshi itself (see
+ * fapshiRefundAdapter.ts, which stays dormant). Composes the existing
+ * beginProtectionRefundProcessing + completeProtectionRefund/failProtectionRefund primitives rather
+ * than adding a second refund-mutation path. The refund amount is never taken from the caller — it
+ * stays exactly the snapshot requestProtectionRefund() recorded (see Phase 12 spec section 9).
+ * Idempotent: an already-completed or already-failed refund is rejected as a conflict rather than
+ * silently reprocessed; a refund stuck in `processing` from an interrupted previous call (e.g. a
+ * crash between the begin and complete/fail steps) is safely resumed rather than re-claimed.
+ */
+export async function recordManualProtectionRefundOutcome(admin: Admin, refundId: string, input: ManualRefundInput): Promise<RefundOutcome> {
+  const claimed = await beginProtectionRefundProcessing(admin, refundId, input.destination);
+  if (!claimed.ok) {
+    if (claimed.code !== "conflict" || claimed.data?.status !== "processing") return claimed;
+    // Resume: a previous attempt already claimed this refund for processing (destination was
+    // recorded then) but never reached completed/failed — proceed to record the outcome now.
+  }
+
+  if (input.outcome === "completed") {
+    return completeProtectionRefund(admin, refundId, { providerReference: input.providerReference, providerStatus: "MANUAL_CONFIRMED" });
+  }
+  return failProtectionRefund(admin, refundId, { failureReason: input.failureReason, providerStatus: "MANUAL_FAILED" });
 }

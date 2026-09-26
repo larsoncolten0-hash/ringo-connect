@@ -8,9 +8,10 @@ import AdminProtectionTabs from "./AdminProtectionTabs";
 import AdminProtectionStatusBadge from "./AdminProtectionStatusBadge";
 import type { AdminProtectionRefundRow } from "@/lib/protection/adminRefunds";
 
-// Monitoring only — no action buttons. A real provider refund stays capability-gated
-// (protection_refund_provider_enabled) and dormant; this view exists so an admin can see exactly
-// which orders have a refund pending manual/provider action, never to trigger one from here.
+// Phase 12: monitoring list only — the manual refund action itself lives on each transaction's own
+// detail page (AdminProtectionDetail.tsx), reached via the Order link below. Automatic provider
+// refunds stay capability-gated (protection_refund_provider_enabled) and dormant; every refund here
+// is recorded manually by an admin after sending the transfer themselves via Fapshi's own app.
 const FILTERS = ["all", "requested", "processing", "completed", "failed"] as const;
 
 export default function AdminProtectionRefundsView({ refunds }: { refunds: AdminProtectionRefundRow[] }) {
@@ -24,7 +25,7 @@ export default function AdminProtectionRefundsView({ refunds }: { refunds: Admin
         <p className="text-xs font-medium tracking-wide uppercase text-ringo-indigo mb-2">Shop</p>
         <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em] mb-1">Ringo Protection</h1>
         <p className="text-sm text-ringo-muted max-w-lg">
-          Refund requests created by dispute resolution. Monitoring only — real provider refund movement remains disabled until the Fapshi refund capability is explicitly and deliberately enabled.
+          Refund requests created by dispute resolution. Every refund is sent manually by an admin via Fapshi's own app — open a transaction to record the result once you've sent it.
         </p>
       </div>
 

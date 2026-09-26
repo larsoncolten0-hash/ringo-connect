@@ -608,7 +608,15 @@ export const translations = {
       },
       protectionRefundRequested: {
         title: "Refund requested",
-        body: (orderNumber: string, seller: string) => `A refund was requested for your order ${orderNumber} from ${seller} and is pending review.`,
+        body: (orderNumber: string, seller: string) => `The dispute for your order ${orderNumber} from ${seller} was resolved in your favor. Your refund is being processed manually.`,
+      },
+      protectionRefundCompleted: {
+        title: "Refund sent",
+        body: (orderNumber: string) => `Your refund for order ${orderNumber} has been sent successfully.`,
+      },
+      protectionRefundFailed: {
+        title: "Refund processing",
+        body: (orderNumber: string) => `Your refund transfer for order ${orderNumber} could not be completed yet and requires additional processing.`,
       },
     },
     communityJoin: {
@@ -4211,7 +4219,15 @@ export const translations = {
       },
       protectionRefundRequested: {
         title: "Remboursement demandé",
-        body: (orderNumber: string, seller: string) => `Un remboursement a été demandé pour votre commande ${orderNumber} chez ${seller} et est en attente d'examen.`,
+        body: (orderNumber: string, seller: string) => `Le litige pour votre commande ${orderNumber} chez ${seller} a été résolu en votre faveur. Votre remboursement est traité manuellement.`,
+      },
+      protectionRefundCompleted: {
+        title: "Remboursement envoyé",
+        body: (orderNumber: string) => `Votre remboursement pour la commande ${orderNumber} a été envoyé avec succès.`,
+      },
+      protectionRefundFailed: {
+        title: "Remboursement en cours",
+        body: (orderNumber: string) => `Le transfert de votre remboursement pour la commande ${orderNumber} n'a pas encore pu être finalisé et nécessite un traitement supplémentaire.`,
       },
     },
     communityJoin: {

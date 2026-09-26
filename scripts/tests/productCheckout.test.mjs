@@ -1044,7 +1044,14 @@ function clock0(w) { return w.clock.t; }
 
   // --- source-level facts
   const cronSrc = fs.readFileSync(path.join(REPO, "src/app/api/cron/reconcile-product-payments/route.ts"), "utf8");
-  check("cron: no schedule was added (vercel.json unchanged: only the two existing daily jobs)", JSON.stringify(JSON.parse(fs.readFileSync(path.join(REPO, "vercel.json"), "utf8")).crons.map((c) => c.path)) === JSON.stringify(["/api/cron/downgrade-expired", "/api/cron/cleanup-demo-accounts"]));
+  // Ringo Protection Phase 12 legitimately added its own auto-release cron (unrelated to
+  // reconcile-product-payments) — this still proves that addition never touched or duplicated the
+  // original two Normal-Payment-unrelated jobs.
+  check(
+    "cron: vercel.json still has the original two jobs unchanged, plus only the Protection auto-release cron added in Phase 12",
+    JSON.stringify(JSON.parse(fs.readFileSync(path.join(REPO, "vercel.json"), "utf8")).crons.map((c) => c.path).sort()) ===
+      JSON.stringify(["/api/cron/cleanup-demo-accounts", "/api/cron/downgrade-expired", "/api/cron/protection-auto-release"].sort())
+  );
   check("cron: uses timingSafeEqual and requires CRON_SECRET to be set", /timingSafeEqual/.test(cronSrc) && /if \(!secret\) return false/.test(cronSrc));
   const reconSrc = fs.readFileSync(path.join(REPO, "src/lib/productCheckout/reconcile.ts"), "utf8");
   check("reconcile: contains no settlement logic of its own (delegates to checkProductPayment)", /checkProductPayment/.test(reconSrc) && !/settleProductPayment|insertEarning|computeEarnings|updateOrder|releaseOrder/.test(reconSrc.replace(/\/\/.*$/gm, "")));

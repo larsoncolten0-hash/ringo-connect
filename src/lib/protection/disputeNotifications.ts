@@ -135,3 +135,41 @@ export async function notifyProtectionDisputeResolvedRefund(orderId: string): Pr
     console.error("notifyProtectionDisputeResolvedRefund failed:", err);
   }
 }
+
+/** Customer: the admin/operator's manual Mobile Money transfer was verified successful. Never fires
+ *  until recordManualProtectionRefundOutcome() has actually recorded a completed outcome — this is
+ *  never sent merely because a dispute was resolved toward refund (see notifyProtectionDisputeResolvedRefund). */
+export async function notifyProtectionRefundCompleted(orderId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const resolved = await resolveOrder(admin, orderId);
+    if (!resolved || !resolved.customerId) return;
+    const n = translations[resolved.locale].customerPush.protectionRefundCompleted;
+    await notifyCustomer(
+      resolved.customerId,
+      { category: "protection_refund_completed", title: n.title, body: n.body(resolved.orderNumber), url: `/shop/orders/${orderId}`, data: { kind: "protection_refund_completed" } },
+      { profileId: resolved.profileId }
+    );
+  } catch (err) {
+    console.error("notifyProtectionRefundCompleted failed:", err);
+  }
+}
+
+/** Customer: a manual transfer attempt did not succeed — never says "failed" in a way that sounds
+ *  final; the admin can retry, so this reads as "still being processed," matching Phase 12 spec
+ *  section 10's exact required wording. */
+export async function notifyProtectionRefundFailed(orderId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const resolved = await resolveOrder(admin, orderId);
+    if (!resolved || !resolved.customerId) return;
+    const n = translations[resolved.locale].customerPush.protectionRefundFailed;
+    await notifyCustomer(
+      resolved.customerId,
+      { category: "protection_refund_failed", title: n.title, body: n.body(resolved.orderNumber), url: `/shop/orders/${orderId}`, data: { kind: "protection_refund_failed" } },
+      { profileId: resolved.profileId }
+    );
+  } catch (err) {
+    console.error("notifyProtectionRefundFailed failed:", err);
+  }
+}

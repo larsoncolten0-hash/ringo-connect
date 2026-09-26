@@ -550,7 +550,9 @@ function fulfilStore(w, viewer, profileId) { return createFulfillStore(w.client(
   check("the four commerce tables' schema is untouched by this increment (no migration added or changed for 5A)", fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((f) => f.startsWith("2026-11")).sort().join() === "2026-11-01_product_cta.sql,2026-11-02_product_checkout_foundation.sql,2026-11-03_commerce_abuse_protection.sql");
   const det = strip(read("src/components/shop/ShopOrderDetail.tsx"));
   check("UI: the fulfil action has a synchronous in-flight guard (rapid taps in one tick send ONE request), and touch targets are at least 44px", /useRef\(false\)/.test(det) && /if \(inFlight\.current\) return/.test(det) && /inFlight\.current = true/.test(det) && /finally \{\s*inFlight\.current = false/.test(det) && (det.match(/min-h-\[44px\]/g) || []).length >= 5);
-  const cfg = JSON.parse(read("vercel.json")); check("no schedule or Vercel config was changed", cfg.crons.length === 2);
+  // Ringo Protection Phase 12 legitimately added its own auto-release cron entry (unrelated to Shop) —
+  // still 3, never a duplicate or an unrelated Shop schedule change.
+  const cfg = JSON.parse(read("vercel.json")); check("no Shop-relevant schedule or Vercel config was changed (Phase 12 legitimately added one unrelated Protection cron)", cfg.crons.length === 3);
 }
 
 const failed = results.filter((x) => !x.pass);
