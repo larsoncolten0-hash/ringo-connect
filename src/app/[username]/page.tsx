@@ -30,8 +30,7 @@ export default async function PublicProfilePage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_items(*), music_releases(*), booking_services(*),
-       users!user_id(plans(max_links, max_products, custom_theme_enabled))`
+      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_items(*), music_releases(*), booking_services(*)`
     )
     .eq("username", params.username)
     .eq("published", true)
@@ -44,7 +43,18 @@ export default async function PublicProfilePage({
   // what's currently visible on THIS public page is limited to what their CURRENT plan allows. The
   // owner viewing their own dashboard still sees and can edit everything regardless (see
   // dashboard/page.tsx, untouched by this).
-  const ownerPlan = (profile as any).users?.plans ?? null;
+  //
+  // Fetched with the admin client, same reasoning as staffBadges below: an anonymous visitor has no
+  // RLS access to the `users` table at all, so embedding `users!user_id(plans(...))` in the plain
+  // anon-key query above would silently resolve to null for every real visitor (confirmed live —
+  // RLS filters an embedded to-one relation to null rather than erroring, so this failure mode is
+  // completely silent unless checked against the anon key specifically, not just the service role).
+  const { data: ownerPlanRow } = await createAdminClient()
+    .from("users")
+    .select("plans(max_links, max_products, custom_theme_enabled)")
+    .eq("id", profile.user_id)
+    .maybeSingle();
+  const ownerPlan = (ownerPlanRow as any)?.plans ?? null;
   const { visible: visibleLinks } = splitByPlanLimit(profile.links || [], ownerPlan?.max_links ?? null);
   const { visible: visibleProducts } = splitByPlanLimit(profile.products || [], ownerPlan?.max_products ?? null);
   profile.links = visibleLinks;
@@ -121,7 +131,7 @@ export default async function PublicProfilePage({
   // Server Components serialize every prop passed to a "use client"
   // child into the page's own payload, so even fields ProfileView never
   // reads would otherwise ship to every anonymous visitor.
-  const { facebook_capi_token_encrypted, tiktok_events_token_encrypted, users: _ownerUsersRow, ...publicProfile } = profile as any;
+  const { facebook_capi_token_encrypted, tiktok_events_token_encrypted, ...publicProfile } = profile;
 
   // Public "current role" badge(s) — e.g. "Chef at Mama's Kitchen" — live-
   // derived from active organization_members rows every render (never a

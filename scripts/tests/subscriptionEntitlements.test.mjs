@@ -79,15 +79,21 @@ const check = (name, cond, detail = "") => {
 {
   const mainPageSrc = read("src/app/[username]/page.tsx");
   check("the main profile page imports the shared entitlement helpers (not a one-off reimplementation)", /import \{ splitByPlanLimit, isCustomThemeAllowed \} from ["']@\/lib\/planEntitlements["']/.test(mainPageSrc));
-  check("the main profile page fetches the OWNER's current plan alongside the profile (a real FK path, verified live)", /users!user_id\(plans\(max_links, max_products, custom_theme_enabled\)\)/.test(mainPageSrc));
+  // The owner's plan is fetched via createAdminClient(), never embedded in the plain anon-key
+  // profiles query — an anonymous visitor has no RLS access to `users` at all, so an embed there
+  // would silently resolve to null for every real visitor (confirmed live — see
+  // subscriptionEntitlementsLiveSchema.test.mjs). This was a real bug caught in this exact
+  // production deployment, not a hypothetical.
+  check("the main profile page fetches the OWNER's current plan via the ADMIN client, never embedded in the anon-key profiles query", /createAdminClient\(\)\s*\.from\("users"\)\s*\.select\("plans\(max_links, max_products, custom_theme_enabled\)"\)/.test(mainPageSrc));
+  check("the main profile page's own anon-key profiles query no longer embeds users!user_id at all (the fixed bug)", !/\.from\("profiles"\)[\s\S]{0,300}users!user_id/.test(mainPageSrc));
   check("links are sliced to the current plan's limit BEFORE being handed to ProfileView (server-side, never just a UI hide)", /profile\.links = visibleLinks/.test(mainPageSrc));
   check("products are sliced the same way", /profile\.products = visibleProducts/.test(mainPageSrc));
   check("when custom theme isn't allowed, the public page falls back to fixed defaults rather than the creator's stored colors", /isCustomThemeAllowed\(ownerPlan\)/.test(mainPageSrc) && /profile\.theme_color = "#D4A954"/.test(mainPageSrc));
-  check("the owner's plan join is stripped before the profile object reaches the client component (no unnecessary data in the page payload)", /users: _ownerUsersRow/.test(mainPageSrc));
   check("nothing here deletes or updates any row — this is read-then-slice-in-memory only", !/\.from\("links"\)\.(update|delete)|\.from\("products"\)\.(update|delete)/.test(mainPageSrc));
 
   const musicStoreSrc = read("src/app/m/[username]/page.tsx");
-  check("the music storefront page (a second public entry point onto the SAME products table) applies the identical product limit", /splitByPlanLimit\(profile\.products \|\| \[\], ownerUsersRow\?\.plans\?\.max_products/.test(musicStoreSrc));
+  check("the music storefront page also fetches the owner's plan via the ADMIN client (same fixed pattern, not the anon-embed bug)", /createAdminClient\(\)\s*\.from\("users"\)\s*\.select\("plans\(max_products\)"\)/.test(musicStoreSrc));
+  check("the music storefront's own anon-key profiles query no longer embeds users!user_id either", !/\.from\("profiles"\)[\s\S]{0,300}users!user_id/.test(musicStoreSrc));
 }
 
 // ---------------------------------------------------------------- 4. ProfileView.tsx itself is untouched (all enforcement happens one layer up, at the page)
@@ -169,7 +175,7 @@ const check = (name, cond, detail = "") => {
   // the page's own RSC payload in the first place, not just hidden by CSS/JS on the client.
   {
     const sliceIdx = mainPageSrc.indexOf("profile.products = visibleProducts;");
-    const destructureIdx = mainPageSrc.indexOf("...publicProfile } = profile as any;");
+    const destructureIdx = mainPageSrc.indexOf("...publicProfile } = profile;");
     check(
       "hidden links/products are excluded before the profile object is ever passed to the client component (not shipped-then-hidden)",
       sliceIdx !== -1 && destructureIdx !== -1 && sliceIdx < destructureIdx
