@@ -10,7 +10,7 @@ import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { LOW_INVENTORY_THRESHOLD } from "@/lib/ticketTypes";
 import { getCategory, profileHasCategory } from "@/lib/categories";
-import { resolveProductCta } from "@/lib/cta";
+import { resolveProductCta, resolveDisplayCtaLabel } from "@/lib/cta";
 import { customerActionRoute } from "@/lib/customerActionRoutes";
 import { newEventId } from "@/lib/pixelClient";
 import { productHref, productImages } from "./productHref";
@@ -106,6 +106,7 @@ export default function ProductDetailView({
     ctaLabel: product.cta_label,
   });
   const ctaLabel = cta.label ? (cta.label.kind === "custom" ? cta.label.text : t.cta.labels[cta.label.id]) : null;
+  const displayLabel = resolveDisplayCtaLabel(cta, isMusic, { presets: t.cta.labels, buyNow: t.music.buyNowLabel, shopMerch: t.music.shopMerch, viewDetails: t.profilePage.viewDetails });
 
   // The resolved destination decides where a tap goes (see customerActionRoutes.ts):
   // only existing Ringo workflows, never a fallback. Sold out is checked first.
@@ -114,13 +115,13 @@ export default function ProductDetailView({
     ? null
     : cta.destination === "external"
     ? {
-        label: ctaLabel || (isMusic ? t.music.buyNowLabel : t.profilePage.viewDetails),
+        label: displayLabel,
         ...route,
         icon: ArrowUpRight,
         onClick: () => track("product"),
       }
     : cta.destination === "music_storefront"
-    ? { label: ctaLabel || t.music.shopMerch, ...route, icon: ShoppingCart }
+    ? { label: displayLabel, ...route, icon: ShoppingCart }
     : ctaLabel
     ? {
         label: ctaLabel,

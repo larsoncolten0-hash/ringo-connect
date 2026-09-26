@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ChevronRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/components/LanguageProvider";
 import { hexToRgba } from "@/lib/color";
+import { onAccent } from "@/lib/productCheckout/contrast";
 import ProductCheckout, { type CheckoutProps } from "./ProductCheckout";
 import ProtectionCheckout from "./ProtectionCheckout";
 
@@ -14,6 +15,13 @@ import ProtectionCheckout from "./ProtectionCheckout";
 // component with its own controller/API; picking it never touches ProductCheckout's own
 // CheckoutController. Protection is offered only when the server says it's available
 // (protectionAvailable) — never assumed, never enabled client-side.
+//
+// The offer banner is a real, inline, accent-colored card at the very TOP of the page — not a small
+// floating pill low in the viewport, which real customers were missing entirely (it competed for
+// attention with ProductCheckout's own bold, sticky, accent-colored primary pay bar right below it,
+// at a lower z-index, in neutral theme colors). This is the first thing a visitor sees, before the
+// product details even render, using the copy (modeSwitchTitle/modeProtectionHint) that already
+// existed in translations.ts but was never actually surfaced in the shipped UI.
 
 export interface CheckoutModeSwitchProps extends CheckoutProps {
   protectionAvailable: boolean;
@@ -65,18 +73,32 @@ export default function CheckoutModeSwitch({ protectionAvailable, protectionFeeR
 
   return (
     <div style={{ backgroundColor: theme.bg, color: theme.fg }}>
-      <ProductCheckout {...productProps} />
-      <div className="fixed inset-x-0 bottom-[92px] z-20 mx-auto flex max-w-lg justify-center px-4">
+      <div className="mx-auto max-w-lg px-4 pt-4">
         <button
           type="button"
           onClick={() => setMode("protection")}
-          className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold shadow-lg backdrop-blur-xl transition active:scale-95"
-          style={{ backgroundColor: hexToRgba(theme.bg, 0.9), border: `1px solid ${hairline}`, color: theme.fg }}
+          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition active:scale-[0.98]"
+          style={{ backgroundColor: hexToRgba(theme.accent, 0.12), border: `1px solid ${hexToRgba(theme.accent, 0.35)}` }}
         >
-          <ShieldCheck size={14} style={{ color: theme.accent }} />
-          {c.modeProtection}
+          <span
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+            style={{ backgroundColor: theme.accent, color: onAccent(theme.accent) }}
+          >
+            <ShieldCheck size={20} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] font-semibold uppercase tracking-wide" style={{ color: theme.accent }}>
+              {c.modeSwitchTitle}
+            </span>
+            <span className="block text-sm font-bold">{c.modeProtection}</span>
+            <span className="block text-xs leading-snug" style={{ opacity: 0.75 }}>
+              {c.modeProtectionHint}
+            </span>
+          </span>
+          <ChevronRight size={18} className="shrink-0" style={{ color: theme.accent }} />
         </button>
       </div>
+      <ProductCheckout {...productProps} />
     </div>
   );
 }

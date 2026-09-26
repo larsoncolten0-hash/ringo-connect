@@ -5,6 +5,7 @@ import { headers, cookies } from "next/headers";
 import { extractRequestContext } from "@/lib/requestContext";
 import { buildPixelConfigFromRow, isPixelsEnabledForUser, sendMetaPageView, extractClientIp } from "@/lib/pixelTracking";
 import { splitByPlanLimit, isCustomThemeAllowed } from "@/lib/planEntitlements";
+import { computeProfileCheckoutAvailability } from "@/lib/productCheckout/availability";
 import ProfileView from "@/components/ProfileView";
 
 // Per-profile PWA installability (manifest link, iOS home-screen name/
@@ -132,6 +133,11 @@ export default async function PublicProfilePage({
   // child into the page's own payload, so even fields ProfileView never
   // reads would otherwise ship to every anonymous visitor.
   const { facebook_capi_token_encrypted, tiktok_events_token_encrypted, ...publicProfile } = profile;
+  // Same profile-level check the dashboard editor's own catalog card already uses (see
+  // dashboard/page.tsx) — CatalogSection resolves each product's own CTA button text/destination
+  // (Buy Now / Book Now / Shop Now / etc., matching the item's own detail page) from this plus each
+  // product's own fields, entirely client-side, no per-product server round trip.
+  (publicProfile as any).commerceCheckoutAvailable = await computeProfileCheckoutAvailability(profile);
 
   // Public "current role" badge(s) — e.g. "Chef at Mama's Kitchen" — live-
   // derived from active organization_members rows every render (never a

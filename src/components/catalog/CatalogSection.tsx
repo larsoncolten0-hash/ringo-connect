@@ -6,6 +6,8 @@ import { ShoppingBag } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { useLanguage } from "@/components/LanguageProvider";
+import { resolveProductCta, resolveDisplayCtaLabel } from "@/lib/cta";
+import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import { productHref, productImages } from "./productHref";
 
 // The public profile's Catalog / Merch / Services section. An editorial
@@ -29,6 +31,11 @@ export default function CatalogSection({
   squareCorners,
   buttonStyle,
   radiusClass,
+  category,
+  bookingEnabled,
+  restaurantOrdering,
+  checkoutAvailable,
+  isDemo,
   preview,
   onOpen,
 }: {
@@ -46,6 +53,15 @@ export default function CatalogSection({
   // matches every other button on the page, not a one-off style.
   buttonStyle: CSSProperties;
   radiusClass: string;
+  // Everything below is exactly what the item's own detail page (ProductDetailView.tsx) already
+  // resolves its own primary button from (src/lib/cta.ts) — passed through here so the card's
+  // button shows the SAME text (Buy Now / Book Now / Shop Now / etc.) as what tapping through to
+  // that page actually shows, never a generic "View" that doesn't say what the button does.
+  category?: string | null;
+  bookingEnabled?: boolean;
+  restaurantOrdering?: boolean;
+  checkoutAvailable?: boolean;
+  isDemo?: boolean;
   // Inside the dashboard editor's live preview, cards shouldn't navigate away.
   preview?: boolean;
   onOpen: (product: any) => void;
@@ -84,6 +100,12 @@ export default function CatalogSection({
             squareCorners={squareCorners}
             buttonStyle={buttonStyle}
             radiusClass={radiusClass}
+            category={category}
+            isMusic={isMusic}
+            bookingEnabled={bookingEnabled}
+            restaurantOrdering={restaurantOrdering}
+            checkoutAvailable={checkoutAvailable}
+            isDemo={isDemo}
             preview={preview}
             onOpen={() => onOpen(product)}
           />
@@ -104,6 +126,12 @@ function ProductCard({
   squareCorners,
   buttonStyle,
   radiusClass,
+  category,
+  isMusic,
+  bookingEnabled,
+  restaurantOrdering,
+  checkoutAvailable,
+  isDemo,
   preview,
   onOpen,
 }: {
@@ -117,6 +145,12 @@ function ProductCard({
   squareCorners: boolean;
   buttonStyle: CSSProperties;
   radiusClass: string;
+  category?: string | null;
+  isMusic: boolean;
+  bookingEnabled?: boolean;
+  restaurantOrdering?: boolean;
+  checkoutAvailable?: boolean;
+  isDemo?: boolean;
   preview?: boolean;
   onOpen: () => void;
 }) {
@@ -125,6 +159,23 @@ function ProductCard({
   const images = productImages(product);
   const soldOut = product.inventory_count === 0;
   const radius = squareCorners ? "rounded-lg" : "rounded-[22px]";
+
+  // Same resolver the item's own detail page uses (src/lib/cta.ts) — the card's button always
+  // shows real, meaningful wording (Buy Now / Book Now / Shop Now / the creator's own custom text),
+  // matching exactly what tapping through to the detail page shows, never a generic "View".
+  const cta = resolveProductCta({
+    category,
+    isMusic,
+    hasLandingUrl: !!product.landing_url,
+    bookingEnabled: !!bookingEnabled,
+    restaurantOrdering: !!restaurantOrdering,
+    checkoutAvailable: !!checkoutAvailable && checkProductEligibility({ product, profileId: product.profile_id, quantity: 1 }) === null,
+    currency,
+    isDemo: !!isDemo,
+    ctaPreset: product.cta_preset,
+    ctaLabel: product.cta_label,
+  });
+  const buttonLabel = resolveDisplayCtaLabel(cta, isMusic, { presets: t.cta.labels, buyNow: t.music.buyNowLabel, shopMerch: t.music.shopMerch, viewDetails: t.profilePage.viewItem });
 
   const body = (
     <>
@@ -192,7 +243,7 @@ function ProductCard({
           className={`inline-flex w-full items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-transform duration-300 group-hover:-translate-y-0.5 ${radiusClass}`}
           style={buttonStyle}
         >
-          {t.profilePage.viewItem}
+          {buttonLabel}
         </span>
       </div>
     </>

@@ -120,6 +120,14 @@ export default function LandingView({
     { icon: Briefcase, title: t.landing.industryProfessionalsTitle, description: t.landing.industryProfessionalsBody, href: "#industries", color: "#E11D48" },
   ];
 
+  // Two very different accounts share the same "Log in" word: the creator/business dashboard
+  // (existing /auth/login) and a customer's own My Ringo (their saved profiles/tickets/orders,
+  // reachable again from here if they lose their installed PWA — /my-ringo/signin, unchanged).
+  const loginDropdownItems = [
+    { icon: Building2, title: t.landing.loginCreatorTitle, description: t.landing.loginCreatorDesc, href: "/auth/login", color: "#4F46E5" },
+    { icon: Smartphone, title: t.landing.loginMyRingoTitle, description: t.landing.loginMyRingoDesc, href: "/my-ringo/signin", color: "#1F9D55" },
+  ];
+
   const featuresDropdownItems = [
     { icon: Link2, title: t.landing.chipLinks, description: t.landing.ecosystemSubtitle, href: "#features", color: "#4F46E5" },
     { icon: Ticket, title: t.landing.chipTickets, description: t.landing.industryArtistsBody, href: "#industries", color: "#14B8A6" },
@@ -136,6 +144,9 @@ export default function LandingView({
     { label: t.landing.navRestaurant, href: "#restaurant" },
     { label: t.landing.navNfc, href: "#nfc" },
     { label: t.landing.navPricing, href: "#pricing" },
+    // The desktop nav offers this as a second option inside the "Log in" dropdown (see
+    // loginDropdownItems above) — the mobile menu is a flat list, so it gets its own row instead.
+    { label: t.landing.loginMyRingoTitle, href: "/my-ringo/signin" },
   ];
 
   return (
@@ -191,9 +202,18 @@ export default function LandingView({
               </Link>
             ) : (
               <>
+                {/* Desktop: a real choice between the two very different accounts sharing this
+                    word. Mobile keeps the original plain link (unchanged) — NavDropdown's own
+                    panel width was only ever designed for >= sm screens (it's only ever rendered
+                    inside the lg:flex nav elsewhere on this page); "My Ringo" gets its own row in
+                    the mobile menu below instead of forcing that dropdown into a width it was
+                    never built for. */}
+                <div className="hidden lg:block lg:ml-1">
+                  <NavDropdown label={t.landing.login} items={loginDropdownItems} columns={1} />
+                </div>
                 <Link
                   href="/auth/login"
-                  className="lg:ml-1 px-2.5 sm:px-3.5 py-2 rounded-card text-sm font-medium text-ringo-text hover:bg-ringo-muted/10 transition-colors whitespace-nowrap"
+                  className="lg:hidden px-2.5 py-2 rounded-card text-sm font-medium text-ringo-text hover:bg-ringo-muted/10 transition-colors whitespace-nowrap"
                 >
                   {t.landing.login}
                 </Link>

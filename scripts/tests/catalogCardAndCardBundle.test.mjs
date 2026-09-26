@@ -30,7 +30,7 @@ const check = (name, cond, detail = "") => {
   check("CatalogSection now requires buttonStyle/radiusClass props (threaded from the profile's own theme)", /buttonStyle: CSSProperties/.test(src) && /radiusClass: string/.test(src));
 
   const profileSrc = read("src/components/ProfileView.tsx");
-  check("ProfileView passes its own themed buttonStyle/radiusClass into CatalogSection", /<CatalogSection[\s\S]{0,600}radiusClass=\{radiusClass\}[\s\S]{0,600}\/>/.test(profileSrc));
+  check("ProfileView passes its own themed buttonStyle/radiusClass into CatalogSection", /<CatalogSection[\s\S]{0,600}radiusClass=\{radiusClass\}[\s\S]{0,900}\/>/.test(profileSrc));
 }
 
 // ---------------------------------------------------------------- 2. Third Ringo Card bundle

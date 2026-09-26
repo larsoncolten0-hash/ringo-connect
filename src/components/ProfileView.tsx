@@ -786,6 +786,11 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               squareCorners={profile.button_radius === "square"}
               buttonStyle={linkButtonStyle}
               radiusClass={radiusClass}
+              category={profile.category}
+              bookingEnabled={!!profile.bookings_enabled}
+              restaurantOrdering={isRestaurant && profile.ordering_enabled !== false}
+              checkoutAvailable={!!(profile as any).commerceCheckoutAvailable}
+              isDemo={profile.is_demo === true}
               preview={preview}
               onOpen={(product) =>
                 logClick("product", product.id, {

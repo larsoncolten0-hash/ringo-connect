@@ -166,3 +166,21 @@ export function resolveProductCta(input: {
 
   return { action, destination, label };
 }
+
+/**
+ * The actual text a resolved CTA should show — shared by every surface that displays one (the item
+ * detail page, the profile's own catalog grid card) so they can never drift apart and show
+ * different wording for the exact same product. `cta.label` is the creator's own explicit choice
+ * (preset or custom text); when they never set one, this falls back to a destination-appropriate
+ * default rather than a generic "View" that doesn't say what tapping the button actually does.
+ */
+export function resolveDisplayCtaLabel(
+  cta: Pick<ResolvedProductCta, "label" | "destination">,
+  isMusic: boolean,
+  labels: { presets: Record<CtaPresetId, string>; buyNow: string; shopMerch: string; viewDetails: string }
+): string {
+  const explicit = cta.label ? (cta.label.kind === "custom" ? cta.label.text : labels.presets[cta.label.id]) : null;
+  if (cta.destination === "external") return explicit || (isMusic ? labels.buyNow : labels.viewDetails);
+  if (cta.destination === "music_storefront") return explicit || labels.shopMerch;
+  return explicit || labels.viewDetails;
+}

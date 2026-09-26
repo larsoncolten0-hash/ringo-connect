@@ -1924,6 +1924,10 @@ export const translations = {
     },
     landing: {
       login: "Log in",
+      loginCreatorTitle: "Creator / Business login",
+      loginCreatorDesc: "Manage your Ringo page, products, and orders.",
+      loginMyRingoTitle: "My Ringo login",
+      loginMyRingoDesc: "Access your saved profiles, tickets, and orders as a customer.",
       getStarted: "Get started",
       goToDashboard: "Go to dashboard",
 
@@ -5493,6 +5497,10 @@ export const translations = {
     },
     landing: {
       login: "Se connecter",
+      loginCreatorTitle: "Connexion créateur / entreprise",
+      loginCreatorDesc: "Gérez votre page Ringo, vos produits et vos commandes.",
+      loginMyRingoTitle: "Connexion My Ringo",
+      loginMyRingoDesc: "Accédez à vos profils, billets et commandes en tant que client.",
       getStarted: "Commencer",
       goToDashboard: "Accéder au tableau de bord",
 
