@@ -132,6 +132,28 @@ export const translations = {
       startAgain: "Start again",
       unavailableTitle: "Ringo Protection isn't available",
       unavailableBody: "This purchase can't be protected right now — you can still pay normally.",
+      // Phase 5: shown on the persistent Shop receipt (ShopOrderReceiptView.tsx) for every possible
+      // protection_transactions status — most of these are only reachable from a later phase
+      // (release/dispute/refund), but the receipt must never show a blank/undefined label.
+      statusLabels: {
+        awaiting_payment: "Payment pending",
+        protected: "Protected",
+        fulfillment_started: "Seller is fulfilling your order",
+        awaiting_confirmation: "Awaiting your confirmation",
+        released: "Released to seller",
+        disputed: "Dispute in progress",
+        resolved_release: "Dispute resolved — releasing",
+        resolved_refund: "Dispute resolved — refunding",
+        refunded: "Refunded",
+        cancelled: "Cancelled",
+        expired: "Expired",
+        payment_failed: "Payment failed",
+      },
+      awaitingConfirmationNote: "The seller has fulfilled your order. Your payment stays protected until you confirm you received it.",
+      fulfillmentStartedNote: "The seller is fulfilling your order. Your payment remains protected in the meantime.",
+      sellerProtectedAmountLabel: "Protected amount",
+      sellerFeeLabel: "Protection fee (paid by customer)",
+      sellerReleaseNote: "Protected funds are released to you only after the customer confirms — they do not appear in your earnings yet.",
       errors: {
         invalid_request: "Something in the form isn't right. Please check it and try again.",
         invalid_payment_medium: "Please choose MTN MoMo or Orange Money.",
@@ -529,6 +551,14 @@ export const translations = {
       shopOrderConfirmed: {
         title: "Order confirmed",
         body: (orderNumber: string, seller: string) => `Your order ${orderNumber} from ${seller} was confirmed.`,
+      },
+      protectionFulfillmentStarted: {
+        title: "Seller is fulfilling your order",
+        body: (orderNumber: string, seller: string) => `${seller} started fulfilling your protected order ${orderNumber}.`,
+      },
+      protectionAwaitingConfirmation: {
+        title: "Confirm your order",
+        body: (orderNumber: string, seller: string) => `${seller} fulfilled your order ${orderNumber}. Confirm you received it when you're ready.`,
       },
     },
     communityJoin: {
@@ -3705,6 +3735,25 @@ export const translations = {
       startAgain: "Recommencer",
       unavailableTitle: "Ringo Protection n'est pas disponible",
       unavailableBody: "Cet achat ne peut pas être protégé pour le moment — vous pouvez toujours payer normalement.",
+      statusLabels: {
+        awaiting_payment: "Paiement en attente",
+        protected: "Protégé",
+        fulfillment_started: "Le vendeur prépare votre commande",
+        awaiting_confirmation: "En attente de votre confirmation",
+        released: "Libéré au vendeur",
+        disputed: "Litige en cours",
+        resolved_release: "Litige résolu — libération",
+        resolved_refund: "Litige résolu — remboursement",
+        refunded: "Remboursé",
+        cancelled: "Annulé",
+        expired: "Expiré",
+        payment_failed: "Échec du paiement",
+      },
+      awaitingConfirmationNote: "Le vendeur a préparé votre commande. Votre paiement reste protégé jusqu'à ce que vous confirmiez l'avoir reçue.",
+      fulfillmentStartedNote: "Le vendeur prépare votre commande. Votre paiement reste protégé pendant ce temps.",
+      sellerProtectedAmountLabel: "Montant protégé",
+      sellerFeeLabel: "Frais de protection (payés par le client)",
+      sellerReleaseNote: "Les fonds protégés ne vous sont versés qu'après confirmation du client — ils n'apparaissent pas encore dans vos revenus.",
       errors: {
         invalid_request: "Un élément du formulaire est incorrect. Vérifiez-le et réessayez.",
         invalid_payment_medium: "Veuillez choisir MTN MoMo ou Orange Money.",
@@ -4055,6 +4104,14 @@ export const translations = {
       shopOrderConfirmed: {
         title: "Commande confirmée",
         body: (orderNumber: string, seller: string) => `Votre commande ${orderNumber} chez ${seller} a été confirmée.`,
+      },
+      protectionFulfillmentStarted: {
+        title: "Le vendeur prépare votre commande",
+        body: (orderNumber: string, seller: string) => `${seller} a commencé à préparer votre commande protégée ${orderNumber}.`,
+      },
+      protectionAwaitingConfirmation: {
+        title: "Confirmez votre commande",
+        body: (orderNumber: string, seller: string) => `${seller} a préparé votre commande ${orderNumber}. Confirmez l'avoir reçue quand vous êtes prêt.`,
       },
     },
     communityJoin: {

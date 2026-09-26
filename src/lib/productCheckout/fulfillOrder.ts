@@ -23,7 +23,16 @@ export interface FulfillOutcome {
   already: boolean;
 }
 
-export async function fulfillOrder(store: FulfillStore, orderId: string): Promise<SellerResult<FulfillOutcome>> {
+export interface FulfillHooks {
+  /** Best effort, called exactly once — only by the caller that actually flips paid -> fulfilled
+   *  (never on a repeat request or a lost race). Never blocks or reverses the claim; a hook that
+   *  throws is swallowed and logged the same way settlement.ts's own onOrderPaid hook is. Exists so
+   *  a later phase (Ringo Protection) can react to a real fulfillment without this file knowing
+   *  anything about Protection — mirrors CheckoutDeps.onOrderPaid exactly. */
+  onFulfilled?: (orderId: string) => Promise<void>;
+}
+
+export async function fulfillOrder(store: FulfillStore, orderId: string, hooks: FulfillHooks = {}): Promise<SellerResult<FulfillOutcome>> {
   if (!isUuid(orderId)) return sellerFail("order_not_found");
   const order = await store.getOwnedOrder(orderId);
   if (!order) return sellerFail("order_not_found"); // missing and "someone else's" look identical
@@ -42,7 +51,16 @@ export async function fulfillOrder(store: FulfillStore, orderId: string): Promis
     }
     throw err;
   }
-  if (changed) return sellerOk({ status: "fulfilled", already: false });
+  if (changed) {
+    if (hooks.onFulfilled) {
+      try {
+        await hooks.onFulfilled(order.id);
+      } catch (err) {
+        store.log?.("product_fulfill_hook_failed", { orderId: order.id, error: String((err as Error)?.message || err).slice(0, 120) });
+      }
+    }
+    return sellerOk({ status: "fulfilled", already: false });
+  }
 
   // Nothing changed: either someone else fulfilled it a moment ago, or its status moved on.
   const now = await store.getOwnedOrder(order.id);

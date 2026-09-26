@@ -4,6 +4,8 @@ import { isSameOrigin } from "@/lib/customer/session";
 import { fulfillOrder } from "@/lib/productCheckout/fulfillOrder";
 import { createFulfillStore } from "@/lib/productCheckout/sellerReaders";
 import { SELLER_HTTP_STATUS, type SellerErrorCode } from "@/lib/productCheckout/sellerErrors";
+import { advanceProtectionOnSellerFulfillment } from "@/lib/protection/fulfillment";
+import { buildProtectionFulfillmentDeps } from "@/lib/protection/fulfillmentHttp";
 
 // Seller marks a PAID product order as fulfilled (paid -> fulfilled, nothing else).
 //  - requires a signed-in seller (401) and a same-origin request (403, CSRF);
@@ -29,9 +31,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const { data: profile } = await supabase.from("profiles").select("id").eq("user_id", user.id).maybeSingle();
     if (!profile) return fail("order_not_found");
 
+    // Ringo Protection (Phase 5): a guaranteed no-op for a Normal Payment order (no
+    // protection_transactions row exists for it) — only advances a Protection transaction that is
+    // currently `protected`, and only via the unmodified Phase 2 engine. Fires exactly once, only
+    // for the caller that actually flips the order to `fulfilled` below (see fulfillOrder.ts's own
+    // onFulfilled contract). Never blocks or reverses the fulfillment claim itself.
     const result = await fulfillOrder(
       createFulfillStore(supabase, createAdminClient(), (profile as { id: string }).id, (event, data) => console.warn(`[shop] ${event}`, data ?? {})),
-      params.id
+      params.id,
+      { onFulfilled: (orderId) => advanceProtectionOnSellerFulfillment(buildProtectionFulfillmentDeps(), orderId, { type: "seller", userId: user.id }) }
     );
     if (!result.ok) return fail(result.code);
     return NextResponse.json(result.data);

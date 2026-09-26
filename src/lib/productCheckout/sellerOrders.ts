@@ -83,6 +83,14 @@ export interface PaymentSummary {
   reference: string;
 }
 
+/** Ringo Protection — Phase 5: the minimum a seller may see about their order's Protection status.
+ *  `null` for a Normal Payment order (no protection_transactions row exists for it). */
+export interface SellerProtectionSummary {
+  status: string;
+  protectedAmount: number;
+  feeAmount: number;
+}
+
 export interface SellerReader {
   listOrders(a: { profileId: string; statuses: OrderStatus[]; offset: number; limit: number }): Promise<{ rows: SellerOrderRow[]; total: number }>;
   /** Scoped to the seller's profile AND read under RLS: another seller's order is simply not found. */
@@ -94,6 +102,11 @@ export interface SellerReader {
   /** Service-role read of the ledger. ONLY called after getOrder proved ownership of the order. */
   getPaymentSummary(orderId: string): Promise<PaymentSummary | null>;
   countByStatuses(a: { profileId: string; statuses: OrderStatus[] }): Promise<number>;
+  /** Optional (Ringo Protection, Phase 5): reads protection_transactions under the seller's own RLS
+   *  "owner read" policy (Phase 1). Optional so a reader that predates Protection stays valid —
+   *  getSellerOrderDetail() only calls this when present, and treats its absence as "no Protection
+   *  info", never as an error. ONLY called after getOrder proved ownership of the order. */
+  getProtectionSummaryForOrder?(a: { profileId: string; orderId: string }): Promise<SellerProtectionSummary | null>;
 }
 
 // ---------------------------------------------------------------- view models
@@ -157,6 +170,7 @@ export interface SellerOrderDetail {
   paymentInfo: { method: "mobile money" | "orange money" | null; reference: string; confirmedAt: string | null } | null;
   earning: SellerEarningView | null;
   timestamps: { createdAt: string; paidAt: string | null; fulfilledAt: string | null; expiresAt: string };
+  protection: SellerProtectionSummary | null;
 }
 
 const num = (v: unknown): number => {
@@ -219,7 +233,11 @@ export async function getSellerOrderDetail(reader: SellerReader, a: { profileId:
   // Ownership first: only an order the seller's own (RLS-scoped) read returned reaches the ledger read.
   if (!found || found.order.profile_id !== a.profileId) return null;
   const { order, items } = found;
-  const [earning, pay] = await Promise.all([reader.getEarningForOrder({ profileId: a.profileId, orderId: order.id }), reader.getPaymentSummary(order.id)]);
+  const [earning, pay, protection] = await Promise.all([
+    reader.getEarningForOrder({ profileId: a.profileId, orderId: order.id }),
+    reader.getPaymentSummary(order.id),
+    reader.getProtectionSummaryForOrder ? reader.getProtectionSummaryForOrder({ profileId: a.profileId, orderId: order.id }) : Promise.resolve(null),
+  ]);
   return {
     id: order.id,
     reference: formatProductOrderNumber(order.order_number),
@@ -242,6 +260,7 @@ export async function getSellerOrderDetail(reader: SellerReader, a: { profileId:
       fulfilledAt: order.status === "fulfilled" ? order.updated_at ?? null : null,
       expiresAt: order.expires_at,
     },
+    protection,
   };
 }
 

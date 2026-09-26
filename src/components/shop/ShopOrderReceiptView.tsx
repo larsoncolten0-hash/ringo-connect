@@ -1,6 +1,6 @@
 "use client";
 
-import { Package } from "lucide-react";
+import { Package, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import type { ShopReceiptData } from "@/lib/productCheckout/receipt";
@@ -21,6 +21,7 @@ const STATUS_TONE: Record<string, string> = {
 export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }) {
   const { t, locale } = useLanguage();
   const r = t.shopReceipt;
+  const p = t.protectionCheckout;
 
   const dateLocale = locale === "fr" ? "fr-FR" : "en-US";
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" });
@@ -116,6 +117,40 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
               {r.placedOn(fmtDate(data.createdAt))}
             </p>
           </div>
+
+          {data.protection && (
+            <div className="px-5 py-4" style={{ borderTop: "1px solid #E5E7EB" }}>
+              <div className="mb-2 flex items-center gap-1.5">
+                <ShieldCheck size={14} style={{ color: "#059669" }} />
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ opacity: 0.5 }}>
+                  {p.badge}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1 text-sm">
+                <div className="flex items-center justify-between">
+                  <span style={{ opacity: 0.6 }}>{p.productAmount}</span>
+                  <span>{formatPrice(data.protection.protectedAmount, data.currency, locale)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span style={{ opacity: 0.6 }}>{p.protectionFee}</span>
+                  <span>{formatPrice(data.protection.feeAmount, data.currency, locale)}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between font-semibold">
+                  <span>{p.statusLabels[data.protection.status] ?? data.protection.status}</span>
+                </div>
+              </div>
+              {data.protection.status === "awaiting_confirmation" && (
+                <p className="mt-2 text-xs" style={{ opacity: 0.6 }}>
+                  {p.awaitingConfirmationNote}
+                </p>
+              )}
+              {data.protection.status === "fulfillment_started" && (
+                <p className="mt-2 text-xs" style={{ opacity: 0.6 }}>
+                  {p.fulfillmentStartedNote}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <p className="text-center text-xs" style={{ opacity: 0.4 }}>

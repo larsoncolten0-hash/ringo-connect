@@ -33,6 +33,16 @@ export type ShopReceiptPayment = {
   confirmedAt: string | null;
 };
 
+/** Ringo Protection — Phase 5: read-only, additive status for the customer receipt. `null` for
+ *  every Normal Payment order (no protection_transactions row exists for it). */
+export type ShopReceiptProtection = {
+  status: "awaiting_payment" | "protected" | "fulfillment_started" | "awaiting_confirmation" | "released" | "disputed" | "resolved_release" | "resolved_refund" | "refunded" | "cancelled" | "expired" | "payment_failed";
+  protectedAmount: number;
+  feeAmount: number;
+  customerTotal: number;
+  awaitingConfirmation: boolean;
+};
+
 export type ShopReceiptData = {
   orderId: string;
   orderNumber: string; // "PO-000123"
@@ -47,6 +57,7 @@ export type ShopReceiptData = {
   sellerUsername: string;
   payment: ShopReceiptPayment | null;
   items: ShopReceiptItem[];
+  protection: ShopReceiptProtection | null;
 };
 
 export async function getShopOrderReceiptData(orderId: string): Promise<ShopReceiptData | null> {
@@ -79,6 +90,31 @@ export async function getShopOrderReceiptData(orderId: string): Promise<ShopRece
 
   const items = (order.product_order_items || []) as any[];
 
+  // Ringo Protection (Phase 5): additive, best-effort read — a Normal Payment order simply has no
+  // row here (unique (target_type,target_id), so at most one). Same "unguessable order id" access
+  // posture as the rest of this function; nothing here is any more exposed than the payment/status
+  // fields already returned above.
+  let protection: ShopReceiptData["protection"] = null;
+  try {
+    const { data: txn } = await admin
+      .from("protection_transactions")
+      .select("status, product_amount, protection_fee_amount, customer_total")
+      .eq("target_type", "product_order")
+      .eq("target_id", orderId)
+      .maybeSingle();
+    if (txn) {
+      protection = {
+        status: txn.status,
+        protectedAmount: Number(txn.product_amount),
+        feeAmount: Number(txn.protection_fee_amount),
+        customerTotal: Number(txn.customer_total),
+        awaitingConfirmation: txn.status === "awaiting_confirmation",
+      };
+    }
+  } catch {
+    protection = null; // never let a Protection read failure break an existing Normal Payment receipt
+  }
+
   return {
     orderId: order.id,
     orderNumber: formatProductOrderNumber(order.order_number),
@@ -99,5 +135,6 @@ export async function getShopOrderReceiptData(orderId: string): Promise<ShopRece
       unitPrice: Number(i.unit_price_snapshot),
       lineTotal: Number(i.line_total),
     })),
+    protection,
   };
 }

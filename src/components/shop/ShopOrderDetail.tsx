@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Loader2, MessageCircle, Phone } from "lucide-react";
+import { ArrowLeft, Check, Loader2, MessageCircle, Phone, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { FulfillmentChip, PaymentChip } from "@/components/shop/ShopStatus";
@@ -29,6 +29,7 @@ function Row({ name, children }: { name: string; children: React.ReactNode }) {
 export default function ShopOrderDetail({ order }: { order: SellerOrderDetail }) {
   const { t, locale } = useLanguage();
   const s = t.shopOrders;
+  const p = t.protectionCheckout;
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -170,6 +171,21 @@ export default function ShopOrderDetail({ order }: { order: SellerOrderDetail })
         </dl>
         <p className="mt-3 text-xs text-ringo-muted">{order.earning ? (order.earning.reversed ? s.reversedNote : s.earningNote) : s.noEarning}</p>
       </section>
+
+      {order.protection && (
+        <section className={card}>
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-ringo-text mb-3">
+            <ShieldCheck size={15} className="text-ringo-teal" />
+            {p.badge}
+          </h2>
+          <dl>
+            <Row name={p.sellerProtectedAmountLabel}>{money(order.protection.protectedAmount)}</Row>
+            <Row name={p.sellerFeeLabel}>{money(order.protection.feeAmount)}</Row>
+            <Row name={s.paymentStatus}>{p.statusLabels[order.protection.status as keyof typeof p.statusLabels] ?? order.protection.status}</Row>
+          </dl>
+          <p className="mt-3 text-xs text-ringo-muted">{p.sellerReleaseNote}</p>
+        </section>
+      )}
 
       <section className={card}>
         <h2 className="text-sm font-semibold text-ringo-text mb-1">{s.paymentTitle}</h2>

@@ -540,7 +540,11 @@ function fulfilStore(w, viewer, profileId) { return createFulfillStore(w.client(
   check("isolation: no payout / withdrawal / balance functionality", srcs.every(([, s]) => !/payout|withdraw|available_at|hold_days|balance/i.test(s)));
   check("core files stay dependency-free (no Supabase / Next / React imports)", ["sellerOrders.ts", "fulfillOrder.ts", "sellerErrors.ts", "sellerReaders.ts"].every((f) => !/from "(next|react|@\/lib\/supabase|@supabase)/.test(strip(read(`src/lib/productCheckout/${f}`)))));
   check("service role is used for exactly two things: the payment-ledger read and the paid->fulfilled write", (() => { const s = strip(read("src/lib/productCheckout/sellerReaders.ts")); return (s.match(/admin\s*\.from\(/g) || []).length === 2 && /admin\s*\.from\("customer_payments"\)/.test(s) && /admin\s*\.from\("product_orders"\)[\s\S]*\.update\(\{ status: "fulfilled" \}\)/.test(s); })());
-  check("every rls query filters on the seller's profile id", (() => { const s = strip(read("src/lib/productCheckout/sellerReaders.ts")); return (s.match(/rls\s*\.from\(/g) || []).length === 7 && (s.match(/\.eq\("profile_id", profileId\)/g) || []).length === 8; })());
+  // Ringo Protection (Phase 5) added ONE new rls query (getProtectionSummaryForOrder, reading
+  // protection_transactions under its own Phase 1 owner-read RLS policy) — it too filters on
+  // profile_id, so the counts below both moved up by exactly one; the safety property itself
+  // (every rls query is profile-scoped) is unchanged.
+  check("every rls query filters on the seller's profile id", (() => { const s = strip(read("src/lib/productCheckout/sellerReaders.ts")); return (s.match(/rls\s*\.from\(/g) || []).length === 8 && (s.match(/\.eq\("profile_id", profileId\)/g) || []).length === 9; })());
   check("the four commerce tables' schema is untouched by this increment (no migration added or changed for 5A)", fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((f) => f.startsWith("2026-11")).sort().join() === "2026-11-01_product_cta.sql,2026-11-02_product_checkout_foundation.sql,2026-11-03_commerce_abuse_protection.sql");
   const det = strip(read("src/components/shop/ShopOrderDetail.tsx"));
   check("UI: the fulfil action has a synchronous in-flight guard (rapid taps in one tick send ONE request), and touch targets are at least 44px", /useRef\(false\)/.test(det) && /if \(inFlight\.current\) return/.test(det) && /inFlight\.current = true/.test(det) && /finally \{\s*inFlight\.current = false/.test(det) && (det.match(/min-h-\[44px\]/g) || []).length >= 5);

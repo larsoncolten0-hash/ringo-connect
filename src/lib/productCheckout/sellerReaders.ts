@@ -115,6 +115,26 @@ export function createSellerReader(rls: Client, admin: Client): SellerReader {
       if (error) throw new Error(`product_orders count failed (${error.code || "error"})`);
       return count ?? 0;
     },
+
+    // Ringo Protection (Phase 5): reused, unmodified Phase 1 "owner read" RLS policy on
+    // protection_transactions — no admin client needed. `null` for a Normal Payment order (no row).
+    // Never lets a Protection read failure break the seller's order detail view (same "best effort,
+    // never blocking" posture the customer receipt's own Protection read already uses).
+    async getProtectionSummaryForOrder({ profileId, orderId }) {
+      try {
+        const { data, error } = await rls
+          .from("protection_transactions")
+          .select("status, product_amount, protection_fee_amount")
+          .eq("target_type", "product_order")
+          .eq("target_id", orderId)
+          .eq("profile_id", profileId)
+          .maybeSingle();
+        if (error || !data) return null;
+        return { status: data.status as string, protectedAmount: Number(data.product_amount), feeAmount: Number(data.protection_fee_amount) };
+      } catch {
+        return null;
+      }
+    },
   };
 }
 
