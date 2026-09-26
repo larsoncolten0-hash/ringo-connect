@@ -47,6 +47,13 @@ export type ShopReceiptProtection = {
   awaitingConfirmation: boolean;
   /** Phase 7: true while the transaction is in a status the customer may open a dispute from. */
   disputeEligible: boolean;
+  /** Phase 9: when the transaction is scheduled to auto-release if the customer takes no action. */
+  autoReleaseAt: string | null;
+  /** Phase 9: the refund record's OWN granular status, when one exists — distinct from the
+   *  transaction's own status so the customer is never told more than the backend has actually
+   *  confirmed (e.g. `resolved_refund` on the transaction only ever means "requested", never
+   *  "completed" — see refund.status for the truth). Never includes destination/provider details. */
+  refund: { status: "requested" | "processing" | "completed" | "failed" } | null;
 };
 
 export type ShopReceiptData = {
@@ -104,11 +111,14 @@ export async function getShopOrderReceiptData(orderId: string): Promise<ShopRece
   try {
     const { data: txn } = await admin
       .from("protection_transactions")
-      .select("id, status, product_amount, protection_fee_amount, customer_total")
+      .select("id, status, product_amount, protection_fee_amount, customer_total, auto_release_at")
       .eq("target_type", "product_order")
       .eq("target_id", orderId)
       .maybeSingle();
     if (txn) {
+      const { data: refundRow } = await admin.from("protection_refunds").select("status").eq("protection_transaction_id", txn.id).maybeSingle();
+      const refund = refundRow ? { status: refundRow.status as "requested" | "processing" | "completed" | "failed" } : null;
+
       protection = {
         transactionId: txn.id,
         status: txn.status,
@@ -117,6 +127,8 @@ export async function getShopOrderReceiptData(orderId: string): Promise<ShopRece
         customerTotal: Number(txn.customer_total),
         awaitingConfirmation: txn.status === "awaiting_confirmation",
         disputeEligible: DISPUTE_ELIGIBLE_STATUSES.has(txn.status),
+        autoReleaseAt: txn.auto_release_at ?? null,
+        refund,
       };
     }
   } catch {

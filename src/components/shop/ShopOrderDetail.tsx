@@ -181,9 +181,17 @@ export default function ShopOrderDetail({ order }: { order: SellerOrderDetail })
           <dl>
             <Row name={p.sellerProtectedAmountLabel}>{money(order.protection.protectedAmount)}</Row>
             <Row name={p.sellerFeeLabel}>{money(order.protection.feeAmount)}</Row>
+            <Row name={p.sellerYouWillReceiveLabel}>
+              <strong>{money(order.protection.protectedAmount)}</strong>
+            </Row>
             <Row name={s.paymentStatus}>{p.statusLabels[order.protection.status as keyof typeof p.statusLabels] ?? order.protection.status}</Row>
           </dl>
           <p className="mt-3 text-xs text-ringo-muted">{p.sellerReleaseNote}</p>
+          {order.protection.status === "awaiting_confirmation" && order.protection.autoReleaseAt && (
+            <p className="mt-2 text-xs font-medium text-ringo-text" suppressHydrationWarning>
+              {p.sellerAutoReleaseNote(new Date(order.protection.autoReleaseAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US", { dateStyle: "medium", timeStyle: "short" }))}
+            </p>
+          )}
           {order.protection.dispute && (
             <div className="mt-3 rounded-xl bg-red-500/5 p-3">
               <p className="text-xs font-semibold text-red-600">{p.disputeTitle}</p>

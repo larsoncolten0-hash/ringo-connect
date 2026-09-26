@@ -89,6 +89,8 @@ export interface SellerProtectionSummary {
   status: string;
   protectedAmount: number;
   feeAmount: number;
+  /** Phase 9: when awaiting_confirmation, the deadline auto-release will fire if the customer takes no action. */
+  autoReleaseAt: string | null;
   /** Phase 7: present only once a dispute has been opened on this transaction. Read-only for the
    *  seller — sellers cannot resolve disputes, release funds or approve refunds (admin-only). */
   dispute: { reason: string; message: string | null; openedAt: string; resolution: string | null } | null;

@@ -124,7 +124,7 @@ export function createSellerReader(rls: Client, admin: Client): SellerReader {
       try {
         const { data, error } = await rls
           .from("protection_transactions")
-          .select("id, status, product_amount, protection_fee_amount")
+          .select("id, status, product_amount, protection_fee_amount, auto_release_at")
           .eq("target_type", "product_order")
           .eq("target_id", orderId)
           .eq("profile_id", profileId)
@@ -149,7 +149,7 @@ export function createSellerReader(rls: Client, admin: Client): SellerReader {
           dispute = null;
         }
 
-        return { status: data.status as string, protectedAmount: Number(data.product_amount), feeAmount: Number(data.protection_fee_amount), dispute };
+        return { status: data.status as string, protectedAmount: Number(data.product_amount), feeAmount: Number(data.protection_fee_amount), autoReleaseAt: data.auto_release_at ?? null, dispute };
       } catch {
         return null;
       }

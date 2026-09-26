@@ -46,6 +46,15 @@ export async function notifyProtectionDisputeOpened(orderId: string): Promise<vo
     const resolved = await resolveOrder(admin, orderId);
     if (!resolved) return;
 
+    if (resolved.customerId) {
+      const n = translations[resolved.locale].customerPush.protectionDisputeOpened;
+      await notifyCustomer(
+        resolved.customerId,
+        { category: "protection_dispute_opened", title: n.title, body: n.body(resolved.orderNumber, resolved.sellerName), url: `/shop/orders/${orderId}`, data: { kind: "protection_dispute_opened" } },
+        { profileId: resolved.profileId }
+      );
+    }
+
     if (resolved.sellerUserId) {
       await sendPushAndBellToUser(admin, resolved.sellerUserId, {
         category: "protection_disputed",
@@ -67,37 +76,61 @@ export async function notifyProtectionDisputeOpened(orderId: string): Promise<vo
 }
 
 /** Customer + seller: the dispute was resolved toward release (the actual release notification —
- *  "funds released" — already fires from release.ts's own onReleased hook; this is the DISPUTE
- *  resolution notice specifically, so a customer/seller who only watches dispute status also learns
- *  the outcome). */
+ *  "funds released" — already fires separately from release.ts's own onReleased hook; this is the
+ *  DISPUTE resolution notice specifically, so a customer/seller who only watches dispute status also
+ *  learns the outcome). Phase 9: previously only notified the customer despite its own docstring
+ *  claiming both — fixed to actually notify the seller too. */
 export async function notifyProtectionDisputeResolvedRelease(orderId: string): Promise<void> {
   try {
     const admin = createAdminClient();
     const resolved = await resolveOrder(admin, orderId);
-    if (!resolved || !resolved.customerId) return;
-    const n = translations[resolved.locale].customerPush.protectionDisputeResolvedRelease;
-    await notifyCustomer(
-      resolved.customerId,
-      { category: "protection_dispute_resolved", title: n.title, body: n.body(resolved.orderNumber, resolved.sellerName), url: `/shop/orders/${orderId}`, data: { kind: "protection_dispute_resolved_release" } },
-      { profileId: resolved.profileId }
-    );
+    if (!resolved) return;
+
+    if (resolved.customerId) {
+      const n = translations[resolved.locale].customerPush.protectionDisputeResolvedRelease;
+      await notifyCustomer(
+        resolved.customerId,
+        { category: "protection_dispute_resolved", title: n.title, body: n.body(resolved.orderNumber, resolved.sellerName), url: `/shop/orders/${orderId}`, data: { kind: "protection_dispute_resolved_release" } },
+        { profileId: resolved.profileId }
+      );
+    }
+    if (resolved.sellerUserId) {
+      await sendPushAndBellToUser(admin, resolved.sellerUserId, {
+        category: "protection_dispute_resolved",
+        title: "Dispute resolved — funds releasing",
+        body: `The dispute on order ${resolved.orderNumber} was resolved in your favor. The protected amount is being released.`,
+        url: `/dashboard/shop/${orderId}`,
+      });
+    }
   } catch (err) {
     console.error("notifyProtectionDisputeResolvedRelease failed:", err);
   }
 }
 
-/** Customer: the dispute was resolved toward a refund REQUEST — never claims money was returned. */
+/** Customer + seller: the dispute was resolved toward a refund REQUEST — never claims money was
+ *  returned to either party. */
 export async function notifyProtectionDisputeResolvedRefund(orderId: string): Promise<void> {
   try {
     const admin = createAdminClient();
     const resolved = await resolveOrder(admin, orderId);
-    if (!resolved || !resolved.customerId) return;
-    const n = translations[resolved.locale].customerPush.protectionRefundRequested;
-    await notifyCustomer(
-      resolved.customerId,
-      { category: "protection_refund_requested", title: n.title, body: n.body(resolved.orderNumber, resolved.sellerName), url: `/shop/orders/${orderId}`, data: { kind: "protection_refund_requested" } },
-      { profileId: resolved.profileId }
-    );
+    if (!resolved) return;
+
+    if (resolved.customerId) {
+      const n = translations[resolved.locale].customerPush.protectionRefundRequested;
+      await notifyCustomer(
+        resolved.customerId,
+        { category: "protection_refund_requested", title: n.title, body: n.body(resolved.orderNumber, resolved.sellerName), url: `/shop/orders/${orderId}`, data: { kind: "protection_refund_requested" } },
+        { profileId: resolved.profileId }
+      );
+    }
+    if (resolved.sellerUserId) {
+      await sendPushAndBellToUser(admin, resolved.sellerUserId, {
+        category: "protection_dispute_resolved",
+        title: "Dispute resolved — refund requested",
+        body: `The dispute on order ${resolved.orderNumber} was resolved toward a customer refund. No further action is needed from you.`,
+        url: `/dashboard/shop/${orderId}`,
+      });
+    }
   } catch (err) {
     console.error("notifyProtectionDisputeResolvedRefund failed:", err);
   }

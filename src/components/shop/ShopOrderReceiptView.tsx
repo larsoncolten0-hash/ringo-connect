@@ -231,9 +231,21 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
                 </p>
               )}
 
-              {(protectionStatus === "resolved_release" || protectionStatus === "resolved_refund") && (
+              {protectionStatus === "resolved_release" && (
                 <p className="mt-2 text-xs" style={{ opacity: 0.6 }}>
-                  {protectionStatus === "resolved_refund" ? p.refundRequestedNote : p.awaitingConfirmationNote}
+                  {p.resolvedReleaseNote}
+                </p>
+              )}
+
+              {protectionStatus === "resolved_refund" && !data.protection.refund && (
+                <p className="mt-2 text-xs" style={{ opacity: 0.6 }}>
+                  {p.refundRequestedNote}
+                </p>
+              )}
+
+              {data.protection.refund && (
+                <p className="mt-2 text-xs" style={{ opacity: 0.6 }}>
+                  {p.refundStatusNotes[data.protection.refund.status]}
                 </p>
               )}
 
@@ -245,6 +257,11 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
                   <p className="text-xs" style={{ opacity: 0.6 }}>
                     {p.confirmExplainer}
                   </p>
+                  {data.protection.autoReleaseAt && (
+                    <p className="text-xs font-medium" style={{ opacity: 0.75 }}>
+                      {p.autoReleaseNote(new Date(data.protection.autoReleaseAt).toLocaleString(dateLocale, { dateStyle: "medium", timeStyle: "short" }))}
+                    </p>
+                  )}
                   {confirmError && (
                     <p role="alert" className="text-xs" style={{ color: "#DC2626" }}>
                       {(p.errors as Record<string, string>)[confirmError] ?? p.errors.internal_error}
