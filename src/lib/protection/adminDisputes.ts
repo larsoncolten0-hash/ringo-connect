@@ -32,12 +32,21 @@ export async function listAdminProtectionDisputes(): Promise<AdminProtectionDisp
       `id, status, reason, message, opened_at, resolved_at,
        protection_transaction_id, order_id, profile_id, customer_id,
        protection_transactions(status, product_amount, protection_fee_amount, currency),
-       profiles(name, username),
-       product_orders!order_id(order_number)`
+       profiles(name, username)`
     )
     .order("opened_at", { ascending: false })
     .limit(200);
   if (error) throw new Error(`protection_disputes list failed (${error.code || "error"})`);
+
+  // order_id has no real FK to product_orders (same deliberately unconstrained polymorphic
+  // reference protection_transactions.target_id uses — see adminTransactions.ts's own comment), so
+  // PostgREST's `product_orders!order_id(...)` embed can never resolve it (PGRST200). A separate
+  // lookup + Map merge replaces it, same pattern as adminTransactions.ts.
+  const orderIds = (data || []).map((d: any) => d.order_id);
+  const { data: orders } = orderIds.length
+    ? await admin.from("product_orders").select("id, order_number").in("id", orderIds)
+    : { data: [] };
+  const orderNumberById = new Map((orders || []).map((o: any) => [o.id, o.order_number]));
 
   return (data || []).map((d: any) => ({
     id: d.id,
@@ -52,7 +61,7 @@ export async function listAdminProtectionDisputes(): Promise<AdminProtectionDisp
     feeAmount: d.protection_transactions ? Number(d.protection_transactions.protection_fee_amount) : null,
     currency: d.protection_transactions?.currency ?? null,
     orderId: d.order_id,
-    orderReference: d.product_orders?.order_number != null ? formatProductOrderNumber(d.product_orders.order_number) : "—",
+    orderReference: orderNumberById.has(d.order_id) ? formatProductOrderNumber(orderNumberById.get(d.order_id)) : "—",
     sellerName: d.profiles?.name || d.profiles?.username || null,
   }));
 }

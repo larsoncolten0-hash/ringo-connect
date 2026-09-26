@@ -47,8 +47,7 @@ export async function listAdminProtectionTransactions(filters: AdminProtectionLi
     .select(
       `id, target_id, status, currency, product_amount, protection_fee_amount, customer_total, customer_id,
        created_at, updated_at, auto_release_at,
-       profiles(username, name),
-       product_orders!target_id(order_number)`
+       profiles(username, name)`
     )
     .eq("target_type", "product_order")
     .order("created_at", { ascending: false })
@@ -64,17 +63,25 @@ export async function listAdminProtectionTransactions(filters: AdminProtectionLi
   if (error) throw new Error(`protection_transactions list failed (${error.code || "error"})`);
 
   const ids = (data || []).map((r: any) => r.id);
-  const [{ data: disputes }, { data: refunds }] = await Promise.all([
+  // target_id has no real FK to product_orders (protection_transactions.target_type/target_id is a
+  // deliberately unconstrained polymorphic reference — see 2026-11-06_ringo_protection_foundation.sql's
+  // own comment), so PostgREST's `product_orders!target_id(...)` embed shorthand can never resolve it
+  // (PGRST200). A separate lookup + Map merge, same as the existing dispute/refund existence checks
+  // below, is the correct way to join this in application code instead.
+  const orderIds = (data || []).map((r: any) => r.target_id);
+  const [{ data: disputes }, { data: refunds }, { data: orders }] = await Promise.all([
     ids.length ? admin.from("protection_disputes").select("protection_transaction_id").in("protection_transaction_id", ids) : Promise.resolve({ data: [] }),
     ids.length ? admin.from("protection_refunds").select("protection_transaction_id").in("protection_transaction_id", ids) : Promise.resolve({ data: [] }),
+    orderIds.length ? admin.from("product_orders").select("id, order_number").in("id", orderIds) : Promise.resolve({ data: [] }),
   ]);
   const disputedIds = new Set((disputes || []).map((d: any) => d.protection_transaction_id));
   const refundedIds = new Set((refunds || []).map((r: any) => r.protection_transaction_id));
+  const orderNumberById = new Map((orders || []).map((o: any) => [o.id, o.order_number]));
 
   let rows: AdminProtectionTransactionRow[] = (data || []).map((row: any) => ({
     id: row.id,
     orderId: row.target_id,
-    orderReference: row.product_orders?.order_number != null ? formatProductOrderNumber(row.product_orders.order_number) : "—",
+    orderReference: orderNumberById.has(row.target_id) ? formatProductOrderNumber(orderNumberById.get(row.target_id)) : "—",
     status: row.status,
     sellerUsername: row.profiles?.username ?? null,
     sellerName: row.profiles?.name ?? null,
@@ -152,14 +159,15 @@ export async function getAdminProtectionTransactionDetail(id: string): Promise<A
     .select(
       `id, target_id, status, currency, product_amount, protection_fee_rate, protection_fee_amount, customer_total, seller_protected_amount,
        customer_id, created_at, updated_at, paid_at, released_at, refunded_at, auto_release_at,
-       profiles(username, name),
-       product_orders!target_id(order_number)`
+       profiles(username, name)`
     )
     .eq("id", id)
     .maybeSingle();
   if (!txn) return null;
 
-  const [{ data: paymentRows }, { data: earningRow }, { data: refundRow }, { data: disputeRow }, { data: eventRows }] = await Promise.all([
+  // Same reasoning as listAdminProtectionTransactions above: target_id has no real FK to
+  // product_orders, so a separate lookup replaces the unresolvable `product_orders!target_id(...)` embed.
+  const [{ data: paymentRows }, { data: earningRow }, { data: refundRow }, { data: disputeRow }, { data: eventRows }, { data: orderRow }] = await Promise.all([
     admin.from("protection_payments").select("status, payer_medium, confirmed_at, provider_status, created_at").eq("protection_transaction_id", id).order("created_at", { ascending: false }).limit(1),
     admin.from("commerce_sale_earnings").select("id, net_amount, currency, status, available_at, payout_id").eq("protection_transaction_id", id).maybeSingle(),
     admin
@@ -169,6 +177,7 @@ export async function getAdminProtectionTransactionDetail(id: string): Promise<A
       .maybeSingle(),
     admin.from("protection_disputes").select("id, status, reason, message, opened_at, resolved_at, resolved_by").eq("protection_transaction_id", id).maybeSingle(),
     admin.from("protection_transaction_events").select("id, from_status, to_status, actor_type, actor_user_id, actor_customer_id, reason, created_at").eq("protection_transaction_id", id).order("created_at", { ascending: true }),
+    admin.from("product_orders").select("order_number").eq("id", txn.target_id).maybeSingle(),
   ]);
 
   let payoutStatus: string | null = null;
@@ -183,7 +192,7 @@ export async function getAdminProtectionTransactionDetail(id: string): Promise<A
   return {
     id: txn.id,
     orderId: txn.target_id,
-    orderReference: (txn as any).product_orders?.order_number != null ? formatProductOrderNumber((txn as any).product_orders.order_number) : "—",
+    orderReference: orderRow?.order_number != null ? formatProductOrderNumber(orderRow.order_number) : "—",
     status: txn.status,
     currency: txn.currency,
     productAmount: Number(txn.product_amount),

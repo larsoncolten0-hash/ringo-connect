@@ -34,18 +34,27 @@ export async function listAdminProtectionRefunds(): Promise<AdminProtectionRefun
       `id, protection_transaction_id, order_id, refund_amount, currency, status,
        destination_phone, destination_network, provider_reference, provider_status, failure_reason,
        requested_at, processing_started_at, completed_at, failed_at,
-       protection_transactions(profiles(name, username)),
-       product_orders!order_id(order_number)`
+       protection_transactions(profiles(name, username))`
     )
     .order("requested_at", { ascending: false })
     .limit(200);
   if (error) throw new Error(`protection_refunds list failed (${error.code || "error"})`);
 
+  // order_id has no real FK to product_orders (same deliberately unconstrained polymorphic
+  // reference protection_transactions.target_id uses — see adminTransactions.ts's own comment), so
+  // PostgREST's `product_orders!order_id(...)` embed can never resolve it (PGRST200). A separate
+  // lookup + Map merge replaces it, same pattern as adminTransactions.ts.
+  const orderIds = (data || []).map((r: any) => r.order_id);
+  const { data: orders } = orderIds.length
+    ? await admin.from("product_orders").select("id, order_number").in("id", orderIds)
+    : { data: [] };
+  const orderNumberById = new Map((orders || []).map((o: any) => [o.id, o.order_number]));
+
   return (data || []).map((r: any) => ({
     id: r.id,
     transactionId: r.protection_transaction_id,
     orderId: r.order_id,
-    orderReference: r.product_orders?.order_number != null ? formatProductOrderNumber(r.product_orders.order_number) : "—",
+    orderReference: orderNumberById.has(r.order_id) ? formatProductOrderNumber(orderNumberById.get(r.order_id)) : "—",
     sellerName: r.protection_transactions?.profiles?.name || r.protection_transactions?.profiles?.username || null,
     amount: Number(r.refund_amount),
     currency: r.currency,
