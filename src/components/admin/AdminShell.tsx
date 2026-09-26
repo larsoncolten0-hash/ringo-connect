@@ -6,7 +6,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { hasCustomLogo } from "@/lib/brandingDefaults";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, UserCheck, Sparkles, ShoppingBag, type LucideIcon } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, UserCheck, Sparkles, ShoppingBag, ShieldCheck, type LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
@@ -47,6 +47,7 @@ const NAV_ITEMS: {
   { href: "/admin/affiliates", label: "Affiliates", icon: Handshake, core: false, countKey: "affiliates" },
   { href: "/admin/music-payouts", label: "Music payouts", icon: Banknote, core: false, countKey: "musicPayouts" },
   { href: "/admin/shop-payouts", label: "Shop payouts", icon: ShoppingBag, core: false, countKey: "shopPayouts" },
+  { href: "/admin/protection", label: "Protection", icon: ShieldCheck, core: false, countKey: "protectionDisputes" },
   { href: "/admin/broadcast", label: "Broadcast", icon: Radio, core: false },
   { href: "/admin/qr-code", label: "QR code", icon: QrCode, core: false },
   { href: "/admin/demo", label: "Demo link", icon: FlaskConical, core: false },
