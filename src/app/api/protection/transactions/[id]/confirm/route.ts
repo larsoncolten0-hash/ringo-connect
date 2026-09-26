@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCustomerFromCookie, isSameOrigin } from "@/lib/customer/session";
+import { createAdminClient } from "@/lib/supabase/server";
 import { releaseProtectionTransaction } from "@/lib/protection/release";
 import { buildProtectionReleaseDeps } from "@/lib/protection/releaseHttp";
+import { createProtectionRateLimiter, withinProtectionLimit } from "@/lib/protection/checkoutRateLimit";
 
 // Customer confirms they received a Protection-protected order: awaiting_confirmation -> released,
 // followed by exactly one commerce_sale_earnings row (see release.ts). Requires a signed-in Ringo
@@ -19,6 +21,7 @@ const STATUS: Record<string, number> = {
   not_eligible: 409,
   earnings_failed: 502,
   conflict: 409,
+  rate_limited: 429,
   internal_error: 500,
 };
 const fail = (code: string) => NextResponse.json({ error: code }, { status: STATUS[code] ?? 500 });
@@ -28,6 +31,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (!isSameOrigin(request)) return fail("forbidden");
     const session = await getCustomerFromCookie();
     if (!session) return fail("not_authenticated");
+
+    // Phase 10 addition: this route had no rate limit at all, unlike checkout/pay/dispute. The
+    // action is already idempotent/financially-safe on its own (a repeated call just reports
+    // "already released"), but bounding it is still cheap defense-in-depth against a scripted client
+    // hammering it pointlessly.
+    const limiter = createProtectionRateLimiter(createAdminClient());
+    const allowed = await withinProtectionLimit(limiter, console.warn, "protection_confirm_customer", session.customer.id);
+    if (!allowed) return fail("rate_limited");
 
     const outcome = await releaseProtectionTransaction(buildProtectionReleaseDeps(), params.id, { type: "customer", customerId: session.customer.id });
     if (!outcome.ok) return fail(outcome.code);

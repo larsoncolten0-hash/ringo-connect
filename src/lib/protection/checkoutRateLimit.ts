@@ -17,6 +17,10 @@ export const PROTECTION_RATE_RULES = {
   // never blocks a legitimate single dispute), this only bounds how many DIFFERENT transactions one
   // customer can attempt to dispute in a window.
   protection_dispute_customer: { windowSeconds: 3600, max: 5 },
+  // Phase 10: confirmation, per customer — generous (the action is itself idempotent/safe), this
+  // exists purely as defense-in-depth against a scripted client, never to slow down a legitimate
+  // customer double-checking or retrying after a network hiccup.
+  protection_confirm_customer: { windowSeconds: 3600, max: 20 },
 } as const;
 export type ProtectionRateKind = keyof typeof PROTECTION_RATE_RULES;
 
