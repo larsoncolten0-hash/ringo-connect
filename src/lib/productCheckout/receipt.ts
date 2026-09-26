@@ -36,6 +36,7 @@ export type ShopReceiptPayment = {
 /** Ringo Protection — Phase 5: read-only, additive status for the customer receipt. `null` for
  *  every Normal Payment order (no protection_transactions row exists for it). */
 export type ShopReceiptProtection = {
+  transactionId: string;
   status: "awaiting_payment" | "protected" | "fulfillment_started" | "awaiting_confirmation" | "released" | "disputed" | "resolved_release" | "resolved_refund" | "refunded" | "cancelled" | "expired" | "payment_failed";
   protectedAmount: number;
   feeAmount: number;
@@ -98,12 +99,13 @@ export async function getShopOrderReceiptData(orderId: string): Promise<ShopRece
   try {
     const { data: txn } = await admin
       .from("protection_transactions")
-      .select("status, product_amount, protection_fee_amount, customer_total")
+      .select("id, status, product_amount, protection_fee_amount, customer_total")
       .eq("target_type", "product_order")
       .eq("target_id", orderId)
       .maybeSingle();
     if (txn) {
       protection = {
+        transactionId: txn.id,
         status: txn.status,
         protectedAmount: Number(txn.product_amount),
         feeAmount: Number(txn.protection_fee_amount),

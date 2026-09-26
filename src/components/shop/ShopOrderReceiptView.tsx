@@ -1,6 +1,7 @@
 "use client";
 
-import { Package, ShieldCheck } from "lucide-react";
+import { useRef, useState } from "react";
+import { Check, Loader2, Package, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import type { ShopReceiptData } from "@/lib/productCheckout/receipt";
@@ -22,6 +23,37 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
   const { t, locale } = useLanguage();
   const r = t.shopReceipt;
   const p = t.protectionCheckout;
+
+  // Ringo Protection (Phase 6): local, optimistic override once the customer confirms — the server
+  // remains the sole authority (this just avoids a full page reload to show the result). A second
+  // tap while one request is in flight is ignored; the API call itself is idempotent regardless.
+  const [confirmStatus, setConfirmStatus] = useState<"released" | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const inFlight = useRef(false);
+
+  const protectionStatus = confirmStatus ?? data.protection?.status ?? null;
+
+  const confirmReceipt = async () => {
+    if (inFlight.current || !data.protection) return;
+    inFlight.current = true;
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      const res = await fetch(`/api/protection/transactions/${data.protection.transactionId}/confirm`, { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setConfirmError(typeof body?.error === "string" ? body.error : "internal_error");
+      } else {
+        setConfirmStatus("released");
+      }
+    } catch {
+      setConfirmError("network_error");
+    } finally {
+      inFlight.current = false;
+      setConfirming(false);
+    }
+  };
 
   const dateLocale = locale === "fr" ? "fr-FR" : "en-US";
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" });
@@ -118,7 +150,7 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
             </p>
           </div>
 
-          {data.protection && (
+          {data.protection && protectionStatus && (
             <div className="px-5 py-4" style={{ borderTop: "1px solid #E5E7EB" }}>
               <div className="mb-2 flex items-center gap-1.5">
                 <ShieldCheck size={14} style={{ color: "#059669" }} />
@@ -136,18 +168,48 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
                   <span>{formatPrice(data.protection.feeAmount, data.currency, locale)}</span>
                 </div>
                 <div className="mt-1 flex items-center justify-between font-semibold">
-                  <span>{p.statusLabels[data.protection.status] ?? data.protection.status}</span>
+                  <span>{p.statusLabels[protectionStatus] ?? protectionStatus}</span>
                 </div>
               </div>
-              {data.protection.status === "awaiting_confirmation" && (
-                <p className="mt-2 text-xs" style={{ opacity: 0.6 }}>
-                  {p.awaitingConfirmationNote}
+
+              {protectionStatus === "released" && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-medium" style={{ color: "#059669" }}>
+                  <Check size={13} />
+                  {p.confirmedBody}
                 </p>
               )}
-              {data.protection.status === "fulfillment_started" && (
+
+              {protectionStatus === "fulfillment_started" && (
                 <p className="mt-2 text-xs" style={{ opacity: 0.6 }}>
                   {p.fulfillmentStartedNote}
                 </p>
+              )}
+
+              {protectionStatus === "awaiting_confirmation" && !confirmStatus && (
+                <div className="mt-3 flex flex-col gap-2">
+                  <p className="text-xs" style={{ opacity: 0.6 }}>
+                    {p.awaitingConfirmationNote}
+                  </p>
+                  <p className="text-xs" style={{ opacity: 0.6 }}>
+                    {p.confirmExplainer}
+                  </p>
+                  {confirmError && (
+                    <p role="alert" className="text-xs" style={{ color: "#DC2626" }}>
+                      {(p.errors as Record<string, string>)[confirmError] ?? p.errors.internal_error}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void confirmReceipt()}
+                    disabled={confirming}
+                    aria-busy={confirming}
+                    className="mt-1 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold text-white disabled:opacity-60"
+                    style={{ backgroundColor: "#059669" }}
+                  >
+                    {confirming && <Loader2 size={14} className="animate-spin" />}
+                    {confirming ? p.confirming : p.confirmButton}
+                  </button>
+                </div>
               )}
             </div>
           )}

@@ -15,7 +15,20 @@ export function buildProtectionFulfillmentDeps(): ProtectionFulfillmentDeps {
         return (data as ProtectionFulfillmentTransactionRow) ?? null;
       },
     },
-    transition: (id, to, actor) => transitionProtectionTransaction(admin, id, to, actor),
+    transition: async (id, to, actor) => {
+      // Ringo Protection (Phase 6): entering awaiting_confirmation is the moment the auto-release
+      // deadline is set (engine.ts already supports this — it was simply never given a value until
+      // now, since nothing consumed auto_release_at before Phase 6's auto-release job existed).
+      // Read fresh each time rather than cached, so an admin's current setting always applies to a
+      // NEW deadline; an already-set auto_release_at on an existing transaction is never recomputed
+      // (transitionProtectionTransaction only ever sets it when actually entering the status).
+      let autoReleaseHours: number | undefined;
+      if (to === "awaiting_confirmation") {
+        const { data } = await admin.from("platform_settings").select("protection_auto_release_hours").limit(1).single();
+        autoReleaseHours = typeof data?.protection_auto_release_hours === "number" ? data.protection_auto_release_hours : undefined;
+      }
+      return transitionProtectionTransaction(admin, id, to, actor, { autoReleaseHours });
+    },
     onFulfillmentStarted: ({ orderId }) => notifyCustomerProtectionFulfillmentStarted(orderId),
     onAwaitingConfirmation: ({ orderId }) => notifyCustomerProtectionAwaitingConfirmation(orderId),
     log: (event, data) => console.warn(`[protection-fulfillment] ${event}`, data ?? {}),

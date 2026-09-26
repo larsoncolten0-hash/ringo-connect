@@ -154,7 +154,19 @@ export const translations = {
       sellerProtectedAmountLabel: "Protected amount",
       sellerFeeLabel: "Protection fee (paid by customer)",
       sellerReleaseNote: "Protected funds are released to you only after the customer confirms — they do not appear in your earnings yet.",
+      confirmButton: "Confirm I received this order",
+      confirming: "Confirming…",
+      confirmExplainer: "Confirming releases your protected payment to the seller. Only do this once you've received your order as described.",
+      confirmedTitle: "Released",
+      confirmedBody: "You confirmed your order. The protected payment has been released to the seller.",
+      autoReleaseNote: (when: string) => `If you don't confirm, this will release automatically on ${when}.`,
       errors: {
+        not_found: "We couldn't find that Protection order.",
+        not_authenticated: "Please sign in to confirm this order.",
+        unauthorized: "This isn't your order to confirm.",
+        not_eligible: "This order can't be confirmed right now.",
+        earnings_failed: "Something went wrong releasing this order. Please try again.",
+        conflict: "Something changed with this order. Please refresh and try again.",
         invalid_request: "Something in the form isn't right. Please check it and try again.",
         invalid_payment_medium: "Please choose MTN MoMo or Orange Money.",
         invalid_phone: "Please enter a valid phone number.",
@@ -559,6 +571,10 @@ export const translations = {
       protectionAwaitingConfirmation: {
         title: "Confirm your order",
         body: (orderNumber: string, seller: string) => `${seller} fulfilled your order ${orderNumber}. Confirm you received it when you're ready.`,
+      },
+      protectionReleased: {
+        title: "Order released",
+        body: (orderNumber: string, seller: string) => `Your protected payment for order ${orderNumber} from ${seller} has been released.`,
       },
     },
     communityJoin: {
@@ -3754,7 +3770,19 @@ export const translations = {
       sellerProtectedAmountLabel: "Montant protégé",
       sellerFeeLabel: "Frais de protection (payés par le client)",
       sellerReleaseNote: "Les fonds protégés ne vous sont versés qu'après confirmation du client — ils n'apparaissent pas encore dans vos revenus.",
+      confirmButton: "Confirmer que j'ai reçu la commande",
+      confirming: "Confirmation…",
+      confirmExplainer: "Confirmer libère votre paiement protégé au vendeur. Ne le faites qu'une fois la commande reçue comme décrite.",
+      confirmedTitle: "Libéré",
+      confirmedBody: "Vous avez confirmé votre commande. Le paiement protégé a été libéré au vendeur.",
+      autoReleaseNote: (when: string) => `Si vous ne confirmez pas, ceci se libérera automatiquement le ${when}.`,
       errors: {
+        not_found: "Nous n'avons pas trouvé cette commande protégée.",
+        not_authenticated: "Veuillez vous connecter pour confirmer cette commande.",
+        unauthorized: "Ce n'est pas votre commande à confirmer.",
+        not_eligible: "Cette commande ne peut pas être confirmée pour le moment.",
+        earnings_failed: "Un problème est survenu lors de la libération. Veuillez réessayer.",
+        conflict: "Quelque chose a changé avec cette commande. Veuillez actualiser et réessayer.",
         invalid_request: "Un élément du formulaire est incorrect. Vérifiez-le et réessayez.",
         invalid_payment_medium: "Veuillez choisir MTN MoMo ou Orange Money.",
         invalid_phone: "Veuillez saisir un numéro de téléphone valide.",
@@ -4112,6 +4140,10 @@ export const translations = {
       protectionAwaitingConfirmation: {
         title: "Confirmez votre commande",
         body: (orderNumber: string, seller: string) => `${seller} a préparé votre commande ${orderNumber}. Confirmez l'avoir reçue quand vous êtes prêt.`,
+      },
+      protectionReleased: {
+        title: "Commande libérée",
+        body: (orderNumber: string, seller: string) => `Votre paiement protégé pour la commande ${orderNumber} chez ${seller} a été libéré.`,
       },
     },
     communityJoin: {
