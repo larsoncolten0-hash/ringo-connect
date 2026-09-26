@@ -2227,6 +2227,14 @@ export const translations = {
       readyTitle: "Bring your Ringo Card close to your phone",
       readySubtitle: "Hold your Ringo Card near the NFC area of your phone.",
 
+      contactPreviewTitle: "What's on your card",
+      contactPreviewHint: "Tapping your card opens your Ringo profile when the person has internet. This basic contact info is also stored directly on the card, so it's still there even without internet.",
+      contactNameLabel: "Name",
+      contactProfileLabel: "Ringo profile",
+      rewriteContactReminder: "Your contact details are stored on the card itself. If you change your name, phone, or email later, rewrite your card to update them.",
+      verifyContactFound: "Contact info found on card",
+      verifyContactNotFound: "No contact info found on card",
+
       statusPreparing: "Preparing…",
       statusWaiting: "Waiting for your Ringo Card…",
       statusWriting: "Writing your Ringo…",
@@ -2312,6 +2320,7 @@ export const translations = {
         network_error: "Your Ringo Card moved away before we finished. Hold it steady and try again.",
         aborted: "The write was cancelled.",
         timeout: "We didn't detect a Ringo Card in time. Try again and hold it closer.",
+        payload_too_large: "Your contact information is too long to fit on this card. Try shortening your name, phone, or email in your profile, then try again.",
         profile_missing: "This Ringo profile is unavailable.",
         generic: "We couldn't connect your Ringo Card. Please try again.",
         network: "Ringo couldn't complete the setup. Check your connection and try again.",
@@ -3180,6 +3189,7 @@ export const translations = {
         aborted: "The operation was cancelled.",
         network_error: "The card was moved away before finishing.",
         timeout: "No card was detected in time.",
+        payload_too_large: "Something went wrong — please try again.",
         unknown: "Something went wrong — please try again.",
       },
 
@@ -5757,6 +5767,14 @@ export const translations = {
       readyTitle: "Approchez votre Carte Ringo de votre téléphone",
       readySubtitle: "Tenez votre Carte Ringo près de la zone NFC de votre téléphone.",
 
+      contactPreviewTitle: "Ce que contient votre carte",
+      contactPreviewHint: "Toucher votre carte ouvre votre profil Ringo si la personne a internet. Ces informations de contact de base sont aussi stockées directement sur la carte, donc elles restent accessibles même sans internet.",
+      contactNameLabel: "Nom",
+      contactProfileLabel: "Profil Ringo",
+      rewriteContactReminder: "Vos coordonnées sont stockées sur la carte elle-même. Si vous changez votre nom, téléphone ou e-mail plus tard, réécrivez votre carte pour les mettre à jour.",
+      verifyContactFound: "Informations de contact trouvées sur la carte",
+      verifyContactNotFound: "Aucune information de contact trouvée sur la carte",
+
       statusPreparing: "Préparation…",
       statusWaiting: "En attente de votre Carte Ringo…",
       statusWriting: "Écriture de votre Ringo…",
@@ -5842,6 +5860,7 @@ export const translations = {
         network_error: "Votre Carte Ringo s'est éloignée avant la fin. Maintenez-la immobile et réessayez.",
         aborted: "L'écriture a été annulée.",
         timeout: "Aucune Carte Ringo détectée à temps. Réessayez en la rapprochant.",
+        payload_too_large: "Vos informations de contact sont trop longues pour cette carte. Essayez de raccourcir votre nom, téléphone ou e-mail dans votre profil, puis réessayez.",
         profile_missing: "Ce profil Ringo n'est pas disponible.",
         generic: "Nous n'avons pas pu connecter votre Carte Ringo. Veuillez réessayer.",
         network: "Ringo n'a pas pu terminer la configuration. Vérifiez votre connexion et réessayez.",
@@ -6657,6 +6676,7 @@ export const translations = {
         aborted: "L'opération a été annulée.",
         network_error: "La carte a été retirée avant la fin.",
         timeout: "Aucune carte détectée à temps.",
+        payload_too_large: "Une erreur est survenue — veuillez réessayer.",
         unknown: "Une erreur est survenue — veuillez réessayer.",
       },
 

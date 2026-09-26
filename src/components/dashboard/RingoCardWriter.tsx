@@ -21,10 +21,11 @@ import {
   isSecureContextAvailable,
   isLikelyAndroid,
   isLikelyIOS,
-  writeRingoCardUrl,
+  writeRingoCard,
   readRingoCard,
   RingoCardError,
   type RingoCardErrorCode,
+  type RingoCardContact,
 } from "@/lib/ringoCardWriter";
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,12 @@ interface ProfileLite {
   categories: string[] | null;
   about_location: string | null;
   published: boolean;
+  // Offline NFC contact fallback (see src/lib/ringoCardWriter.ts's
+  // RingoCardContact) — the SAME public contact fields the profile's own
+  // About card already shows (never WhatsApp, never the private account
+  // login email). Either can be null; the vCard record just omits it.
+  about_phone: string | null;
+  about_email: string | null;
 }
 
 // The wizard's current step. `flow` carries what a select/ready/writing
@@ -88,6 +95,10 @@ export default function RingoCardWriter({
   const [showHelp, setShowHelp] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [verifyState, setVerifyState] = useState<"idle" | "checking" | "ok" | "mismatch" | "failed">("idle");
+  // Informational only (see readRingoCard's own comment) — never affects
+  // verifyState's pass/fail, an older card written before this feature
+  // simply won't have this record.
+  const [verifyHasContact, setVerifyHasContact] = useState<boolean | null>(null);
 
   // null = not checked yet (first render, before the client-only check
   // below runs) — treated as "assume supported" only for a single paint
@@ -106,6 +117,18 @@ export default function RingoCardWriter({
   const destinationUrl = `${siteUrl.replace(/\/$/, "")}/${profile.username}`;
   const categoryLabel = getCategory(profile.category)?.label[locale];
   const subtitleParts = [categoryLabel, profile.about_location].filter(Boolean);
+
+  // Offline NFC contact fallback — always has a name (name || username is
+  // already guaranteed non-empty everywhere else in this component) and
+  // the same destination URL the URL record itself carries; phone/email
+  // are only included when the profile actually has them set. Never
+  // fabricated, never a placeholder.
+  const contact: RingoCardContact = {
+    name: profile.name || profile.username,
+    phone: profile.about_phone,
+    email: profile.about_email,
+    url: destinationUrl,
+  };
 
   const updateCard = (updated: RingoCardRow) =>
     setCards((prev) => {
@@ -176,7 +199,7 @@ export default function RingoCardWriter({
       // separate "tag found" event to react to, so a single status
       // message covers the whole wait-and-write window.
       setStatusMessage(c.statusWriting);
-      await writeRingoCardUrl(destinationUrl, controller.signal);
+      await writeRingoCard(destinationUrl, contact, controller.signal);
 
       const commitRes = await fetch(`/api/ringo-cards/${cardId}/write`, {
         method: "POST",
@@ -189,6 +212,7 @@ export default function RingoCardWriter({
       updateCard(commitJson.card);
       setSuccessCard(commitJson.card);
       setVerifyState("idle");
+      setVerifyHasContact(null);
       setFlow(null);
       setStage("success");
     } catch (err) {
@@ -203,10 +227,12 @@ export default function RingoCardWriter({
   const handleReadCard = async (card: RingoCardRow) => {
     if (verifyState === "checking") return;
     setVerifyState("checking");
+    setVerifyHasContact(null);
     try {
       const result = await readRingoCard(15000);
       const normalize = (u: string | null) => (u || "").replace(/\/$/, "");
       const matches = !!result.url && normalize(result.url) === normalize(card.destination_url);
+      setVerifyHasContact(result.hasContactRecord);
 
       const res = await fetch(`/api/ringo-cards/${card.id}/verify`, {
         method: "POST",
@@ -252,6 +278,22 @@ export default function RingoCardWriter({
         <p className="text-[11px] text-ringo-muted mb-0.5">{c.yourRingoProfile}</p>
         <p className="text-sm font-mono text-ringo-indigo break-all">{destinationUrl.replace(/^https?:\/\//, "")}</p>
       </div>
+    </div>
+  );
+
+  // Shown right before writing so the creator knows exactly what will be on
+  // the card — never a row for a field the profile doesn't have (see
+  // ProfileLite's own comment: never a placeholder/fabricated value).
+  const ContactPreview = () => (
+    <div className="rounded-card border border-ringo-border/70 bg-ringo-bg p-4 mb-4">
+      <p className="text-xs font-semibold text-ringo-text mb-2.5">{c.contactPreviewTitle}</p>
+      <div className="flex flex-col">
+        <Row label={c.contactNameLabel} value={contact.name} />
+        {contact.phone && <Row label={t.profilePage.phone} value={contact.phone} />}
+        {contact.email && <Row label={t.profilePage.email} value={contact.email} />}
+        <Row label={c.contactProfileLabel} value={destinationUrl.replace(/^https?:\/\//, "")} />
+      </div>
+      <p className="text-[11px] text-ringo-muted mt-3">{c.contactPreviewHint}</p>
     </div>
   );
 
@@ -425,7 +467,9 @@ export default function RingoCardWriter({
             <h1 className="font-display text-xl font-medium text-ringo-text mb-1 text-center">
               {flow.mode === "rewrite" ? c.rewriteCta : c.readyTitle}
             </h1>
-            <p className="text-sm text-ringo-muted mb-2 text-center">{c.readySubtitle}</p>
+            <p className="text-sm text-ringo-muted mb-4 text-center">{c.readySubtitle}</p>
+
+            <ContactPreview />
 
             <RingoCardVisual pulsing={busy} />
 
@@ -475,7 +519,7 @@ export default function RingoCardWriter({
           <p className="text-sm text-ringo-muted mb-1">{c.successSubtitle}</p>
           <p className="text-xs text-ringo-muted mb-6">{c.successHint}</p>
 
-          <div className="w-full rounded-card border border-ringo-border/70 bg-ringo-bg p-4 text-left mb-6">
+          <div className="w-full rounded-card border border-ringo-border/70 bg-ringo-bg p-4 text-left mb-3">
             <p className="text-sm font-semibold text-ringo-text uppercase mb-2">{profile.name || profile.username}</p>
             <Row label={c.verifyDestination} value={destinationUrl.replace(/^https?:\/\//, "")} />
             <Row label={c.verifyStatus} value={c.verifyReady} />
@@ -483,7 +527,12 @@ export default function RingoCardWriter({
               label={c.verifyConnected}
               value={verifyState === "ok" ? `✓ ${c.verifyConnected}` : verifyState === "checking" ? c.statusVerifying : c.verifyNotYetRead}
             />
+            {/* Informational only — never gates verifyState's own pass/fail (see readRingoCard's
+                own comment: an older card written before this feature simply won't have this). */}
+            {verifyHasContact !== null && <Row label={c.contactPreviewTitle} value={verifyHasContact ? c.verifyContactFound : c.verifyContactNotFound} />}
           </div>
+
+          <p className="text-xs text-ringo-muted mb-6 max-w-xs">{c.rewriteContactReminder}</p>
 
           <div className="w-full flex flex-col sm:flex-row gap-2 mb-3">
             <button

@@ -2,12 +2,21 @@
 --
 -- Product framing (see src/components/dashboard/RingoCardWriter.tsx): a
 -- physical "Ringo Card" (an NTAG216 NFC tag Ringo Connect distributes)
--- stores ONLY a Ringo profile URL, e.g. https://ringoconnectltd.com/jaykay.
--- It never stores the profile's data itself, so a creator can freely edit
--- their profile later without ever needing to rewrite the physical card.
--- This table is the server-side record of which physical card points at
--- which creator/profile — not the card's content (that lives on the NFC
--- chip itself, written client-side via the Web NFC API).
+-- stores a Ringo profile URL, e.g. https://ringoconnectltd.com/jaykay, as
+-- its first NDEF record. Since the Offline NFC Contact Fallback (see
+-- src/lib/ringoCardWriter.ts's writeRingoCard/buildRingoCardVCard), a card
+-- written going forward also carries a second, independent vCard record —
+-- the profile's own public name/phone/email — so a phone with no internet
+-- can still read basic contact info directly off the chip; a reader that
+-- only understands the first record still just opens the profile URL,
+-- exactly as before. The card still never stores the rest of the
+-- profile's data (products, links, etc.), so a creator can freely edit
+-- most of their profile later without needing to rewrite the physical
+-- card — only a change to the snapshotted name/phone/email requires a
+-- rewrite to update the offline copy. This table is the server-side
+-- record of which physical card points at which creator/profile — not
+-- the card's content (that lives on the NFC chip itself, written
+-- client-side via the Web NFC API).
 --
 -- Design notes:
 --

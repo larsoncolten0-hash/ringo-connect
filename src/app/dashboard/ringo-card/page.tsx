@@ -55,6 +55,11 @@ export default async function RingoCardWriterPage() {
           categories: profile.categories,
           about_location: profile.about_location,
           published: profile.published,
+          // Offline NFC contact fallback (see RingoCardWriter.tsx) — the same
+          // public contact fields already shown on this profile's own About
+          // card, never WhatsApp, never the private account login email.
+          about_phone: profile.about_phone,
+          about_email: profile.about_email,
         }}
         siteUrl={siteUrl}
         initialCards={cards || []}

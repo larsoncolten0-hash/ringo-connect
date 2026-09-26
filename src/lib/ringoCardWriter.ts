@@ -123,6 +123,7 @@ export type RingoCardErrorCode =
   | "aborted"
   | "network_error"
   | "timeout"
+  | "payload_too_large"
   | "unknown";
 
 export class RingoCardError extends Error {
@@ -190,9 +191,112 @@ export async function writeRingoCardUrl(url: string, signal?: AbortSignal): Prom
   }
 }
 
+// ---------------------------------------------------------------------------
+// Offline contact fallback (vCard) — additive to the existing URL-only card.
+//
+// When there's no internet to load the Ringo profile, the tapping phone's
+// own NFC stack can still surface this basic contact information straight
+// off the chip, independent of the Ringo website. The URL record always
+// stays first and is always written exactly as before — a phone/reader
+// that only understands the URL record behaves exactly as it always has;
+// the vCard is a second, independent record it's free to ignore.
+//
+// Deliberately NOT stored anywhere server-side: this is a pure encode/decode
+// of the same public profile fields already shown on the profile's own
+// About card (about_phone/about_email), computed fresh from whatever the
+// caller passes in. Nothing new to keep in sync, nothing new to leak.
+// ---------------------------------------------------------------------------
+
+export interface RingoCardContact {
+  /** Public display name — never a raw id/username-only fallback is required, callers already resolve name || username. */
+  name: string;
+  /** The profile's own public contact phone (about_phone) — never WhatsApp, never any private/internal number. Omit if not set. */
+  phone?: string | null;
+  /** The profile's own public contact email (about_email) — never the account/login email. Omit if not set. */
+  email?: string | null;
+  /** The exact same destination URL the URL record itself carries. */
+  url: string;
+}
+
+// vCard 3.0 (RFC 6350-compatible) — the most broadly recognized plain-text
+// contact format across phone OSes, preferred over inventing a proprietary
+// Ringo format (see the task's own compatibility requirement). CRLF line
+// endings per spec. Commas/semicolons/backslashes/newlines are escaped in
+// every value per the vCard spec, so a name like "Doe, John" can never
+// corrupt the record's structure. Never emits a field that isn't set —
+// no "TEL:" or "EMAIL:" line ever appears for a profile that has none.
+function escapeVCardValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/,/g, "\\,").replace(/;/g, "\\;");
+}
+
+export function buildRingoCardVCard(contact: RingoCardContact): string {
+  const lines = ["BEGIN:VCARD", "VERSION:3.0", `FN:${escapeVCardValue(contact.name)}`];
+  if (contact.phone && contact.phone.trim()) lines.push(`TEL:${escapeVCardValue(contact.phone.trim())}`);
+  if (contact.email && contact.email.trim()) lines.push(`EMAIL:${escapeVCardValue(contact.email.trim())}`);
+  lines.push(`URL:${escapeVCardValue(contact.url)}`);
+  lines.push("END:VCARD");
+  return lines.join("\r\n");
+}
+
+// NTAG216 (the chip Ringo Cards use — see RingoCardWriter.tsx/the ringo_cards
+// migration) has 888 bytes of usable NDEF user memory. Kept as a named,
+// documented constant rather than a magic number, and deliberately
+// conservative (real usable space is slightly less once NDEF's own
+// message/record framing overhead is counted) so "fits" here always means
+// it will genuinely fit on the real chip, never just barely.
+export const NTAG216_USABLE_BYTES = 888;
+// Rough, deliberately generous per-record NDEF framing overhead (type
+// length, payload length, header flags) — not exact, but errs toward
+// over-, never under-, estimating so a borderline payload fails the
+// pre-flight check here rather than failing confusingly on the chip itself.
+const NDEF_RECORD_OVERHEAD_BYTES = 16;
+
+/** Encoded byte size of the URL record + the vCard record together, including estimated NDEF framing. */
+export function estimateRingoCardPayloadBytes(url: string, vcard: string | null): number {
+  const encoder = new TextEncoder();
+  let total = encoder.encode(url).length + NDEF_RECORD_OVERHEAD_BYTES;
+  if (vcard) total += encoder.encode(vcard).length + NDEF_RECORD_OVERHEAD_BYTES;
+  return total;
+}
+
+// Writes the URL record (unchanged, always first) plus a second vCard
+// record built from `contact` — omitted entirely when `contact` is null,
+// which keeps this function's behavior identical to writeRingoCardUrl for
+// any caller that has no contact info to offer (there is none in this app
+// today, but the option exists rather than being silently assumed).
+// Fails BEFORE touching NFC hardware if the combined payload can't fit the
+// card's known usable memory — never attempts a write that would only
+// half-succeed or corrupt the tag.
+export async function writeRingoCard(url: string, contact: RingoCardContact | null, signal?: AbortSignal): Promise<void> {
+  if (typeof window === "undefined") throw new RingoCardError("unsupported", "Ringo Card Writer requires a browser.");
+  if (!isWebNfcSupported()) throw new RingoCardError("unsupported", "Web NFC is not available in this browser.");
+  if (!isSecureContextAvailable()) throw new RingoCardError("insecure_context", "A secure (HTTPS) connection is required.");
+
+  const vcard = contact ? buildRingoCardVCard(contact) : null;
+  const sizeBytes = estimateRingoCardPayloadBytes(url, vcard);
+  if (sizeBytes > NTAG216_USABLE_BYTES) {
+    throw new RingoCardError("payload_too_large", `Ringo Card payload (${sizeBytes} bytes) exceeds the card's usable memory (${NTAG216_USABLE_BYTES} bytes).`);
+  }
+
+  const records: NDEFRecordInit[] = [{ recordType: "url", data: url }];
+  if (vcard) records.push({ recordType: "mime", mediaType: "text/vcard", data: vcard });
+
+  const reader = new window.NDEFReader!();
+  try {
+    await reader.write({ records }, { signal });
+  } catch (err) {
+    throw mapNativeError(err);
+  }
+}
+
 export interface RingoCardReadResult {
   // The URL found on the card, if its first record decodes as one.
   url: string | null;
+  // Whether a text/vcard MIME record was also found on the card — informational
+  // only (see RingoCardWriter.tsx's Verify step): an older card written before
+  // this feature existed, or a partial/older write, legitimately has none, so
+  // this never affects whether the URL check itself is considered a match.
+  hasContactRecord: boolean;
   // The chip's hardware serial number, where the browser exposes it —
   // metadata only, see the migration's comment on ringo_cards.card_uid.
   serialNumber: string | null;
@@ -234,7 +338,8 @@ export async function readRingoCard(timeoutMs = 15000): Promise<RingoCardReadRes
           url = null;
         }
       }
-      resolve({ url, serialNumber: event.serialNumber || null });
+      const hasContactRecord = event.message.records.some((r) => r.recordType === "mime" && r.mediaType === "text/vcard");
+      resolve({ url, hasContactRecord, serialNumber: event.serialNumber || null });
     };
 
     reader.onreadingerror = () => {
