@@ -21,6 +21,7 @@ import type { AiDenyReason, AiLimitReason } from "@/lib/ai/codes";
 //   6. not acting inside someone else's organization (Phase 1 is owner-only) → staff_workspace
 //   7. not a demo account              → demo_account
 //   8. beta allowlist (when enabled)   → not_in_beta
+//   9. plan includes Ringo AI (unless step 8 already granted a beta pass) → plan_not_eligible
 // Usage limits are a separate step so /api/ai/status can report "you're in,
 // but out of messages today" distinctly: checkAiQuota (read-only, for the
 // status display) and reserveAiQuota (atomic, what /api/ai/chat enforces).
@@ -48,7 +49,11 @@ export async function resolveAiAccess(): Promise<AiAccessResult> {
   const provider = getAiProvider(settings.provider);
   if (!provider || !provider.isConfigured()) return { ok: false, reason: "not_configured" };
 
-  const { data: userRow } = await supabase.from("users").select("status, role").eq("id", user.id).maybeSingle();
+  // `plans(ai_enabled)` follows the same users.plan_id -> plans embed the
+  // Team Management gate already uses (see getOrgTeamEnabled in
+  // src/lib/team/access.ts) — the plan is the source of truth for Ringo AI
+  // eligibility, never a hardcoded plan name here.
+  const { data: userRow } = await supabase.from("users").select("status, role, plan_id, plans(ai_enabled)").eq("id", user.id).maybeSingle();
   if (!userRow || userRow.status !== "active") return { ok: false, reason: "account_inactive" };
 
   // Allow-listed columns only — never select("*") on profiles (it carries
@@ -86,6 +91,11 @@ export async function resolveAiAccess(): Promise<AiAccessResult> {
     .eq("user_id", user.id)
     .maybeSingle();
   if (settings.accessMode === "allowlist" && !beta) return { ok: false, reason: "not_in_beta" };
+  // A beta grant is an explicit override for testing — it lets an
+  // otherwise-ineligible plan (including Free) use Ringo AI, exactly like it
+  // already overrides accessMode "allowlist" above. Only a non-beta caller's
+  // plan is checked.
+  if (!beta && (userRow as any).plans?.ai_enabled !== true) return { ok: false, reason: "plan_not_eligible" };
   if (beta && typeof beta.daily_message_limit_override === "number") dailyMessageLimit = beta.daily_message_limit_override;
 
   return {

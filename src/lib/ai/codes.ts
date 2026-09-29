@@ -12,6 +12,7 @@ export const AI_DENY_REASONS = [
   "disabled",
   "not_configured",
   "not_in_beta",
+  "plan_not_eligible",
 ] as const;
 export type AiDenyReason = (typeof AI_DENY_REASONS)[number];
 

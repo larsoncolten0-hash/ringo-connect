@@ -57,6 +57,8 @@ export interface WorkspaceSnapshot {
     badgeRemoved: boolean;
     teamEnabled: boolean;
     maxTeamSeats: number | null;
+    /** Informational only — the real gate is resolveAiAccess() in guard.ts, not this snapshot. */
+    aiEnabled: boolean;
     expiresAt: string | null;
   };
   onboardingCompleted: boolean;
@@ -115,7 +117,7 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
     db
       .from("users")
       .select(
-        "plan_expires_at, onboarding_completed_at, plans(name, display_name, max_links, max_products, pixels_enabled, custom_theme_enabled, full_analytics_enabled, badge_removed, team_enabled, max_team_seats)"
+        "plan_expires_at, onboarding_completed_at, plans(name, display_name, max_links, max_products, pixels_enabled, custom_theme_enabled, full_analytics_enabled, badge_removed, team_enabled, max_team_seats, ai_enabled)"
       )
       .eq("id", workspace.userId)
       .maybeSingle(),
@@ -251,6 +253,7 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
       badgeRemoved: planRow.badge_removed === true,
       teamEnabled: planRow.team_enabled === true,
       maxTeamSeats: planRow.max_team_seats ?? null,
+      aiEnabled: planRow.ai_enabled === true,
       expiresAt: (u as any)?.plan_expires_at ?? null,
     },
     onboardingCompleted: !!(u as any)?.onboarding_completed_at,

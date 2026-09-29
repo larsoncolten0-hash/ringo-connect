@@ -126,6 +126,82 @@ check("empty price clears it (null)", parseAiSettingsPatch({ priceInputPerMTok: 
 check("unknown keys ignored, not written", Object.keys(parseAiSettingsPatch({ updated_by: "x", id: 9 })).length === 0);
 check("missing settings row fails CLOSED", mapAiSettingsRow(null).enabled === false && mapAiSettingsRow(null).maxToolRounds === 0);
 
+// ------------------------------------------------------------------ Ringo AI plan-based access gate (resolveAiAccess)
+// Exercises the REAL resolveAiAccess() (src/lib/ai/guard.ts) against a fake Supabase client and a
+// fake ai_settings row — every other existing check in this function (kill switch, provider
+// configured, account active, profile ownership, staff-workspace, demo account, beta allowlist)
+// stays exactly as before; only the new plan-eligibility step is what's under test here.
+{
+  const serverMod = load("lib/supabase/server.ts");
+  const teamAccessMod = load("lib/team/access.ts");
+  teamAccessMod.getActiveOrgCookie = () => null; // no active-org cookie in any of these scenarios
+
+  const FAKE_USER = { id: "11111111-1111-1111-1111-111111111111" };
+  let tableRows = {};
+  const chain = () => {
+    const builder = { select: () => builder, eq: () => builder, maybeSingle: async () => ({ data: null, error: null }) };
+    return builder;
+  };
+  const fakeClient = () => ({
+    auth: { getUser: async () => ({ data: { user: FAKE_USER } }) },
+    from: (table) => {
+      const builder = { select: () => builder, eq: () => builder, maybeSingle: async () => ({ data: tableRows[table] ?? null, error: null }) };
+      return builder;
+    },
+  });
+  serverMod.createClient = fakeClient;
+  serverMod.createAdminClient = fakeClient;
+
+  const AI_SETTINGS_BASE = {
+    enabled: true, access_mode: "all_owners", provider: "anthropic", model_chat: "claude-sonnet-5", effort: "medium",
+    daily_message_limit: 30, monthly_user_token_limit: 3000000, monthly_global_budget_usd: 50, max_tool_rounds: 4,
+    max_output_tokens: 4096, history_message_limit: 12, price_input_per_mtok_usd: 2, price_output_per_mtok_usd: 10,
+    price_cache_read_per_mtok_usd: 0.2, price_cache_write_per_mtok_usd: 2.5,
+  };
+  const setup = ({ settings = {}, aiEnabled, beta = null } = {}) => {
+    tableRows = {
+      ai_settings: { ...AI_SETTINGS_BASE, ...settings },
+      users: { status: "active", role: "owner", plan_id: "p1", plans: { ai_enabled: aiEnabled } },
+      profiles: { id: "profile-1", username: "demo", is_demo: false },
+      ai_beta_access: beta,
+    };
+  };
+
+  const realKey = process.env.ANTHROPIC_API_KEY;
+  process.env.ANTHROPIC_API_KEY = "unit-test-placeholder-not-a-real-key";
+  const { resolveAiAccess } = load("lib/ai/guard.ts");
+
+  for (const [label, aiEnabled] of [["free", false], ["basic", true], ["pro", true], ["business_basic", true], ["business_pro", true]]) {
+    setup({ aiEnabled });
+    const r = await resolveAiAccess();
+    if (aiEnabled) check(`plan gate: ${label} (ai_enabled=true) → allowed`, r.ok === true, JSON.stringify(r));
+    else check(`plan gate: ${label} (ai_enabled=false) → denied plan_not_eligible`, !r.ok && r.reason === "plan_not_eligible", JSON.stringify(r));
+  }
+
+  setup({ aiEnabled: false, beta: { user_id: FAKE_USER.id, daily_message_limit_override: null } });
+  let r = await resolveAiAccess();
+  check("plan gate: an ai_beta_access grant overrides an ineligible (Free) plan", r.ok === true, JSON.stringify(r));
+
+  setup({ aiEnabled: true, settings: { enabled: false } });
+  r = await resolveAiAccess();
+  check("plan gate: the global kill switch still blocks everyone, even on an eligible plan", !r.ok && r.reason === "disabled", JSON.stringify(r));
+
+  setup({ aiEnabled: true, settings: { access_mode: "allowlist" }, beta: null });
+  r = await resolveAiAccess();
+  check("plan gate: allowlist mode still blocks a non-beta user on an eligible plan (existing behavior unchanged)", !r.ok && r.reason === "not_in_beta", JSON.stringify(r));
+
+  setup({ aiEnabled: true, settings: { access_mode: "allowlist" }, beta: { user_id: FAKE_USER.id, daily_message_limit_override: 5 } });
+  r = await resolveAiAccess();
+  check(
+    "plan gate: allowlist mode + beta grant + eligible plan → allowed, and the beta's daily-limit override still applies",
+    r.ok === true && r.access.dailyMessageLimit === 5,
+    JSON.stringify(r)
+  );
+
+  if (realKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+  else process.env.ANTHROPIC_API_KEY = realKey;
+}
+
 // ------------------------------------------------------------------ tool registry
 const ctxFor = (snapshot, actor = { kind: "owner" }) => ({
   workspace: { userId: "u", profileId: "p", username: "demo", actor },

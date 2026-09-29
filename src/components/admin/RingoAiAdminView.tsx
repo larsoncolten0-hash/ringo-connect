@@ -109,6 +109,7 @@ export default function RingoAiAdminView() {
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
+  const [saveErrorDetail, setSaveErrorDetail] = useState<string | null>(null);
   const [betaUsers, setBetaUsers] = useState<BetaUser[] | null>(null);
   const [betaEmail, setBetaEmail] = useState("");
   const [betaLimit, setBetaLimit] = useState("");
@@ -151,14 +152,22 @@ export default function RingoAiAdminView() {
   const save = async (patch: Record<string, unknown>) => {
     setSaving(true);
     setSaveState("idle");
+    setSaveErrorDetail(null);
     try {
       const res = await fetch("/api/admin/ai/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        // Server-provided diagnostic (code + message) when the failure was a database error —
+        // see PUT /api/admin/ai/settings. Falls back to the generic message below when absent
+        // (e.g. a 403, or a plain validation rejection with no diagnostic attached).
+        const detail = data?.detail;
+        setSaveErrorDetail(detail?.code || detail?.message ? [detail.code, detail.message].filter(Boolean).join(": ") : null);
+        throw new Error();
+      }
       setSettings(data.settings);
       setForm(toForm(data.settings));
       setPricingConfigured(
@@ -353,7 +362,12 @@ export default function RingoAiAdminView() {
           {saving ? a.saving : a.save}
         </button>
         {saveState === "saved" && <span className="text-sm text-emerald-600">{a.saved}</span>}
-        {saveState === "error" && <span className="text-sm text-ringo-coral">{a.saveError}</span>}
+        {saveState === "error" && (
+          <span className="text-sm text-ringo-coral">
+            {a.saveError}
+            {saveErrorDetail && <> — <code>{saveErrorDetail}</code></>}
+          </span>
+        )}
       </div>
 
       <Card title={a.betaTitle}>

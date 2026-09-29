@@ -45,7 +45,10 @@ export async function PUT(request: Request) {
     .single();
   if (error) {
     console.error("ai settings update failed:", error.message);
-    return NextResponse.json({ error: "update_failed" }, { status: 500 });
+    // Postgres error code + message only (e.g. a CHECK-constraint violation) — never the row
+    // payload, credentials, or any other DB detail — so an admin can actually see why a save was
+    // rejected instead of a generic message, without exposing anything sensitive.
+    return NextResponse.json({ error: "update_failed", detail: { code: error.code, message: error.message } }, { status: 500 });
   }
 
   await db.from("admin_audit_log").insert({ admin_id: admin.id, action: "ai_settings_update", details: patch });
