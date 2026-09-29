@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { profileHasTicketing } from "@/lib/categories";
@@ -28,6 +29,7 @@ export default async function MusicStoreRoute({ params }: { params: { username: 
     .single();
 
   if (!profile || !profileHasTicketing(profile)) return notFound();
+  if (await isPublicProfileSuspended(params.username)) return notFound();
 
   // Same plan-based visibility limit as the main profile page (see
   // planEntitlements.ts and that page's own comment on why this must go

@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata, ResolvingMetadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
@@ -26,6 +27,7 @@ async function getItem(username: string, id: string) {
     .eq("published", true)
     .single();
   if (!profile) return null;
+  if (await isPublicProfileSuspended(username)) return null;
   // An item the creator marked unavailable is hidden from the profile, so a
   // direct link to it 404s too (same rule as every other public listing).
   const product = (profile.products || []).find((p: any) => p.id === id && p.available !== false);

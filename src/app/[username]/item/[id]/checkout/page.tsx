@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -26,6 +27,7 @@ async function getItem(username: string, id: string) {
     .eq("published", true)
     .single();
   if (!profile) return null;
+  if (await isPublicProfileSuspended(username)) return null;
   const product = (profile.products || []).find((p: any) => p.id === id);
   if (!product) return null;
   return { profile, product };

@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import { randomUUID } from "crypto";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
@@ -38,6 +39,7 @@ export default async function PublicProfilePage({
     .single();
 
   if (!profile) return notFound();
+  if (await isPublicProfileSuspended(params.username)) return notFound();
 
   // Subscription controls ACCESS, never data retention (see planEntitlements.ts): a downgraded
   // creator's extra links/products/theme customization stay fully intact in the database — only

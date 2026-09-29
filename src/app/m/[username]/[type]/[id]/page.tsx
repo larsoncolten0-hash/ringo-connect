@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata, ResolvingMetadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { generateMetadata as generateProfileMetadata } from "@/lib/profileMetadata";
@@ -17,6 +18,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const base = await generateProfileMetadata({ params }, parent);
   if (!VALID_TYPES.includes(params.type as ItemType)) return base;
+  if (await isPublicProfileSuspended(params.username)) return base;
   const supabase = createClient();
   const table = { track: "tracks", release: "music_releases", merch: "products", ticket: "events" }[params.type as ItemType];
   const { data: profile } = await supabase
@@ -74,6 +76,7 @@ export default async function ItemDetailRoute({
     .single();
 
   if (!profile || !profileHasTicketing(profile)) return notFound();
+  if (await isPublicProfileSuspended(params.username)) return notFound();
 
   const item =
     type === "track"

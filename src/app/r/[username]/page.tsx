@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { profileHasCategory } from "@/lib/categories";
@@ -31,6 +32,7 @@ export default async function RestaurantOrderRoute({
     .single();
 
   if (!profile || !profileHasCategory(profile, "restaurant_food")) return notFound();
+  if (await isPublicProfileSuspended(params.username)) return notFound();
 
   // restaurant_tables has no public RLS policy on purpose (a competitor
   // shouldn't be able to enumerate a restaurant's tables) — resolving a

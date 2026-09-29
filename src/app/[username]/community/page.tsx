@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CommunityJoinPage from "@/components/CommunityJoinPage";
@@ -20,6 +21,7 @@ export default async function CommunityJoinRoute({ params }: { params: { usernam
     .single();
 
   if (!profile || !isCommunityEnabled(profile)) return notFound();
+  if (await isPublicProfileSuspended(params.username)) return notFound();
 
   return <CommunityJoinPage profile={profile} />;
 }

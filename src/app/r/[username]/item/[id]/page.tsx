@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata, ResolvingMetadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -22,6 +23,7 @@ async function getItem(username: string, id: string) {
     .eq("published", true)
     .single();
   if (!profile || !profileHasCategory(profile, "restaurant_food")) return null;
+  if (await isPublicProfileSuspended(username)) return null;
   const item = (profile.menu_items || []).find((i: any) => i.id === id);
   return { profile, item: item ?? null };
 }

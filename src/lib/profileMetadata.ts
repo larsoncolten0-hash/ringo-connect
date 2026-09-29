@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata, ResolvingMetadata } from "next";
 import type { Viewport } from "next";
 import { createClient } from "@/lib/supabase/server";
@@ -21,6 +22,9 @@ async function getProfileForMetadata(username: string) {
     .eq("username", username)
     .eq("published", true)
     .single();
+  // A suspended owner's profile is unavailable: no title, description, icons or theme
+  // may leak through <head> (this also feeds generateViewport).
+  if (data && (await isPublicProfileSuspended(username))) return null;
   return data;
 }
 

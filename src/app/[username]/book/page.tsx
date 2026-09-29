@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Metadata, ResolvingMetadata } from "next";
@@ -20,6 +21,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const base = await generateProfileMetadata({ params }, parent);
   if (!searchParams?.service) return base;
+  if (await isPublicProfileSuspended(params.username)) return base;
   const supabase = createClient();
   const { data: profile } = await supabase
     .from("profiles")
@@ -46,6 +48,7 @@ export default async function BookingRoute({ params, searchParams }: { params: {
     .single();
 
   if (!profile || !profile.bookings_enabled) return notFound();
+  if (await isPublicProfileSuspended(params.username)) return notFound();
 
   const initialServiceId = (profile.booking_services || []).some((s: any) => s.id === searchParams?.service) ? (searchParams.service as string) : "";
 

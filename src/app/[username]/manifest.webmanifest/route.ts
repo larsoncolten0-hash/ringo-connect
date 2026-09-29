@@ -1,3 +1,4 @@
+import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -26,6 +27,10 @@ export async function GET(_request: Request, { params }: { params: { username: s
     .single();
 
   if (!profile) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  // A suspended owner's profile is unavailable — not installable either.
+  if (await isPublicProfileSuspended(params.username)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
