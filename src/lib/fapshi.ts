@@ -209,10 +209,23 @@ export async function fapshiPayout(params: {
     cache: "no-store",
   });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.message || `Fapshi payout failed (${res.status})`);
+  // The HTTP status is attached to the thrown error (`httpStatus`) so callers
+  // that need to tell "Fapshi definitively refused" from "outcome unknown"
+  // (the Ambassador payout flow) can — even when the body isn't valid JSON,
+  // which used to surface as a bare SyntaxError with the status lost. A
+  // 2xx whose body can't be read is still thrown as that SyntaxError: the
+  // request reached Fapshi, so it must be treated as unknown, not failed.
+  let data: any;
+  let parseError: unknown = null;
+  try {
+    data = await res.json();
+  } catch (err) {
+    parseError = err;
   }
+  if (!res.ok) {
+    throw Object.assign(new Error(data?.message || `Fapshi payout failed (${res.status})`), { httpStatus: res.status });
+  }
+  if (parseError) throw parseError;
   return data;
 }
 

@@ -4,6 +4,7 @@ import { fapshiGetStatus } from "@/lib/fapshi";
 import { getCategory, isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
 import { sendPushAndBellToAdmins } from "@/lib/push/withBell";
 import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
+import { notifyMilestoneEarned } from "@/lib/ambassador/notifications";
 import { NextResponse } from "next/server";
 import { isReservedUsername } from "@/lib/reservedUsernames";
 import { notifyUser } from "@/lib/notifications";
@@ -328,6 +329,40 @@ export async function POST(request: Request, { params }: { params: { id: string 
       reviewed_at: new Date().toISOString(),
     })
     .eq("id", params.id);
+
+  // Ambassador Program (Phase B) — Milestone 1 (sale + registration).
+  // Registration is only genuinely complete here (the account itself was
+  // created earlier via auth.admin.createUser(), but this status update
+  // is the confirming gate the Ambassador business rule keys off).
+  // Resolving which ambassador_sales row belongs to this signup request
+  // is a plain FK lookup, not a business decision — the database
+  // function itself is the sole authority on whether that sale is
+  // actually locked, whether milestone 1 was already earned, who the
+  // recipients are, and every percentage/amount (including the
+  // no-Team-Leader case, where it creates only the Ambassador row).
+  // Wholly independent of notifyAffiliateCommissionIfAny() below, which
+  // remains untouched. A failure here must never undo the account that
+  // was just successfully created — only logged for recovery, since
+  // ambassador_evaluate_milestone_1() is itself safely re-callable later.
+  try {
+    const { data: ambassadorSale } = await adminClient
+      .from("ambassador_sales")
+      .select("id")
+      .eq("signup_request_id", signupRequest.id)
+      .maybeSingle();
+    if (ambassadorSale?.id) {
+      const { data: milestoneResult, error: milestoneError } = await adminClient.rpc("ambassador_evaluate_milestone_1", {
+        p_sale_id: ambassadorSale.id,
+        p_customer_user_id: newUserId,
+      });
+      if (milestoneError) console.error("ambassador_evaluate_milestone_1 failed:", milestoneError.message);
+      // Phase G — ok:true only on the real locked -> milestone_1_earned
+      // transition; recipients come from the ledger rows it just wrote.
+      else if (milestoneResult?.ok) await notifyMilestoneEarned(adminClient, ambassadorSale.id, "sale_registration");
+    }
+  } catch (err: any) {
+    console.error("ambassador milestone 1 evaluation threw unexpectedly:", err?.message);
+  }
 
   await adminClient.from("admin_audit_log").insert({
     admin_id: admin.id,

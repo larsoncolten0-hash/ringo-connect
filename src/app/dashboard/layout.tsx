@@ -140,6 +140,17 @@ export default async function DashboardLayout({
   // commerce is off unless the profile already has orders. Any failure just hides the entry.
   const hasShop = !isActingAsStaff && ownProfile ? await shopIsVisibleFor(supabase, ownProfile) : false;
 
+  // Ambassador Program — whether the signed-in person (not the active
+  // organization) has their own ambassador_profiles row. RLS already
+  // permits reading one's own row via the session client, so no admin
+  // client is needed here. Safe to run before the Ambassador migrations
+  // exist: a query against a not-yet-created table resolves with data:
+  // null rather than throwing, so isAmbassador just stays false.
+  const { data: ambassadorProfile } = await supabase.from("ambassador_profiles").select("id").eq("user_id", user.id).maybeSingle();
+  const isAmbassador = !!ambassadorProfile;
+  const { data: ambassadorTeam } = await supabase.from("ambassador_teams").select("id").eq("team_leader_user_id", user.id).maybeSingle();
+  const isTeamLeader = !!ambassadorTeam;
+
   return (
     <DashboardShell
       userId={user.id}
@@ -157,6 +168,8 @@ export default async function DashboardLayout({
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
       canUseLoyalty={canUseLoyalty}
+      isAmbassador={isAmbassador}
+      isTeamLeader={isTeamLeader}
       organization={
         active
           ? {

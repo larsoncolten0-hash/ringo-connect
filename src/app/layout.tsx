@@ -3,6 +3,7 @@ import { Space_Grotesk, Inter } from "next/font/google";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import { SoundProvider } from "@/components/SoundProvider";
 import ReferralCapture from "@/components/ReferralCapture";
+import AmbassadorCodeCapture from "@/components/AmbassadorCodeCapture";
 import { getBrandingSettings } from "@/lib/branding";
 import "./globals.css";
 
@@ -102,6 +103,7 @@ export default async function RootLayout({
       </head>
       <body>
         <ReferralCapture />
+        <AmbassadorCodeCapture />
         <LanguageProvider>
           <SoundProvider>{children}</SoundProvider>
         </LanguageProvider>

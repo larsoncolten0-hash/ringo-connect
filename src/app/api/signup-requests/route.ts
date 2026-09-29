@@ -60,6 +60,79 @@ export async function POST(request: Request) {
     );
   }
 
+  // Ambassador attribution (Phase A — capture/attribution only; no
+  // commission logic of any kind lives here). Wholly independent of
+  // referral_code/users.referred_by: a different body field, a different
+  // column, never merged, never read by the legacy affiliate system.
+  //
+  // This route never decides whether a code is real/active/self-
+  // referring, never computes a card price, and never picks which
+  // Ambassador/Team Leader/percentage applies — ambassador_attribute_sale()
+  // (the approved, already-idempotent database function) is the sole
+  // authority for all of that. This route's only two jobs are: (1) find
+  // which of the requested addons is actually a Smart Card, so the
+  // required card_type/selling_price can be snapshotted from the real
+  // `addons` row (never a client-supplied price), and (2) tell the
+  // difference between an ordinary declined attribution (proceed
+  // normally) and a genuine system failure (protect the Ambassador's
+  // sale — see below).
+  const rawAmbassadorCode = typeof body.ambassador_code === "string" ? body.ambassador_code.trim().slice(0, 40) : "";
+  if (rawAmbassadorCode) {
+    const requestedAddonIds: string[] = Array.isArray(body.requested_addon_ids) ? body.requested_addon_ids : [];
+    const { data: selectedAddons } = requestedAddonIds.length
+      ? await admin
+          .from("addons")
+          .select("id, name, price_xaf, grants_plan_name, grants_plan_duration_days")
+          .in("id", requestedAddonIds)
+      : { data: [] as any[] };
+    // An addon that grants a plan (grants_plan_name + grants_plan_duration_days)
+    // IS a Ringo physical Smart Card in this codebase's own model — see
+    // 2026-10-07_card_subscription_bundles.sql. No other addon type sets
+    // both fields. V1 only ever attributes an actual Smart Card purchase;
+    // a plain free-profile signup with no card in the cart is simply not
+    // a qualifying sale, even with a valid-looking Ambassador code.
+    const cardAddon = (selectedAddons || []).find((a: any) => a.grants_plan_name && a.grants_plan_duration_days);
+
+    if (cardAddon) {
+      const { data: attribution, error: attributionError } = await admin.rpc("ambassador_attribute_sale", {
+        p_signup_request_id: data.id,
+        p_ambassador_code: rawAmbassadorCode,
+        p_signup_email: email,
+        p_signup_whatsapp: body.whatsapp_number.trim(),
+        p_card_type: cardAddon.name,
+        p_selling_price: Number(cardAddon.price_xaf),
+        p_payment_reference: null,
+      });
+
+      if (attributionError) {
+        // A genuine, unexpected database/server failure while a real
+        // attribution attempt was in flight — this is NOT the same as an
+        // ordinary declined attribution (invalid code, inactive
+        // ambassador, self-referral), which the function itself already
+        // handles as a normal `{ok:false,...}` result below. Silently
+        // letting this signup proceed would permanently lose the
+        // Ambassador's sale (there's no later point this can be
+        // reconstructed from), so this request is rejected — same as any
+        // other required-field failure this route already returns — and
+        // the just-created row is rolled back so a retry starts clean.
+        console.error("ambassador_attribute_sale failed unexpectedly:", attributionError.message);
+        await admin.from("signup_requests").delete().eq("id", data.id);
+        return NextResponse.json({ error: "Could not submit — try again." }, { status: 500 });
+      }
+
+      // A normal, authoritative decision from the database — valid, or a
+      // documented decline (invalid code, inactive ambassador, self-
+      // referral) — is never treated as an error; the signup always
+      // proceeds either way. signup_requests.ambassador_code is only
+      // ever written here, and only once the database has actually
+      // confirmed the code as a real, active, non-self-referring
+      // Ambassador — never the raw client-submitted value.
+      if (attribution?.ok) {
+        await admin.from("signup_requests").update({ ambassador_code: rawAmbassadorCode.toUpperCase() }).eq("id", data.id);
+      }
+    }
+  }
+
   // GetStartedFlow.tsx calls this route two ways: a real "pay later"
   // submission (createRequest() with no argument — nothing left to wait
   // on, so admins should hear about it immediately, same as always), and

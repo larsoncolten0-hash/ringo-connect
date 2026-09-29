@@ -6,6 +6,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { Check, ArrowLeft, Loader2, X, User, Building2, Nfc, Award } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getReferralCode } from "@/lib/referral";
+import { getAmbassadorCode } from "@/lib/ambassadorReferral";
 import LanguageToggle from "@/components/LanguageToggle";
 import { formatPrice } from "@/lib/currency";
 import { detectPlatform } from "@/lib/utils";
@@ -142,6 +143,12 @@ export default function GetStartedFlow({
   const [deliveryLocation, setDeliveryLocation] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [referralPrefilled, setReferralPrefilled] = useState(false);
+  // Wholly separate from referralCode above — a different capture
+  // mechanism (see src/lib/ambassadorReferral.ts), a different signup
+  // field (ambassador_code, never referral_code), never shown to the
+  // customer as an editable field (unlike the coupon-code input below) —
+  // just read once and carried through to submission.
+  const [ambassadorCode, setAmbassadorCode] = useState("");
 
   // Same capture mechanism as everywhere else (see src/lib/referral.ts) —
   // prefills from ?ref=CODE if that's how this person got here, but stays
@@ -155,6 +162,11 @@ export default function GetStartedFlow({
       setReferralCode(stored);
       setReferralPrefilled(true);
     }
+  }, []);
+
+  useEffect(() => {
+    const stored = getAmbassadorCode();
+    if (stored) setAmbassadorCode(stored);
   }, []);
 
   const [links, setLinks] = useState<LinkItem[]>([]);
@@ -380,6 +392,7 @@ export default function GetStartedFlow({
         category: category || null,
         categories: category ? [category, ...extraCategories] : [],
         referral_code: referralCode.trim() || null,
+        ambassador_code: ambassadorCode.trim() || null,
         source: variant === "affiliate" ? "affiliate" : "get_started",
         suggested_username: username.trim() || null,
         avatar_url: avatarUrl || null,

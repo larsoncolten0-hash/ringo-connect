@@ -6,7 +6,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { hasCustomLogo } from "@/lib/brandingDefaults";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, UserCheck, Sparkles, ShoppingBag, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, UserCheck, Sparkles, ShoppingBag, ShieldCheck, Megaphone, type LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
@@ -45,6 +45,13 @@ const NAV_ITEMS: {
   { href: "/admin/addons", label: "Add-ons", icon: Package, core: false },
   { href: "/admin/price-controls", label: "Price Controls", icon: DollarSign, core: false },
   { href: "/admin/affiliates", label: "Affiliates", icon: Handshake, core: false, countKey: "affiliates" },
+  // Ambassador Program — deliberately its own section, not merged with
+  // Affiliates above: a fully separate financial system (see the
+  // Ambassador Program audit). No countKey yet — a "needs attention"
+  // badge (e.g. pending payout requests once Phase H exists) would need
+  // src/lib/adminNavCounts.ts extended too, out of this phase's minimal
+  // scope.
+  { href: "/admin/ambassadors", label: "Ambassadors", icon: Megaphone, core: false },
   { href: "/admin/music-payouts", label: "Music payouts", icon: Banknote, core: false, countKey: "musicPayouts" },
   { href: "/admin/shop-payouts", label: "Shop payouts", icon: ShoppingBag, core: false, countKey: "shopPayouts" },
   { href: "/admin/protection", label: "Protection", icon: ShieldCheck, core: false, countKey: "protectionDisputes" },

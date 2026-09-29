@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag } from "lucide-react";
+import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
@@ -79,6 +79,8 @@ export default function DashboardShell({
   canManageTeam = false,
   canManageAssociation = false,
   canUseLoyalty = false,
+  isAmbassador = false,
+  isTeamLeader = false,
   organization = null,
   organizations = [],
   ownProfileId = null,
@@ -147,6 +149,19 @@ export default function DashboardShell({
   // active organization's category and the viewer's loyalty permissions. UX only: the pages and
   // /api/loyalty/* enforce access themselves.
   canUseLoyalty?: boolean;
+  // Ambassador Program — whether this account has its own
+  // ambassador_profiles row (computed in dashboard/layout.tsx). Never
+  // trusted as the actual security boundary: /dashboard/ambassador itself
+  // re-derives this server-side from the signed-in session before showing
+  // anything — this only decides whether the nav item renders.
+  isAmbassador?: boolean;
+  // Ambassador Program — whether this account has its own
+  // ambassador_teams row as a Team Leader (computed in
+  // dashboard/layout.tsx). Deliberately independent of canManageTeam
+  // (Team & Organization Management, a wholly different feature) and of
+  // isAmbassador (a person can be a Team Leader without also being an
+  // Ambassador themselves). Same "UX-only gate" posture as isAmbassador.
+  isTeamLeader?: boolean;
   // Which organization's workspace this is, and whether the signed-in
   // person is staff there rather than its owner — drives the "WHICH
   // BUSINESS AM I WORKING FOR" banner shown just for staff (an owner's own
@@ -283,6 +298,17 @@ export default function DashboardShell({
     { href: "/dashboard/ringo-card", label: t.nav.ringoCard, icon: Nfc, core: true },
     { href: "/dashboard/analytics", label: t.nav.analytics, icon: BarChart3, core: true },
     { href: "/dashboard/affiliate", label: t.nav.affiliate, icon: Handshake, core: false },
+    // Ambassador Program — a wholly separate program from the legacy
+    // Affiliate entry above (different table, different commission
+    // model, different attribution mechanism — see the Ambassador
+    // Program audit). Gated on isAmbassador only, never on
+    // canApproveRequests/canManageTeam/anything else.
+    ...(isAmbassador ? [{ href: "/dashboard/ambassador", label: t.nav.ambassador, icon: Megaphone, core: false }] : []),
+    // Deliberately its own nav entry, not merged with the Ambassador one
+    // above — a person can be a Team Leader without being an Ambassador,
+    // or both, and the two dashboards show entirely different data
+    // (a Team Leader's own team-wide view vs. an Ambassador's own sales).
+    ...(isTeamLeader ? [{ href: "/dashboard/sales-team", label: t.nav.salesTeam, icon: UsersRound, core: false }] : []),
     // Team & Organization Management — gated on canManageTeam, not just
     // "is the owner": a staff member with the staff.view permission also
     // sees this (e.g. a Manager reviewing the roster), scoped to whichever

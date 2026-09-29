@@ -3,6 +3,7 @@ import { fapshiGetStatus } from "@/lib/fapshi";
 import { notifyAdmins, notifyUser, getSignupRequestReviewers } from "@/lib/notifications";
 import { emailShell } from "@/lib/email/emailShell";
 import { sendEmail } from "@/lib/email/provider";
+import { notifySaleConfirmed } from "@/lib/ambassador/notifications";
 import { NextResponse } from "next/server";
 
 // Forces this route to actually run on every request instead of being
@@ -65,6 +66,25 @@ export async function GET(request: Request, { params }: { params: { id: string }
       const { adminEmails, superCreator } = await getSignupRequestReviewers(signupRequest.referral_code);
 
       await Promise.allSettled([
+        // Ambassador Program (Phase B) — locks any attributed sale's
+        // team/ambassador snapshot the instant payment is confirmed here
+        // (the existing atomic justPaid claim above is what makes this
+        // fire at most once per real payment; ambassador_lock_sale()'s
+        // own `WHERE status = 'attributed'` is a second, independent
+        // idempotency guard). A no-op, not an error, when this signup
+        // request has no Ambassador attribution at all. Wholly
+        // downstream of the already-confirmed payment: a failure here
+        // must never affect `customer_paid` (already committed above) or
+        // this response — only logged for recovery, since
+        // ambassador_lock_sale() is itself safely re-callable later.
+        (async () => {
+          const { data: lockResult, error: lockError } = await admin.rpc("ambassador_lock_sale", { p_signup_request_id: params.id });
+          if (lockError) console.error("ambassador_lock_sale failed:", lockError.message);
+          // Phase G — only the call that actually performed the
+          // attributed -> locked transition gets a result row back.
+          // notifySaleConfirmed never throws.
+          else if (lockResult?.ok && lockResult.sale_id) await notifySaleConfirmed(admin, lockResult.sale_id);
+        })(),
         notifyAdmins({
           type: "signup_request_paid",
           title: `Payment received — ${signupRequest.full_name}`,
