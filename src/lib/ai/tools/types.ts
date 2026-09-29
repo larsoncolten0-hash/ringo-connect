@@ -2,6 +2,7 @@ import type { AiLocale, AiWorkspace } from "@/lib/ai/types";
 import type { WorkspaceSnapshot } from "@/lib/ai/context/snapshot";
 import type { DraftView } from "@/lib/ai/drafts/view";
 import type { ContentView } from "@/lib/ai/content/view";
+import type { ImageView } from "@/lib/ai/content/imageView";
 
 // A Ringo AI tool is an explicitly defined, server-side capability. The model
 // can only ask for a tool by name with a small, validated input; it never
@@ -18,9 +19,18 @@ import type { ContentView } from "@/lib/ai/content/view";
 //                    as a structured card. Nothing is written or persisted —
 //                    there is no Ringo record to apply this to, so there is
 //                    no confirm/apply step for this kind, ever.
+//   kind "image"   — Ringo AI Image Generation. A DIRECT action, not a
+//                    draft and not text content: the tool itself calls the
+//                    image provider, stores the result and records its own
+//                    plan/quota gate (resolveAiImageAccess/
+//                    reserveAiImageQuota, src/lib/ai/imageGuard.ts) before
+//                    generating, since it has real, per-call cost that no
+//                    other tool kind has. There is nothing to confirm/apply
+//                    — the image already exists in storage the moment the
+//                    card appears.
 //   kind "write"   — reserved. The registry refuses to expose it.
 
-export type AiToolKind = "read" | "draft" | "content" | "write";
+export type AiToolKind = "read" | "draft" | "content" | "image" | "write";
 
 export interface AiToolContext {
   workspace: AiWorkspace;
@@ -32,6 +42,8 @@ export interface AiToolContext {
   emitDraft?: (draft: DraftView) => void;
   /** Streams a generated-content card to the panel (content tools only). */
   emitContent?: (content: ContentView) => void;
+  /** Streams a generated-image card to the panel (image tools only). */
+  emitImage?: (image: ImageView) => void;
 }
 
 export interface AiTool<Input = Record<string, never>> {

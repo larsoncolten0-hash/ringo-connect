@@ -21,11 +21,35 @@ export interface AiSettings {
   maxToolRounds: number;
   maxOutputTokens: number;
   historyMessageLimit: number;
+  /**
+   * Image generation. Configured separately from the text model above;
+   * never hardcoded in the image provider code. See src/lib/ai/imageGuard.ts
+   * and src/lib/ai/imageUsage.ts.
+   */
+  imageModel: string;
+  imageDefaultSize: string;
+  imageDefaultQuality: string;
+  dailyImageLimit: number;
+  monthlyImageLimit: number;
+  monthlyGlobalImageBudgetUsd: number;
   pricing: {
     inputPerMTok: number | null;
     outputPerMTok: number | null;
     cacheReadPerMTok: number | null;
     cacheWritePerMTok: number | null;
+  };
+  /**
+   * Image pricing — token-based, mirroring how OpenAI actually bills the
+   * GPT image models (confirmed against current OpenAI pricing docs, not
+   * a flat per-image rate): separate rates for text tokens in the prompt,
+   * image tokens in the input, and output image tokens. Null until an
+   * admin fills them in; cost (and the image budget) can't be computed
+   * until then — same rule the text pricing above already follows.
+   */
+  imagePricing: {
+    inputTextPerMTok: number | null;
+    inputImagePerMTok: number | null;
+    outputPerMTok: number | null;
   };
 }
 
@@ -44,7 +68,14 @@ const FAIL_CLOSED: AiSettings = {
   maxToolRounds: 0,
   maxOutputTokens: 2048,
   historyMessageLimit: 6,
+  imageModel: "gpt-image-2.5-flare",
+  imageDefaultSize: "auto",
+  imageDefaultQuality: "auto",
+  dailyImageLimit: 0,
+  monthlyImageLimit: 0,
+  monthlyGlobalImageBudgetUsd: 0,
   pricing: { inputPerMTok: null, outputPerMTok: null, cacheReadPerMTok: null, cacheWritePerMTok: null },
+  imagePricing: { inputTextPerMTok: null, inputImagePerMTok: null, outputPerMTok: null },
 };
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null);
@@ -63,17 +94,28 @@ export function mapAiSettingsRow(row: Record<string, unknown> | null | undefined
     maxToolRounds: num(row.max_tool_rounds) ?? 0,
     maxOutputTokens: num(row.max_output_tokens) ?? 2048,
     historyMessageLimit: num(row.history_message_limit) ?? 6,
+    imageModel: typeof row.image_model === "string" ? row.image_model : FAIL_CLOSED.imageModel,
+    imageDefaultSize: typeof row.image_default_size === "string" ? row.image_default_size : FAIL_CLOSED.imageDefaultSize,
+    imageDefaultQuality: typeof row.image_default_quality === "string" ? row.image_default_quality : FAIL_CLOSED.imageDefaultQuality,
+    dailyImageLimit: num(row.daily_image_limit) ?? 0,
+    monthlyImageLimit: num(row.monthly_image_limit) ?? 0,
+    monthlyGlobalImageBudgetUsd: num(row.monthly_global_image_budget_usd) ?? 0,
     pricing: {
       inputPerMTok: num(row.price_input_per_mtok_usd),
       outputPerMTok: num(row.price_output_per_mtok_usd),
       cacheReadPerMTok: num(row.price_cache_read_per_mtok_usd),
       cacheWritePerMTok: num(row.price_cache_write_per_mtok_usd),
     },
+    imagePricing: {
+      inputTextPerMTok: num(row.image_price_input_text_per_mtok_usd),
+      inputImagePerMTok: num(row.image_price_input_image_per_mtok_usd),
+      outputPerMTok: num(row.image_price_output_per_mtok_usd),
+    },
   };
 }
 
 export const AI_SETTINGS_COLUMNS =
-  "enabled, access_mode, provider, model_chat, effort, daily_message_limit, monthly_user_token_limit, monthly_global_budget_usd, max_tool_rounds, max_output_tokens, history_message_limit, price_input_per_mtok_usd, price_output_per_mtok_usd, price_cache_read_per_mtok_usd, price_cache_write_per_mtok_usd, updated_at";
+  "enabled, access_mode, provider, model_chat, effort, daily_message_limit, monthly_user_token_limit, monthly_global_budget_usd, max_tool_rounds, max_output_tokens, history_message_limit, price_input_per_mtok_usd, price_output_per_mtok_usd, price_cache_read_per_mtok_usd, price_cache_write_per_mtok_usd, image_model, image_default_size, image_default_quality, daily_image_limit, monthly_image_limit, monthly_global_image_budget_usd, image_price_input_text_per_mtok_usd, image_price_input_image_per_mtok_usd, image_price_output_per_mtok_usd, updated_at";
 
 export async function getAiSettings(): Promise<AiSettings> {
   const { data, error } = await createAdminClient().from("ai_settings").select(AI_SETTINGS_COLUMNS).eq("id", 1).maybeSingle();
@@ -88,6 +130,12 @@ export async function getAiSettings(): Promise<AiSettings> {
 export function hasPricing(settings: AiSettings): boolean {
   const p = settings.pricing;
   return p.inputPerMTok !== null && p.outputPerMTok !== null && p.cacheReadPerMTok !== null && p.cacheWritePerMTok !== null;
+}
+
+/** True when every image price is set, so image cost (and the image budget) can be computed. */
+export function hasImagePricing(settings: AiSettings): boolean {
+  const p = settings.imagePricing;
+  return p.inputTextPerMTok !== null && p.inputImagePerMTok !== null && p.outputPerMTok !== null;
 }
 
 /**
@@ -124,6 +172,8 @@ export function parseAiSettingsPatch(body: unknown): Record<string, unknown> | n
     patch[col] = v;
     return true;
   };
+  // Same shape as priceIn, named separately only for readability at the call site.
+  const imagePriceIn = priceIn;
 
   if (b.enabled !== undefined) {
     if (typeof b.enabled !== "boolean") return null;
@@ -156,6 +206,32 @@ export function parseAiSettingsPatch(body: unknown): Record<string, unknown> | n
     if (!Number.isFinite(v) || v < 0 || v > 100000) return null;
     patch.monthly_global_budget_usd = v;
   }
+  // Image generation. Same model-id shape as modelChat. Size/quality are
+  // restricted to the values the current GPT image model family (the
+  // configured default is gpt-image-2.5-flare) actually supports, per
+  // current OpenAI documentation — 'xhigh'/'max' quality and arbitrary
+  // WIDTHxHEIGHT sizes exist too but are deliberately not offered here to
+  // keep cost predictable (see imageGuard.ts / the Phase implementation
+  // report's cost-safety section).
+  if (b.imageModel !== undefined) {
+    const m = typeof b.imageModel === "string" ? b.imageModel.trim() : "";
+    if (!/^[a-z0-9][a-z0-9.\-_]{0,99}$/i.test(m)) return null;
+    patch.image_model = m;
+  }
+  if (b.imageDefaultSize !== undefined) {
+    if (!["auto", "1024x1024", "1536x1024", "1024x1536"].includes(b.imageDefaultSize as string)) return null;
+    patch.image_default_size = b.imageDefaultSize;
+  }
+  if (b.imageDefaultQuality !== undefined) {
+    if (!["auto", "low", "medium", "high"].includes(b.imageDefaultQuality as string)) return null;
+    patch.image_default_quality = b.imageDefaultQuality;
+  }
+  if (b.monthlyGlobalImageBudgetUsd !== undefined) {
+    if (blank(b.monthlyGlobalImageBudgetUsd)) return null;
+    const v = Number(b.monthlyGlobalImageBudgetUsd);
+    if (!Number.isFinite(v) || v < 0 || v > 100000) return null;
+    patch.monthly_global_image_budget_usd = v;
+  }
 
   const ok =
     intIn("dailyMessageLimit", "daily_message_limit", 0, 1000) &&
@@ -163,10 +239,15 @@ export function parseAiSettingsPatch(body: unknown): Record<string, unknown> | n
     intIn("maxToolRounds", "max_tool_rounds", 0, 8) &&
     intIn("maxOutputTokens", "max_output_tokens", 512, 16000) &&
     intIn("historyMessageLimit", "history_message_limit", 2, 40) &&
+    intIn("dailyImageLimit", "daily_image_limit", 0, 1000) &&
+    intIn("monthlyImageLimit", "monthly_image_limit", 0, 100000) &&
     priceIn("priceInputPerMTok", "price_input_per_mtok_usd") &&
     priceIn("priceOutputPerMTok", "price_output_per_mtok_usd") &&
     priceIn("priceCacheReadPerMTok", "price_cache_read_per_mtok_usd") &&
-    priceIn("priceCacheWritePerMTok", "price_cache_write_per_mtok_usd");
+    priceIn("priceCacheWritePerMTok", "price_cache_write_per_mtok_usd") &&
+    imagePriceIn("imagePriceInputTextPerMTok", "image_price_input_text_per_mtok_usd") &&
+    imagePriceIn("imagePriceInputImagePerMTok", "image_price_input_image_per_mtok_usd") &&
+    imagePriceIn("imagePriceOutputPerMTok", "image_price_output_per_mtok_usd");
   if (!ok) return null;
 
   return patch;

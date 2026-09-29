@@ -8,10 +8,16 @@ import { AI_TOOLS } from "./index";
 // (present already-generated, never-persisted marketing copy). "write" stays
 // unreachable even if one is registered by mistake — there is no
 // model-callable mutation.
-const EXPOSED_KINDS: readonly AiToolKind[] = ["read", "draft", "content"];
+const EXPOSED_KINDS: readonly AiToolKind[] = ["read", "draft", "content", "image"];
 
 const MAX_RESULT_CHARS = 6000;
 const TOOL_TIMEOUT_MS = 10_000;
+// Image generation is a real provider call (typically several seconds,
+// sometimes longer at higher quality) — every other tool keeps the 10s
+// default above unchanged; only "image" kind tools get this longer
+// allowance, still comfortably inside the chat route's own 50s deadline
+// (orchestrator.ts CHAT_DEADLINE_MS).
+const IMAGE_TOOL_TIMEOUT_MS = 45_000;
 
 /** The tools this workspace may use right now (kind, permission, feature). */
 export function getAvailableTools(ctx: AiToolContext): AiTool<any>[] {
@@ -63,7 +69,7 @@ export async function executeTool(name: string, rawInput: unknown, ctx: AiToolCo
   if (input === null) return { content: JSON.stringify({ error: "invalid_input" }), isError: true };
 
   try {
-    const result = await withTimeout(tool.run(ctx, input), TOOL_TIMEOUT_MS);
+    const result = await withTimeout(tool.run(ctx, input), tool.kind === "image" ? IMAGE_TOOL_TIMEOUT_MS : TOOL_TIMEOUT_MS);
     let content = JSON.stringify(result);
     if (content.length > MAX_RESULT_CHARS) {
       content = JSON.stringify({ truncated: true, partial: content.slice(0, MAX_RESULT_CHARS - 200) });

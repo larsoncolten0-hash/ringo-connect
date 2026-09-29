@@ -26,6 +26,7 @@ import {
   createMenuItemDraft,
 } from "./definitions/drafts";
 import { generateContent } from "./definitions/content";
+import { generateImage } from "./definitions/image";
 
 // The complete list of capabilities Ringo AI has. Nothing outside this list
 // can be invoked. Order is deterministic (it's part of the cached prompt).
@@ -57,4 +58,5 @@ export const AI_TOOLS: readonly AiTool<any>[] = [
   getMyDrafts,
   discardMyDraft,
   generateContent,
+  generateImage,
 ];

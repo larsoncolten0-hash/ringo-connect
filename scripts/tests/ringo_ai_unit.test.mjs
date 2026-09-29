@@ -138,16 +138,19 @@ check("missing settings row fails CLOSED", mapAiSettingsRow(null).enabled === fa
 
   const FAKE_USER = { id: "11111111-1111-1111-1111-111111111111" };
   let tableRows = {};
-  const chain = () => {
-    const builder = { select: () => builder, eq: () => builder, maybeSingle: async () => ({ data: null, error: null }) };
-    return builder;
-  };
+  let rpcResponses = {};
   const fakeClient = () => ({
     auth: { getUser: async () => ({ data: { user: FAKE_USER } }) },
     from: (table) => {
-      const builder = { select: () => builder, eq: () => builder, maybeSingle: async () => ({ data: tableRows[table] ?? null, error: null }) };
+      const builder = {
+        select: () => builder,
+        eq: () => builder,
+        maybeSingle: async () => ({ data: tableRows[table] ?? null, error: null }),
+        delete: () => ({ eq: async () => ({ data: null, error: null }) }),
+      };
       return builder;
     },
+    rpc: async (name) => ({ data: rpcResponses[name] ?? null, error: null }),
   });
   serverMod.createClient = fakeClient;
   serverMod.createAdminClient = fakeClient;
@@ -157,46 +160,98 @@ check("missing settings row fails CLOSED", mapAiSettingsRow(null).enabled === fa
     daily_message_limit: 30, monthly_user_token_limit: 3000000, monthly_global_budget_usd: 50, max_tool_rounds: 4,
     max_output_tokens: 4096, history_message_limit: 12, price_input_per_mtok_usd: 2, price_output_per_mtok_usd: 10,
     price_cache_read_per_mtok_usd: 0.2, price_cache_write_per_mtok_usd: 2.5,
+    image_model: "gpt-image-2.5-flare", image_default_size: "auto", image_default_quality: "auto",
+    daily_image_limit: 5, monthly_image_limit: 50, monthly_global_image_budget_usd: 25,
+    image_price_input_text_per_mtok_usd: 5.0, image_price_input_image_per_mtok_usd: 8.0, image_price_output_per_mtok_usd: 30.0,
   };
-  const setup = ({ settings = {}, aiEnabled, beta = null } = {}) => {
+  const setup = ({ settings = {}, aiEnabled, imageEnabled = false, beta = null } = {}) => {
     tableRows = {
       ai_settings: { ...AI_SETTINGS_BASE, ...settings },
-      users: { status: "active", role: "owner", plan_id: "p1", plans: { ai_enabled: aiEnabled } },
+      users: { status: "active", role: "owner", plan_id: "p1", plans: { ai_enabled: aiEnabled, ai_image_enabled: imageEnabled } },
       profiles: { id: "profile-1", username: "demo", is_demo: false },
       ai_beta_access: beta,
     };
+    rpcResponses = { ai_image_quota_snapshot: { user_images_24h: 0, user_images_month: 0, global_image_cost_month: 0 } };
   };
 
   const realKey = process.env.ANTHROPIC_API_KEY;
   process.env.ANTHROPIC_API_KEY = "unit-test-placeholder-not-a-real-key";
   const { resolveAiAccess } = load("lib/ai/guard.ts");
+  const { resolveAiImageAccess, checkAiImageQuota, reserveAiImageQuota, releaseAiImageQuota } = load("lib/ai/imageGuard.ts");
 
-  for (const [label, aiEnabled] of [["free", false], ["basic", true], ["pro", true], ["business_basic", true], ["business_pro", true]]) {
-    setup({ aiEnabled });
-    const r = await resolveAiAccess();
-    if (aiEnabled) check(`plan gate: ${label} (ai_enabled=true) → allowed`, r.ok === true, JSON.stringify(r));
-    else check(`plan gate: ${label} (ai_enabled=false) → denied plan_not_eligible`, !r.ok && r.reason === "plan_not_eligible", JSON.stringify(r));
+  // Text (ai_enabled) x Image (ai_image_enabled) per the desired plan matrix.
+  const PLAN_MATRIX = [
+    ["free", false, false],
+    ["basic", true, false],
+    ["pro", true, true],
+    ["business_basic", true, true],
+    ["business_pro", true, true],
+  ];
+  for (const [label, aiEnabled, imageEnabled] of PLAN_MATRIX) {
+    setup({ aiEnabled, imageEnabled });
+    const rt = await resolveAiAccess();
+    if (aiEnabled) check(`plan gate: ${label} text AI (ai_enabled=true) → allowed`, rt.ok === true, JSON.stringify(rt));
+    else check(`plan gate: ${label} text AI (ai_enabled=false) → denied plan_not_eligible`, !rt.ok && rt.reason === "plan_not_eligible", JSON.stringify(rt));
+
+    const ri = await resolveAiImageAccess();
+    if (imageEnabled) check(`image gate: ${label} image AI (ai_image_enabled=true) → allowed`, ri.ok === true, JSON.stringify(ri));
+    else if (aiEnabled) check(`image gate: ${label} image AI (ai_enabled=true, ai_image_enabled=false) → denied image_not_eligible`, !ri.ok && ri.reason === "image_not_eligible", JSON.stringify(ri));
+    else check(`image gate: ${label} image AI denied (inherits the text plan_not_eligible gate — image requires text first)`, !ri.ok && ri.reason === "plan_not_eligible", JSON.stringify(ri));
   }
 
-  setup({ aiEnabled: false, beta: { user_id: FAKE_USER.id, daily_message_limit_override: null } });
+  setup({ aiEnabled: false, imageEnabled: false, beta: { user_id: FAKE_USER.id, daily_message_limit_override: null } });
   let r = await resolveAiAccess();
-  check("plan gate: an ai_beta_access grant overrides an ineligible (Free) plan", r.ok === true, JSON.stringify(r));
+  check("plan gate: an ai_beta_access grant overrides an ineligible (Free) plan for text", r.ok === true, JSON.stringify(r));
+  let ri = await resolveAiImageAccess();
+  check("plan gate: the same beta grant also overrides the image gate on an ineligible (Free) plan", ri.ok === true, JSON.stringify(ri));
 
-  setup({ aiEnabled: true, settings: { enabled: false } });
+  setup({ aiEnabled: true, imageEnabled: true, settings: { enabled: false } });
   r = await resolveAiAccess();
-  check("plan gate: the global kill switch still blocks everyone, even on an eligible plan", !r.ok && r.reason === "disabled", JSON.stringify(r));
+  check("plan gate: the global kill switch still blocks everyone, even on an eligible plan (text)", !r.ok && r.reason === "disabled", JSON.stringify(r));
+  ri = await resolveAiImageAccess();
+  check("plan gate: the global kill switch still blocks everyone, even on an eligible plan (image, inherited)", !ri.ok && ri.reason === "disabled", JSON.stringify(ri));
 
-  setup({ aiEnabled: true, settings: { access_mode: "allowlist" }, beta: null });
+  setup({ aiEnabled: true, imageEnabled: true, settings: { access_mode: "allowlist" }, beta: null });
   r = await resolveAiAccess();
   check("plan gate: allowlist mode still blocks a non-beta user on an eligible plan (existing behavior unchanged)", !r.ok && r.reason === "not_in_beta", JSON.stringify(r));
 
-  setup({ aiEnabled: true, settings: { access_mode: "allowlist" }, beta: { user_id: FAKE_USER.id, daily_message_limit_override: 5 } });
+  setup({ aiEnabled: true, imageEnabled: true, settings: { access_mode: "allowlist" }, beta: { user_id: FAKE_USER.id, daily_message_limit_override: 5 } });
   r = await resolveAiAccess();
   check(
     "plan gate: allowlist mode + beta grant + eligible plan → allowed, and the beta's daily-limit override still applies",
     r.ok === true && r.access.dailyMessageLimit === 5,
     JSON.stringify(r)
   );
+
+  // checkAiImageQuota: the read-only image quota helper works against the new RPC.
+  setup({ aiEnabled: true, imageEnabled: true });
+  const access = (await resolveAiImageAccess()).access;
+  const quota = await checkAiImageQuota(access);
+  check("image quota: under every limit with a fresh snapshot → ok, remainingToday reflects the configured daily limit", quota.ok === true && quota.remainingToday === 5, JSON.stringify(quota));
+
+  rpcResponses.ai_image_quota_snapshot = { user_images_24h: 5, user_images_month: 5, global_image_cost_month: 0 };
+  const quotaExhausted = await checkAiImageQuota(access);
+  check("image quota: daily count already at the limit → denied daily_limit", !quotaExhausted.ok && quotaExhausted.reason === "daily_limit", JSON.stringify(quotaExhausted));
+
+  // Global image budget: now that pricing is configured (AI_SETTINGS_BASE above), a
+  // cost_month at/over the configured budget denies with budget_reached — this is the
+  // fix for the gap the Phase 1 report flagged (budget previously could never fire).
+  rpcResponses.ai_image_quota_snapshot = { user_images_24h: 0, user_images_month: 0, global_image_cost_month: 25 };
+  const quotaOverBudget = await checkAiImageQuota(access);
+  check("image quota: global cost already at the configured budget → denied budget_reached", !quotaOverBudget.ok && quotaOverBudget.reason === "budget_reached", JSON.stringify(quotaOverBudget));
+
+  // reserveAiImageQuota / releaseAiImageQuota: the atomic reservation wrapper correctly
+  // reads the RPC's response shape (reservation granted vs denied) and release is a plain
+  // delete that never throws.
+  rpcResponses.ai_reserve_image_quota = { reservation_id: "22222222-2222-2222-2222-222222222222", deny_reason: null, remaining_today: 4 };
+  const granted = await reserveAiImageQuota(access, 0.05);
+  check("image reservation: RPC grants → ok with a reservation id", granted.ok === true && granted.reservationId === "22222222-2222-2222-2222-222222222222", JSON.stringify(granted));
+  await releaseAiImageQuota(granted.ok ? granted.reservationId : "");
+  check("image reservation: release completes without throwing", true);
+
+  rpcResponses.ai_reserve_image_quota = { reservation_id: null, deny_reason: "budget_reached", remaining_today: 3 };
+  const denied = await reserveAiImageQuota(access, 0.05);
+  check("image reservation: RPC denies (e.g. a concurrent request already spent the budget) → ok:false, budget_reached", !denied.ok && denied.reason === "budget_reached", JSON.stringify(denied));
 
   if (realKey === undefined) delete process.env.ANTHROPIC_API_KEY;
   else process.env.ANTHROPIC_API_KEY = realKey;
@@ -209,9 +264,10 @@ const ctxFor = (snapshot, actor = { kind: "owner" }) => ({
   locale: "en",
 });
 const names = (ctx) => getAvailableTools(ctx).map((t) => t.name).sort();
-// "content" (Phase 3 increment 2 — Content Studio) is never persisted and has no apply path, same safety
-// posture as "draft"; "write" stays permanently unreachable — see tools/types.ts.
-check("every registered tool is read, draft or content — never write", AI_TOOLS.every((t) => t.kind === "read" || t.kind === "draft" || t.kind === "content"));
+// "content" (Phase 3 increment 2 — Content Studio) and "image" (Ringo AI Image Generation) are
+// never persisted/applied to a Ringo record and have no apply path, same safety posture as
+// "draft"; "write" stays permanently unreachable — see tools/types.ts.
+check("every registered tool is read, draft, content or image — never write", AI_TOOLS.every((t) => t.kind === "read" || t.kind === "draft" || t.kind === "content" || t.kind === "image"));
 check("no tool can apply/confirm/publish (applying is the owner's click only)", !AI_TOOLS.some((t) => /apply|confirm|publish|execute|commit|write|delete_|send/i.test(t.name)));
 check("tool names unique", new Set(AI_TOOLS.map((t) => t.name)).size === AI_TOOLS.length);
 check("business owner: no music/restaurant/events tools", !names(ctxFor(base())).some((n) => /music|restaurant|events/.test(n)));

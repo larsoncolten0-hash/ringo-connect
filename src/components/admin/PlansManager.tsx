@@ -37,6 +37,7 @@ export default function PlansManager({ plans }: { plans: any[] }) {
         team_enabled: plan.team_enabled,
         max_team_seats: toNullableNumber(plan.max_team_seats),
         ai_enabled: plan.ai_enabled,
+        ai_image_enabled: plan.ai_image_enabled,
         commission_rate_override: toNullableNumber(plan.commission_rate_override),
         commerce_enabled: plan.commerce_enabled,
         bookings_feature_enabled: plan.bookings_feature_enabled,
@@ -225,6 +226,7 @@ export default function PlansManager({ plans }: { plans: any[] }) {
                 { key: "commerce_enabled", label: "Real ordering & checkout (restaurant/music/tickets)" },
                 { key: "bookings_feature_enabled", label: "Bookings" },
                 { key: "ai_enabled", label: "Ringo AI" },
+                { key: "ai_image_enabled", label: "Ringo AI Image Generation" },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 text-sm text-ringo-text">
                   <input

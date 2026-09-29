@@ -17,6 +17,12 @@ type Settings = {
   maxOutputTokens: number;
   historyMessageLimit: number;
   pricing: { inputPerMTok: number | null; outputPerMTok: number | null; cacheReadPerMTok: number | null; cacheWritePerMTok: number | null };
+  imageModel: string;
+  imageDefaultSize: string;
+  imageDefaultQuality: string;
+  dailyImageLimit: number;
+  monthlyImageLimit: number;
+  monthlyGlobalImageBudgetUsd: number;
 };
 
 type BetaUser = { userId: string; email: string | null; username: string | null; grantedAt: string; dailyLimitOverride: number | null; requests24h: number };
@@ -47,7 +53,11 @@ type Form = Record<
   | "priceInputPerMTok"
   | "priceOutputPerMTok"
   | "priceCacheReadPerMTok"
-  | "priceCacheWritePerMTok",
+  | "priceCacheWritePerMTok"
+  | "imageModel"
+  | "dailyImageLimit"
+  | "monthlyImageLimit"
+  | "monthlyGlobalImageBudgetUsd",
   string
 >;
 
@@ -66,6 +76,10 @@ function toForm(s: Settings): Form {
     priceOutputPerMTok: str(s.pricing.outputPerMTok),
     priceCacheReadPerMTok: str(s.pricing.cacheReadPerMTok),
     priceCacheWritePerMTok: str(s.pricing.cacheWritePerMTok),
+    imageModel: s.imageModel,
+    dailyImageLimit: str(s.dailyImageLimit),
+    monthlyImageLimit: str(s.monthlyImageLimit),
+    monthlyGlobalImageBudgetUsd: str(s.monthlyGlobalImageBudgetUsd),
   };
 }
 
@@ -198,6 +212,10 @@ export default function RingoAiAdminView() {
       priceOutputPerMTok: n(form.priceOutputPerMTok),
       priceCacheReadPerMTok: n(form.priceCacheReadPerMTok),
       priceCacheWritePerMTok: n(form.priceCacheWritePerMTok),
+      imageModel: form.imageModel,
+      dailyImageLimit: n(form.dailyImageLimit),
+      monthlyImageLimit: n(form.monthlyImageLimit),
+      monthlyGlobalImageBudgetUsd: n(form.monthlyGlobalImageBudgetUsd),
     });
   };
 
@@ -349,6 +367,42 @@ export default function RingoAiAdminView() {
           </Field>
           <Field label={a.priceCacheWrite}>
             <input type="number" min={0} step="0.01" value={form.priceCacheWritePerMTok} onChange={set("priceCacheWritePerMTok")} className={inputClass} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title={a.imageTitle}>
+        <p className="text-xs text-ringo-muted">{a.imageHint}</p>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <Field label={a.imageModelLabel}>
+            <input value={form.imageModel} onChange={set("imageModel")} className={inputClass} />
+          </Field>
+          <Field label={a.imageSizeLabel}>
+            <select value={settings.imageDefaultSize} disabled={saving} onChange={(e) => save({ imageDefaultSize: e.target.value })} className={inputClass}>
+              <option value="auto">{a.imageSizeAuto}</option>
+              <option value="1024x1024">1024×1024</option>
+              <option value="1536x1024">1536×1024</option>
+              <option value="1024x1536">1024×1536</option>
+            </select>
+          </Field>
+          <Field label={a.imageQualityLabel}>
+            <select value={settings.imageDefaultQuality} disabled={saving} onChange={(e) => save({ imageDefaultQuality: e.target.value })} className={inputClass}>
+              <option value="auto">{a.imageQualityAuto}</option>
+              <option value="low">{a.imageQualityLow}</option>
+              <option value="medium">{a.imageQualityMedium}</option>
+              <option value="high">{a.imageQualityHigh}</option>
+            </select>
+          </Field>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <Field label={a.dailyImageLimit}>
+            <input type="number" min={0} value={form.dailyImageLimit} onChange={set("dailyImageLimit")} className={inputClass} />
+          </Field>
+          <Field label={a.monthlyImageLimit}>
+            <input type="number" min={0} value={form.monthlyImageLimit} onChange={set("monthlyImageLimit")} className={inputClass} />
+          </Field>
+          <Field label={a.monthlyImageBudget}>
+            <input type="number" min={0} step="0.01" value={form.monthlyGlobalImageBudgetUsd} onChange={set("monthlyGlobalImageBudgetUsd")} className={inputClass} />
           </Field>
         </div>
       </Card>

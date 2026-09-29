@@ -6,8 +6,10 @@ import { useLanguage } from "@/components/LanguageProvider";
 import RichText from "./RichText";
 import DraftCard from "./DraftCard";
 import ContentCard from "./ContentCard";
+import ImageCard from "./ImageCard";
 import type { DraftView } from "@/lib/ai/drafts/view";
 import type { ContentView } from "@/lib/ai/content/view";
+import type { ImageView } from "@/lib/ai/content/imageView";
 
 export type UiMessage = {
   id: string;
@@ -23,6 +25,8 @@ export type UiMessage = {
   draftIds?: string[];
   /** Content Studio cards Ringo AI prepared in this reply (never persisted). */
   contentIds?: string[];
+  /** Generated-image cards Ringo AI produced in this reply (file is durably stored; the card itself isn't persisted). */
+  imageIds?: string[];
   createdAt?: string;
 };
 
@@ -58,6 +62,7 @@ export default function MessageList({
   contents,
   onRegenerateContent,
   onSwitchContentLanguage,
+  images,
 }: {
   messages: UiMessage[];
   toolStatus: string | null;
@@ -67,6 +72,7 @@ export default function MessageList({
   contents: Record<string, ContentView>;
   onRegenerateContent: () => void;
   onSwitchContentLanguage: (locale: "en" | "fr") => void;
+  images: Record<string, ImageView>;
 }) {
   const { t } = useLanguage();
 
@@ -94,6 +100,7 @@ export default function MessageList({
                   <ContentCard key={id} content={contents[id]} onRegenerate={onRegenerateContent} onSwitchLanguage={onSwitchContentLanguage} />
                 ) : null
               )}
+              {(m.imageIds || []).map((id) => (images[id] ? <ImageCard key={id} image={images[id]} /> : null))}
               {m.pending && (
                 <div className="flex items-center gap-2 text-xs text-ringo-muted px-1 py-1.5">
                   <Loader2 size={13} className="animate-spin" />

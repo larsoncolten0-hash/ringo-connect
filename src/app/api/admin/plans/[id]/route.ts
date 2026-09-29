@@ -13,6 +13,7 @@ const EDITABLE_FIELDS = [
   "team_enabled",
   "max_team_seats",
   "ai_enabled",
+  "ai_image_enabled",
   "commission_rate_override",
   "commerce_enabled",
   "bookings_feature_enabled",

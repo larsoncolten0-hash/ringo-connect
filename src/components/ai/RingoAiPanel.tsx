@@ -8,6 +8,7 @@ import { AI_MAX_USER_MESSAGE_CHARS } from "@/lib/ai/codes";
 import MessageList, { type UiMessage } from "./MessageList";
 import type { DraftView } from "@/lib/ai/drafts/view";
 import type { ContentView } from "@/lib/ai/content/view";
+import type { ImageView } from "@/lib/ai/content/imageView";
 
 export type AiStatus = { canSend: boolean; limitReason: string | null; remainingToday: number };
 
@@ -44,6 +45,7 @@ export default function RingoAiPanel({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, DraftView>>({});
   const [contents, setContents] = useState<Record<string, ContentView>>({});
+  const [images, setImages] = useState<Record<string, ImageView>>({});
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -63,6 +65,7 @@ export default function RingoAiPanel({
 
   const upsertDraft = useCallback((draft: DraftView) => setDrafts((prev) => ({ ...prev, [draft.id]: draft })), []);
   const upsertContent = useCallback((content: ContentView) => setContents((prev) => ({ ...prev, [content.id]: content })), []);
+  const upsertImage = useCallback((image: ImageView) => setImages((prev) => ({ ...prev, [image.id]: image })), []);
 
   const attachImage = async (file: File) => {
     setImageError(null);
@@ -163,6 +166,11 @@ export default function RingoAiPanel({
             // already "done" the moment it's shown.
             upsertContent(event.content);
             patchAssistant(assistantId, (m) => ({ contentIds: (m.contentIds || []).includes(event.content.id) ? m.contentIds : [...(m.contentIds || []), event.content.id] }));
+          } else if (event.type === "image" && event.image?.id) {
+            // A generated image — already saved to storage the moment it's
+            // shown; there is nothing further to apply.
+            upsertImage(event.image);
+            patchAssistant(assistantId, (m) => ({ imageIds: (m.imageIds || []).includes(event.image.id) ? m.imageIds : [...(m.imageIds || []), event.image.id] }));
           } else if (event.type === "done") {
             patchAssistant(assistantId, { pending: false, serverId: event.messageId, truncated: !!event.truncated });
             onStatusChange({ ...status, remainingToday: Math.max(0, status.remainingToday - 1), canSend: status.remainingToday - 1 > 0, limitReason: status.remainingToday - 1 > 0 ? null : "daily_limit" });
@@ -187,6 +195,7 @@ export default function RingoAiPanel({
     setMessages([]);
     setDrafts({});
     setContents({});
+    setImages({});
     setView("chat");
   };
 
@@ -231,9 +240,12 @@ export default function RingoAiPanel({
       setConversationId(id);
       setMessages(loaded);
       setDrafts(Object.fromEntries(loadedDrafts.map((dr) => [dr.id, dr])));
-      // Content cards are never persisted — a reopened conversation shows its
-      // text reply only, same as the design intends.
+      // Content and image cards are never persisted — a reopened conversation
+      // shows its text reply only, same as the design intends (the generated
+      // image FILE itself stays permanently in storage either way, just not
+      // re-linked into this view on reload).
       setContents({});
+      setImages({});
       setView("chat");
     } catch {
       // Stay on the list; the user can retry.
@@ -392,6 +404,7 @@ export default function RingoAiPanel({
                 contents={contents}
                 onRegenerateContent={regenerateContent}
                 onSwitchContentLanguage={switchContentLanguage}
+                images={images}
               />
             )}
           </div>

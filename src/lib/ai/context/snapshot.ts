@@ -59,6 +59,13 @@ export interface WorkspaceSnapshot {
     maxTeamSeats: number | null;
     /** Informational only — the real gate is resolveAiAccess() in guard.ts, not this snapshot. */
     aiEnabled: boolean;
+    /**
+     * Used to HIDE the generate_image tool for an ineligible plan (via its
+     * `available` gate, same as music/restaurant tools) — the real,
+     * authoritative gate is still resolveAiImageAccess() in imageGuard.ts,
+     * re-checked at the moment the tool actually runs.
+     */
+    aiImageEnabled: boolean;
     expiresAt: string | null;
   };
   onboardingCompleted: boolean;
@@ -117,7 +124,7 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
     db
       .from("users")
       .select(
-        "plan_expires_at, onboarding_completed_at, plans(name, display_name, max_links, max_products, pixels_enabled, custom_theme_enabled, full_analytics_enabled, badge_removed, team_enabled, max_team_seats, ai_enabled)"
+        "plan_expires_at, onboarding_completed_at, plans(name, display_name, max_links, max_products, pixels_enabled, custom_theme_enabled, full_analytics_enabled, badge_removed, team_enabled, max_team_seats, ai_enabled, ai_image_enabled)"
       )
       .eq("id", workspace.userId)
       .maybeSingle(),
@@ -254,6 +261,7 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
       teamEnabled: planRow.team_enabled === true,
       maxTeamSeats: planRow.max_team_seats ?? null,
       aiEnabled: planRow.ai_enabled === true,
+      aiImageEnabled: planRow.ai_image_enabled === true,
       expiresAt: (u as any)?.plan_expires_at ?? null,
     },
     onboardingCompleted: !!(u as any)?.onboarding_completed_at,

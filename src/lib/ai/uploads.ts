@@ -21,6 +21,27 @@ export function aiUploadPath(userId: string, ext: string): string {
   return `${userId}/${FOLDER}/${crypto.randomUUID()}.${ext}`;
 }
 
+// AI-GENERATED images (Ringo AI's own output, e.g. from generate_image) live
+// under a sibling path prefix in the SAME "uploads" bucket — never the
+// ai-uploads/ prefix above, which is reserved for images the OWNER attached
+// TO a conversation. Same ownership shape (${userId}/ai-generated/${uuid}.ext),
+// same ownership-verification pattern, and — like every path in this bucket
+// — always server-generated (crypto.randomUUID()), never a client-supplied
+// filename or path, so there's no collision and no way for a caller to
+// choose where their file lands.
+const GENERATED_FOLDER = "ai-generated";
+
+export function aiGeneratedImagePath(userId: string, ext: string): string {
+  return `${userId}/${GENERATED_FOLDER}/${crypto.randomUUID()}.${ext}`;
+}
+
+export function isOwnAiGeneratedImageUrl(url: string, userId: string): boolean {
+  const prefix = publicUrlPrefix();
+  if (!prefix.startsWith("http") || !url.startsWith(prefix)) return false;
+  const rest = url.slice(prefix.length);
+  return rest.startsWith(`${userId}/${GENERATED_FOLDER}/`) && !rest.includes("..") && !/[?#]/.test(rest);
+}
+
 /**
  * True only when `url` is a public URL for a file under this caller's own
  * `${userId}/ai-uploads/` prefix in the `uploads` bucket — never an

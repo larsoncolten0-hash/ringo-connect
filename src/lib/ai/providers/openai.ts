@@ -248,3 +248,81 @@ export const openaiProvider: AiProvider = {
     }
   },
 };
+
+// ---------------------------------------------------------------------------
+// Image generation — a separate capability from the chat AiProvider above,
+// not a replacement for it and not squeezed into its interface (runTurn is
+// shaped for conversational turns; generating one image is a one-shot
+// request with a binary result). Uses the SAME module-level client — this
+// stays the only file that imports `openai` and reads OPENAI_API_KEY.
+
+export interface GenerateImageRequest {
+  /** Admin-configured (ai_settings.image_model) — never hardcoded by a caller. */
+  model: string;
+  prompt: string;
+  /** Admin-configured default or a value validated against the same fixed set — never arbitrary client input. */
+  size: string;
+  quality: string;
+  signal?: AbortSignal;
+}
+
+export interface GenerateImageResult {
+  model: string;
+  size: string;
+  quality: string;
+  bytes: Buffer;
+  contentType: string;
+  /** OpenAI's own id for this call, when the SDK exposes one — support/debugging only. */
+  providerRequestId: string | null;
+  /** Token usage, when the provider returned it. Null when absent — never guessed. */
+  usage: { inputTextTokens: number; inputImageTokens: number; outputTokens: number } | null;
+}
+
+/**
+ * Generates exactly one image (n is never caller-configurable — see the
+ * module comment on cost safety). Retries are disabled for this call
+ * specifically (maxRetries: 0), overriding the shared client's default —
+ * an image generation is expensive enough that the SDK's normal automatic
+ * retry-on-5xx/timeout behavior must not silently multiply the cost of one
+ * request. Server-side only; never called from, or its result forwarded
+ * raw to, the client — the caller (the image route) stores the bytes and
+ * returns only a durable URL.
+ */
+export async function generateOpenAiImage(request: GenerateImageRequest): Promise<GenerateImageResult> {
+  try {
+    const response = await getClient().images.generate(
+      {
+        model: request.model,
+        prompt: request.prompt,
+        size: request.size as any,
+        quality: request.quality as any,
+        n: 1,
+        output_format: "png",
+      },
+      { signal: request.signal, maxRetries: 0 }
+    );
+
+    const image = response.data?.[0];
+    if (!image?.b64_json) throw new AiProviderError("unknown", "Provider returned no image data");
+
+    const usage = response.usage
+      ? {
+          inputTextTokens: response.usage.input_tokens_details?.text_tokens ?? 0,
+          inputImageTokens: response.usage.input_tokens_details?.image_tokens ?? 0,
+          outputTokens: response.usage.output_tokens ?? 0,
+        }
+      : null;
+
+    return {
+      model: request.model,
+      size: response.size ?? request.size,
+      quality: response.quality ?? request.quality,
+      bytes: Buffer.from(image.b64_json, "base64"),
+      contentType: `image/${response.output_format ?? "png"}`,
+      providerRequestId: (response as { _request_id?: string | null })._request_id ?? null,
+      usage,
+    };
+  } catch (error) {
+    throw mapError(error);
+  }
+}
