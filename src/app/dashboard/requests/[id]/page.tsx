@@ -1,5 +1,6 @@
 import { redirect, notFound } from "next/navigation";
-import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
+import { assertCanApproveRequests } from "@/lib/assertAdmin";
+import { resolveRequestAccess } from "@/lib/ambassador/requestReview";
 import { createAdminClient } from "@/lib/supabase/server";
 import RequestReview from "@/components/admin/RequestReview";
 import { publicPlans } from "@/lib/association/publicVisibility";
@@ -21,9 +22,10 @@ export default async function DashboardRequestDetailPage({ params }: { params: {
     .single();
 
   if (!signupRequest) notFound();
-  // 404, not a "forbidden" page — a super creator browsing to another
-  // affiliate's request id shouldn't even learn that it exists.
-  if (!canReviewerAccessRequest(reviewer, signupRequest.referral_code)) notFound();
+  // 404, not a "forbidden" page — a reviewer browsing to someone else's
+  // request id shouldn't even learn that it exists.
+  const access = await resolveRequestAccess(admin, reviewer, signupRequest);
+  if (!access) notFound();
 
   const { data: plans } = await admin.from("plans").select("*").order("price_usd", { ascending: true });
   const { data: addons } = await admin.from("addons").select("*").order("sort_order", { ascending: true });
@@ -39,6 +41,7 @@ export default async function DashboardRequestDetailPage({ params }: { params: {
       canDelete={reviewer.isAdmin}
       canReject={reviewer.isAdmin}
       canCharge={reviewer.isAdmin}
+      requireOnlinePayment={access === "ambassador"}
       siteUrl={siteUrl}
     />
   );

@@ -4,6 +4,8 @@ import { getMyAmbassadorOverview } from "@/lib/ambassador/dashboard";
 import AmbassadorDashboardView from "@/components/dashboard/AmbassadorDashboardView";
 import AmbassadorPayoutPanel from "@/components/dashboard/AmbassadorPayoutPanel";
 import { getMyPayoutOverview } from "@/lib/ambassador/payouts";
+import ClientRequestsCard from "@/components/dashboard/ClientRequestsCard";
+import { pendingScopedRequestCount } from "@/lib/ambassador/requestReview";
 
 // Same reasoning as /dashboard/affiliate/page.tsx — commission/activation
 // status here needs to always be current, never a cached snapshot.
@@ -27,9 +29,19 @@ export default async function AmbassadorPage() {
   // Phase H — the caller's own payout figures, resolved from their session id.
   const payouts = await getMyPayoutOverview(createAdminClient(), user.id, "ambassador");
 
+  // Approving their own clients' new accounts is granted per person by an admin
+  // (users.can_approve_requests, the same switch as super creators). Read
+  // server-side from the session user; the review screen and the approve API
+  // enforce the actual rules.
+  const adminClient = createAdminClient();
+  const { data: reviewerRow } = await adminClient.from("users").select("can_approve_requests").eq("id", user.id).maybeSingle();
+  const canApprove = !!reviewerRow?.can_approve_requests;
+  const pendingRequests = canApprove ? await pendingScopedRequestCount(adminClient, user.id) : 0;
+
   return (
     <>
       <AmbassadorDashboardView overview={overview} siteUrl={siteUrl} />
+      <ClientRequestsCard granted={canApprove} pendingCount={pendingRequests} />
       <AmbassadorPayoutPanel overview={payouts} />
     </>
   );

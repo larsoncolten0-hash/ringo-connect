@@ -1,4 +1,5 @@
-import { assertCanApproveRequests, canReviewerAccessRequest } from "@/lib/assertAdmin";
+import { assertCanApproveRequests } from "@/lib/assertAdmin";
+import { resolveRequestAccess, validateAmbassadorApproval } from "@/lib/ambassador/requestReview";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus } from "@/lib/fapshi";
 import { getCategory, isCategoryId, sanitizeCategoryIds } from "@/lib/categories";
@@ -38,11 +39,24 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (!signupRequest || signupRequest.status !== "pending") {
     return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
   }
-  // A super creator only ever approves requests that came in through
-  // their own affiliate link — 404, not 403, so this doesn't confirm to
-  // them that some other affiliate's request exists at this id.
-  if (!canReviewerAccessRequest(admin, signupRequest.referral_code)) {
+  // A non-admin reviewer only ever approves requests that are THEIRS — either
+  // came in through their own affiliate link (super creator, unchanged) or are
+  // their own Ambassador Program clients (an Ambassador's own, or a Team
+  // Leader's team, from ambassador_sales). 404, not 403, so this doesn't
+  // confirm to them that some other request exists at this id.
+  const access = await resolveRequestAccess(adminClient, admin, signupRequest);
+  if (!access) {
     return NextResponse.json({ error: "Request not found or already processed." }, { status: 404 });
+  }
+  // Ambassadors and Team Leaders are held to strictly narrower rules than an
+  // admin or a legacy super creator: ONLY a request whose online payment is
+  // already confirmed, ONLY for the plan/interval/email the client registered
+  // with, and ONLY through the verified "charge" branch below (which re-checks
+  // the payment with Fapshi itself before anything is created). Enforced here,
+  // server-side — the review screen merely mirrors it.
+  if (access === "ambassador") {
+    const check = validateAmbassadorApproval(signupRequest, { planId, billingInterval, paymentMethod, email });
+    if (!check.ok) return NextResponse.json({ error: check.error, code: check.code }, { status: 400 });
   }
 
   // Defense in depth — the UI already checks this, but re-verify

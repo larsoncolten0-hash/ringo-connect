@@ -13,6 +13,7 @@ import {
 import QrCodeResult from "@/components/admin/QrCodeResult";
 import { getCategory } from "@/lib/categories";
 import { isReservedUsername } from "@/lib/reservedUsernames";
+import { useLanguage } from "@/components/LanguageProvider";
 
 type UsernameStatus = "idle" | "checking" | "available" | "taken";
 type ChargeStatus = "idle" | "sending" | "pending" | "success" | "failed";
@@ -25,6 +26,7 @@ export default function RequestReview({
   canDelete = true,
   canReject = true,
   canCharge = true,
+  requireOnlinePayment = false,
   siteUrl = "https://ringoconnectltd.com",
 }: {
   request: any;
@@ -54,7 +56,13 @@ export default function RequestReview({
   // API routes behind it) stay full-admin-only, for the get_started
   // requests where pay-later is an option.
   canCharge?: boolean;
+  // True for an Ambassador / Team Leader reviewing their own client: the account
+  // can be created ONLY once the client's online payment is confirmed, with the
+  // plan the client chose, and there is no cash/transfer option. The server
+  // enforces every one of these itself (approve/route.ts); this only mirrors it.
+  requireOnlinePayment?: boolean;
 }) {
+  const { t } = useLanguage();
   const supabase = createClient();
 
   // Editable, pre-filled from what the customer submitted — admin can
@@ -69,7 +77,7 @@ export default function RequestReview({
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     request.requested_interval === "yearly" ? "yearly" : "monthly"
   );
-  const [paymentMethod, setPaymentMethod] = useState<"charge" | "manual">(canCharge ? "charge" : "manual");
+  const [paymentMethod, setPaymentMethod] = useState<"charge" | "manual">(canCharge || requireOnlinePayment ? "charge" : "manual");
   const [chargePhone, setChargePhone] = useState(request.whatsapp_number || "");
   const [chargeMedium, setChargeMedium] = useState<"mobile money" | "orange money">("mobile money");
 
@@ -185,7 +193,8 @@ export default function RequestReview({
     fullName.trim() &&
     whatsappNumber.trim() &&
     planId &&
-    (!somethingOwed || paymentMethod === "manual" || chargeStatus === "success");
+    (!somethingOwed || paymentMethod === "manual" || chargeStatus === "success") &&
+    (!requireOnlinePayment || !!request.customer_paid);
 
   const createAccount = async () => {
     setCreateError("");
@@ -203,14 +212,14 @@ export default function RequestReview({
         avatarUrl: request.avatar_url,
         planId,
         billingInterval,
-        paymentMethod: somethingOwed ? paymentMethod : "none",
+        paymentMethod: requireOnlinePayment ? "charge" : somethingOwed ? paymentMethod : "none",
       }),
     });
     const data = await res.json();
     setCreating(false);
 
     if (!res.ok) {
-      setCreateError(data.error || "Could not create the account.");
+      setCreateError((data.code && (t.ambassadorRequests.errors as Record<string, string>)[data.code]) || data.error || "Could not create the account.");
       return;
     }
     setCreated({ username: data.username });
@@ -463,6 +472,7 @@ export default function RequestReview({
               {plans.map((p) => (
                 <button
                   key={p.id}
+                  disabled={requireOnlinePayment}
                   onClick={() => {
                     setPlanId(p.id);
                     setChargeStatus("idle");
@@ -499,6 +509,7 @@ export default function RequestReview({
                   {(["monthly", "yearly"] as const).map((iv) => (
                     <button
                       key={iv}
+                      disabled={requireOnlinePayment}
                       onClick={() => {
                         setBillingInterval(iv);
                         setChargeStatus("idle");
@@ -544,6 +555,10 @@ export default function RequestReview({
                       Already paid (cash/transfer)
                     </button>
                   </div>
+                ) : requireOnlinePayment ? (
+                  <p className="text-sm text-amber-600 flex items-center gap-2">
+                    <AlertTriangle size={14} /> {t.ambassadorRequests.awaitingOnlinePayment}
+                  </p>
                 ) : (
                   <p className="text-sm text-red-500 flex items-center gap-2">
                     <AlertTriangle size={14} /> No confirmed online payment on this request yet — the customer may

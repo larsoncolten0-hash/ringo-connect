@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { assertCanApproveRequests } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import RequestsTable from "@/components/admin/RequestsTable";
+import { getReviewerScope, scopedSignupRequestIds } from "@/lib/ambassador/requestReview";
 
 export const dynamic = "force-dynamic";
 
@@ -29,15 +30,22 @@ export default async function DashboardRequestsPage({ searchParams }: { searchPa
     .order("created_at", { ascending: false });
   let pendingCountQuery = admin.from("signup_requests").select("id", { count: "exact", head: true }).eq("status", "pending");
 
-  // A super creator only ever sees requests that came in through their
-  // own affiliate link (referral_code === their own affiliate_code) —
-  // never anyone else's. A full admin is unscoped, same as /admin/requests.
+  // A non-admin reviewer only ever sees THEIR requests — never anyone else's:
+  //   * requests that came in through their own affiliate link
+  //     (referral_code === their affiliate_code), and/or
+  //   * their Ambassador Program clients (an Ambassador's own; a Team
+  //     Leader's whole team, by the team recorded on each sale).
+  // A full admin is unscoped, same as /admin/requests.
   if (!reviewer.isAdmin) {
-    if (reviewer.affiliateCode) {
-      listQuery = listQuery.eq("referral_code", reviewer.affiliateCode);
-      pendingCountQuery = pendingCountQuery.eq("referral_code", reviewer.affiliateCode);
+    const conditions: string[] = [];
+    if (reviewer.affiliateCode && /^[A-Za-z0-9_-]+$/.test(reviewer.affiliateCode)) conditions.push(`referral_code.eq.${reviewer.affiliateCode}`);
+    const scopedIds = (await scopedSignupRequestIds(admin, await getReviewerScope(admin, reviewer.id))).filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+    if (scopedIds.length) conditions.push(`id.in.(${scopedIds.join(",")})`);
+    if (conditions.length) {
+      listQuery = listQuery.or(conditions.join(","));
+      pendingCountQuery = pendingCountQuery.or(conditions.join(","));
     } else {
-      // No affiliate_code yet — show nothing rather than everything.
+      // Nothing of theirs — show nothing rather than everything.
       listQuery = listQuery.eq("id", "00000000-0000-0000-0000-000000000000");
       pendingCountQuery = pendingCountQuery.eq("id", "00000000-0000-0000-0000-000000000000");
     }

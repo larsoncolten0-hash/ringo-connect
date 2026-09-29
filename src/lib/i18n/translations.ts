@@ -2313,6 +2313,44 @@ export const translations = {
     // Ringo Management's payout/reversal actions
     // (src/components/admin/AmbassadorPayoutActions.tsx). Error keys are the
     // stable `code` values the payout API routes return.
+    // Ambassadors and Team Leaders approving their OWN clients' new accounts
+    // (src/lib/ambassador/requestReview.ts, src/components/dashboard/ClientRequestsCard.tsx,
+    // TeamLeaderSelfSellCard.tsx). `errors` keys are the stable `code` values the approve route returns.
+    ambassadorRequests: {
+      cardTitle: "Client account approvals",
+      cardBody: "You can approve new accounts for your own clients yourself. An account can be approved only after the client's online payment is confirmed.",
+      pending: (n: number) => (n === 1 ? "1 client request waiting" : `${n} client requests waiting`),
+      nonePending: "No client requests waiting.",
+      open: "Review client requests",
+      notGranted: "Approving your clients' accounts isn't enabled for you yet. Ask Ringo Connect to enable it.",
+      awaitingOnlinePayment: "Waiting for the client's online payment. You can approve this account once it is confirmed.",
+      errors: {
+        online_payment_required: "This request can be approved only after the client's online payment is confirmed.",
+        payment_method_locked: "Only confirmed online payments can be approved from here.",
+        plan_locked: "The plan must match what the client requested and paid for.",
+        email_locked: "The account email must match the client's registration.",
+      },
+      selfSell: {
+        title: "Sell to your own clients",
+        body: "You can also register clients yourself. Add your account as an Ambassador and you earn both the Ambassador and the Team Leader commission on those clients.",
+        cta: "Add my account as an Ambassador",
+        working: "Adding…",
+        activeTitle: "Your Ambassador link",
+        activeBody: "Share this link or code with your own clients. You earn both the Ambassador and the Team Leader commission on them.",
+        codeLabel: "Your Ambassador code",
+        linkLabel: "Your client link",
+        copy: "Copy",
+        copied: "Copied",
+        errors: {
+          not_team_leader: "You don't manage a Sales Team.",
+          team_inactive: "Your team isn't active. Please contact Ringo Connect.",
+          profile_inactive: "Your Ambassador account isn't active. Please contact Ringo Connect.",
+          demo: "This isn't available in demo mode.",
+          unavailable: "We couldn't complete this. Please try again later.",
+          network: "Network error. Please try again.",
+        },
+      },
+    },
     ambassadorPayouts: {
       title: "Payouts",
       available: "Available for payout",
@@ -6263,6 +6301,41 @@ export const translations = {
         none: "Rien à faire",
       },
       notTeamLeader: "Vous ne gérez pas d'équipe de vente.",
+    },
+    ambassadorRequests: {
+      cardTitle: "Approbation des comptes clients",
+      cardBody: "Vous pouvez approuver vous-même les nouveaux comptes de vos propres clients. Un compte ne peut être approuvé qu'une fois le paiement en ligne du client confirmé.",
+      pending: (n: number) => (n === 1 ? "1 demande client en attente" : `${n} demandes clients en attente`),
+      nonePending: "Aucune demande client en attente.",
+      open: "Examiner les demandes clients",
+      notGranted: "L'approbation des comptes de vos clients n'est pas encore activée pour vous. Demandez à Ringo Connect de l'activer.",
+      awaitingOnlinePayment: "En attente du paiement en ligne du client. Vous pourrez approuver ce compte dès qu'il sera confirmé.",
+      errors: {
+        online_payment_required: "Cette demande ne peut être approuvée qu'une fois le paiement en ligne du client confirmé.",
+        payment_method_locked: "Seuls les paiements en ligne confirmés peuvent être approuvés ici.",
+        plan_locked: "Le forfait doit correspondre à ce que le client a demandé et payé.",
+        email_locked: "L'e-mail du compte doit correspondre à l'inscription du client.",
+      },
+      selfSell: {
+        title: "Vendez à vos propres clients",
+        body: "Vous pouvez aussi inscrire des clients vous-même. Ajoutez votre compte comme Ambassadeur et vous gagnez à la fois la commission d'Ambassadeur et celle de chef d'équipe sur ces clients.",
+        cta: "Ajouter mon compte comme Ambassadeur",
+        working: "Ajout en cours…",
+        activeTitle: "Votre lien d'Ambassadeur",
+        activeBody: "Partagez ce lien ou ce code avec vos propres clients. Vous gagnez à la fois la commission d'Ambassadeur et celle de chef d'équipe sur eux.",
+        codeLabel: "Votre code d'Ambassadeur",
+        linkLabel: "Votre lien client",
+        copy: "Copier",
+        copied: "Copié",
+        errors: {
+          not_team_leader: "Vous ne gérez pas d'équipe de vente.",
+          team_inactive: "Votre équipe n'est pas active. Veuillez contacter Ringo Connect.",
+          profile_inactive: "Votre compte Ambassadeur n'est pas actif. Veuillez contacter Ringo Connect.",
+          demo: "Non disponible en mode démo.",
+          unavailable: "Nous n'avons pas pu terminer cette opération. Veuillez réessayer plus tard.",
+          network: "Erreur réseau. Veuillez réessayer.",
+        },
+      },
     },
     ambassadorPayouts: {
       title: "Paiements",
