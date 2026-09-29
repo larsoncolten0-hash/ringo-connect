@@ -8,7 +8,7 @@ import OpenAI, {
   PermissionDeniedError,
   RateLimitError,
 } from "openai";
-import type { FunctionTool, ResponseInputItem, Response as OpenAIResponse } from "openai/resources/responses/responses";
+import type { FunctionTool, ResponseInputItem, ResponseOutputItem, Response as OpenAIResponse } from "openai/resources/responses/responses";
 import {
   AiProviderError,
   type AiContentPart,
@@ -44,6 +44,18 @@ import {
 // keeps its in-flight response snapshot private on `ResponseStream`, with no
 // public accessor. Partial usage genuinely can't be recovered here — the
 // request's already-accumulated usage from earlier tool rounds still counts.
+//
+// providerState sanitization: `final.output` items are OUTPUT items, and the
+// SDK enriches them with convenience-only fields (e.g. `parsed_arguments` on
+// a function_call, `parsed` on an output_text part) that exist purely for
+// reading a response — the API's INPUT schema for replaying those same items
+// back rejects unrecognized fields outright ("Unknown parameter:
+// 'input[1].parsed_arguments'", confirmed against the live API). Every
+// providerState item is therefore rebuilt through an explicit allow-list
+// before replay, keeping only the fields the Responses API documents as
+// valid input. Ringo only ever produces "message" and "function_call" output
+// items (no reasoning-tier model, no built-in tools) — any other item type
+// is passed through unchanged rather than guessed at.
 
 let client: OpenAI | null = null;
 
@@ -56,14 +68,39 @@ function getClient(): OpenAI {
 
 type MessageContentPart = { type: "input_text"; text: string } | { type: "input_image"; image_url: string; detail: "auto" };
 
+/**
+ * Rebuilds one `final.output` item through an explicit allow-list of the
+ * fields the Responses API's INPUT schema actually accepts, dropping every
+ * SDK-added output-only convenience field. See the module comment above.
+ */
+function sanitizeProviderStateItem(item: ResponseOutputItem): ResponseInputItem {
+  if (item.type === "function_call") {
+    return { type: "function_call", call_id: item.call_id, name: item.name, arguments: item.arguments, id: item.id, status: item.status };
+  }
+  if (item.type === "message") {
+    return {
+      id: item.id,
+      type: "message",
+      role: item.role,
+      status: item.status,
+      content: item.content.map((c) =>
+        c.type === "output_text" ? { type: "output_text" as const, text: c.text, annotations: c.annotations } : { type: "refusal" as const, refusal: c.refusal }
+      ),
+    };
+  }
+  return item as unknown as ResponseInputItem;
+}
+
 function toOpenAIInput(messages: AiMessage[]): ResponseInputItem[] {
   const items: ResponseInputItem[] = [];
   for (const m of messages) {
     // An assistant turn from THIS request's tool loop is replayed exactly as
     // the API returned it (the message + function_call items), as the
-    // Responses API requires for multi-turn tool calling.
+    // Responses API requires for multi-turn tool calling — sanitized first
+    // (see sanitizeProviderStateItem) since the raw SDK items aren't
+    // themselves valid input.
     if (m.role === "assistant" && Array.isArray(m.providerState)) {
-      items.push(...(m.providerState as ResponseInputItem[]));
+      items.push(...(m.providerState as ResponseOutputItem[]).map(sanitizeProviderStateItem));
       continue;
     }
     let content: MessageContentPart[] = [];

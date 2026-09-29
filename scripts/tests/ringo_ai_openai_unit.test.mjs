@@ -46,19 +46,33 @@ function skeleton(overrides = {}) {
 }
 function textEvents({ text = "Hello", usage } = {}) {
   const id = "msg_1";
+  // Content part includes `parsed: null`, exactly like the real API (confirmed live) — also an
+  // SDK-added, output-only field that must not be replayed back as input.
+  const part = { type: "output_text", text, annotations: [], parsed: null };
   return [
     { type: "response.created", response: skeleton() },
     { type: "response.output_item.added", output_index: 0, item: { id, type: "message", role: "assistant", status: "in_progress", content: [] } },
-    { type: "response.content_part.added", item_id: id, output_index: 0, content_index: 0, part: { type: "output_text", text: "", annotations: [] } },
+    { type: "response.content_part.added", item_id: id, output_index: 0, content_index: 0, part: { ...part, text: "" } },
     { type: "response.output_text.delta", item_id: id, output_index: 0, content_index: 0, delta: text },
     { type: "response.output_text.done", item_id: id, output_index: 0, content_index: 0, text },
-    { type: "response.content_part.done", item_id: id, output_index: 0, content_index: 0, part: { type: "output_text", text, annotations: [] } },
-    { type: "response.output_item.done", output_index: 0, item: { id, type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text, annotations: [] }] } },
-    { type: "response.completed", response: skeleton({ status: "completed", output: [{ id, type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text, annotations: [] }] }], usage }) },
+    { type: "response.content_part.done", item_id: id, output_index: 0, content_index: 0, part },
+    { type: "response.output_item.done", output_index: 0, item: { id, type: "message", role: "assistant", status: "completed", content: [part] } },
+    { type: "response.completed", response: skeleton({ status: "completed", output: [{ id, type: "message", role: "assistant", status: "completed", content: [part] }], usage }) },
   ];
 }
 function toolCallEvents(calls, usage) {
-  const items = calls.map((c, i) => ({ id: `fc_${i}`, type: "function_call", call_id: c.call_id, name: c.name, arguments: c.arguments, status: "completed" }));
+  // Includes `parsed_arguments`, exactly like the real API (confirmed live) — an SDK-added,
+  // output-only convenience field that must NOT be replayed back as input (see openai.ts's
+  // sanitizeProviderStateItem and the "tool-result continuation" checks below).
+  const items = calls.map((c, i) => ({
+    id: `fc_${i}`,
+    type: "function_call",
+    call_id: c.call_id,
+    name: c.name,
+    arguments: c.arguments,
+    status: "completed",
+    parsed_arguments: JSON.parse(c.arguments || "{}"),
+  }));
   const events = [{ type: "response.created", response: skeleton() }];
   items.forEach((item, i) => {
     events.push({ type: "response.output_item.added", output_index: i, item: { ...item, status: "in_progress" } });
@@ -208,8 +222,35 @@ const baseReq = (over = {}) => ({
   stub2.restore();
   const fnCall = sent.input.find((i) => i.type === "function_call");
   const fnOutput = sent.input.find((i) => i.type === "function_call_output");
-  check("continuation: the original function_call item is replayed verbatim", fnCall?.call_id === "call_abc" && fnCall?.name === "lookup_ringo_help");
+  check("continuation: the replayed function_call item keeps its identity", fnCall?.call_id === "call_abc" && fnCall?.name === "lookup_ringo_help");
   check("continuation: a function_call_output with the matching call_id is sent", fnOutput?.call_id === "call_abc" && fnOutput?.output === '{"ok":true}');
+  // Regression check for the live HTTP 400 this fixed: OpenAI rejects a replayed function_call
+  // item that still carries the SDK's output-only `parsed_arguments` field ("Unknown parameter:
+  // 'input[1].parsed_arguments'"). toolCallEvents() above deliberately includes that field, like
+  // the real API does, so this fails again if sanitizeProviderStateItem regresses.
+  check("continuation: SDK-only 'parsed_arguments' is NOT present on the replayed function_call", fnCall && !("parsed_arguments" in fnCall), JSON.stringify(fnCall));
+  check("continuation: only the documented function_call fields are sent", fnCall && Object.keys(fnCall).sort().join() === "arguments,call_id,id,name,status,type", fnCall && Object.keys(fnCall).sort().join());
+}
+
+// ------------------------------------------------------------------ message providerState replay (same SDK-enrichment issue, different item type)
+{
+  const stub = stubFetch(textEvents({ text: "here you go" }));
+  const first = await openaiProvider.runTurn(baseReq());
+  stub.restore();
+
+  const stub2 = stubFetch(textEvents({ text: "ok" }));
+  await openaiProvider.runTurn(
+    baseReq({
+      messages: [{ role: "user", parts: [{ type: "text", text: "hi" }] }, first.message, { role: "user", parts: [{ type: "text", text: "thanks" }] }],
+    })
+  );
+  const sent = stub2.body();
+  stub2.restore();
+  const replayedMessage = sent.input.find((i) => i.type === "message" && i.role === "assistant");
+  const textPart = replayedMessage?.content?.find((c) => c.type === "output_text");
+  check("message replay: SDK-only 'parsed' is NOT present on the replayed content part", textPart && !("parsed" in textPart), JSON.stringify(textPart));
+  check("message replay: 'annotations' (a real, valid field) is preserved", textPart && Array.isArray(textPart.annotations));
+  check("message replay: text content itself is preserved", textPart?.text === "here you go");
 }
 
 // ------------------------------------------------------------------ stop-reason mapping
