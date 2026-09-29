@@ -102,6 +102,7 @@ export default function RingoAiAdminView() {
   const { t, locale } = useLanguage();
   const a = t.ringoAiAdmin;
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [providers, setProviders] = useState<string[]>([]);
   const [providerConfigured, setProviderConfigured] = useState(false);
   const [pricingConfigured, setPricingConfigured] = useState(false);
   const [form, setForm] = useState<Form | null>(null);
@@ -122,6 +123,7 @@ export default function RingoAiAdminView() {
       const data = await res.json();
       setSettings(data.settings);
       setForm(toForm(data.settings));
+      setProviders(Array.isArray(data.providers) ? data.providers : []);
       setProviderConfigured(!!data.providerConfigured);
       setPricingConfigured(!!data.pricingConfigured);
     } catch {
@@ -249,7 +251,7 @@ export default function RingoAiAdminView() {
         </label>
         <p className={`text-xs flex items-center gap-1.5 ${providerConfigured ? "text-emerald-600" : "text-ringo-coral"}`}>
           {providerConfigured ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-          {providerConfigured ? a.providerOk : a.providerMissing}
+          {providerConfigured ? a.providerOk : a.providerMissing(settings.provider)}
         </p>
         <Field label={a.accessTitle}>
           <select
@@ -267,7 +269,20 @@ export default function RingoAiAdminView() {
       <Card title={a.modelTitle}>
         <div className="grid sm:grid-cols-3 gap-4">
           <Field label={a.providerLabel}>
-            <input value={settings.provider} disabled className={`${inputClass} opacity-70`} />
+            <select
+              value={settings.provider}
+              disabled={saving}
+              onChange={(e) => save({ provider: e.target.value })}
+              className={inputClass}
+            >
+              {/* Only ids this server actually has an adapter for (see GET /api/admin/ai/settings). Includes
+                  the current value even if the registry ever drops it, so the select never silently changes it. */}
+              {(providers.includes(settings.provider) ? providers : [settings.provider, ...providers]).map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label={a.modelLabel}>
             <input value={form.modelChat} onChange={set("modelChat")} className={inputClass} />

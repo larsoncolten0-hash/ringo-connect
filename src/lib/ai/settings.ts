@@ -138,6 +138,14 @@ export function parseAiSettingsPatch(body: unknown): Record<string, unknown> | n
     if (!/^[a-z0-9][a-z0-9.\-_]{0,99}$/i.test(m)) return null;
     patch.model_chat = m;
   }
+  // Shape only — whether this id is an actually-registered provider is
+  // checked by the route handler (which has the provider registry), keeping
+  // this function's validation generic like every other field here.
+  if (b.provider !== undefined) {
+    const p = typeof b.provider === "string" ? b.provider.trim() : "";
+    if (!/^[a-z0-9][a-z0-9_-]{0,39}$/i.test(p)) return null;
+    patch.provider = p;
+  }
   if (b.effort !== undefined) {
     if (b.effort !== "low" && b.effort !== "medium" && b.effort !== "high") return null;
     patch.effort = b.effort;

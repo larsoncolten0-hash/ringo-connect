@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { AI_SETTINGS_COLUMNS, getAiSettings, hasPricing, parseAiSettingsPatch } from "@/lib/ai/settings";
-import { getAiProvider } from "@/lib/ai/providers";
+import { getAiProvider, listAiProviderIds } from "@/lib/ai/providers";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/admin/ai/settings — current Ringo AI settings + whether the
-// provider key is present (never the key itself).
+// provider key is present (never the key itself) + the registered provider
+// ids the admin UI may offer (so it never shows one that isn't wired up).
 export async function GET() {
   const admin = await assertAdmin();
   if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -16,6 +17,7 @@ export async function GET() {
   const provider = getAiProvider(settings.provider);
   return NextResponse.json({
     settings,
+    providers: listAiProviderIds(),
     providerConfigured: !!provider?.isConfigured(),
     pricingConfigured: hasPricing(settings),
   });
@@ -28,6 +30,11 @@ export async function PUT(request: Request) {
 
   const patch = parseAiSettingsPatch(await request.json().catch(() => null));
   if (!patch) return NextResponse.json({ error: "invalid_settings" }, { status: 400 });
+  // parseAiSettingsPatch only checks the id's shape; only a provider this
+  // server actually has an adapter for may be selected.
+  if (typeof patch.provider === "string" && !getAiProvider(patch.provider)) {
+    return NextResponse.json({ error: "invalid_settings" }, { status: 400 });
+  }
 
   const db = createAdminClient();
   const { error } = await db
