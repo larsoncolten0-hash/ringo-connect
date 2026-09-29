@@ -9,6 +9,7 @@ import MessageList, { type UiMessage } from "./MessageList";
 import type { DraftView } from "@/lib/ai/drafts/view";
 import type { ContentView } from "@/lib/ai/content/view";
 import type { ImageView } from "@/lib/ai/content/imageView";
+import type { CalendarPlanView } from "@/lib/ai/content/calendarView";
 
 export type AiStatus = { canSend: boolean; limitReason: string | null; remainingToday: number };
 
@@ -29,10 +30,15 @@ export default function RingoAiPanel({
   status,
   onStatusChange,
   onClose,
+  initialMessage,
+  onInitialMessageSent,
 }: {
   status: AiStatus;
   onStatusChange: (s: AiStatus) => void;
   onClose: () => void;
+  /** Sent automatically once when the panel opens (e.g. from the Content Calendar's "Plan My Month" button) — see RingoAiLauncher's ringo-ai:open event. */
+  initialMessage?: string | null;
+  onInitialMessageSent?: () => void;
 }) {
   const { t, locale } = useLanguage();
   const [view, setView] = useState<"chat" | "history">("chat");
@@ -46,6 +52,7 @@ export default function RingoAiPanel({
   const [drafts, setDrafts] = useState<Record<string, DraftView>>({});
   const [contents, setContents] = useState<Record<string, ContentView>>({});
   const [images, setImages] = useState<Record<string, ImageView>>({});
+  const [calendarPlans, setCalendarPlans] = useState<Record<string, CalendarPlanView>>({});
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -66,6 +73,7 @@ export default function RingoAiPanel({
   const upsertDraft = useCallback((draft: DraftView) => setDrafts((prev) => ({ ...prev, [draft.id]: draft })), []);
   const upsertContent = useCallback((content: ContentView) => setContents((prev) => ({ ...prev, [content.id]: content })), []);
   const upsertImage = useCallback((image: ImageView) => setImages((prev) => ({ ...prev, [image.id]: image })), []);
+  const upsertCalendarPlan = useCallback((plan: CalendarPlanView) => setCalendarPlans((prev) => ({ ...prev, [plan.id]: plan })), []);
 
   const attachImage = async (file: File) => {
     setImageError(null);
@@ -171,6 +179,11 @@ export default function RingoAiPanel({
             // shown; there is nothing further to apply.
             upsertImage(event.image);
             patchAssistant(assistantId, (m) => ({ imageIds: (m.imageIds || []).includes(event.image.id) ? m.imageIds : [...(m.imageIds || []), event.image.id] }));
+          } else if (event.type === "calendar_plan" && event.plan?.id) {
+            // A calendar summary card — the full month lives in the Content
+            // Calendar view; nothing here is published.
+            upsertCalendarPlan(event.plan);
+            patchAssistant(assistantId, (m) => ({ calendarPlanIds: (m.calendarPlanIds || []).includes(event.plan.id) ? m.calendarPlanIds : [...(m.calendarPlanIds || []), event.plan.id] }));
           } else if (event.type === "done") {
             patchAssistant(assistantId, { pending: false, serverId: event.messageId, truncated: !!event.truncated });
             onStatusChange({ ...status, remainingToday: Math.max(0, status.remainingToday - 1), canSend: status.remainingToday - 1 > 0, limitReason: status.remainingToday - 1 > 0 ? null : "daily_limit" });
@@ -189,6 +202,17 @@ export default function RingoAiPanel({
     }
   };
 
+  // Fires once when the panel opens with a prefilled message (e.g. the
+  // Content Calendar's "Plan My Month" button) — never re-fires on its own,
+  // since the parent clears initialMessage right back to null once sent.
+  useEffect(() => {
+    if (initialMessage && status.canSend && !streaming) {
+      send(initialMessage);
+      onInitialMessageSent?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMessage]);
+
   const startNewChat = () => {
     abortRef.current?.abort();
     setConversationId(null);
@@ -196,6 +220,7 @@ export default function RingoAiPanel({
     setDrafts({});
     setContents({});
     setImages({});
+    setCalendarPlans({});
     setView("chat");
   };
 
@@ -246,6 +271,7 @@ export default function RingoAiPanel({
       // re-linked into this view on reload).
       setContents({});
       setImages({});
+      setCalendarPlans({});
       setView("chat");
     } catch {
       // Stay on the list; the user can retry.
@@ -405,6 +431,7 @@ export default function RingoAiPanel({
                 onRegenerateContent={regenerateContent}
                 onSwitchContentLanguage={switchContentLanguage}
                 images={images}
+                calendarPlans={calendarPlans}
               />
             )}
           </div>

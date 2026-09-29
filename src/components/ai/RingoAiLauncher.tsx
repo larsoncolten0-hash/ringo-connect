@@ -16,6 +16,23 @@ export default function RingoAiLauncher() {
   const { t } = useLanguage();
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [open, setOpen] = useState(false);
+  const [initialMessage, setInitialMessage] = useState<string | null>(null);
+
+  // A small, reusable "open Ringo AI with a prefilled message" hook other
+  // dashboard features can use without any routing/URL-param plumbing —
+  // e.g. the Content Calendar's "Plan My Month" button. Both components
+  // are already mounted in the same page (RingoAiLauncher lives in
+  // DashboardShell, present on every /dashboard/* page), so a plain
+  // window CustomEvent is enough; no navigation needed.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ prompt?: string }>).detail;
+      setInitialMessage(detail?.prompt || null);
+      setOpen(true);
+    };
+    window.addEventListener("ringo-ai:open", onOpen);
+    return () => window.removeEventListener("ringo-ai:open", onOpen);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,7 +66,14 @@ export default function RingoAiLauncher() {
               className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px]"
               aria-hidden="true"
             />
-            <RingoAiPanel key="ringo-ai-panel" status={status} onStatusChange={setStatus} onClose={() => setOpen(false)} />
+            <RingoAiPanel
+              key="ringo-ai-panel"
+              status={status}
+              onStatusChange={setStatus}
+              onClose={() => setOpen(false)}
+              initialMessage={initialMessage}
+              onInitialMessageSent={() => setInitialMessage(null)}
+            />
           </>
         )}
       </AnimatePresence>

@@ -8,7 +8,7 @@ import { AI_TOOLS } from "./index";
 // (present already-generated, never-persisted marketing copy). "write" stays
 // unreachable even if one is registered by mistake — there is no
 // model-callable mutation.
-const EXPOSED_KINDS: readonly AiToolKind[] = ["read", "draft", "content", "image"];
+const EXPOSED_KINDS: readonly AiToolKind[] = ["read", "draft", "content", "image", "calendar"];
 
 const MAX_RESULT_CHARS = 6000;
 const TOOL_TIMEOUT_MS = 10_000;

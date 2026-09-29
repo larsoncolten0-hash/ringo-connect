@@ -7,9 +7,11 @@ import RichText from "./RichText";
 import DraftCard from "./DraftCard";
 import ContentCard from "./ContentCard";
 import ImageCard from "./ImageCard";
+import CalendarPlanCard from "./CalendarPlanCard";
 import type { DraftView } from "@/lib/ai/drafts/view";
 import type { ContentView } from "@/lib/ai/content/view";
 import type { ImageView } from "@/lib/ai/content/imageView";
+import type { CalendarPlanView } from "@/lib/ai/content/calendarView";
 
 export type UiMessage = {
   id: string;
@@ -27,6 +29,8 @@ export type UiMessage = {
   contentIds?: string[];
   /** Generated-image cards Ringo AI produced in this reply (file is durably stored; the card itself isn't persisted). */
   imageIds?: string[];
+  /** Content Calendar summary cards Ringo AI produced in this reply (items are real rows; the card itself isn't persisted). */
+  calendarPlanIds?: string[];
   createdAt?: string;
 };
 
@@ -63,6 +67,7 @@ export default function MessageList({
   onRegenerateContent,
   onSwitchContentLanguage,
   images,
+  calendarPlans,
 }: {
   messages: UiMessage[];
   toolStatus: string | null;
@@ -73,6 +78,7 @@ export default function MessageList({
   onRegenerateContent: () => void;
   onSwitchContentLanguage: (locale: "en" | "fr") => void;
   images: Record<string, ImageView>;
+  calendarPlans: Record<string, CalendarPlanView>;
 }) {
   const { t } = useLanguage();
 
@@ -101,6 +107,7 @@ export default function MessageList({
                 ) : null
               )}
               {(m.imageIds || []).map((id) => (images[id] ? <ImageCard key={id} image={images[id]} /> : null))}
+              {(m.calendarPlanIds || []).map((id) => (calendarPlans[id] ? <CalendarPlanCard key={id} plan={calendarPlans[id]} /> : null))}
               {m.pending && (
                 <div className="flex items-center gap-2 text-xs text-ringo-muted px-1 py-1.5">
                   <Loader2 size={13} className="animate-spin" />

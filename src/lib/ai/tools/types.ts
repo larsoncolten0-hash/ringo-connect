@@ -3,6 +3,7 @@ import type { WorkspaceSnapshot } from "@/lib/ai/context/snapshot";
 import type { DraftView } from "@/lib/ai/drafts/view";
 import type { ContentView } from "@/lib/ai/content/view";
 import type { ImageView } from "@/lib/ai/content/imageView";
+import type { CalendarPlanView } from "@/lib/ai/content/calendarView";
 
 // A Ringo AI tool is an explicitly defined, server-side capability. The model
 // can only ask for a tool by name with a small, validated input; it never
@@ -28,9 +29,19 @@ import type { ImageView } from "@/lib/ai/content/imageView";
 //                    other tool kind has. There is nothing to confirm/apply
 //                    — the image already exists in storage the moment the
 //                    card appears.
+//   kind "calendar" — Ringo AI Content Calendar. The model composes each
+//                    post's content itself (like "content"), but the result
+//                    is a REAL persisted row (content_calendar_items), not
+//                    ephemeral — unlike "draft", writing it does not need a
+//                    separate chat-side Confirm & Apply, since nothing has
+//                    left the calendar yet; unlike "image", nothing is
+//                    public or final — the owner still has to review,
+//                    approve and, separately, click Publish to Community in
+//                    the calendar UI itself before anything goes out. See
+//                    src/lib/ai/tools/definitions/calendar.ts.
 //   kind "write"   — reserved. The registry refuses to expose it.
 
-export type AiToolKind = "read" | "draft" | "content" | "image" | "write";
+export type AiToolKind = "read" | "draft" | "content" | "image" | "calendar" | "write";
 
 export interface AiToolContext {
   workspace: AiWorkspace;
@@ -44,6 +55,8 @@ export interface AiToolContext {
   emitContent?: (content: ContentView) => void;
   /** Streams a generated-image card to the panel (image tools only). */
   emitImage?: (image: ImageView) => void;
+  /** Streams a calendar-plan summary card to the panel (calendar tools only). */
+  emitCalendarPlan?: (plan: CalendarPlanView) => void;
 }
 
 export interface AiTool<Input = Record<string, never>> {

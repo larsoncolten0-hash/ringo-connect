@@ -264,10 +264,14 @@ const ctxFor = (snapshot, actor = { kind: "owner" }) => ({
   locale: "en",
 });
 const names = (ctx) => getAvailableTools(ctx).map((t) => t.name).sort();
-// "content" (Phase 3 increment 2 — Content Studio) and "image" (Ringo AI Image Generation) are
-// never persisted/applied to a Ringo record and have no apply path, same safety posture as
-// "draft"; "write" stays permanently unreachable — see tools/types.ts.
-check("every registered tool is read, draft, content or image — never write", AI_TOOLS.every((t) => t.kind === "read" || t.kind === "draft" || t.kind === "content" || t.kind === "image"));
+// "content" (Phase 3 increment 2 — Content Studio), "image" (Ringo AI Image Generation) and
+// "calendar" (Content Calendar V1) are never persisted/applied to a Ringo record and have no
+// apply path, same safety posture as "draft"; "write" stays permanently unreachable — see
+// tools/types.ts.
+check(
+  "every registered tool is read, draft, content, image or calendar — never write",
+  AI_TOOLS.every((t) => t.kind === "read" || t.kind === "draft" || t.kind === "content" || t.kind === "image" || t.kind === "calendar")
+);
 check("no tool can apply/confirm/publish (applying is the owner's click only)", !AI_TOOLS.some((t) => /apply|confirm|publish|execute|commit|write|delete_|send/i.test(t.name)));
 check("tool names unique", new Set(AI_TOOLS.map((t) => t.name)).size === AI_TOOLS.length);
 check("business owner: no music/restaurant/events tools", !names(ctxFor(base())).some((n) => /music|restaurant|events/.test(n)));
