@@ -253,6 +253,35 @@ const baseReq = (over = {}) => ({
   check("message replay: text content itself is preserved", textPart?.text === "here you go");
 }
 
+// ------------------------------------------------------------------ persisted conversation history (reloaded, no providerState)
+// Regression for the second live HTTP 400 this fixed: orchestrator.ts reloads STORED conversation
+// history as plain text for every role, with no providerState (`history = stored.map(m => ({role,
+// parts:[{type:"text",text:m.content}]}))`) — this is a DIFFERENT code path than providerState
+// replay above (that only ever carries THIS request's own fresh tool-loop turns). OpenAI rejected
+// an assistant-role message sent with `input_text` content ("Invalid value: 'input_text'.
+// Supported values are: 'output_text' and 'refusal'.", param input[1].content[0]).
+{
+  const stub = stubFetch(textEvents({ text: "sure, one more thing" }));
+  await openaiProvider.runTurn(
+    baseReq({
+      messages: [
+        { role: "user", parts: [{ type: "text", text: "Add a T-shirt for 15,000 XAF." }] },
+        // A reloaded history turn — plain text, NO providerState, exactly what orchestrator.ts
+        // rebuilds from storage for a conversation continued in a later request.
+        { role: "assistant", parts: [{ type: "text", text: "I prepared a draft. Click Confirm & Apply." }] },
+        { role: "user", parts: [{ type: "text", text: "Also create an event called Summer Vibes." }] },
+      ],
+    })
+  );
+  const sent = stub.body();
+  stub.restore();
+  const [userItem1, assistantItem, userItem2] = sent.input;
+  check("persisted history: a user turn uses input_text", userItem1?.role === "user" && userItem1.content[0]?.type === "input_text");
+  check("persisted history: a reloaded assistant turn (no providerState) uses output_text, not input_text", assistantItem?.role === "assistant" && assistantItem.content[0]?.type === "output_text", JSON.stringify(assistantItem));
+  check("persisted history: the assistant turn's text is preserved", assistantItem?.content[0]?.text === "I prepared a draft. Click Confirm & Apply.");
+  check("persisted history: the newest user turn also uses input_text", userItem2?.role === "user" && userItem2.content[0]?.type === "input_text");
+}
+
 // ------------------------------------------------------------------ stop-reason mapping
 {
   let stub = stubFetch(refusalEvents("I can't help with that."));

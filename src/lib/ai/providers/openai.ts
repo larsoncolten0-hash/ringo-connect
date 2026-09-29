@@ -66,7 +66,10 @@ function getClient(): OpenAI {
   return client;
 }
 
-type MessageContentPart = { type: "input_text"; text: string } | { type: "input_image"; image_url: string; detail: "auto" };
+type MessageContentPart =
+  | { type: "input_text"; text: string }
+  | { type: "output_text"; text: string; annotations: unknown[] }
+  | { type: "input_image"; image_url: string; detail: "auto" };
 
 /**
  * Rebuilds one `final.output` item through an explicit allow-list of the
@@ -106,13 +109,23 @@ function toOpenAIInput(messages: AiMessage[]): ResponseInputItem[] {
     let content: MessageContentPart[] = [];
     const flush = () => {
       if (content.length) {
-        items.push({ role: m.role, type: "message", content });
+        // `content` mixes `input_text`/`output_text` shapes depending on role (never both within
+        // the same message, since a "user" message only ever gets input_text/input_image parts
+        // pushed below and an "assistant" one only ever gets output_text) — TS can't infer that
+        // per-message invariant from the general MessageContentPart[] type, hence the cast.
+        items.push({ role: m.role, type: "message", content } as ResponseInputItem);
         content = [];
       }
     };
     for (const part of m.parts) {
       if (part.type === "text") {
-        if (part.text) content.push({ type: "input_text", text: part.text });
+        // A reloaded conversation history's assistant turn has no
+        // providerState (see the module comment) and falls through to here.
+        // The API accepts `input_text` only for user/system/developer roles;
+        // an assistant-role message must use `output_text` — confirmed live
+        // ("Invalid value: 'input_text'. Supported values are: 'output_text'
+        // and 'refusal'.", param input[1].content[0]).
+        if (part.text) content.push(m.role === "assistant" ? { type: "output_text", text: part.text, annotations: [] } : { type: "input_text", text: part.text });
       } else if (part.type === "image") {
         content.push({ type: "input_image", image_url: part.url, detail: "auto" });
       } else if (part.type === "tool_call") {
