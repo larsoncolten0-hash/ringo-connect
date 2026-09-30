@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "@/components/LanguageProvider";
 import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { hasCustomLogo } from "@/lib/brandingDefaults";
 import { usePathname } from "next/navigation";
-import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, UserCheck, Sparkles, ShoppingBag, ShieldCheck, Megaphone, type LucideIcon } from "lucide-react";
+import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Handshake, QrCode, Banknote, DollarSign, Radio, MessageCircle, BadgeCheck, Palette, FlaskConical, UserCheck, Sparkles, ShoppingBag, ShieldCheck, Megaphone, ClipboardList, type LucideIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
@@ -60,7 +61,10 @@ const NAV_ITEMS: {
   { href: "/admin/demo", label: "Demo link", icon: FlaskConical, core: false },
   { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal, core: true },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, core: false },
-  { href: "/admin/customers", label: "Customers", icon: UserCheck, core: false },
+  // Label is filled in from translations (t.adminFollowUp.customersNavLabel) inside AdminShell.
+  { href: "/admin/customers", label: "", icon: UserCheck, core: false },
+  // Label is filled in from translations (t.adminFollowUp.navLabel) inside AdminShell.
+  { href: "/admin/follow-up", label: "", icon: ClipboardList, core: false },
   { href: "/admin/branding", label: "Branding", icon: Palette, core: false },
   // Product name — identical in English and French.
   { href: "/admin/ai", label: "Ringo AI", icon: Sparkles, core: false },
@@ -83,6 +87,10 @@ export default function AdminShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
+  const navItems = NAV_ITEMS.map((i) =>
+    i.href === "/admin/follow-up" ? { ...i, label: t.adminFollowUp.navLabel } : i.href === "/admin/customers" ? { ...i, label: t.adminFollowUp.customersNavLabel } : i
+  );
   const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
 
   // Keeps every admin page's server-rendered data trustworthy on return — see
@@ -113,8 +121,8 @@ export default function AdminShell({
 
   const countFor = (countKey?: keyof AdminNavCounts) => (countKey ? counts[countKey] : undefined);
 
-  const coreItems = NAV_ITEMS.filter((i) => i.core);
-  const moreItems = NAV_ITEMS.filter((i) => !i.core);
+  const coreItems = navItems.filter((i) => i.core);
+  const moreItems = navItems.filter((i) => !i.core);
 
   const SidebarContent = (
     <>
@@ -145,7 +153,7 @@ export default function AdminShell({
         <div className="h-[2px] w-full mt-4 mb-6 rounded-full bg-gradient-to-r from-ringo-indigo via-ringo-coral to-ringo-teal opacity-60" />
 
         <nav className="flex flex-col gap-0.5">
-          {NAV_ITEMS.map(({ href, label, icon: Icon, exact, countKey }) => {
+          {navItems.map(({ href, label, icon: Icon, exact, countKey }) => {
             const active = isActive(href, exact);
             return (
               <Link

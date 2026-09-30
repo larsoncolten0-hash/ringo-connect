@@ -10,6 +10,8 @@ import { shopIsVisibleFor } from "@/lib/shopAuth";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 import { countHidden } from "@/lib/planEntitlements";
+import { getAffiliateSettings } from "@/lib/affiliateSettings";
+import { getReferralPromo } from "@/lib/referralPromo";
 
 // Per-creator PWA installability (manifest link, iOS home-screen name/
 // icon, theme color) for the whole /dashboard/** tree — see
@@ -35,7 +37,7 @@ export default async function DashboardLayout({
 
   const { data: userRow } = await supabase
     .from("users")
-    .select("email, role, can_approve_requests, plan_expires_at, payment_provider, plans(name, max_links, max_products), onboarding_completed_at, onboarding_dismissed_at")
+    .select("email, role, can_approve_requests, plan_expires_at, payment_provider, plans(name, max_links, max_products), onboarding_completed_at, onboarding_dismissed_at, affiliate_suspended")
     .eq("id", user.id)
     .single();
 
@@ -151,9 +153,25 @@ export default async function DashboardLayout({
   const { data: ambassadorTeam } = await supabase.from("ambassador_teams").select("id").eq("team_leader_user_id", user.id).maybeSingle();
   const isTeamLeader = !!ambassadorTeam;
 
+  // Referral banner: quotes the LIVE affiliate rate only while the existing Affiliate program is on
+  // and this account isn't suspended from it. A settings-read failure just hides the banner.
+  let referralPromo = null as ReturnType<typeof getReferralPromo>;
+  try {
+    const affiliateSettings = await getAffiliateSettings();
+    referralPromo = getReferralPromo({
+      isActingAsStaff,
+      affiliateEnabled: affiliateSettings.affiliateEnabled,
+      affiliateSuspended: !!userRow?.affiliate_suspended,
+      commissionRate: affiliateSettings.affiliateCommissionRate,
+    });
+  } catch {
+    referralPromo = null;
+  }
+
   return (
     <DashboardShell
       userId={user.id}
+      referralPromoRatePct={referralPromo?.ratePct ?? null}
       email={userRow?.email ?? user.email ?? ""}
       username={profile?.username ?? "you"}
       avatarUrl={profile?.avatar_url}

@@ -97,12 +97,13 @@ const render = (locale, node) => renderToStaticMarkup(React.createElement(Langua
 {
   const enHtml = render("en", React.createElement(PoweredByRingo));
   const frHtml = render("fr", React.createElement(PoweredByRingo));
-  check("footer: English shows 'Powered by Ringo Connect'", />Powered by Ringo Connect</.test(enHtml), enHtml);
-  check("footer: French shows 'Propulsé par Ringo Connect'", />Propulsé par Ringo Connect</.test(frHtml), frHtml);
+  check("footer: English shows 'Powered by' then a 'Ringo Connect' label, with the full phrase as its accessible name", />Powered by</.test(enHtml) && />Ringo Connect</.test(enHtml) && /aria-label="Powered by Ringo Connect"/.test(enHtml), enHtml);
+  check("footer: French shows 'Propulsé par' then a 'Ringo Connect' label, with the full phrase as its accessible name", />Propulsé par</.test(frHtml) && />Ringo Connect</.test(frHtml) && /aria-label="Propulsé par Ringo Connect"/.test(frHtml), frHtml);
   check("footer: it links to https://ringoconnectltd.com exactly", RINGO_CONNECT_URL === "https://ringoconnectltd.com" && /<a [^>]*href="https:\/\/ringoconnectltd\.com"/.test(enHtml) && /<a [^>]*href="https:\/\/ringoconnectltd\.com"/.test(frHtml));
-  check("footer: it opens in the SAME tab (no target attribute), is a single real link, and the link text is its accessible name", !/target=/.test(enHtml) && (enHtml.match(/<a /g) || []).length === 1 && !/aria-label/.test(enHtml));
-  check("footer: it is quiet by default and clearly interactive — reduced opacity, hover/focus underline, a visible focus ring, a comfortable tap height", /opacity-60/.test(enHtml) && /hover:underline/.test(enHtml) && /focus-visible:outline/.test(enHtml) && /py-1\.5/.test(enHtml));
-  check("footer: it takes its colour from the page (owner's branding stays the focus) — no hard-coded text colour", !/color:/.test(enHtml) && !/text-(white|black|gray|slate)/.test(enHtml));
+  check("footer: it opens in the SAME tab (no target attribute), is a single real link, and the link text is its accessible name", !/target=/.test(enHtml) && (enHtml.match(/<a /g) || []).length === 1);
+  check("footer: it is a bordered, rounded, button-like label with a decorative arrow, and the whole label is the single link", /border border-current/.test(enHtml) && /rounded-full/.test(enHtml) && /<a [^>]*>.*<svg[^>]*aria-hidden="true".*<\/svg>.*<\/a>/.test(enHtml));
+  check("footer: it has a hover state, a visible focus ring and a 40px touch target, with no heavy animation", /hover:opacity-100/.test(enHtml) && /hover:\[background-color/.test(enHtml) && /focus-visible:outline/.test(enHtml) && /min-h-\[40px\]/.test(enHtml) && !/animate-|translate|scale-/.test(enHtml));
+  check("footer: it takes its colour from the page (owner's branding stays the focus) — no hard-coded text colour", !/style="[^"]*color:/.test(enHtml) && !/text-(white|black|gray|slate)/.test(enHtml));
 }
 
 // ================================================================== rendered selector (closed state)

@@ -7,6 +7,8 @@ import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import ReferralPromoBanner from "@/components/dashboard/ReferralPromoBanner";
+import { referralPromoShowsOn } from "@/lib/referralPromo";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
@@ -86,6 +88,7 @@ export default function DashboardShell({
   ownProfileId = null,
   teamBadgesEnabled = true,
   subscriptionBanner = null,
+  referralPromoRatePct = null,
   isDemo = false,
   showOnboardingTour = false,
   onboardingProfile = null,
@@ -206,6 +209,8 @@ export default function DashboardShell({
   // targets live on entirely different /dashboard/** pages.
   showOnboardingTour?: boolean;
   onboardingProfile?: ProfileForTour | null;
+  /** Live affiliate rate to quote in the referral banner (null = no banner). */
+  referralPromoRatePct?: string | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -607,6 +612,7 @@ export default function DashboardShell({
               transition={{ duration: 0.16, ease: "easeOut" }}
               className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 pb-28 lg:pb-10"
             >
+              {userId && referralPromoRatePct && referralPromoShowsOn(pathname) && <ReferralPromoBanner userId={userId} ratePct={referralPromoRatePct} />}
               {children}
             </motion.main>
           );
