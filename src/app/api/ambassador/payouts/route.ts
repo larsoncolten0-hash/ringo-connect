@@ -16,6 +16,7 @@ const STATUS: Record<string, number> = {
   not_ambassador: 403,
   not_team_leader: 403,
   suspended: 403,
+  pending_approval: 403,
   demo: 403,
   no_destination: 409,
   destination_cooling_down: 409,

@@ -2316,6 +2316,74 @@ export const translations = {
     // Ambassadors and Team Leaders approving their OWN clients' new accounts
     // (src/lib/ambassador/requestReview.ts, src/components/dashboard/ClientRequestsCard.tsx,
     // TeamLeaderSelfSellCard.tsx). `errors` keys are the stable `code` values the approve route returns.
+    // A Team Leader adding existing Ringo accounts to their team as PENDING Ambassadors
+    // (src/lib/ambassador/teamMembers.ts, src/components/dashboard/TeamAmbassadorsCard.tsx,
+    // PendingAmbassadorNotice.tsx). `errors` keys are the stable `code` values the route returns.
+    ambassadorTeamMembers: {
+      title: "Your Ambassadors",
+      hint: "Add someone who already has a Ringo account to your team. They start as pending: they can't do anything until Ringo Connect reviews and approves them.",
+      usernameLabel: "Ringo username",
+      usernamePlaceholder: "their-username",
+      add: "Add Ambassador",
+      adding: "Adding…",
+      added: (username: string) => `${username} was added. They're waiting for Ringo Connect's approval.`,
+      empty: "No Ambassadors on your team yet.",
+      status: {
+        pending: "Awaiting approval",
+        active: "Active",
+        inactive: "Inactive",
+        suspended: "Suspended",
+      },
+      errors: {
+        not_team_leader: "You don't manage a Sales Team.",
+        team_inactive: "Your team isn't active. Please contact Ringo Connect.",
+        invalid_username: "Enter a valid Ringo username.",
+        user_not_found: "No Ringo account was found with that username.",
+        cannot_add_self: "Use “Add my account as an Ambassador” to add yourself.",
+        already_ambassador: "That person is already an Ambassador.",
+        account_unavailable: "That account can't be added.",
+        too_many_pending: "Too many Ambassadors are already waiting for approval. Please wait for Ringo Connect to review them.",
+        unavailable: "We couldn't complete this. Please try again later.",
+        network: "Network error. Please try again.",
+      },
+      pendingNotice: {
+        title: "Your Ambassador account is awaiting approval",
+        body: "A Team Leader added you as an Ambassador and Ringo Connect is reviewing it. Until it's approved, your code and link don't work and nothing on this page is active yet.",
+      },
+      admin: {
+        approve: "Approve",
+      },
+    },
+    // An Ambassador / Team Leader changing their OWN code (POST /api/ambassador/code) and the admin's
+    // per-person approval-access switch in Admin -> Ambassadors.
+    ambassadorCode: {
+      label: "Your Ambassador code",
+      edit: "Edit code",
+      save: "Save",
+      cancel: "Cancel",
+      saved: "Code saved",
+      hint: "4–12 letters or numbers.",
+      changeWarning: "Changing your code stops your old link from working: anyone who opens a link with the old code will no longer be credited to you. Clients already credited to you are not affected.",
+      openLink: "Open this link to test it",
+      errors: {
+        invalid_code: "Use 4–12 letters or numbers only.",
+        taken: "That code is already taken — try another.",
+        not_ambassador: "You don't have an Ambassador account.",
+        not_active: "Your Ambassador account isn't active, so the code can't be changed.",
+        unavailable: "We couldn't save your code. Please try again later.",
+        network: "Network error. Please try again.",
+      },
+    },
+    adminAmbassadorAccess: {
+      column: "Approval access",
+      grant: "Grant access",
+      revoke: "Revoke access",
+      on: "Can approve",
+      off: "No access",
+      needsActive: "Approve or activate this Ambassador first.",
+      tooltip: "Lets this person approve the new accounts of their own clients — only when the client's online payment is confirmed. They cannot reject, delete or charge.",
+      error: "Could not update approval access.",
+    },
     ambassadorRequests: {
       cardTitle: "Client account approvals",
       cardBody: "You can approve new accounts for your own clients yourself. An account can be approved only after the client's online payment is confirmed.",
@@ -2400,6 +2468,7 @@ export const translations = {
         not_ambassador: "You don't have an Ambassador account.",
         not_team_leader: "You don't manage a Sales Team.",
         suspended: "Your account can't request payouts right now. Please contact Ringo Connect.",
+        pending_approval: "Your Ambassador account is still awaiting approval by Ringo Connect.",
         demo: "Payout requests aren't available in demo mode.",
         nothing_eligible: "Nothing is available for payout yet.",
         no_destination: "Save a payout destination first.",
@@ -2459,6 +2528,10 @@ export const translations = {
     },
     ambassadorNotifications: {
       admin: {
+        pendingAmbassador: {
+          title: "Ambassador awaiting approval",
+          body: (username: string) => `${username || "A new Ambassador"} was added by a Team Leader and is waiting for your review.`,
+        },
         payoutRequested: {
           title: "Ambassador payout requested",
           body: (amount: string, who: string) => `${who} requested a payout of ${amount}.`,
@@ -2494,6 +2567,14 @@ export const translations = {
         payoutFailed: {
           title: "Payout failed",
           body: (amount: string) => `Your payout of ${amount} could not be completed. Please check with Ringo Connect.`,
+        },
+        addedPendingApproval: {
+          title: "You were added as an Ambassador",
+          body: "A Team Leader added you as an Ambassador. Ringo Connect is reviewing it — your code and link will work once it is approved.",
+        },
+        ambassadorApproved: {
+          title: "You're approved as an Ambassador",
+          body: "Ringo Connect approved your Ambassador account. Your code and link are now active.",
         },
         destinationChanged: {
           title: "Payout destination changed",
@@ -2532,6 +2613,14 @@ export const translations = {
         payoutFailed: {
           title: "Payout failed",
           body: (amount: string) => `Your team leader payout of ${amount} could not be completed. Please check with Ringo Connect.`,
+        },
+        addedPendingApproval: {
+          title: "You were added as an Ambassador",
+          body: "A Team Leader added you as an Ambassador. Ringo Connect is reviewing it — your code and link will work once it is approved.",
+        },
+        ambassadorApproved: {
+          title: "You're approved as an Ambassador",
+          body: "Ringo Connect approved your Ambassador account. Your code and link are now active.",
         },
         destinationChanged: {
           title: "Payout destination changed",
@@ -6302,6 +6391,69 @@ export const translations = {
       },
       notTeamLeader: "Vous ne gérez pas d'équipe de vente.",
     },
+    ambassadorTeamMembers: {
+      title: "Vos Ambassadeurs",
+      hint: "Ajoutez à votre équipe une personne qui a déjà un compte Ringo. Elle démarre en attente : elle ne peut rien faire tant que Ringo Connect ne l'a pas examinée et approuvée.",
+      usernameLabel: "Nom d'utilisateur Ringo",
+      usernamePlaceholder: "son-nom-d-utilisateur",
+      add: "Ajouter un Ambassadeur",
+      adding: "Ajout en cours…",
+      added: (username: string) => `${username} a été ajouté. En attente de l'approbation de Ringo Connect.`,
+      empty: "Aucun Ambassadeur dans votre équipe pour le moment.",
+      status: {
+        pending: "En attente d'approbation",
+        active: "Actif",
+        inactive: "Inactif",
+        suspended: "Suspendu",
+      },
+      errors: {
+        not_team_leader: "Vous ne gérez pas d'équipe de vente.",
+        team_inactive: "Votre équipe n'est pas active. Veuillez contacter Ringo Connect.",
+        invalid_username: "Saisissez un nom d'utilisateur Ringo valide.",
+        user_not_found: "Aucun compte Ringo trouvé avec ce nom d'utilisateur.",
+        cannot_add_self: "Utilisez « Ajouter mon compte comme Ambassadeur » pour vous ajouter vous-même.",
+        already_ambassador: "Cette personne est déjà Ambassadeur.",
+        account_unavailable: "Ce compte ne peut pas être ajouté.",
+        too_many_pending: "Trop d'Ambassadeurs attendent déjà une approbation. Veuillez patienter pendant l'examen par Ringo Connect.",
+        unavailable: "Nous n'avons pas pu terminer cette opération. Veuillez réessayer plus tard.",
+        network: "Erreur réseau. Veuillez réessayer.",
+      },
+      pendingNotice: {
+        title: "Votre compte Ambassadeur est en attente d'approbation",
+        body: "Un chef d'équipe vous a ajouté comme Ambassadeur et Ringo Connect examine la demande. Tant qu'elle n'est pas approuvée, votre code et votre lien ne fonctionnent pas et rien sur cette page n'est encore actif.",
+      },
+      admin: {
+        approve: "Approuver",
+      },
+    },
+    ambassadorCode: {
+      label: "Votre code d'Ambassadeur",
+      edit: "Modifier le code",
+      save: "Enregistrer",
+      cancel: "Annuler",
+      saved: "Code enregistré",
+      hint: "4 à 12 lettres ou chiffres.",
+      changeWarning: "Modifier votre code fait cesser de fonctionner votre ancien lien : toute personne qui ouvre un lien avec l'ancien code ne vous sera plus attribuée. Les clients qui vous sont déjà attribués ne sont pas affectés.",
+      openLink: "Ouvrir ce lien pour le tester",
+      errors: {
+        invalid_code: "Utilisez uniquement 4 à 12 lettres ou chiffres.",
+        taken: "Ce code est déjà pris — essayez-en un autre.",
+        not_ambassador: "Vous n'avez pas de compte Ambassadeur.",
+        not_active: "Votre compte Ambassadeur n'est pas actif, le code ne peut donc pas être modifié.",
+        unavailable: "Nous n'avons pas pu enregistrer votre code. Veuillez réessayer plus tard.",
+        network: "Erreur réseau. Veuillez réessayer.",
+      },
+    },
+    adminAmbassadorAccess: {
+      column: "Accès d'approbation",
+      grant: "Accorder l'accès",
+      revoke: "Retirer l'accès",
+      on: "Peut approuver",
+      off: "Aucun accès",
+      needsActive: "Approuvez ou activez d'abord cet Ambassadeur.",
+      tooltip: "Permet à cette personne d'approuver les nouveaux comptes de ses propres clients — uniquement une fois le paiement en ligne du client confirmé. Elle ne peut ni refuser, ni supprimer, ni facturer.",
+      error: "Impossible de mettre à jour l'accès d'approbation.",
+    },
     ambassadorRequests: {
       cardTitle: "Approbation des comptes clients",
       cardBody: "Vous pouvez approuver vous-même les nouveaux comptes de vos propres clients. Un compte ne peut être approuvé qu'une fois le paiement en ligne du client confirmé.",
@@ -6386,6 +6538,7 @@ export const translations = {
         not_ambassador: "Vous n'avez pas de compte Ambassadeur.",
         not_team_leader: "Vous ne gérez pas d'équipe de vente.",
         suspended: "Votre compte ne peut pas demander de paiement pour le moment. Veuillez contacter Ringo Connect.",
+        pending_approval: "Votre compte Ambassadeur est encore en attente d'approbation par Ringo Connect.",
         demo: "Les demandes de paiement ne sont pas disponibles en mode démo.",
         nothing_eligible: "Rien n'est encore disponible pour un paiement.",
         no_destination: "Enregistrez d'abord une destination de paiement.",
@@ -6445,6 +6598,10 @@ export const translations = {
     },
     ambassadorNotifications: {
       admin: {
+        pendingAmbassador: {
+          title: "Ambassadeur en attente d'approbation",
+          body: (username: string) => `${username || "Un nouvel Ambassadeur"} a été ajouté par un chef d'équipe et attend votre examen.`,
+        },
         payoutRequested: {
           title: "Paiement d'Ambassadeur demandé",
           body: (amount: string, who: string) => `${who} a demandé un paiement de ${amount}.`,
@@ -6480,6 +6637,14 @@ export const translations = {
         payoutFailed: {
           title: "Échec du paiement",
           body: (amount: string) => `Votre paiement de ${amount} n'a pas pu être effectué. Veuillez contacter Ringo Connect.`,
+        },
+        addedPendingApproval: {
+          title: "Vous avez été ajouté comme Ambassadeur",
+          body: "Un chef d'équipe vous a ajouté comme Ambassadeur. Ringo Connect examine la demande — votre code et votre lien fonctionneront une fois approuvée.",
+        },
+        ambassadorApproved: {
+          title: "Vous êtes approuvé comme Ambassadeur",
+          body: "Ringo Connect a approuvé votre compte Ambassadeur. Votre code et votre lien sont maintenant actifs.",
         },
         destinationChanged: {
           title: "Destination de paiement modifiée",
@@ -6518,6 +6683,14 @@ export const translations = {
         payoutFailed: {
           title: "Échec du paiement",
           body: (amount: string) => `Votre paiement de chef d'équipe de ${amount} n'a pas pu être effectué. Veuillez contacter Ringo Connect.`,
+        },
+        addedPendingApproval: {
+          title: "Vous avez été ajouté comme Ambassadeur",
+          body: "Un chef d'équipe vous a ajouté comme Ambassadeur. Ringo Connect examine la demande — votre code et votre lien fonctionneront une fois approuvée.",
+        },
+        ambassadorApproved: {
+          title: "Vous êtes approuvé comme Ambassadeur",
+          body: "Ringo Connect a approuvé votre compte Ambassadeur. Votre code et votre lien sont maintenant actifs.",
         },
         destinationChanged: {
           title: "Destination de paiement modifiée",

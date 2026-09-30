@@ -40,7 +40,7 @@ import { formatPrice } from "@/lib/currency";
 import { translations, type Locale } from "@/lib/i18n/translations";
 
 type Role = "ambassador" | "team_leader";
-type CopyKey = "saleConfirmed" | "registrationCompleted" | "activationCompleted" | "payoutRequested" | "payoutProcessing" | "payoutPaid" | "payoutFailed" | "commissionReversed" | "destinationChanged";
+type CopyKey = "saleConfirmed" | "registrationCompleted" | "activationCompleted" | "payoutRequested" | "payoutProcessing" | "payoutPaid" | "payoutFailed" | "commissionReversed" | "destinationChanged" | "addedPendingApproval" | "ambassadorApproved";
 
 export type AmbassadorPayoutEvent = "requested" | "processing" | "paid" | "failed" | "rejected";
 
@@ -263,5 +263,44 @@ export async function notifyPayoutDestinationChanged(admin: any, userId: string 
     });
   } catch (err) {
     console.error("notifyPayoutDestinationChanged failed:", err);
+  }
+}
+
+/** A Team Leader added this person as an Ambassador: tell them it is awaiting review. */
+export async function notifyAmbassadorAddedPending(admin: any, userId: string | null | undefined, profileId: string): Promise<void> {
+  try {
+    if (!userId) return;
+    await deliver(admin, { userId, role: "ambassador", copyKey: "addedPendingApproval", category: "ambassador_added_pending", eventKey: `added-${profileId}` });
+  } catch (err) {
+    console.error("notifyAmbassadorAddedPending failed:", err);
+  }
+}
+
+/** Management approved a pending Ambassador. */
+export async function notifyAmbassadorApproved(admin: any, userId: string | null | undefined, profileId: string): Promise<void> {
+  try {
+    if (!userId) return;
+    await deliver(admin, { userId, role: "ambassador", copyKey: "ambassadorApproved", category: "ambassador_approved", eventKey: `approved-${profileId}` });
+  } catch (err) {
+    console.error("notifyAmbassadorApproved failed:", err);
+  }
+}
+
+/** Management is told an Ambassador is waiting for review (admin-audience bell + push). */
+export async function notifyAdminsOfPendingAmbassador(admin: any, profileId: string | null | undefined): Promise<void> {
+  try {
+    if (!profileId) return;
+    const { data: row } = await admin.from("ambassador_profiles").select("user_id").eq("id", profileId).maybeSingle();
+    const { data: profile } = row?.user_id ? await admin.from("profiles").select("username").eq("user_id", row.user_id).maybeSingle() : { data: null };
+    const locale = recipientLocale("admin");
+    const copy = translations[locale].ambassadorNotifications.admin.pendingAmbassador;
+    await sendPushAndBellToAdmins(admin, {
+      category: "ambassador_pending_review",
+      title: copy.title,
+      body: copy.body(profile?.username || ""),
+      url: "/admin/ambassadors",
+    });
+  } catch (err) {
+    console.error("notifyAdminsOfPendingAmbassador failed:", err);
   }
 }

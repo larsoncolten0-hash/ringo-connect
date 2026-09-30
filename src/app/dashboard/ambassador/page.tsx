@@ -5,6 +5,7 @@ import AmbassadorDashboardView from "@/components/dashboard/AmbassadorDashboardV
 import AmbassadorPayoutPanel from "@/components/dashboard/AmbassadorPayoutPanel";
 import { getMyPayoutOverview } from "@/lib/ambassador/payouts";
 import ClientRequestsCard from "@/components/dashboard/ClientRequestsCard";
+import PendingAmbassadorNotice from "@/components/dashboard/PendingAmbassadorNotice";
 import { pendingScopedRequestCount } from "@/lib/ambassador/requestReview";
 
 // Same reasoning as /dashboard/affiliate/page.tsx — commission/activation
@@ -23,6 +24,10 @@ export default async function AmbassadorPage() {
   // everything else defaults to empty/zero, same posture as the
   // affiliate dashboard's own null-check.
   if (!overview) redirect("/dashboard");
+
+  // Added by a Team Leader and not yet approved by Ringo Management: show ONLY a
+  // notice — no code, link, figures, requests or payouts until they are approved.
+  if (overview.ambassador.status === "pending") return <PendingAmbassadorNotice />;
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com";
 

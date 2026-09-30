@@ -203,7 +203,7 @@ const originals = {
   "2026-11-23_ambassador_activation_status.sql": "2e94739ccb9d3fd8",
 };
 check("untouched: the original six migrations still have exactly the hashes recorded before this work", Object.entries(originals).every(([file, h]) => sha(file) === h), Object.entries(originals).filter(([file, h]) => sha(file) !== h).map(([file]) => file).join());
-check("ordering: the fix is the eleventh Ambassador migration and sorts after the notification claim migration", fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((x) => /ambassador/.test(x)).sort().slice(-2).join("|") === "2026-11-27_ambassador_notification_dedup.sql|2026-11-28_ambassador_rls_recursion_fix.sql");
+check("ordering: the fix sorts immediately after the notification claim migration", (() => { const all = fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((x) => /ambassador/.test(x)).sort(); const i = all.indexOf("2026-11-28_ambassador_rls_recursion_fix.sql"); return i > 0 && all[i - 1] === "2026-11-27_ambassador_notification_dedup.sql"; })());
 
 const failed = results.filter((x) => !x.pass);
 console.log(`\nambassadorRlsFix: ${results.length - failed.length}/${results.length} checks passed`);

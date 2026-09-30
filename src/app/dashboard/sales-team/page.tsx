@@ -6,6 +6,8 @@ import AmbassadorPayoutPanel from "@/components/dashboard/AmbassadorPayoutPanel"
 import { getMyPayoutOverview } from "@/lib/ambassador/payouts";
 import ClientRequestsCard from "@/components/dashboard/ClientRequestsCard";
 import TeamLeaderSelfSellCard from "@/components/dashboard/TeamLeaderSelfSellCard";
+import TeamAmbassadorsCard from "@/components/dashboard/TeamAmbassadorsCard";
+import { listTeamMembers } from "@/lib/ambassador/teamMembers";
 import { pendingScopedRequestCount } from "@/lib/ambassador/requestReview";
 
 // Same reasoning as /dashboard/ambassador/page.tsx and
@@ -34,6 +36,7 @@ export default async function SalesTeamPage() {
   const adminClient = createAdminClient();
   const { data: ownAmbassador } = await adminClient.from("ambassador_profiles").select("sales_code, status").eq("user_id", user.id).maybeSingle();
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ringoconnectltd.com";
+  const members = await listTeamMembers(adminClient, user.id);
 
   // Admin-granted per person (users.can_approve_requests); covers the whole
   // team's clients plus the Team Leader's own, by the team recorded on each sale.
@@ -44,6 +47,7 @@ export default async function SalesTeamPage() {
   return (
     <>
       <TeamLeaderDashboardView overview={overview} />
+      <TeamAmbassadorsCard members={members} />
       <TeamLeaderSelfSellCard siteUrl={siteUrl} salesCode={ownAmbassador?.sales_code ?? null} profileStatus={ownAmbassador?.status ?? null} />
       <ClientRequestsCard granted={canApprove} pendingCount={pendingRequests} />
       <AmbassadorPayoutPanel overview={payouts} />

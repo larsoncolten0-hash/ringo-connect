@@ -499,7 +499,7 @@ function seedProgram() {
   check("existing: the notifier reuses sendPushAndBellToUser and defines no second notification system", /sendPushAndBellToUser\(/.test(notifSrc) && !/web-push|webpush|push_subscriptions|\.from\("notifications"\)\s*\.insert/.test(notifSrc));
   // Phase G itself added no migration. The three later, separately approved hardening migrations (min payout setting,
   // private destinations, financial hardening) bring the total to nine — they are asserted in ambassadorHardening.test.mjs.
-  check("no schema change in Phase G: the six original migrations are still present, and any later ones are the approved later hardening migrations", (() => { const f = fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((x) => /ambassador/.test(x)); return f.length >= 6 && f.every((x) => /2026-11-(18|19|20|21|22|23|24|25|26|27|28)_/.test(x)); })());
+  check("no schema change in Phase G: the six original migrations are still present, and any later ones are the approved later hardening migrations", (() => { const f = fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((x) => /ambassador/.test(x)); return f.length >= 6 && f.every((x) => /2026-11-(18|19|20|21|22|23|24|25|26|27|28|29)_/.test(x)); })());
 }
 
 const failed = results.filter((x) => !x.pass);

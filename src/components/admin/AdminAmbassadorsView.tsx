@@ -31,6 +31,7 @@ const TAB_LABELS: Record<Tab, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
+  pending: "bg-amber-500/10 text-amber-600",
   active: "bg-emerald-500/10 text-emerald-600",
   inactive: "bg-ringo-muted/10 text-ringo-muted",
   suspended: "bg-red-500/10 text-red-500",
@@ -53,6 +54,30 @@ const STATUS_STYLES: Record<string, string> = {
 
 function StatusBadge({ status }: { status: string }) {
   return <span className={`text-[11px] font-medium px-2 py-1 rounded-full ${STATUS_STYLES[status] || "bg-ringo-muted/10 text-ringo-muted"}`}>{status}</span>;
+}
+
+// The admin-granted "approve my own clients' new accounts" switch, per person
+// (users.can_approve_requests — the same switch as Admin -> Users, just easier
+// to reach from here). Only meaningful for an ACTIVE Ambassador / an active team.
+function ApprovalAccessCell({ enabled, disabled, busy, onToggle }: { enabled: boolean; disabled: boolean; busy: boolean; onToggle: () => void }) {
+  const { t } = useLanguage();
+  const a = t.adminAmbassadorAccess;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={busy || (disabled && !enabled)}
+        title={disabled && !enabled ? a.needsActive : a.tooltip}
+        className={`text-xs px-2.5 py-1 rounded-full font-medium border transition-colors disabled:opacity-50 ${
+          enabled ? "border-ringo-indigo/40 bg-ringo-indigo/10 text-ringo-indigo" : "border-ringo-border text-ringo-muted hover:text-ringo-text"
+        }`}
+      >
+        {enabled ? a.revoke : a.grant}
+      </button>
+      <span className={`text-[11px] ${enabled ? "text-ringo-indigo" : "text-ringo-muted"}`}>{enabled ? a.on : a.off}</span>
+    </div>
+  );
 }
 
 function StatTile({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {
@@ -113,6 +138,27 @@ export default function AdminAmbassadorsView({ overview: initialOverview }: { ov
     }
     setNewTeamLeaderUsername("");
     setNewTeamName("");
+    router.refresh();
+  };
+
+  // Uses the existing admin-only route behind Admin -> Users' "Grant access" button.
+  const toggleApprovalAccess = async (userId: string, current: boolean) => {
+    setBusyId(userId);
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ can_approve_requests: !current }),
+    });
+    setBusyId(null);
+    if (!res.ok) {
+      alert(t.adminAmbassadorAccess.error);
+      return;
+    }
+    setOverview((prev) => ({
+      ...prev,
+      ambassadors: prev.ambassadors.map((a) => (a.userId === userId ? { ...a, canApprove: !current } : a)),
+      teams: prev.teams.map((tm) => (tm.teamLeaderUserId === userId ? { ...tm, canApprove: !current } : tm)),
+    }));
     router.refresh();
   };
 
@@ -213,14 +259,15 @@ export default function AdminAmbassadorsView({ overview: initialOverview }: { ov
               Make Ambassador
             </button>
           </div>
-          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
+            <table className="w-full min-w-max whitespace-nowrap text-sm">
               <thead>
                 <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                   <th className="px-3.5 py-2.5 font-medium">Username</th>
                   <th className="px-3.5 py-2.5 font-medium">Code</th>
                   <th className="px-3.5 py-2.5 font-medium">Team</th>
                   <th className="px-3.5 py-2.5 font-medium">Status</th>
+                  <th className="px-3.5 py-2.5 font-medium">{t.adminAmbassadorAccess.column}</th>
                   <th className="px-3.5 py-2.5 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -247,10 +294,13 @@ export default function AdminAmbassadorsView({ overview: initialOverview }: { ov
                     <td className="px-3.5 py-2.5">
                       <StatusBadge status={a.status} />
                     </td>
+                    <td className="px-3.5 py-2.5">
+                      <ApprovalAccessCell enabled={a.canApprove} disabled={a.status !== "active"} busy={busyId === a.userId} onToggle={() => toggleApprovalAccess(a.userId, a.canApprove)} />
+                    </td>
                     <td className="px-3.5 py-2.5 flex gap-2">
                       {a.status !== "active" && (
                         <button type="button" disabled={busyId === a.id} onClick={() => setAmbassadorStatus(a.id, "active")} className="text-xs text-emerald-600 hover:underline">
-                          Activate
+                          {a.status === "pending" ? t.ambassadorTeamMembers.admin.approve : "Activate"}
                         </button>
                       )}
                       {a.status !== "suspended" && (
@@ -292,14 +342,15 @@ export default function AdminAmbassadorsView({ overview: initialOverview }: { ov
               Create Team
             </button>
           </div>
-          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
+            <table className="w-full min-w-max whitespace-nowrap text-sm">
               <thead>
                 <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                   <th className="px-3.5 py-2.5 font-medium">Name</th>
                   <th className="px-3.5 py-2.5 font-medium">Team Leader</th>
                   <th className="px-3.5 py-2.5 font-medium">Ambassadors</th>
                   <th className="px-3.5 py-2.5 font-medium">Status</th>
+                  <th className="px-3.5 py-2.5 font-medium">{t.adminAmbassadorAccess.column}</th>
                   <th className="px-3.5 py-2.5 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -311,6 +362,9 @@ export default function AdminAmbassadorsView({ overview: initialOverview }: { ov
                     <td className="px-3.5 py-2.5 text-ringo-muted">{t.ambassadorCount}</td>
                     <td className="px-3.5 py-2.5">
                       <StatusBadge status={t.status} />
+                    </td>
+                    <td className="px-3.5 py-2.5">
+                      <ApprovalAccessCell enabled={t.canApprove} disabled={t.status !== "active"} busy={busyId === t.teamLeaderUserId} onToggle={() => toggleApprovalAccess(t.teamLeaderUserId, t.canApprove)} />
                     </td>
                     <td className="px-3.5 py-2.5">
                       {t.status === "active" ? (
@@ -332,8 +386,8 @@ export default function AdminAmbassadorsView({ overview: initialOverview }: { ov
       )}
 
       {tab === "sales" && (
-        <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
+          <table className="w-full min-w-max whitespace-nowrap text-sm">
             <thead>
               <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                 <th className="px-3.5 py-2.5 font-medium">Ambassador</th>
@@ -365,8 +419,8 @@ export default function AdminAmbassadorsView({ overview: initialOverview }: { ov
       )}
 
       {tab === "ledger" && (
-        <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
+          <table className="w-full min-w-max whitespace-nowrap text-sm">
             <thead>
               <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                 <th className="px-3.5 py-2.5 font-medium">Recipient</th>
@@ -409,8 +463,8 @@ export default function AdminAmbassadorsView({ overview: initialOverview }: { ov
       {tab === "payouts" && (
         <div className="flex flex-col gap-3">
           <AmbassadorMinPayoutSetting initial={overview.minPayoutXaf} />
-          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
+            <table className="w-full min-w-max whitespace-nowrap text-sm">
               <thead>
                 <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                   <th className="px-3.5 py-2.5 font-medium">Recipient</th>
@@ -455,8 +509,8 @@ export default function AdminAmbassadorsView({ overview: initialOverview }: { ov
           <p className="text-xs text-ringo-muted flex items-center gap-1.5">
             <History size={13} /> Every Ambassador-program administrative action, plus system events (e.g. a rejected self-referral).
           </p>
-          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
+            <table className="w-full min-w-max whitespace-nowrap text-sm">
               <thead>
                 <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                   <th className="px-3.5 py-2.5 font-medium">Actor</th>

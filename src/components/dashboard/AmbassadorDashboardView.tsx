@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, Users, Wallet, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import AmbassadorCodeEditor from "@/components/dashboard/AmbassadorCodeEditor";
 import { formatPrice } from "@/lib/currency";
 import type { AmbassadorOverview, AmbassadorSaleStage } from "@/lib/ambassador/dashboard";
 
@@ -62,14 +63,13 @@ export default function AmbassadorDashboardView({ overview, siteUrl }: { overvie
       </div>
 
       <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface p-4 flex flex-col gap-3">
-        <div>
-          <p className="text-xs text-ringo-muted">{c.yourCode}</p>
-          <p className="text-sm font-semibold text-ringo-text tracking-wide">{overview.ambassador.salesCode}</p>
-        </div>
+        <AmbassadorCodeEditor code={overview.ambassador.salesCode} />
         <div>
           <p className="text-xs text-ringo-muted mb-1">{c.yourLink}</p>
           <div className="flex items-center gap-2">
-            <code className="flex-1 min-w-0 truncate text-xs bg-ringo-muted/[0.06] rounded-lg px-2.5 py-2 text-ringo-text">{link}</code>
+            <a href={link} target="_blank" rel="noopener noreferrer" title={t.ambassadorCode.openLink} className="flex-1 min-w-0 truncate text-xs bg-ringo-muted/[0.06] rounded-lg px-2.5 py-2 text-ringo-indigo hover:underline">
+              {link}
+            </a>
             <button
               type="button"
               onClick={copyLink}
@@ -116,8 +116,8 @@ export default function AmbassadorDashboardView({ overview, siteUrl }: { overvie
         {overview.sales.length === 0 ? (
           <p className="text-sm text-ringo-muted">{c.noSales}</p>
         ) : (
-          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
+            <table className="w-full min-w-max whitespace-nowrap text-sm">
               <thead>
                 <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                   <th className="px-3.5 py-2.5 font-medium">{c.customer}</th>

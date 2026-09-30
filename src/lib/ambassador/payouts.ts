@@ -29,6 +29,7 @@ export type PayoutErrorCode =
   | "not_ambassador"
   | "not_team_leader"
   | "suspended"
+  | "pending_approval"
   | "demo"
   | "no_destination"
   | "destination_cooling_down"
@@ -69,6 +70,8 @@ export async function resolveRole(admin: any, userId: string, role: unknown): Pr
     const { data } = await admin.from("ambassador_profiles").select("id, status").eq("user_id", userId).maybeSingle();
     if (!data) return { ok: false, code: "not_ambassador" };
     if (data.status === "suspended") return { ok: false, code: "suspended" };
+    // Added by a Team Leader and not yet approved by Management: no access to anything.
+    if (data.status === "pending") return { ok: false, code: "pending_approval" };
     return { ok: true, role };
   }
   if (role === "team_leader") {

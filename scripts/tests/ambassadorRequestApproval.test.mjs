@@ -387,7 +387,7 @@ const enableWorld = (extra = {}) =>
   const sellCard = read("src/components/dashboard/TeamLeaderSelfSellCard.tsx");
   const linkOf = (s) => (s.match(/`\$\{siteUrl\.replace\(\/\\\/\$\/, ""\)\}\/get-started-cards\?amb=\$\{[^}]+\}`/) || [])[0];
   check("link: the Team Leader's own link has the same shape as an Ambassador's (/get-started-cards?amb=CODE), using THEIR own Ambassador code", !!linkOf(ambView) && !!linkOf(sellCard));
-  check("no schema change: this feature added no migration and no database object", fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((f) => /ambassador/.test(f)).length === 11 && !fs.readdirSync(path.join(REPO, "supabase/migrations")).some((f) => /request|approv/i.test(f) && /2026-11-(29|3)/.test(f)));
+  check("no schema change: this feature added no migration and no database object", fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((f) => /ambassador/.test(f)).length === 12 && !fs.readdirSync(path.join(REPO, "supabase/migrations")).some((f) => /request|approv/i.test(f) && /2026-11-(29|3)/.test(f)));
 }
 
 // ================================================================== i18n

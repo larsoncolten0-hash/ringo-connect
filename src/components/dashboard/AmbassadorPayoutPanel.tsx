@@ -190,12 +190,12 @@ export default function AmbassadorPayoutPanel({ overview }: { overview: MyPayout
 
       {message && <p className={`text-sm ${message.kind === "ok" ? "text-emerald-600" : "text-red-500"}`}>{message.text}</p>}
 
-      <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
+      <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
         <h3 className="text-sm font-semibold text-ringo-text px-4 pt-4">{p.historyTitle}</h3>
         {overview.payouts.length === 0 ? (
           <p className="text-sm text-ringo-muted px-4 py-4">{p.noPayouts}</p>
         ) : (
-          <table className="w-full text-sm mt-2">
+          <table className="w-full min-w-max whitespace-nowrap text-sm mt-2">
             <thead>
               <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                 <th className="px-4 py-2 font-medium">{p.colAmount}</th>

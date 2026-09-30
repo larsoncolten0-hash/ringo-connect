@@ -70,8 +70,8 @@ export default function TeamLeaderDashboardView({ overview }: { overview: TeamOv
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-ringo-text">{c.ambassadorPerformanceTitle}</h2>
-        <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
+          <table className="w-full min-w-max whitespace-nowrap text-sm">
             <thead>
               <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                 <th className="px-3.5 py-2.5 font-medium">{c.salesCode}</th>
@@ -122,8 +122,8 @@ export default function TeamLeaderDashboardView({ overview }: { overview: TeamOv
         {overview.sales.length === 0 ? (
           <p className="text-sm text-ringo-muted">{c.noSales}</p>
         ) : (
-          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-2xl border border-ringo-border/60 bg-ringo-surface overflow-x-auto">
+            <table className="w-full min-w-max whitespace-nowrap text-sm">
               <thead>
                 <tr className="text-left text-xs text-ringo-muted border-b border-ringo-border/60">
                   <th className="px-3.5 py-2.5 font-medium">{c.customer}</th>

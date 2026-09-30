@@ -1,6 +1,7 @@
 import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { notifyAmbassadorApproved } from "@/lib/ambassador/notifications";
 
 // Ambassador Program (Phase F) — activate/deactivate/suspend an
 // Ambassador, and/or reassign their team. Admin-only.
@@ -48,6 +49,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     .maybeSingle();
   if (!existing) return NextResponse.json({ error: "Ambassador not found." }, { status: 404 });
 
+  // Captured before the update so "was pending, is now active" is judged on the real before-state.
+  const previousStatus = existing.status;
+
   if (patch.team_id) {
     const { data: team } = await adminClient.from("ambassador_teams").select("id").eq("id", patch.team_id).maybeSingle();
     if (!team) return NextResponse.json({ error: "That team does not exist." }, { status: 404 });
@@ -68,6 +72,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     after: updated,
     reason: typeof body?.reason === "string" ? body.reason.slice(0, 500) : null,
   });
+
+  // A pending Ambassador (added by a Team Leader) was just approved: tell them.
+  // Never fails the approval itself.
+  if (previousStatus === "pending" && updated.status === "active") {
+    await notifyAmbassadorApproved(adminClient, existing.user_id, existing.id);
+  }
 
   return NextResponse.json({ ok: true, ambassador: updated });
 }

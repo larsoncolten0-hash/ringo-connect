@@ -28,6 +28,8 @@ export interface AdminAmbassadorRow {
   teamId: string | null;
   teamName: string | null;
   createdAt: string;
+  /** users.can_approve_requests — the admin-granted per-person switch. */
+  canApprove: boolean;
 }
 
 export interface AdminTeamRow {
@@ -37,6 +39,7 @@ export interface AdminTeamRow {
   name: string;
   status: string;
   ambassadorCount: number;
+  canApprove: boolean;
 }
 
 export interface AdminSaleRow {
@@ -135,6 +138,10 @@ export async function getAmbassadorAdminOverview(): Promise<AmbassadorAdminOverv
   for (const a of actions) if (a.actor_user_id) userIds.add(a.actor_user_id);
   const { data: profileRows } = userIds.size ? await admin.from("profiles").select("user_id, username").in("user_id", Array.from(userIds)) : { data: [] as any[] };
   const usernameByUserId = new Map((profileRows || []).map((p: any) => [p.user_id, p.username as string]));
+  // The admin-granted approval switch, for the Ambassadors and Team Leaders only.
+  const approverIds = Array.from(new Set([...ambassadors.map((a) => a.user_id), ...teams.map((t) => t.team_leader_user_id)]));
+  const { data: approverRows } = approverIds.length ? await admin.from("users").select("id, can_approve_requests").in("id", approverIds) : { data: [] as any[] };
+  const canApproveByUserId = new Map<string, boolean>((approverRows || []).map((u: any) => [u.id as string, !!u.can_approve_requests]));
 
   const teamById = new Map(teams.map((t) => [t.id, t]));
   const ambassadorById = new Map(ambassadors.map((a) => [a.id, a]));
@@ -151,6 +158,7 @@ export async function getAmbassadorAdminOverview(): Promise<AmbassadorAdminOverv
       teamId: a.team_id,
       teamName: a.team_id ? teamById.get(a.team_id)?.name ?? null : null,
       createdAt: a.created_at,
+      canApprove: canApproveByUserId.get(a.user_id) ?? false,
     })),
     teams: teams.map((t) => ({
       id: t.id,
@@ -159,6 +167,7 @@ export async function getAmbassadorAdminOverview(): Promise<AmbassadorAdminOverv
       name: t.name,
       status: t.status,
       ambassadorCount: ambassadorCountByTeam.get(t.id) || 0,
+      canApprove: canApproveByUserId.get(t.team_leader_user_id) ?? false,
     })),
     sales: sales.map((s) => ({
       id: s.id,
