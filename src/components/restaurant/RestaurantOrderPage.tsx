@@ -10,6 +10,8 @@ import { isOpenNow } from "@/lib/restaurantHours";
 import ImageGallery from "@/components/ImageGallery";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import { useOrderPushSubscription } from "@/lib/push/useOrderPushSubscription";
+import PublicLanguageSelector from "@/components/PublicLanguageSelector";
+import PoweredByRingo from "@/components/PoweredByRingo";
 
 type CartLine = { menuItemId: string; name: string; price: number; quantity: number; notes: string };
 type OrderType = "dine_in" | "takeaway" | "delivery";
@@ -287,6 +289,7 @@ export default function RestaurantOrderPage({
             </p>
           )}
         </div>
+        {step === "menu" && <PublicLanguageSelector variant="bar" />}
         {itemCount > 0 && step === "menu" && (
           <button onClick={() => setShowCart(true)} className="relative shrink-0">
             <ShoppingCart size={20} />
@@ -557,6 +560,7 @@ export default function RestaurantOrderPage({
           <span className="text-sm font-bold" suppressHydrationWarning>{formatPrice(subtotal, currency, locale)}</span>
         </button>
       )}
+      {step === "menu" && <PoweredByRingo className="mt-8" />}
     </div>
   );
 }

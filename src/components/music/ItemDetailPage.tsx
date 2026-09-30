@@ -9,6 +9,8 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import ShareButton from "@/components/ShareButton";
 import { sortedTicketTypes, isTicketTypeOnSale, isSoldOut, remainingForTicketType, LOW_INVENTORY_THRESHOLD } from "@/lib/ticketTypes";
 import { useTrackPlayback } from "./useTrackPlayback";
+import PublicLanguageSelector from "@/components/PublicLanguageSelector";
+import PoweredByRingo from "@/components/PoweredByRingo";
 
 // The "more about it before you buy" page a fan lands on from the public
 // profile's song/EP/album/merch/ticket cards — see the route at
@@ -49,6 +51,7 @@ export default function ItemDetailPage({
           <ArrowLeft size={19} />
         </Link>
         <p className="text-sm font-semibold flex-1 truncate">{profile.name || profile.username}</p>
+        <PublicLanguageSelector variant="bar" />
         {/* Copy link / share this exact song, EP/album, merch item, or
             ticket — the URL is already this page's own, real, shareable
             route (see the route file's comment), this just makes copying
@@ -81,6 +84,7 @@ export default function ItemDetailPage({
         {type === "release" && <ReleaseDetail item={item} tracks={profile.tracks || []} accent={accent} currency={currency} locale={locale} username={username} t={t} playingId={playingId} togglePlay={togglePlay} />}
         {type === "ticket" && <TicketDetail item={item} accent={accent} currency={currency} locale={locale} username={username} t={t} whatsappNumber={cleanNumber} />}
       </div>
+      <PoweredByRingo className="mt-8" />
     </div>
   );
 }

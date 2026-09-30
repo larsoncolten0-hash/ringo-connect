@@ -434,6 +434,10 @@ export const translations = {
       },
     },
     profilePage: {
+      // Public-page language picker and platform attribution (PublicLanguageSelector / PoweredByRingo).
+      languageLabel: "Language",
+      poweredBy: "Powered by Ringo Connect",
+      rights: "All rights reserved.",
       linkCopied: "Link copied",
       email: "Email",
       phone: "Phone",
@@ -4663,6 +4667,9 @@ export const translations = {
       },
     },
     profilePage: {
+      languageLabel: "Langue",
+      poweredBy: "Propulsé par Ringo Connect",
+      rights: "Tous droits réservés.",
       linkCopied: "Lien copié",
       email: "E-mail",
       phone: "Téléphone",

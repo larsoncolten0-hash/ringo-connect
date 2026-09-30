@@ -30,6 +30,8 @@ import ShareButton from "./ShareButton";
 import FanRecognitionHeader from "./FanRecognitionHeader";
 import BookingButton from "./BookingButton";
 import AddToHomeScreen from "./AddToHomeScreen";
+import PublicLanguageSelector from "./PublicLanguageSelector";
+import PoweredByRingo from "./PoweredByRingo";
 import ConnectButton from "./connect/ConnectButton";
 import RegisterServiceWorker from "./RegisterServiceWorker";
 import CatalogSection from "@/components/catalog/CatalogSection";
@@ -338,6 +340,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               accent={accent}
               isOwner={isOwner}
             />
+            <PublicLanguageSelector variant="glass" accent={accent} />
             <ShareButton
               accent={accent}
               title={profile.name || profile.username}
@@ -863,14 +866,12 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           )}
         </div>
 
-        <div className="mt-10 text-center">
+        <footer className="mt-10 text-center">
           <p className="text-xs" style={{ opacity: 0.5 }}>
-            © {new Date().getFullYear()} {profile.name}. All rights reserved.
+            © {new Date().getFullYear()} {profile.name}. {t.profilePage.rights}
           </p>
-          <p className="text-xs mt-1" style={{ opacity: 0.4 }}>
-            Made with Ringo Connect
-          </p>
-        </div>
+          <PoweredByRingo className="mt-1" />
+        </footer>
       </div>
     </main>
   );

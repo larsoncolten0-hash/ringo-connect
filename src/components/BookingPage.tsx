@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getBookingConfig, type BookingFieldConfig } from "@/lib/categories";
+import PublicLanguageSelector from "@/components/PublicLanguageSelector";
+import PoweredByRingo from "@/components/PoweredByRingo";
 
 // The actual booking surface — its own route (see
 // src/app/[username]/book/page.tsx), reached from BookingButton/
@@ -184,6 +186,7 @@ export default function BookingPage({ profile, initialServiceId = "" }: { profil
             </p>
           )}
         </div>
+        <PublicLanguageSelector variant="bar" />
       </div>
 
       <div className="max-w-md mx-auto px-4 py-5 flex flex-col gap-4">
@@ -288,6 +291,7 @@ export default function BookingPage({ profile, initialServiceId = "" }: { profil
           {submitting ? t.booking.submitting : t.booking.submit}
         </button>
       </div>
+      <PoweredByRingo className="mt-8" />
     </div>
   );
 }

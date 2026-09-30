@@ -6,6 +6,8 @@ import { useLanguage } from "@/components/LanguageProvider";
 import ShareButton from "@/components/ShareButton";
 import ImageGallery from "@/components/ImageGallery";
 import { formatPrice } from "@/lib/currency";
+import PublicLanguageSelector from "@/components/PublicLanguageSelector";
+import PoweredByRingo from "@/components/PoweredByRingo";
 
 // A single menu item, in full: photos, name, price, description, prep time. Same chrome as the
 // music item pages (sticky bar with back + the public Share control, creator accent color). The
@@ -26,6 +28,7 @@ export default function MenuItemDetailView({ profile, item, categoryName }: { pr
           <ArrowLeft size={19} />
         </Link>
         <p className="text-sm font-semibold flex-1 truncate">{profile.name || profile.username}</p>
+        <PublicLanguageSelector variant="bar" />
         <ShareButton
           accent={accent}
           title={item.name}
@@ -102,6 +105,7 @@ export default function MenuItemDetailView({ profile, item, categoryName }: { pr
           ) : null}
         </div>
       </div>
+      <PoweredByRingo className="mt-8" />
     </div>
   );
 }

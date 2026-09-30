@@ -14,6 +14,8 @@ import { resolveProductCta, resolveDisplayCtaLabel } from "@/lib/cta";
 import { customerActionRoute } from "@/lib/customerActionRoutes";
 import { newEventId } from "@/lib/pixelClient";
 import { productHref, productImages } from "./productHref";
+import PublicLanguageSelector from "@/components/PublicLanguageSelector";
+import PoweredByRingo from "@/components/PoweredByRingo";
 
 // The page a customer lands on from a catalog / merch / service card.
 // Mobile-first, editorial: a full-bleed swipeable photo hero with floating
@@ -164,8 +166,11 @@ export default function ProductDetailView({
             >
               <ArrowLeft size={18} />
             </Link>
-            <div className="rounded-full p-0.5 backdrop-blur-md" style={{ backgroundColor: "rgba(15,15,20,0.42)" }}>
-              <ShareButton accent={accent} title={product.name} strings={shareStrings} />
+            <div className="flex items-center gap-2">
+              <PublicLanguageSelector variant="overlay" />
+              <div className="rounded-full p-0.5 backdrop-blur-md" style={{ backgroundColor: "rgba(15,15,20,0.42)" }}>
+                <ShareButton accent={accent} title={product.name} strings={shareStrings} />
+              </div>
             </div>
           </div>
         </div>
@@ -343,6 +348,7 @@ export default function ProductDetailView({
           </div>
         </div>
       )}
+      <div className="pb-28 lg:pb-10"><PoweredByRingo /></div>
     </div>
   );
 }

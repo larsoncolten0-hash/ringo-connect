@@ -10,6 +10,8 @@ import { getMusicRole } from "@/lib/categories";
 import { eventHasTickets } from "@/lib/ticketTypes";
 import ImageGallery from "@/components/ImageGallery";
 import { useTrackPlayback } from "./useTrackPlayback";
+import PublicLanguageSelector from "@/components/PublicLanguageSelector";
+import PoweredByRingo from "@/components/PoweredByRingo";
 
 type ItemType = "song" | "release" | "merch" | "ticket" | "support";
 type CartLine = {
@@ -399,6 +401,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           <ArrowLeft size={19} />
         </Link>
         <p className="text-sm font-semibold flex-1 truncate">{profile.name || profile.username}</p>
+        {step === "store" && <PublicLanguageSelector variant="bar" />}
         {itemCount > 0 && step === "store" && (
           <button onClick={() => setShowCart(true)} className="relative shrink-0">
             <ShoppingCart size={20} />
@@ -710,6 +713,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           <span className="text-sm font-bold" suppressHydrationWarning>{formatPrice(total, currency, locale)}</span>
         </button>
       )}
+      {step === "store" && <PoweredByRingo className="mt-8" />}
     </div>
   );
 }

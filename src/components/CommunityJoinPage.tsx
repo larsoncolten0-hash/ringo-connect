@@ -6,6 +6,8 @@ import { ArrowLeft, Check, Loader2, BellRing, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import { getPushStatus, subscribeToPush } from "@/lib/push/subscribeClient";
+import PublicLanguageSelector from "@/components/PublicLanguageSelector";
+import PoweredByRingo from "@/components/PoweredByRingo";
 
 // The actual "Join Community" surface — its own route (see
 // src/app/[username]/community/page.tsx), reached from ProfileView's Stay
@@ -254,6 +256,7 @@ export default function CommunityJoinPage({ profile }: { profile: any }) {
             {t.communityJoin.subtitle}
           </p>
         </div>
+        <PublicLanguageSelector variant="bar" />
       </div>
 
       <div className="max-w-md mx-auto px-4 py-5 flex flex-col gap-4">
@@ -330,6 +333,7 @@ export default function CommunityJoinPage({ profile }: { profile: any }) {
           {submitting ? t.communityJoin.submitting : t.communityJoin.submit}
         </button>
       </div>
+      <PoweredByRingo className="mt-8" />
     </div>
   );
 }
