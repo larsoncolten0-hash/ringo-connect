@@ -2,9 +2,7 @@
 
 import { useState, useMemo } from "react";
 import {
-  Copy,
   Check,
-  Share2,
   Users,
   UserCheck,
   Wallet,
@@ -36,9 +34,7 @@ const STATUS_STYLES: Record<string, string> = {
 export default function AffiliateView({ overview: initial, siteUrl }: { overview: AffiliateOverview; siteUrl: string }) {
   const { t, locale } = useLanguage();
   const [overview, setOverview] = useState(initial);
-  const [copied, setCopied] = useState(false);
 
-  const referralLink = `${siteUrl.replace(/\/$/, "")}/?ref=${overview.affiliateCode}`;
   const ZERO_TOTALS = { pending: 0, available: 0, requested: 0, paid: 0 };
   const getTotals = (cur: string) => overview.totalsByCurrency[cur] ?? ZERO_TOTALS;
   // Always at least XAF/USD so the balance + "Request payout" card (and
@@ -80,29 +76,6 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
 
   const statusLabel = (status: string) => (t.affiliate as any)[`status${status[0].toUpperCase()}${status.slice(1)}`] || status;
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(referralLink);
-    } catch {
-      // Clipboard API can be unavailable (older browsers, insecure
-      // context) — the link is still visible and selectable by hand.
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const shareLink = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({ url: referralLink, title: "Ringo Connect" });
-      } catch {
-        // User cancelled the share sheet — not an error.
-      }
-    } else {
-      copyLink();
-    }
-  };
-
   return (
     <div className="max-w-5xl flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
@@ -142,30 +115,10 @@ export default function AffiliateView({ overview: initial, siteUrl }: { overview
           onSaved={(newCode) => setOverview((prev) => ({ ...prev, affiliateCode: newCode }))}
           t={t}
         />
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1 min-w-0 flex items-center rounded-card border border-ringo-border bg-ringo-bg px-3.5 py-2.5">
-            <p className="text-sm text-ringo-text truncate font-mono">{referralLink}</p>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={copyLink}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-card bg-ringo-indigo text-white text-sm font-medium hover:bg-ringo-indigo/90 transition-colors"
-            >
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-              {copied ? t.affiliate.copied : t.affiliate.copy}
-            </button>
-            <button
-              onClick={shareLink}
-              aria-label="Share"
-              className="flex items-center justify-center w-10 h-10 shrink-0 rounded-card border border-ringo-border text-ringo-text hover:border-ringo-indigo hover:text-ringo-indigo transition-colors"
-            >
-              <Share2 size={15} />
-            </button>
-          </div>
-        </div>
       </div>
 
-      <SalesFunnelLinkCard siteUrl={siteUrl} affiliateCode={overview.affiliateCode} />
+      {/* One shareable link only: the Get Started (Ringo Card question) link. */}
+      <SalesFunnelLinkCard siteUrl={siteUrl} affiliateCode={overview.affiliateCode} singleLink />
 
       {/* Top stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">

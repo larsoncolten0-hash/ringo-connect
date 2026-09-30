@@ -20,7 +20,9 @@ import { Copy, Check, Share2 } from "lucide-react";
 // (no useLanguage()) since the admin surface it also renders on is
 // English-only by this app's own convention; AffiliateView.tsx's own
 // surrounding UI stays bilingual, only this one card's copy doesn't.
-export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUrl: string; affiliateCode: string }) {
+// `singleLink` (creator dashboard only) shows just the first, Get Started link and hides the three
+// story-funnel links below it; every other caller (e.g. the admin dashboard) is unchanged.
+export default function SalesFunnelLinkCard({ siteUrl, affiliateCode, singleLink = false }: { siteUrl: string; affiliateCode: string; singleLink?: boolean }) {
   const [copied, setCopied] = useState(false);
   const link = `${siteUrl.replace(/\/$/, "")}/get-started?intent=sales_funnel&ref=${affiliateCode}`;
 
@@ -133,6 +135,8 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
         </div>
       </div>
 
+      {!singleLink && (
+        <>
       <div className="mt-4 pt-4 border-t border-ringo-border/70">
         <p className="text-sm font-medium text-ringo-text mb-1">Get my FAQ funnel link</p>
         <p className="text-xs text-ringo-muted mb-3">
@@ -192,6 +196,8 @@ export default function SalesFunnelLinkCard({ siteUrl, affiliateCode }: { siteUr
           </button>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
