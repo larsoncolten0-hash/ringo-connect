@@ -118,6 +118,78 @@ async function resolvePayoutCredentials() {
   return { ...settings, fapshiApiUser: apiUser, fapshiApiKey: apiKey };
 }
 
+/** An error from talking to Fapshi. `httpStatus` is set when Fapshi answered;
+ *  `uncertain` is true when the request MAY have been executed even though we
+ *  have no clean answer (timeout, lost connection, 5xx, unreadable reply) — callers
+ *  that move money must treat that as "unknown", never as "definitely failed". */
+export class FapshiApiError extends Error {
+  httpStatus?: number;
+  uncertain: boolean;
+  constructor(message: string, opts: { httpStatus?: number; uncertain?: boolean } = {}) {
+    super(message);
+    this.name = "FapshiApiError";
+    this.httpStatus = opts.httpStatus;
+    this.uncertain = !!opts.uncertain;
+  }
+}
+
+// Timeouts keep a slow Fapshi from hanging our own route until the host kills it (which the
+// customer sees as an unexplained "try again"). A status check is a pure read, so it is
+// retried on network errors, timeouts, 429 and 5xx; a payment REQUEST is never retried
+// automatically — repeating it could charge the customer twice.
+export const FAPSHI_STATUS_TIMEOUT_MS = 7000;
+export const FAPSHI_STATUS_RETRY_DELAYS_MS = [300, 900];
+export const FAPSHI_PAY_TIMEOUT_MS = 20000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Reads a reply as JSON without ever throwing on an HTML/empty error page. */
+async function readBody(res: any): Promise<any> {
+  try {
+    if (typeof res.text === "function") {
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    }
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function fapshiRequest(url: string, init: RequestInit, opts: { timeoutMs: number; retryDelaysMs?: number[]; failMessage: string }): Promise<any> {
+  const delays = opts.retryDelaysMs ?? [];
+  let attempt = 0;
+  for (;;) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
+    try {
+      const res = await fetch(url, { ...init, signal: controller.signal, cache: "no-store" });
+      const data = await readBody(res);
+      if (res.ok) {
+        if (data === null) throw new FapshiApiError("Fapshi returned an unreadable response", { httpStatus: res.status, uncertain: true });
+        return data;
+      }
+      const transient = res.status >= 500 || res.status === 429 || res.status === 408;
+      const err = new FapshiApiError(data?.message || `${opts.failMessage} (${res.status})`, { httpStatus: res.status, uncertain: res.status >= 500 || res.status === 408 });
+      if (transient && attempt < delays.length) {
+        await sleep(delays[attempt++]);
+        continue;
+      }
+      throw err;
+    } catch (e: any) {
+      if (e instanceof FapshiApiError) throw e;
+      const timedOut = controller.signal.aborted || e?.name === "AbortError";
+      if (attempt < delays.length) {
+        await sleep(delays[attempt++]);
+        continue;
+      }
+      throw new FapshiApiError(timedOut ? "Fapshi took too long to respond" : "Could not reach Fapshi", { uncertain: true });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
 /** Prompts a USSD confirmation directly on the payer's phone — no redirect. */
 export async function fapshiDirectPay(params: {
   amount: number; // whole XAF, no decimals
@@ -126,26 +198,20 @@ export async function fapshiDirectPay(params: {
   userId: string;
   externalId: string;
   message?: string;
-}): Promise<FapshiDirectPayResponse> {
+}, opts?: { timeoutMs?: number }): Promise<FapshiDirectPayResponse> {
   const settings = await resolveCredentials();
 
-  const res = await fetch(`${settings.fapshiBaseUrl}/direct-pay`, {
-    method: "POST",
-    headers: headers(settings.fapshiApiUser!, settings.fapshiApiKey!),
-    body: JSON.stringify(params),
-    cache: "no-store",
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.message || `Fapshi direct-pay failed (${res.status})`);
-  }
-  return data;
+  // No automatic retry: a repeated payment request could charge the customer twice.
+  return fapshiRequest(
+    `${settings.fapshiBaseUrl}/direct-pay`,
+    { method: "POST", headers: headers(settings.fapshiApiUser!, settings.fapshiApiKey!), body: JSON.stringify(params) },
+    { timeoutMs: opts?.timeoutMs ?? FAPSHI_PAY_TIMEOUT_MS, failMessage: "Fapshi direct-pay failed" }
+  );
 }
 
 export async function fapshiGetStatus(
   transId: string,
-  opts?: { disbursement?: boolean }
+  opts?: { disbursement?: boolean; timeoutMs?: number; retryDelaysMs?: number[] }
 ): Promise<FapshiTransaction> {
   // A payout transaction was created under the disbursement service's
   // credentials — Fapshi's API scopes a transaction lookup to the
@@ -153,21 +219,16 @@ export async function fapshiGetStatus(
   // fapshiPayout used, not the collection ones.
   const settings = opts?.disbursement ? await resolvePayoutCredentials() : await resolveCredentials();
 
-  const res = await fetch(`${settings.fapshiBaseUrl}/payment-status/${transId}`, {
-    method: "GET",
-    headers: headers(settings.fapshiApiUser!, settings.fapshiApiKey!),
-    // A status check exists specifically to get the CURRENT state — never
-    // let Next.js's default fetch caching hand back a stale "PENDING"
-    // from an earlier check. See the `dynamic` export on the pay-status
-    // route for the other half of this fix.
-    cache: "no-store",
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.message || `Fapshi payment-status failed (${res.status})`);
-  }
-  return data;
+  // A status check exists specifically to get the CURRENT state — never let
+  // Next.js's default fetch caching hand back a stale "PENDING" from an earlier check
+  // (fapshiRequest sets cache: "no-store"; see the `dynamic` export on the pay-status
+  // route for the other half of that fix). It is a pure read, so a transient failure
+  // (timeout, dropped connection, 429, 5xx) is retried before it is reported.
+  return fapshiRequest(
+    `${settings.fapshiBaseUrl}/payment-status/${transId}`,
+    { method: "GET", headers: headers(settings.fapshiApiUser!, settings.fapshiApiKey!) },
+    { timeoutMs: opts?.timeoutMs ?? FAPSHI_STATUS_TIMEOUT_MS, retryDelaysMs: opts?.retryDelaysMs ?? FAPSHI_STATUS_RETRY_DELAYS_MS, failMessage: "Fapshi payment-status failed" }
+  );
 }
 
 /** Local Cameroon mobile numbers only — strips spaces/dashes and a leading

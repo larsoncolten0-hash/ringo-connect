@@ -7,6 +7,16 @@ import { Check, ArrowLeft, Loader2, X, User, Building2, Nfc, Award } from "lucid
 import { useLanguage } from "@/components/LanguageProvider";
 import { getReferralCode } from "@/lib/referral";
 import { getAmbassadorCode } from "@/lib/ambassadorReferral";
+import {
+  POLL_GIVE_UP_AFTER_MS,
+  POLL_SLOW_AFTER_MS,
+  clearPendingPayment,
+  detectOperator,
+  normalizeSignupPhone,
+  pollDelayMs,
+  readPendingPayment,
+  savePendingPayment,
+} from "@/lib/signupPaymentClient";
 import LanguageToggle from "@/components/LanguageToggle";
 import { formatPrice } from "@/lib/currency";
 import { detectPlatform } from "@/lib/utils";
@@ -22,7 +32,7 @@ type AccountType = "personal" | "enterprise";
 type LinkItem = { title: string; url: string };
 type ProductItem = { name: string; price: string; image_url: string };
 type SocialItem = { platform: string; url: string };
-type PayStatus = "idle" | "sending" | "waiting" | "success" | "failed";
+type PayStatus = "idle" | "sending" | "waiting" | "slow" | "uncertain" | "resuming" | "success" | "failed";
 
 export default function GetStartedFlow({
   plans,
@@ -185,6 +195,12 @@ export default function GetStartedFlow({
   const [payMedium, setPayMedium] = useState<"mobile money" | "orange money">("mobile money");
   const [payStatus, setPayStatus] = useState<PayStatus>("idle");
   const [payError, setPayError] = useState("");
+  // True once the customer picks the provider themselves — from then on typing a number never
+  // changes it (auto-selection is only a convenience for someone who hasn't chosen).
+  const mediumTouched = useRef(false);
+  // The status checks are failing for a moment (weak signal). Shown as a calm note — never as a failure.
+  const [connectionShaky, setConnectionShaky] = useState(false);
+  const pollRef = useRef<{ stop: () => void } | null>(null);
   // True only once a Fapshi payment actually confirms — decides whether
   // the success screen thanks them for paying, or tells them how to pay
   // manually (they either never chose to pay now, or gave up and hit
@@ -462,10 +478,159 @@ export default function GetStartedFlow({
     setStep(variant === "affiliate" ? "paying" : "payChoice");
   };
 
-  const sendPayment = async () => {
+  // ------------------------------------------------------------------------------------------
+  // Paying by mobile money. The customer approves on their PHONE, which can take minutes and often
+  // sends this page to the background. So this never treats "slow" as "failed": it keeps checking
+  // (with a gentler rhythm), re-checks the instant the page comes back into view, remembers the
+  // payment across a reload, and the SERVER independently records the payment (webhook, sweep,
+  // admin screens) even if this page is gone — see src/lib/signupPayment.ts.
+  const stopPolling = () => {
+    pollRef.current?.stop();
+    pollRef.current = null;
+  };
+  useEffect(() => () => stopPolling(), []);
+
+  const paymentConfirmed = () => {
+    stopPolling();
+    clearPendingPayment();
+    setConnectionShaky(false);
+    setPayStatus("success");
+    setPaidOnline(true);
+    setTimeout(() => setStep("success"), 700);
+  };
+
+  /** One status check. "error" covers 404/502/network — anything that is NOT a clear answer. */
+  const checkPayment = async (requestId: string): Promise<"confirmed" | "failed" | "pending" | "error"> => {
+    try {
+      const res = await fetch(`/api/signup-requests/${requestId}/pay-status`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return "error";
+      if (data.status === "SUCCESSFUL") return "confirmed";
+      if (data.status === "FAILED" || data.status === "EXPIRED") {
+        setPayError(data.reason || t.getStarted.payFailed);
+        return "failed";
+      }
+      return "pending";
+    } catch {
+      return "error";
+    }
+  };
+
+  const startPolling = (requestId: string) => {
+    stopPolling();
+    const startedAt = Date.now();
+    let stopped = false;
+    let running = false;
+    let consecutiveErrors = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const schedule = (delay: number) => {
+      clearTimeout(timer);
+      timer = setTimeout(tick, delay);
+    };
+    async function tick() {
+      if (stopped || running) return;
+      running = true;
+      const outcome = await checkPayment(requestId);
+      running = false;
+      if (stopped) return;
+      if (outcome === "confirmed") return paymentConfirmed();
+      if (outcome === "failed") {
+        stopPolling();
+        clearPendingPayment();
+        setPayStatus("failed");
+        return;
+      }
+      consecutiveErrors = outcome === "error" ? consecutiveErrors + 1 : 0;
+      setConnectionShaky(consecutiveErrors >= 3);
+      const elapsed = Date.now() - startedAt;
+      if (elapsed > POLL_GIVE_UP_AFTER_MS) {
+        // Stop the on-screen checking, but NOT as a failure: the payment may still be approved and
+        // the server keeps confirming it. The customer can check again or send a fresh request.
+        stopPolling();
+        setPayStatus("slow");
+        return;
+      }
+      if (elapsed > POLL_SLOW_AFTER_MS) setPayStatus((s) => (s === "waiting" ? "slow" : s));
+      schedule(pollDelayMs(elapsed));
+    }
+    // Phones pause timers in a backgrounded tab: check immediately when the customer comes back.
+    const wake = () => {
+      if (document.visibilityState === "visible") schedule(0);
+    };
+    document.addEventListener("visibilitychange", wake);
+    window.addEventListener("focus", wake);
+    window.addEventListener("online", wake);
+    pollRef.current = {
+      stop: () => {
+        stopped = true;
+        clearTimeout(timer);
+        document.removeEventListener("visibilitychange", wake);
+        window.removeEventListener("focus", wake);
+        window.removeEventListener("online", wake);
+      },
+    };
+    schedule(2000);
+  };
+
+  /** The customer asks us to look again (from the "still waiting" / "unconfirmed" screens). */
+  const checkMyPayment = async () => {
+    if (!createdRequestId) return;
+    setPayStatus("resuming");
+    const outcome = await checkPayment(createdRequestId);
+    if (outcome === "confirmed") return paymentConfirmed();
+    if (outcome === "pending") {
+      setPayStatus("waiting");
+      startPolling(createdRequestId);
+      return;
+    }
+    if (outcome === "failed") {
+      clearPendingPayment();
+      setPayStatus("failed");
+      return;
+    }
+    setPayStatus("uncertain"); // nothing found (yet) — they can wait, check again, or send a fresh request
+  };
+
+  // Came back to the page (reload, or the browser discarded the tab while they approved in another
+  // app)? Pick up the payment that was in flight instead of showing an empty form and inviting a
+  // second payment.
+  useEffect(() => {
+    const pending = readPendingPayment();
+    if (!pending) return;
+    let cancelled = false;
+    (async () => {
+      setCreatedRequestId(pending);
+      setStep("paying");
+      setPayStatus("resuming");
+      const outcome = await checkPayment(pending);
+      if (cancelled) return;
+      if (outcome === "confirmed") paymentConfirmed();
+      else if (outcome === "pending") {
+        setPayStatus("waiting");
+        startPolling(pending);
+      } else if (outcome === "failed") {
+        clearPendingPayment();
+        setPayStatus("idle"); // the reason is shown above the form; they re-enter their number
+      } else setPayStatus("uncertain");
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const payErrorFor = (code: string | undefined, serverMessage: string | undefined) => {
+    if (code === "invalid_phone") return t.getStarted.payPhoneInvalid;
+    if (code === "provider_unavailable") return t.getStarted.payProviderBusy;
+    return serverMessage || t.getStarted.payFailed;
+  };
+
+  const sendPayment = async (forceNew = false) => {
     if (requestInFlight.current) return; // already submitting — ignore the repeat click
     requestInFlight.current = true;
     setPayError("");
+    stopPolling();
     setPayStatus("sending");
 
     try {
@@ -480,78 +645,36 @@ export default function GetStartedFlow({
         setCreatedRequestId(created);
       }
 
-      // Everything past this point talks to Fapshi (directly, or indirectly
-      // via our own route) — wrapped in try/catch so a network error, a
-      // timeout, or a non-JSON error response surfaces as a real failure
-      // state instead of leaving payStatus stuck on "sending" forever with
-      // no feedback at all.
+      // Everything past this point talks to Fapshi (directly, or indirectly via our own route) —
+      // wrapped in try/catch so a network error, a timeout, or a non-JSON error response surfaces
+      // as a real state instead of leaving payStatus stuck on "sending" forever.
       const res = await fetch(`/api/signup-requests/${requestId}/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: payPhone, medium: payMedium }),
+        body: JSON.stringify({ phone: payPhone, medium: payMedium, forceNew }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setPayError(data.error || t.getStarted.payFailed);
+        if (data.code === "uncertain") {
+          // We couldn't confirm whether the request reached the customer's phone. Not "failed":
+          // if a prompt arrives and they approve it, the server records it automatically.
+          savePendingPayment(requestId);
+          setPayStatus("uncertain");
+          return;
+        }
+        setPayError(payErrorFor(data.code, data.error));
         setPayStatus("failed");
         return;
       }
 
+      if (data.alreadyPaid) return paymentConfirmed();
+
+      savePendingPayment(requestId);
       setPayStatus("waiting");
-      let attempts = 0;
-      let consecutiveErrors = 0;
-      const poll = setInterval(async () => {
-        attempts++;
-        try {
-          const statusRes = await fetch(`/api/signup-requests/${requestId}/pay-status`);
-          const statusData = await statusRes.json();
-
-          // The route can 404/502 (bad transId, Fapshi unreachable, IP not
-          // whitelisted, etc.) and still return valid JSON — that JSON just
-          // won't have a `status` field. Previously this fell through to
-          // the generic attempts>=40 timeout with no explanation, so a real
-          // backend error looked identical to "still waiting" for up to two
-          // minutes. Surface it immediately instead.
-          if (!statusRes.ok) {
-            consecutiveErrors++;
-            if (consecutiveErrors >= 3) {
-              clearInterval(poll);
-              setPayStatus("failed");
-              setPayError(statusData.error || t.getStarted.payFailed);
-            }
-            return;
-          }
-          consecutiveErrors = 0;
-
-          if (statusData.status === "SUCCESSFUL") {
-            clearInterval(poll);
-            setPayStatus("success");
-            setPaidOnline(true);
-            setTimeout(() => setStep("success"), 700);
-          } else if (statusData.status === "FAILED" || statusData.status === "EXPIRED") {
-            clearInterval(poll);
-            setPayStatus("failed");
-            setPayError(statusData.reason || t.getStarted.payFailed);
-          } else if (attempts >= 40) {
-            clearInterval(poll);
-            setPayStatus("failed");
-            setPayError(t.getStarted.payFailed);
-          }
-        } catch (err: any) {
-          // Transient network error (offline, DNS blip) — if it keeps
-          // failing, treat it the same as a backend error above rather
-          // than silently spinning until the 2-minute cutoff.
-          consecutiveErrors++;
-          if (consecutiveErrors >= 3) {
-            clearInterval(poll);
-            setPayStatus("failed");
-            setPayError(err?.message || t.getStarted.payFailed);
-          }
-        }
-      }, 3000);
-    } catch (err: any) {
-      setPayError(err.message || t.getStarted.payFailed);
+      startPolling(requestId);
+    } catch {
+      setPayError(t.getStarted.payProviderBusy);
       setPayStatus("failed");
     } finally {
       requestInFlight.current = false;
@@ -1249,6 +1372,7 @@ export default function GetStartedFlow({
                 // Affiliate mode never shows the payChoice screen — going
                 // back from here has to return to "info", not to a step
                 // that was never entered.
+                stopPolling();
                 setStep(variant === "affiliate" ? "info" : "payChoice");
                 setPayStatus("idle");
                 setPayError("");
@@ -1263,11 +1387,16 @@ export default function GetStartedFlow({
 
             {payStatus === "idle" && (
               <div className="flex flex-col gap-4">
+                {payError && <p className="text-sm text-red-500">{payError}</p>}
                 <label className="flex flex-col gap-1.5">
                   <span className="text-sm font-medium">{t.getStarted.payPhoneLabel}</span>
                   <input
                     value={payPhone}
-                    onChange={(e) => setPayPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPayPhone(e.target.value);
+                      const operator = detectOperator(e.target.value);
+                      if (operator && !mediumTouched.current) setPayMedium(operator);
+                    }}
                     placeholder={t.getStarted.whatsappPlaceholder}
                     inputMode="tel"
                     className="border border-ringo-border rounded-card px-3.5 py-2.5 text-sm bg-ringo-surface"
@@ -1277,20 +1406,38 @@ export default function GetStartedFlow({
                   <span className="text-sm font-medium">{t.getStarted.payProviderLabel}</span>
                   <select
                     value={payMedium}
-                    onChange={(e) => setPayMedium(e.target.value as any)}
+                    onChange={(e) => {
+                      mediumTouched.current = true;
+                      setPayMedium(e.target.value as any);
+                    }}
                     className="border border-ringo-border rounded-card px-3.5 py-2.5 text-sm bg-ringo-surface"
                   >
                     <option value="mobile money">MTN Mobile Money</option>
                     <option value="orange money">Orange Money</option>
                   </select>
                 </label>
+                {payPhone.replace(/[^0-9]/g, "").length >= 9 && !normalizeSignupPhone(payPhone) && (
+                  <p className="text-xs text-red-500">{t.getStarted.payPhoneInvalid}</p>
+                )}
+                {detectOperator(payPhone) && detectOperator(payPhone) !== payMedium && (
+                  <p className="text-xs text-amber-600">
+                    {t.getStarted.payProviderMismatch(detectOperator(payPhone) === "orange money" ? "Orange Money" : "MTN Mobile Money")}
+                  </p>
+                )}
                 <button
-                  onClick={sendPayment}
-                  disabled={!payPhone.trim()}
+                  onClick={() => sendPayment()}
+                  disabled={!normalizeSignupPhone(payPhone)}
                   className="py-3 rounded-card bg-ringo-indigo text-white text-sm font-medium disabled:opacity-60"
                 >
                   {t.getStarted.paySendButton}
                 </button>
+              </div>
+            )}
+
+            {payStatus === "resuming" && (
+              <div className="flex flex-col items-center text-center gap-3 py-10">
+                <Loader2 size={28} className="animate-spin text-ringo-indigo" />
+                <p className="text-sm text-ringo-muted max-w-xs">{t.getStarted.payChecking}</p>
               </div>
             )}
 
@@ -1301,6 +1448,35 @@ export default function GetStartedFlow({
                 <p className="text-xs text-ringo-muted max-w-xs">
                   {payMedium === "orange money" ? t.getStarted.orangeDialHint : t.getStarted.mtnDialHint}
                 </p>
+                {connectionShaky && <p className="text-xs text-amber-600 max-w-xs">{t.getStarted.payReconnecting}</p>}
+              </div>
+            )}
+
+            {(payStatus === "slow" || payStatus === "uncertain") && (
+              <div className="flex flex-col items-center text-center gap-3 py-6">
+                <p className="text-sm text-ringo-text max-w-xs">{payStatus === "slow" ? t.getStarted.payStillWaiting : t.getStarted.payUncertain}</p>
+                <p className="text-xs text-ringo-muted max-w-xs">
+                  {payMedium === "orange money" ? t.getStarted.orangeDialHint : t.getStarted.mtnDialHint}
+                </p>
+                <div className="flex flex-col gap-2 w-full">
+                  <button onClick={checkMyPayment} className="py-2.5 rounded-card bg-ringo-indigo text-white text-sm font-medium">
+                    {t.getStarted.payCheckAgain}
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Only offer a fresh request when the customer says the first never arrived;
+                      // the server keeps a trace of any earlier one that is still open.
+                      if (normalizeSignupPhone(payPhone)) sendPayment(true);
+                      else {
+                        stopPolling();
+                        setPayStatus("idle");
+                      }
+                    }}
+                    className="py-2.5 rounded-card border border-ringo-border text-sm font-medium"
+                  >
+                    {t.getStarted.paySendAgain}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1318,10 +1494,18 @@ export default function GetStartedFlow({
                 <p className="text-sm text-red-500">{payError || t.getStarted.payFailed}</p>
                 <div className="flex flex-col gap-2 w-full">
                   <button
-                    onClick={sendPayment}
+                    onClick={() => (normalizeSignupPhone(payPhone) ? sendPayment() : setPayStatus("idle"))}
                     className="py-2.5 rounded-card bg-ringo-indigo text-white text-sm font-medium"
                   >
                     {t.getStarted.payTryAgain}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPayStatus("idle");
+                    }}
+                    className="py-2.5 rounded-card border border-ringo-border text-sm font-medium"
+                  >
+                    {t.getStarted.payDifferentNumber}
                   </button>
                 </div>
               </div>

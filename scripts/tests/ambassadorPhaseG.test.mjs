@@ -490,7 +490,9 @@ function seedProgram() {
   const approve = read("src/app/api/admin/requests/[id]/approve/route.ts");
   const payStatus = read("src/app/api/signup-requests/[id]/pay-status/route.ts");
   check("existing: approve route still calls notifyAffiliateCommissionIfAny, notifyUser and sendPushAndBellToAdmins", /notifyAffiliateCommissionIfAny\(/.test(approve) && /notifyUser\(/.test(approve) && /sendPushAndBellToAdmins\(/.test(approve));
-  check("existing: pay-status route still calls notifyAdmins and notifyUser", /notifyAdmins\(/.test(payStatus) && /notifyUser\(/.test(payStatus));
+  // The admin/referrer notification fan-out moved, unchanged, into the shared signupPayment module that the pay-status route now delegates to.
+  const signupPaymentSrc = read("src/lib/signupPayment.ts");
+  check("existing: the pay-status route still notifies admins and the referrer (now via the shared signupPayment module)", /confirmSignupPayment\(/.test(payStatus) && /notifyAdmins\(/.test(signupPaymentSrc) && /notifyUser\(/.test(signupPaymentSrc));
   const withBellSrc = read("src/lib/push/withBell.ts");
   const catSrc = read("src/lib/notificationCategories.ts");
   check("existing: withBell.ts and notificationCategories.ts were not modified by this phase", /export async function sendPushAndBellToUser/.test(withBellSrc) && !/ambassador/i.test(catSrc) && !/ambassador/i.test(withBellSrc));

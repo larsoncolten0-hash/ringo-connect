@@ -1,5 +1,7 @@
 import { fapshiGetStatus } from "@/lib/fapshi";
 import { applySuccessfulPayment, markFailedPayment } from "@/lib/applyPayment";
+import { confirmSignupPaymentFromTransaction } from "@/lib/signupPayment";
+import { createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 // Fapshi calls this URL when a transaction resolves to SUCCESSFUL, FAILED,
@@ -23,6 +25,18 @@ export async function POST(request: Request) {
 
     if (tx.status === "SUCCESSFUL") {
       await applySuccessfulPayment({ provider: "fapshi", providerTransactionId: transId });
+
+      // A get-started (signup) payment is not a subscription payment: it has no
+      // payment_transactions row until an admin approves the account, so the call above finds
+      // nothing for it. Match it back to its signup request by the userId/externalId WE stamped
+      // on the transaction and record it — so a customer who approved late, closed the page, or
+      // lost signal is still marked paid without anyone clicking "paid cash". Independent of the
+      // billing path above: a failure here can never affect it, and vice versa.
+      try {
+        await confirmSignupPaymentFromTransaction(createAdminClient(), tx);
+      } catch (err: any) {
+        console.error("Fapshi webhook: signup payment matching failed:", err?.message);
+      }
     } else if (tx.status === "FAILED" || tx.status === "EXPIRED") {
       await markFailedPayment("fapshi", transId);
     }

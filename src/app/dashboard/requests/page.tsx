@@ -3,8 +3,10 @@ import { assertCanApproveRequests } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import RequestsTable from "@/components/admin/RequestsTable";
 import { getReviewerScope, scopedSignupRequestIds } from "@/lib/ambassador/requestReview";
+import { reconcileSignupPayments } from "@/lib/signupPayment";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 const PAGE_SIZE = 20;
 
@@ -56,9 +58,30 @@ export default async function DashboardRequestsPage({ searchParams }: { searchPa
     pendingCountQuery,
   ]);
 
+  // Confirm payments the customer made but their browser never reported (only for rows this
+  // reviewer can already see — the list above is already scoped to their own requests).
+  const rows = requests || [];
+  const unpaidIds = rows.filter((r: any) => r.status === "pending" && !r.customer_paid && r.pending_fapshi_trans_id).map((r: any) => r.id);
+  if (unpaidIds.length > 0) {
+    try {
+      await reconcileSignupPayments(admin, { ids: unpaidIds, limit: 20 });
+      const { data: fresh } = await admin.from("signup_requests").select("id, customer_paid, pending_fapshi_trans_id").in("id", unpaidIds);
+      const byId = new Map((fresh || []).map((r: any) => [r.id, r]));
+      for (const row of rows as any[]) {
+        const f: any = byId.get(row.id);
+        if (f) {
+          row.customer_paid = f.customer_paid;
+          row.pending_fapshi_trans_id = f.pending_fapshi_trans_id;
+        }
+      }
+    } catch (err: any) {
+      console.error("dashboard requests: payment confirmation failed:", err?.message);
+    }
+  }
+
   return (
     <RequestsTable
-      requests={requests || []}
+      requests={rows}
       basePath="/dashboard/requests"
       canDelete={reviewer.isAdmin}
       page={page}
