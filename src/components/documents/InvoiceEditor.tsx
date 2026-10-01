@@ -25,9 +25,10 @@ type Product = { id: string; name: string; price: number | string | null };
  * Create / edit an invoice DRAFT (also: start a corrected invoice from a voided one). The totals shown while typing are a presentation
  * estimate: what is saved, numbered and printed is always what the database calculates. Nothing here can set a number, a date or a total.
  */
-export default function InvoiceEditor({ mode, id, correctId }: { mode: "new" | "edit"; id?: string; correctId?: string }) {
+export default function InvoiceEditor({ mode, id, correctId, credit = false }: { mode: "new" | "edit"; id?: string; correctId?: string; credit?: boolean }) {
   const { t, locale } = useLanguage();
   const u = t.documents.ui;
+  const cr = t.receivables.ui;
   const router = useRouter();
   const errorText = useErrorText();
   const requestId = useRef(newRequestId());
@@ -51,6 +52,14 @@ export default function InvoiceEditor({ mode, id, correctId }: { mode: "new" | "
   const [saved, setSaved] = useState(false);
   const [serverTotals, setServerTotals] = useState<{ subtotal: number; discount: number; tax: number; total: number } | null>(null);
   const [issueOpen, setIssueOpen] = useState(false);
+  // Phase 3 (credit sale): an optional contact from the owner's own book, and an optional deposit recorded right after issuing. Both go through
+  // the existing APIs (link: /api/receivables/documents/<id>/customer, deposit: the normal /api/documents/<id>/payments). Nothing here is required
+  // for a plain invoice, and if the Phase 3 API is not available the editor behaves exactly as before.
+  const [contacts, setContacts] = useState<{ id: string; name: string; phone: string | null; email: string | null }[] | null>(null);
+  const [pickedContact, setPickedContact] = useState("");
+  const [deposit, setDeposit] = useState({ amount: "", method: "cash" });
+  const depositRequestId = useRef(newRequestId());
+  const [notice, setNotice] = useState<{ text: string; docId: string } | null>(null);
 
   const currency = biz?.currency ?? "XAF";
   const digits = currencyMinorDigits(currency);
@@ -67,6 +76,8 @@ export default function InvoiceEditor({ mode, id, correctId }: { mode: "new" | "
       ]);
       if (!b.ok) { setLoadError(errorText(b.data)); return setLoading(false); }
       setBiz(b.data);
+      callApi("GET", "/api/receivables/customers").then((c) => { if (c.ok) setContacts(c.data.items); });
+      if (mode === "new" && correctId) callApi("GET", `/api/receivables/documents/${encodeURIComponent(correctId)}/customer`).then((l) => { if (l.ok && l.data.customer) setPickedContact(l.data.customer.id); });
       let form: any = null;
       if (d) {
         if (!d.ok) { setLoadError(errorText(d.data)); return setLoading(false); }
@@ -167,7 +178,26 @@ export default function InvoiceEditor({ mode, id, correctId }: { mode: "new" | "
     if (!docId) return u.errors.generic;
     const r = await callApi("POST", `/api/documents/${encodeURIComponent(docId)}/issue`);
     if (!r.ok) return errorText(r.data);
+    // Phase 3: link the contact and record the deposit AFTER the invoice is issued, through the normal APIs. A failure here never undoes the
+    // issued invoice: the owner is told exactly what is left to do and can do it from the invoice.
+    const problems: string[] = [];
+    if (pickedContact) {
+      const l = await callApi("PUT", `/api/receivables/documents/${encodeURIComponent(docId)}/customer`, { customer_id: pickedContact });
+      if (!l.ok) problems.push(cr.linkFailed);
+    }
+    if (credit && deposit.amount.trim() !== "") {
+      const d = await callApi("POST", `/api/documents/${encodeURIComponent(docId)}/payments`, { amount: deposit.amount.trim(), method: deposit.method, client_request_id: depositRequestId.current });
+      if (!d.ok) problems.push(cr.depositFailed);
+    }
+    if (problems.length > 0) { setNotice({ text: problems.join(" "), docId }); return null; }
     router.push(`/dashboard/documents/${docId}`);
+    return null;
+  };
+
+  const creditMissing = (): string | null => {
+    if (!credit) return null;
+    if (cust.name.trim() === "") return cr.creditNeedCustomer;
+    if (!dueDate) return cr.creditNeedDue;
     return null;
   };
 
@@ -179,7 +209,8 @@ export default function InvoiceEditor({ mode, id, correctId }: { mode: "new" | "
     <div className="flex flex-col gap-5 max-w-3xl">
       <div className="flex flex-col gap-1">
         <Link href="/dashboard/documents" className="text-sm text-ringo-muted hover:text-ringo-text w-fit">← {u.back}</Link>
-        <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em]">{mode === "edit" || docId ? u.editTitle : u.newTitle}</h1>
+        <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em]">{credit && !docId ? cr.creditSaleTitle : mode === "edit" || docId ? u.editTitle : u.newTitle}</h1>
+        {credit && <p className="text-sm text-ringo-muted">{cr.creditSaleIntro}</p>}
         {replacesId && <p className="text-sm text-ringo-muted">{u.correctsInvoice}</p>}
       </div>
 
@@ -199,6 +230,20 @@ export default function InvoiceEditor({ mode, id, correctId }: { mode: "new" | "
       </Card>
 
       <Card title={u.customerSection}>
+        {contacts && contacts.length > 0 && (
+          <label className={labelClass}>
+            {cr.pickContact}
+            <select value={pickedContact} onChange={(e) => {
+              const c = contacts.find((x) => x.id === e.target.value);
+              touch();
+              setPickedContact(e.target.value);
+              if (c) setCust({ ...cust, name: c.name, phone: c.phone ?? "", email: c.email ?? "" });
+            }} className={inputClass}>
+              <option value="">{cr.pickContactNone}</option>
+              {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
+        )}
         <label className={labelClass}>{u.customerName}<input value={cust.name} onChange={(e) => { touch(); setCust({ ...cust, name: e.target.value }); }} maxLength={LIMITS.customerName} className={inputClass} /></label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <label className={labelClass}>{u.customerPhone}<input value={cust.phone} onChange={(e) => { touch(); setCust({ ...cust, phone: e.target.value }); }} maxLength={LIMITS.customerPhone} inputMode="tel" className={inputClass} /></label>
@@ -289,11 +334,32 @@ export default function InvoiceEditor({ mode, id, correctId }: { mode: "new" | "
         {!serverTotals && <p className="text-xs text-ringo-muted pt-1">{u.estimateNote}</p>}
       </div>
 
+      {credit && !docId && (
+        <Card title={cr.depositTitle}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className={labelClass}>{cr.depositAmount}<input value={deposit.amount} onChange={(e) => setDeposit({ ...deposit, amount: e.target.value })} inputMode="decimal" className={inputClass} /></label>
+            <label className={labelClass}>
+              {cr.depositMethod}
+              <select value={deposit.method} onChange={(e) => setDeposit({ ...deposit, method: e.target.value })} className={inputClass}>
+                {Object.entries(t.documents.pdf.methods).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+              </select>
+            </label>
+          </div>
+          <p className="text-xs text-ringo-muted">{cr.depositNote}</p>
+        </Card>
+      )}
+
       {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
+      {notice && (
+        <div role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-ringo-text flex flex-col gap-2">
+          <p>{notice.text}</p>
+          <Link href={`/dashboard/documents/${notice.docId}`} className={`${secondaryButton} w-fit`}>{u.back}</Link>
+        </div>
+      )}
       {saved && <p role="status" className="text-sm text-emerald-600">{u.saved}</p>}
       <div className="flex flex-col sm:flex-row gap-2">
         <button onClick={() => save()} disabled={busy} className={secondaryButton}>{busy ? <><Loader2 size={15} className="animate-spin" />{u.saving}</> : u.saveDraft}</button>
-        <button onClick={async () => { if (await save()) setIssueOpen(true); }} disabled={busy} className={primaryButton}>{u.saveAndIssue}</button>
+        <button onClick={async () => { const missing = creditMissing(); if (missing) return setError(missing); if (await save()) setIssueOpen(true); }} disabled={busy} className={primaryButton}>{u.saveAndIssue}</button>
       </div>
 
       {issueOpen && <ConfirmModal title={u.issueTitle} body={u.issueBody} confirmLabel={u.issue} onClose={() => setIssueOpen(false)} onConfirm={issueNow} />}

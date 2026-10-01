@@ -10,6 +10,7 @@ import type { DocumentModel, LineModel, PartyModel } from "@/lib/documents/types
 import { ReasonModal } from "./DocModals";
 import DocumentActions from "./DocumentActions";
 import { ShareButton } from "./ShareModal";
+import InvoiceCustomerSection from "@/components/receivables/InvoiceCustomerSection";
 import { StatusBadge, callApi, downloadPdf, secondaryButton, useErrorText } from "./shared";
 
 type PaymentView = { id: string; receipt_document_id: string; receipt_number: string | null; receipt_status: string | null; amount_minor: number; balance_after_minor: number; method: string; reference: string | null; paid_on: string; recorded_at: string; voided: boolean; void_reason: string | null; can_void: boolean };
@@ -168,6 +169,10 @@ function InvoiceBody({ view, reload, gone }: { view: View; reload: () => void; g
           <div><dt className="text-xs text-ringo-muted">{t.documents.pdf.dueDate}</dt><dd className="text-ringo-text">{m.dueDate ? formatDateKey(m.dueDate, locale) : "—"}</dd></div>
         </dl>
       </Card>
+
+      {view.status !== "draft" && view.status !== "void" && (
+        <InvoiceCustomerSection documentId={view.id} number={m.number} open={!!view.actions?.recordPayment} snapshot={{ name: m.customer.name, phone: m.customer.phone, email: m.customer.email }} />
+      )}
 
       <Card title={u.items}>
         <ItemsList lines={m.lines} m={m} showMoney />

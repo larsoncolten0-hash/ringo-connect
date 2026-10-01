@@ -57,7 +57,7 @@ PDF DOWNLOADS. ${both((t) => t.documents.ui.downloadPdf)} on an invoice or recei
 
 SECURE SHARE LINKS. On an issued invoice or an RCT receipt, ${both((t) => t.documents.ui.share.button)} creates a private link of the form /d/… that the customer opens WITHOUT a Ringo account to view the document and download its PDF. The link is long, random and unguessable, and does not contain the document number or any identifier. It is shown ONCE, when created (Ringo stores only a one-way fingerprint of it, so it cannot be shown again; if lost, create a new one). The owner chooses how long it stays valid (1 to 90 days, 14 by default), can have up to 5 active links per document, and can revoke any link at any time. An expired, revoked or wrong link all show the same "not available" page and reveal nothing. Ringo does NOT send the link: the owner copies it (or uses their phone's share sheet) and sends it to the customer themselves, for example on WhatsApp. Drafts and voided invoices cannot get new links. Do not promise delivery, read receipts or reminders.
 
-NOT IN THIS VERSION (say so plainly; do not invent workarounds or dates): quotations/estimates; online payment of an invoice (a customer cannot pay an invoice through Ringo: the owner records the payment after being paid elsewhere); automatic WhatsApp, SMS or email sending of invoices; staff or accountant access; recurring invoices; supplier management and purchase orders; inventory; tax filing or tax-compliance features. DEBT/CREDIT BOUNDARY: an unpaid invoice balance is just the invoice's balance; it does not create a debt record, an automatic reminder or a customer credit line. Debt and credit management is a separate, later part of the Business Toolkit; do not say it exists or that invoices feed it today.
+NOT IN THIS VERSION (say so plainly; do not invent workarounds or dates): quotations/estimates; online payment of an invoice (a customer cannot pay an invoice through Ringo: the owner records the payment after being paid elsewhere); automatic WhatsApp, SMS or email sending of invoices; staff or accountant access; recurring invoices; supplier management and purchase orders; inventory; tax filing or tax-compliance features. DEBT BOUNDARY: a debt is simply the Amount Due on an issued invoice; there is no separate debt record or ledger, and no automatic bookkeeping entry is made when an invoice is issued. Debtors, credit sales and payment reminders are explained by the "receivables" topic (when enabled); look that topic up instead of describing them from here.
 
 HOW TO ANSWER. Use the exact button labels above (English / French) in the user's language. If the user cannot see ${both((t) => t.nav.documents)} in their menu, it is because their profile category or plan does not include it: say so and point to Subscription, without quoting a price from memory. If you cannot see the user's own invoices (there is no tool for them), say you cannot look at their documents and guide them to the screen instead.
 `.trim(),
@@ -80,6 +80,6 @@ HOW TO ANSWER. Use the exact button labels above (English / French) in the user'
     "Not tax-certified; tax is optional and off by default",
     "No debt/credit workflow yet (a later phase)",
   ],
-  related: ["commerce", "payments", "plans"],
+  related: ["commerce", "payments", "plans", "receivables"],
   live: renderLiveAvailability,
 };

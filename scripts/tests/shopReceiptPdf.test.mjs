@@ -201,7 +201,7 @@ const receipt = (o = {}) => ({
   const hit = changed.filter((f) => PROTECTED.some((p) => f.replace(/\\/g, "/").startsWith(p)));
   check("NO protected checkout / settlement / payment / protection / receipt-reader / email / music file is modified or added", hit.length === 0, hit.join(","));
   const migrations = changed.filter((f) => /^supabase\/migrations\//.test(f));
-  eq("the only migration in the working tree is the (unapplied) Phase 2 one: Phase 1 and every earlier migration are untouched", migrations, ["supabase/migrations/2026-12-02_documents_invoices_receipts.sql"]);
+  eq("the only migration in the working tree is the Phase 3 one (Phase 1, Phase 2 and every earlier migration are untouched)", migrations, ["supabase/migrations/2026-12-03_debtors_reminders.sql"]);
 }
 
 for (const f of tmp) { try { fs.unlinkSync(f); } catch {} }

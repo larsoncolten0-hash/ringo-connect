@@ -30,7 +30,7 @@ const m = getKnowledgeModule("invoices");
 check("the Phase 2 module is registered in the existing registry (KNOWLEDGE_MODULES) and is findable by id", !!m && KNOWLEDGE_MODULES.includes(m) && KNOWLEDGE_TOPIC_IDS.includes("invoices"));
 check("it shows up in the catalog the model reads to know what it can look up", /^- invoices: /m.test(renderKnowledgeCatalog()));
 check("the registry passes the existing validator (unique ids, valid status, related ids exist, no secret-shaped text)", validateKnowledgeModules(KNOWLEDGE_MODULES).length === 0 && validateDiagnosticReferences(DIAGNOSTIC_CHECKS, KNOWLEDGE_MODULES).length === 0, JSON.stringify(validateKnowledgeModules(KNOWLEDGE_MODULES)));
-check("registered once; related topics all exist; existing modules were not removed or reordered ahead of it", KNOWLEDGE_MODULES.filter((x) => x.id === "invoices").length === 1 && (m.related || []).every((r) => getKnowledgeModule(r)) && KNOWLEDGE_MODULES.length === 29 && KNOWLEDGE_MODULES.findIndex((x) => x.id === "commerce") < KNOWLEDGE_MODULES.findIndex((x) => x.id === "invoices"));
+check("registered once; related topics all exist; existing modules were not removed or reordered ahead of it", KNOWLEDGE_MODULES.filter((x) => x.id === "invoices").length === 1 && (m.related || []).every((r) => getKnowledgeModule(r)) && KNOWLEDGE_MODULES.length === 30 && KNOWLEDGE_MODULES.findIndex((x) => x.id === "commerce") < KNOWLEDGE_MODULES.findIndex((x) => x.id === "invoices"));
 check("it has the registry's metadata (version, whoCanUse, actions, prerequisites, limitations) and an honest status", m.version >= 1 && m.whoCanUse && m.actions.length >= 5 && m.prerequisites.length >= 2 && m.limitations.length >= 3 && m.status === "partial");
 check("it is loaded on demand like commerce, not stuffed into every prompt (not 'always', no category auto-load)", !m.appliesTo.always && !(m.appliesTo.categories || []).length);
 
@@ -62,7 +62,7 @@ const topics = [
   ["no tax-certification claim", /NOT tax-certified/],
   ["no online invoice payment in Phase 2", /cannot pay an invoice through Ringo/],
   ["no automatic WhatsApp/SMS", /automatic WhatsApp, SMS or email sending/i],
-  ["Phase 3 debt/credit boundary", /DEBT\/CREDIT BOUNDARY[\s\S]*does not create a debt record/],
+  ["debt boundary (a debt is the invoice Amount Due; Debtors live in the receivables topic)", /DEBT BOUNDARY[\s\S]*no separate debt record[\s\S]*receivables/],
   ["quotations are out of scope", /quotations/i],
   ["staff/accountant access out of scope", /staff or accountant access/i],
 ];
@@ -116,7 +116,7 @@ check("the navigation entry is scoped to entitled owners (so the AI does not sen
 // ---- live availability: a deploy ahead of the migration must not make the AI promise the feature
 globalThis.__tableMissing = true;
 const missing = await renderModuleForLookup(m);
-check("when the Phase 2 tables are not enabled yet, the lookup says the feature is NOT available yet", /NOT enabled on this platform yet/.test(missing) && /Related topics: commerce, payments, plans/.test(missing));
+check("when the Phase 2 tables are not enabled yet, the lookup says the feature is NOT available yet", /NOT enabled on this platform yet/.test(missing) && /Related topics: commerce, payments, plans, receivables/.test(missing));
 globalThis.__tableMissing = false;
 const enabled = await renderModuleForLookup(m);
 check("when enabled, the lookup says entitlement depends on the profile category and plan, and points to Subscription without quoting a price", /enabled on this platform\. A given user can use it only if/.test(enabled) && /Subscription/.test(enabled));
