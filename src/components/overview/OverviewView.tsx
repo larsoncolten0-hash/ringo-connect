@@ -111,7 +111,10 @@ export default function OverviewView() {
                     <Row label={L.invoiceCount} value={String(c.invoiceCount)} muted />
                   </div>
                 ))}
-                <div><Link href="/dashboard/documents/receivables" className="text-sm text-ringo-indigo underline">{u.openDebtors}</Link></div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  <Link href="/dashboard/documents/receivables" className="text-sm text-ringo-indigo underline">{u.openDebtors}</Link>
+                  <Link href="/dashboard/customers/attention" className="text-sm text-ringo-indigo underline">{u.openAttention}</Link>
+                </div>
               </>
             )}
           </Section>

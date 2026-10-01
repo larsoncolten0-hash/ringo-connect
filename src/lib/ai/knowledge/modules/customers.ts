@@ -19,6 +19,8 @@ async function renderLiveAvailability(): Promise<string> {
 
 const en = translations.en.customers;
 const fr = translations.fr.customers;
+const ca = translations.en.customerAttention.ui;
+const fa = translations.fr.customerAttention.ui;
 const both = (a: string, b: string) => `"${a}" / "${b}"`;
 
 export const customersModule: KnowledgeModule = {
@@ -41,11 +43,14 @@ LIMITS TO TELL THE USER. The invoice statement covers a customer's latest 200 in
 
 POSSIBLE MATCHING ORDERS. The profile can list Shop orders whose buyer phone or email matches the customer's (${both(en.match.show, fr.match.show)}). These are SUGGESTIONS, "not verified to be the same person": phone numbers are often shared, so an order may belong to someone else. Orders are never attached to a customer, never saved as a link, and never counted in the customer's totals, the reports or any balance; matching never uses names. If the customer has no phone or email there is nothing to match. Phone matching looks at the business's 1,000 most recent orders (the page says when that limit is reached); email matching covers all orders. Ambiguous matches are flagged: a phone or email used by several different buyer names, or also used by another customer (active or archived). A customer with no phone gets no phone search at all, only the email search.
 
+NEEDS ATTENTION. The ${both(ca.tabAttention, fa.tabAttention)} tab, next to ${both(ca.tabDirectory, fa.tabDirectory)}, lists customers who may need a follow-up, worked out from the business's own invoices and payments at the moment the page is opened. Nothing is saved, no reminder is sent and no task is created. The lists are ${both(ca.cardOverdue, fa.cardOverdue)} (an invoice past its due date), ${both(ca.cardOutstanding, fa.cardOutstanding)} (owes money, nothing overdue yet), ${both(ca.cardRecent, fa.cardRecent)} (an invoice issued in the last 30 days that is not fully paid) and ${both(ca.cardQuiet, fa.cardQuiet)} (active customers added more than 30 days ago with no invoice and no payment in the last 90 days). An archived customer who still owes money stays listed with an "${ca.archivedBadge}" marker, and archived customers are never listed as quiet. Amounts are per currency and are never added across currencies. Invoices not linked to a customer are shown as a count and an amount with a link to Debtors, and are never linked automatically. The overdue and not-yet-due lists cover the 100 customers who owe the most per currency, and the page says when more exist. The 30 and 90 day windows are fixed.
+
 NOT AVAILABLE (say so plainly, no workarounds or dates): linking or merging with Ringo accounts or Connect/Stay Connected customers, loyalty information, community subscribers or marketing consent, sending messages to customers from here, exporting customers, customer segments, confirming an order as a customer's, history from restaurant, music, booking or ticket systems, deleting customers or erasing personal data from here, staff or accountant access.
 
 HOW TO ANSWER. Use the exact labels above in the user's language. If Customers is not in the menu, their category or plan does not include it (or it is not enabled yet): say so and point to Subscription without quoting a price. You cannot see the user's own customers or orders (there is no tool for them): explain how it works and guide them to the screen, and never invent a customer or a figure.
 `.trim(),
   actions: [
+    "Open Needs attention: overdue, not yet due, recently invoiced and unpaid, and quiet customers",
     "Search the customer directory and open a customer's profile",
     "Add a customer, edit their details, archive or restore them",
     "See a customer's invoices, payments received, outstanding and overdue amounts",
@@ -61,6 +66,7 @@ HOW TO ANSWER. Use the exact labels above in the user's language. If Customers i
     "Payments received are not revenue; amounts are per currency",
     "Possible matching orders are unverified suggestions, never linked and never counted",
     "The statement covers the latest 200 invoices and 500 payments",
+    "Needs attention is derived when the page opens: nothing is saved, no reminder is sent, no task is created",
     "No messaging, export, marketing consent or loyalty data",
   ],
   related: ["invoices", "receivables", "commerce", "plans"],

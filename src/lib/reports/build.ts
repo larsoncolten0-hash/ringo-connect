@@ -96,11 +96,11 @@ async function loadBusiness(owner: ReportOwner) {
 /** Optional lighter build for callers that do not show every section (the Overview). Every flag defaults to TRUE: calling buildMonthlyReport without
  * `sections` builds the full report exactly as before. Turning a flag off only SKIPS the extra queries for that section; no figure that is built is ever
  * computed differently. A skipped section is reported as unavailable/empty, never as a zero that looks real. */
-export type ReportSections = { topProducts?: boolean; invoicing?: boolean; business?: boolean };
+export type ReportSections = { topProducts?: boolean; invoicing?: boolean; business?: boolean; receivables?: boolean; inventory?: boolean };
 
 export async function buildMonthlyReport(owner: ReportOwner, period: ReportPeriod, opts: { now?: Date; sections?: ReportSections } = {}): Promise<ReportModel> {
   const now = opts.now ?? new Date();
-  const want = { topProducts: opts.sections?.topProducts !== false, invoicing: opts.sections?.invoicing !== false, business: opts.sections?.business !== false };
+  const want = { topProducts: opts.sections?.topProducts !== false, invoicing: opts.sections?.invoicing !== false, business: opts.sections?.business !== false, receivables: opts.sections?.receivables !== false, inventory: opts.sections?.inventory !== false };
   const tz = period.timeZone || DEFAULT_TIME_ZONE;
   const currency = (owner.profile.currency || "XAF").toUpperCase();
   const digits = currencyMinorDigits(currency);
@@ -207,7 +207,7 @@ export async function buildMonthlyReport(owner: ReportOwner, period: ReportPerio
 
   // ------------------------------------------------------------------ as of the generation date: receivables and inventory
   const asOfDate = todayKeyOf(now);
-  const receivables = await safe(async () => {
+  const receivables = !want.receivables ? { available: false, asOfDate, currencies: [] as ReportModel["receivables"]["currencies"] } : await safe(async () => {
     const { data, error } = await owner.admin.rpc("doc_receivables_summary", { p_profile_id: profileId, p_actor_user_id: owner.userId });
     if (error || !data) return { available: false, asOfDate, currencies: [] };
     const buckets = ["not_due", "no_due_date", "d1_30", "d31_60", "d61_90", "d90_plus"];
@@ -220,7 +220,7 @@ export async function buildMonthlyReport(owner: ReportOwner, period: ReportPerio
     return { available: true, asOfDate, currencies };
   }, { available: false, asOfDate, currencies: [] as any[] });
 
-  const inventory = await safe(async () => {
+  const inventory = !want.inventory ? { available: false, asOfDate, tracked: 0, out: 0, low: 0, ok: 0, legacy: 0, untracked: 0, estimatedValueMinor: 0, valueExcluded: 0, lowStockItems: [] as ReportModel["inventory"]["lowStockItems"] } : await safe(async () => {
     const base = await inventoryOverview(owner as any, { limit: "1" });
     if (base.status !== 200 || "pdf" in base) throw new Error("inventory unavailable");
     const s = base.body.summary;

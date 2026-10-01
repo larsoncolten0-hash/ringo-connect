@@ -5,11 +5,13 @@ import { Loader2, Plus } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { ENTRY_KINDS } from "@/lib/bookkeeping/summary";
 import { todayKeyOf } from "@/lib/reports/period";
+import EntryCorrectionDialog from "./EntryCorrectionDialog";
 import { Modal, callApi, dangerButton, inputClass, labelClass, newRequestId, primaryButton, secondaryButton, useBookkeepingErrorText, useFormat } from "@/components/reports/shared";
 
 type Entry = {
   id: string; kind: string; amount_minor: number | null; currency: string; entry_date: string; category: string | null; description: string | null;
   cash_settled: boolean; voided_at: string | null; void_reason: string | null; created_at: string; invoice_payment: boolean;
+  replaces_entry_id?: string | null; replaced_by_id?: string | null; correctable?: boolean;
 };
 const PAGE = 25;
 const PRESETS = ["rent", "transport", "salaries", "supplies", "utilities", "marketing", "stock_purchase"];
@@ -33,6 +35,8 @@ export default function EntriesView() {
   const [saved, setSaved] = useState(false);
   const [creating, setCreating] = useState(false);
   const [voiding, setVoiding] = useState<Entry | null>(null);
+  const [correcting, setCorrecting] = useState<Entry | null>(null);
+  const [corrected, setCorrected] = useState(false);
 
   const load = useCallback(async (offset: number) => {
     setBusy(true);
@@ -49,6 +53,10 @@ export default function EntriesView() {
   }, [kind, showVoided]);
   useEffect(() => { load(0); }, [load]);
 
+  const money = (e: Entry) => (e.amount_minor === null ? "?" : fmt.money(e.amount_minor, e.currency));
+  // the correction chain, shown from the entries already on screen (the other end may be on another page or hidden)
+  const chainReplacedBy = (e: Entry) => { const r = items.find((x) => x.id === e.replaced_by_id); return r ? u.chainReplacedBy(fmt.day(r.entry_date), money(r)) : u.chainReplacedByOther; };
+  const chainReplaces = (e: Entry) => { const o = items.find((x) => x.id === e.replaces_entry_id); return o ? u.chainReplaces(fmt.day(o.entry_date), money(o)) : u.chainReplacesOther; };
   const categoryText = (c: string | null) => (c ? (u.categories[c] ?? (c === "invoice_payment" ? u.fromInvoice : c)) : "");
 
   return (
@@ -58,9 +66,10 @@ export default function EntriesView() {
           <h1 className="font-display text-xl font-medium text-ringo-text">{u.title}</h1>
           <p className="mt-1 text-sm text-ringo-muted">{u.intro}</p>
         </div>
-        <button className={primaryButton} onClick={() => { setSaved(false); setCreating(true); }}><Plus size={15} />{u.newEntry}</button>
+        <button className={primaryButton} onClick={() => { setSaved(false); setCorrected(false); setCreating(true); }}><Plus size={15} />{u.newEntry}</button>
       </div>
       {saved && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">{u.saved}</p>}
+      {corrected && <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">{u.corrected}</p>}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className={labelClass}>{u.filterKind}
@@ -89,14 +98,19 @@ export default function EntriesView() {
                 {e.voided_at && <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-rose-700 dark:text-rose-400">{u.voided}</span>}
                 {!e.cash_settled && !e.voided_at && <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-400">{OUT_KINDS.includes(e.kind) ? u.notPaid : u.notReceived}</span>}
                 {e.invoice_payment && <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-sky-700 dark:text-sky-400">{u.fromInvoice}</span>}
+                {e.replaced_by_id && <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 dark:text-violet-400">{u.chainCorrected}</span>}
+                {e.replaces_entry_id && <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 dark:text-violet-400">{u.chainCorrection}</span>}
               </div>
-              {e.voided_at && e.void_reason && <p className="mt-1 text-xs text-ringo-muted">{u.voidReasonShown(e.void_reason)}</p>}
-              {e.invoice_payment && !e.voided_at && <p className="mt-1 text-xs text-ringo-muted">{u.invoicePaymentManaged}</p>}
+              {e.replaced_by_id && <p className="mt-1 text-xs text-ringo-muted">{chainReplacedBy(e)}</p>}
+              {e.replaces_entry_id && <p className="mt-1 text-xs text-ringo-muted">{chainReplaces(e)}</p>}
+              {e.voided_at && e.void_reason && !e.replaced_by_id && <p className="mt-1 text-xs text-ringo-muted">{u.voidReasonShown(e.void_reason)}</p>}
+              {e.invoice_payment && !e.voided_at && <p className="mt-1 text-xs text-ringo-muted">{u.invoicePaymentManaged} {u.invoicePaymentCorrect}</p>}
             </div>
             <div className="flex items-center gap-3 sm:flex-col sm:items-end">
               <span className={`whitespace-nowrap text-sm font-medium ${OUT_KINDS.includes(e.kind) ? "text-rose-700 dark:text-rose-400" : "text-ringo-text"}`}>
                 {e.amount_minor === null ? "?" : `${OUT_KINDS.includes(e.kind) ? "- " : ""}${fmt.money(e.amount_minor, e.currency)}`}
               </span>
+              {!e.voided_at && e.correctable && !e.invoice_payment && <button className={`${secondaryButton} !min-h-[36px] !px-3 !py-1 text-xs`} onClick={() => { setSaved(false); setCorrected(false); setCorrecting(e); }}>{u.correct}</button>}
               {!e.voided_at && !e.invoice_payment && <button className={`${dangerButton} !min-h-[36px] !px-3 !py-1 text-xs`} onClick={() => setVoiding(e)}>{u.voidAction}</button>}
             </div>
           </li>
@@ -105,6 +119,7 @@ export default function EntriesView() {
       {hasMore && <button className={secondaryButton} disabled={busy} onClick={() => load(items.length)}>{u.loadMore}</button>}
 
       {creating && <EntryForm currency={currency} onClose={() => setCreating(false)} onDone={() => { setCreating(false); setSaved(true); load(0); }} />}
+      {correcting && <EntryCorrectionDialog entry={correcting} onClose={() => setCorrecting(null)} onDone={() => { setCorrecting(null); setCorrected(true); load(0); }} />}
       {voiding && <VoidDialog entry={voiding} onClose={() => setVoiding(null)} onDone={() => { setVoiding(null); load(0); }} />}
     </div>
   );

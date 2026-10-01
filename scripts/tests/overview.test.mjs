@@ -297,10 +297,10 @@ const ov = async (owner = mkOwner(), now = NOW) => (await H.overviewSummary(owne
   const tabs = strip(read("src/components/reports/ReportsTabs.tsx"));
   check("tabs: Overview (landing), Monthly report, Bookkeeping entries, with the Overview active only on the exact landing page", /href: "\/dashboard\/reports", label: t\.overview\.ui\.tabOverview/.test(tabs) && /href: "\/dashboard\/reports\/monthly"/.test(tabs) && /href: "\/dashboard\/reports\/entries"/.test(tabs) && /pathname === href \|\| pathname === `\$\{href\}\/`/.test(tabs));
   check("pages: /reports is the Overview, /reports/monthly is the unchanged Monthly report view, /reports/entries is the unchanged entries view", /OverviewView/.test(read("src/app/dashboard/reports/page.tsx")) && /ReportsView/.test(read("src/app/dashboard/reports/monthly/page.tsx")) && /EntriesView/.test(read("src/app/dashboard/reports/entries/page.tsx")));
-  const unchanged = ["src/components/reports/ReportsView.tsx", "src/components/reports/shared.tsx", "src/components/bookkeeping/EntriesView.tsx", "src/lib/reports/handlers.ts", "src/lib/reports/period.ts", "src/lib/reports/pdf.ts", "src/lib/reports/access.ts", "src/app/dashboard/reports/layout.tsx", "src/app/dashboard/reports/entries/page.tsx", "src/app/api/reports/monthly/route.ts", "src/app/api/reports/monthly/pdf/route.ts", "src/app/api/reports/entries/route.ts"];
+  const unchanged = ["src/components/reports/ReportsView.tsx", "src/components/reports/shared.tsx", "src/lib/reports/handlers.ts", "src/lib/reports/period.ts", "src/lib/reports/pdf.ts", "src/lib/reports/access.ts", "src/app/dashboard/reports/layout.tsx", "src/app/dashboard/reports/entries/page.tsx", "src/app/api/reports/monthly/route.ts", "src/app/api/reports/monthly/pdf/route.ts"];
   let diff = "x";
   try { diff = execFileSync("git", ["diff", "--name-only", "HEAD", "--", ...unchanged], { cwd: REPO }).toString().trim(); } catch { diff = ""; }
-  check("Monthly report screen, PDF, handlers, period, access, the reports layout, the entries screen and both reports routes have no diff", diff === "", diff);
+  check("Monthly report screen, PDF, handlers, period, access, the reports layout and the monthly routes have no diff (the entries screen and history route are changed on purpose by 7C: see entryCorrection.test.mjs)", diff === "", diff);
   check("the dashboard layout/nav files are untouched (the Reports entry still points at /dashboard/reports)", /href: "\/dashboard\/reports"/.test(read("src/components/dashboard/DashboardShell.tsx")));
 }
 
@@ -333,13 +333,15 @@ const ov = async (owner = mkOwner(), now = NOW) => (await H.overviewSummary(owne
   try { changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])]; } catch { /* not a git checkout */ }
   const ALLOWED = [
     /^src\/lib\/overview\//, /^src\/app\/api\/overview\//, /^src\/components\/overview\//, /^src\/app\/dashboard\/reports\/(page|monthly\/page)\.tsx$/,
-    /^src\/lib\/reports\/build\.ts$/, /^src\/components\/reports\/ReportsTabs\.tsx$/, /^src\/lib\/i18n\/translations\.ts$/, /^src\/lib\/ai\/knowledge\/modules\/reports\.ts$/,
-    /^scripts\/tests\/(overview|customers|reports|inventory|receivables|bookkeeping)\.test\.mjs$/, /^src\/app\/api\/bookkeeping\/entries\/route\.ts$/, /^docs\//,
+    /^src\/lib\/reports\/build\.ts$/, /^src\/components\/reports\/ReportsTabs\.tsx$/, /^src\/lib\/i18n\/translations\.ts$/, /^src\/lib\/ai\/knowledge\/modules\/(reports|customers)\.ts$/,
+    /^scripts\/tests\/(overview|customers|reports|inventory|receivables|bookkeeping|trends|entryCorrection|entryCorrectionSql|customerAttention)\.test\.mjs$/, /^scripts\/tests\/phase7Harness\.mjs$/,
+    /^src\/app\/dashboard\/reports\/trends\//, /^src\/lib\/corrections\//, /^src\/app\/api\/reports\/entries\/(route\.ts|\[id\]\/correct\/route\.ts)$/, /^src\/components\/bookkeeping\/(EntriesView|EntryCorrectionDialog)\.tsx$/,
+    /^src\/lib\/customers\/attention\.ts$/, /^src\/app\/api\/customers\/attention\//, /^src\/components\/customers\/(AttentionView|CustomersTabs)\.tsx$/, /^src\/app\/dashboard\/customers\/(page\.tsx|attention\/)/, /^docs\//,
   ];
   const outside = changed.filter((f) => !ALLOWED.some((re) => re.test(f)));
-  check("only Phase 7A files changed (no bookkeeping, documents, receivables, inventory, checkout, payments, auth, middleware, migrations or package files)", outside.length === 0, outside.join(", "));
+  check("only Phase 7 files changed (no bookkeeping, documents, receivables, inventory, checkout, payments, auth, middleware, migrations or package files)", outside.length === 0, outside.join(", "));
   check("no migration and no package file", !changed.some((f) => /^supabase\//.test(f) || /^(package\.json|package-lock\.json)$/.test(f)));
-  check("the only Phase 1 bookkeeping file changed is the entries route (invoice-payment replace guard); the library, the void route and the RPC are untouched", changed.filter((f) => /^src\/(lib\/bookkeeping|app\/api\/bookkeeping)\//.test(f)).join() === "src/app/api/bookkeeping/entries/route.ts");
+  check("no Phase 1 bookkeeping file (library, entries route with its 7A guard, void route) is changed after the 7A commit", changed.filter((f) => /^src\/(lib\/bookkeeping|app\/api\/bookkeeping)\//.test(f)).join() === "");
 }
 
 for (const f of tmp) try { fs.unlinkSync(f); } catch {}

@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 
   let query = owner.supabase
     .from("bk_entries")
-    .select("id, kind, amount, currency, entry_date, category, description, cash_settled, voided_at, void_reason, created_at")
+    .select("id, kind, amount, currency, entry_date, category, description, cash_settled, voided_at, void_reason, created_at, replaces_entry_id")
     .eq("profile_id", owner.profile.id);
   if (kind) query = query.eq("kind", kind);
   if (!includeVoided) query = query.is("voided_at", null);
@@ -38,6 +38,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "internal_error" }, { status: 500, headers: { ...PRIVATE_HEADERS } });
   }
   const rows = (data ?? []) as any[];
+  // correction chain: which entry on this page replaced which (a replacement is a bk_entries row whose replaces_entry_id is the original)
+  const ids = rows.slice(0, limit).map((e) => e.id);
+  const replacedBy = new Map<string, string>();
+  if (ids.length > 0) {
+    const { data: next, error: nextError } = await owner.supabase.from("bk_entries").select("id, replaces_entry_id").eq("profile_id", owner.profile.id).in("replaces_entry_id", ids);
+    if (!nextError) for (const r of (next ?? []) as any[]) replacedBy.set(r.replaces_entry_id, r.id);
+  }
   const items = rows.slice(0, limit).map((e) => ({
     id: e.id,
     kind: e.kind,
@@ -51,6 +58,10 @@ export async function GET(request: Request) {
     void_reason: e.void_reason ?? null,
     created_at: e.created_at,
     invoice_payment: e.category === "invoice_payment" && e.kind === "sale",
+    replaces_entry_id: e.replaces_entry_id ?? null,
+    replaced_by_id: replacedBy.get(e.id) ?? null,
+    // a hint for the screen only; the correction route decides for itself (and also refuses entries that belong to an invoice payment)
+    correctable: !e.voided_at && e.category !== "invoice_payment",
   }));
   return NextResponse.json({ currency: (owner.profile.currency || "XAF").toUpperCase(), items, has_more: rows.length > limit }, { headers: { ...PRIVATE_HEADERS } });
 }
