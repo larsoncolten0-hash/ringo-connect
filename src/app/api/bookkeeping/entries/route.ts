@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveBookkeepingOwner } from "@/lib/bookkeeping/access";
 import { denialResponse, rpcErrorResponse } from "@/lib/bookkeeping/http";
+import { entryIsInvoicePayment } from "@/lib/bookkeeping/invoicePaymentGuard";
 import { currencyMinorDigits, minorToAmountString } from "@/lib/bookkeeping/money";
 import { DEFAULT_TIME_ZONE, toLocalDateKey, validateEntryInput } from "@/lib/bookkeeping/summary";
 
@@ -27,6 +28,14 @@ export async function POST(request: Request) {
 
   for (const k of ["replaces_entry_id", "client_request_id"] as const) {
     if (body[k] != null && !(typeof body[k] === "string" && UUID.test(body[k]))) return NextResponse.json({ error: "validation_failed", details: [`invalid_${k}`] }, { status: 400 });
+  }
+
+  // Phase 2 invariant (same rule as the void route): an entry created by a seller-recorded invoice payment is never replaced through this generic
+  // correction path; that would void the entry while the payment stays recorded. Unknown => refuse (fail closed).
+  if (body.replaces_entry_id) {
+    const linked = await entryIsInvoicePayment(owner.admin, body.replaces_entry_id);
+    if (linked === "yes") return NextResponse.json({ error: "entry_linked_to_invoice_payment" }, { status: 409 });
+    if (linked === "unknown") return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 
   const { data, error } = await owner.admin.rpc("bk_record_entry", {

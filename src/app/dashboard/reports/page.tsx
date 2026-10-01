@@ -1,5 +1,5 @@
-import ReportsView from "@/components/reports/ReportsView";
+import OverviewView from "@/components/overview/OverviewView";
 
-export default function ReportsPage() {
-  return <ReportsView />;
+export default function ReportsOverviewPage() {
+  return <OverviewView />;
 }

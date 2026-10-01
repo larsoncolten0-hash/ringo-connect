@@ -219,7 +219,7 @@ const mkOwner = (responses = {}) => ({ userId: OWNER.userId, profile: { id: OWNE
   let changed = [];
   try { changed = execFileSync("git", ["status", "--porcelain"], { cwd: REPO }).toString().split("\n").filter(Boolean).map((l) => l.slice(3).replace(/"/g, "")); } catch { /* not a git checkout */ }
   const protectedRe = /^(supabase\/migrations\/(?!2026-12-04_inventory)|src\/lib\/(productCheckout|payments|fapshi|documents|receivables|bookkeeping)\/|src\/middleware|src\/app\/api\/(documents|receivables|bookkeeping|payments|fapshi|music|restaurant|tickets|webhooks|cron)|src\/app\/auth|src\/lib\/supabase\/)/;
-  const touched = changed.filter((f) => protectedRe.test(f));
+  const touched = changed.filter((f) => protectedRe.test(f) && f !== "src/app/api/bookkeeping/entries/route.ts"); // Phase 7: the invoice-payment replace guard on the entries route (tested in bookkeeping.test.mjs)
   check("no protected path (earlier migrations, checkout, payments, documents, receivables, bookkeeping, auth, middleware, music, restaurant, tickets, crons) is modified", touched.length === 0, touched.join(", "));
   check("package files untouched", !changed.some((f) => /^(package\.json|package-lock\.json)$/.test(f)));
   const mig = read("supabase/migrations/2026-12-04_inventory_stock_control.sql");

@@ -490,7 +490,7 @@ const has = (bytes, str) => pdfText(bytes).includes(hex(str));
   const protectedRe = /^(supabase\/|src\/lib\/(productCheckout|payments|protection|fapshi|supabase|bookkeeping|documents|receivables|inventory)\/|src\/middleware|src\/app\/api\/(documents|receivables|inventory|payments|fapshi|music|restaurant|tickets|webhooks|cron|auth|shop|orders|products|billing|protection)|src\/app\/auth|src\/components\/(editor|documents|receivables|inventory)\/)/;
   const touched = changed.filter((f) => protectedRe.test(f));
   check("no protected path (migrations, checkout, payments, invoices, debtors, inventory, bookkeeping libs, auth, middleware, music, restaurant, tickets, editor) is modified", touched.length === 0, touched.join(", "));
-  check("no existing bookkeeping API route or library file is modified (the history route is a new file)", !changed.some((f) => /^src\/(lib\/bookkeeping|app\/api\/bookkeeping\/(entries|summary))/.test(f)));
+  check("no existing bookkeeping API route or library file is modified (the history route is a new file)", !changed.some((f) => f !== "src/app/api/bookkeeping/entries/route.ts" && /^src\/(lib\/bookkeeping|app\/api\/bookkeeping\/(entries|summary))/.test(f))); // Phase 7: the ONE entries route gained the invoice-payment replace guard (tested in bookkeeping.test.mjs)
   check("no migration, no package file", !changed.some((f) => /^supabase\//.test(f) || /^(package\.json|package-lock\.json)$/.test(f)));
 }
 

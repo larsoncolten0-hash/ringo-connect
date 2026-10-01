@@ -21,6 +21,8 @@ const en = translations.en.reports;
 const fr = translations.fr.reports;
 const eb = translations.en.bookkeeping.ui;
 const fb = translations.fr.bookkeeping.ui;
+const eo = translations.en.overview.ui;
+const fo = translations.fr.overview.ui;
 const both = (a: string, b: string) => `"${a}" / "${b}"`;
 
 export const reportsModule: KnowledgeModule = {
@@ -33,7 +35,9 @@ export const reportsModule: KnowledgeModule = {
   status: "partial",
   whoCanUse: "The owner of a Business & E-commerce profile whose plan includes the Business Toolkit. Owner only: no staff or accountant access, not on demo profiles.",
   body: `
-WHAT IT IS. The ${both(en.ui.title, fr.ui.title)} entry in the dashboard menu has two tabs: ${both(en.ui.tabReport, fr.ui.tabReport)} and ${both(en.ui.tabEntries, fr.ui.tabEntries)}. The report is a summary of ONE calendar month, built on the server from records the business already keeps: bookkeeping entries, invoice payments, online Shop orders, debtors and inventory. It never creates a record, an entry or a payment. The month selector opens on the last completed month; the current month can be chosen too and then runs up to today ("month to date"). There is no custom date range and no CSV export.
+WHAT IT IS. The ${both(en.ui.title, fr.ui.title)} entry in the dashboard menu has three tabs: ${both(eo.tabOverview, fo.tabOverview)} (the landing page), ${both(en.ui.tabReport, fr.ui.tabReport)} and ${both(en.ui.tabEntries, fr.ui.tabEntries)}. The report is a summary of ONE calendar month, built on the server from records the business already keeps: bookkeeping entries, invoice payments, online Shop orders, debtors and inventory. It never creates a record, an entry or a payment. The month selector opens on the last completed month; the current month can be chosen too and then runs up to today ("month to date"). There is no custom date range and no CSV export.
+
+OVERVIEW. The ${both(eo.tabOverview, fo.tabOverview)} tab is a read-only snapshot of the business today: this month so far (revenue recorded, expenses recorded, net cash movement, and the money recorded as received and as paid out), online sales this month with the Ringo commission and the net seller earnings, the money customers still owe the business as of today (outstanding and overdue invoices, with a link to Debtors), inventory as of today, and the latest activity as three separate short lists (bookkeeping entries, paid online orders, invoices issued). It uses the same figures and definitions as the monthly report and creates nothing. Every concept stays separate and nothing is added together: online seller earnings are not cash, money owed by customers is neither revenue nor cash, issuing an invoice is not revenue, and there is no profit figure (profit is not reported). The latest orders show no buyer names or contact details. It is for the current month only; the monthly report is where another month and the PDF are.
 
 PDF. ${both(en.ui.download, fr.ui.download)} produces a PDF of the same report, in English or French (chosen separately from the app language). The PDF is created on demand for the signed-in owner only; it is not stored and has no public link. It shows the same figures and the same reference code as the screen.
 
@@ -56,6 +60,7 @@ NOT AVAILABLE (say so plainly, no workarounds or dates): profit and loss stateme
 HOW TO ANSWER. Use the exact labels above in the user's language. If Reports is not in the menu, their category or plan does not include it (or it is not enabled yet): say so and point to Subscription without quoting a price. You cannot see the user's own figures (there is no tool for them): explain definitions and guide them to the screen, and never invent a number.
 `.trim(),
   actions: [
+    "Open the business overview (this month so far, money owed, inventory and latest activity)",
     "Open the monthly report for the last completed month or the current month to date",
     "Download the report as a PDF in English or French",
     "Record a manual sale, other income, expense, cash in or cash out",

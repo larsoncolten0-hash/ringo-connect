@@ -93,8 +93,14 @@ async function loadBusiness(owner: ReportOwner) {
   return { name, legalName: s(bp?.legal_name), address: s(bp?.address), phone: s(bp?.phone), email: s(bp?.email), taxId: s(bp?.tax_id), registrationNo: s(bp?.registration_no) };
 }
 
-export async function buildMonthlyReport(owner: ReportOwner, period: ReportPeriod, opts: { now?: Date } = {}): Promise<ReportModel> {
+/** Optional lighter build for callers that do not show every section (the Overview). Every flag defaults to TRUE: calling buildMonthlyReport without
+ * `sections` builds the full report exactly as before. Turning a flag off only SKIPS the extra queries for that section; no figure that is built is ever
+ * computed differently. A skipped section is reported as unavailable/empty, never as a zero that looks real. */
+export type ReportSections = { topProducts?: boolean; invoicing?: boolean; business?: boolean };
+
+export async function buildMonthlyReport(owner: ReportOwner, period: ReportPeriod, opts: { now?: Date; sections?: ReportSections } = {}): Promise<ReportModel> {
   const now = opts.now ?? new Date();
+  const want = { topProducts: opts.sections?.topProducts !== false, invoicing: opts.sections?.invoicing !== false, business: opts.sections?.business !== false };
   const tz = period.timeZone || DEFAULT_TIME_ZONE;
   const currency = (owner.profile.currency || "XAF").toUpperCase();
   const digits = currencyMinorDigits(currency);
@@ -158,7 +164,7 @@ export async function buildMonthlyReport(owner: ReportOwner, period: ReportPerio
   }
 
   // ------------------------------------------------------------------ top Shop products (items of exactly the orders counted above)
-  const topProducts = await safe(async () => {
+  const topProducts = !want.topProducts ? ([] as ReportModel["topProducts"]) : await safe(async () => {
     const ids = Array.from(counted);
     const groups = new Map<string, { names: Set<string>; units: number; gross: number }>();
     for (let i = 0; i < ids.length; i += ID_CHUNK) {
@@ -183,7 +189,7 @@ export async function buildMonthlyReport(owner: ReportOwner, period: ReportPerio
   }, [] as ReportModel["topProducts"]);
 
   // ------------------------------------------------------------------ invoices issued in the period (informational; never revenue)
-  const invoicing = await safe(async () => {
+  const invoicing = !want.invoicing ? { available: false, issuedCount: 0, issuedTotalMinor: 0, otherCurrencyCount: 0 } : await safe(async () => {
     const docs: any[] = await fetchAllRows(() =>
       owner.supabase.from("bk_documents").select("id, total, currency, status, issue_date").eq("profile_id", profileId).eq("doc_type", "invoice")
         .in("status", ["issued", "partially_paid", "paid"]).gte("issue_date", period.from).lte("issue_date", period.to).order("issue_date").order("id")
@@ -244,7 +250,7 @@ export async function buildMonthlyReport(owner: ReportOwner, period: ReportPerio
     refundedOrders: { count: refundedCount, grossMinor: refundedGross },
     exclusions: { voidedEntries: summary.excluded.voided, otherCurrency: summary.excluded.currencyMismatch, doubleCountPrevented: summary.excluded.doubleCountPrevented, unreadable: summary.excluded.unreadableAmount },
   };
-  const business = await loadBusiness(owner);
+  const business = want.business ? await loadBusiness(owner) : { name: "", legalName: null, address: null, phone: null, email: null, taxId: null, registrationNo: null };
   return {
     version: REPORT_VERSION,
     generatedAt: now.toISOString(),

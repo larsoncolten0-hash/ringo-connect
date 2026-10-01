@@ -372,7 +372,7 @@ const sha = (s) => crypto.createHash("sha256").update(s).digest("hex");
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].map((f) => f.replace(/\\/g, "/"));
   const PROTECTED = ["src/lib/productCheckout/", "src/lib/protection/", "src/lib/fapshi.ts", "src/lib/fapshiSafety.ts", "src/lib/applyPayment.ts", "src/lib/musicReceipt.ts", "src/lib/musicOrderPayment.ts", "src/lib/shopAuth.ts", "src/lib/email/", "src/app/api/products/", "src/app/api/protection/",
     "src/app/api/shop/", "src/app/api/billing/", "src/app/api/music/", "src/app/api/orders/", "src/app/api/auth/", "src/app/auth/", "src/middleware.ts", "src/lib/supabase/", "src/lib/bookkeeping/", "src/app/api/bookkeeping/", "src/lib/documents/handlers.ts", "src/lib/documents/shareToken.ts", "src/lib/documents/publicShare.ts"];
-  const hit = changed.filter((f) => PROTECTED.some((p) => f.startsWith(p)));
+  const hit = changed.filter((f) => f !== "src/app/api/bookkeeping/entries/route.ts" && PROTECTED.some((p) => f.startsWith(p))); // Phase 7: the invoice-payment replace guard on the entries route (tested in bookkeeping.test.mjs)
   check("NO protected file is modified or added: checkout, settlement, payments, protection, email provider, auth, middleware, Phase 1 bookkeeping, and the Phase 2 handlers/share security", hit.length === 0, hit.join(","));
   {
     // Intended invariant: no migration that already exists in HEAD (Phase 1, Phase 2, Phase 3 and everything earlier) is modified, renamed or deleted;

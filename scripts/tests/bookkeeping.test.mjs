@@ -383,5 +383,47 @@ const S = (id, amount, paidAt, currency = "XAF") => ({ id, source: "product_orde
   check("the Phase 1 migration file and bk_void_entry function are untouched by this guard", !/bk_document_payments/.test(read("supabase/migrations/2026-12-01_bookkeeping_foundation.sql")));
 }
 
+// =============================================================== the same guard on the generic POST /api/bookkeeping/entries (replace = correction)
+{
+  const os = await import("os");
+  const stub = path.join(os.tmpdir(), `bk_access_stub2_${process.pid}.cjs`);
+  fs.writeFileSync(stub, "module.exports = { resolveBookkeepingOwner: async () => globalThis.__bkOwner };");
+  const j3 = require("jiti")(import.meta.url, { alias: { "@/lib/bookkeeping/access": stub, "@": SRC }, interopDefault: true, cache: false });
+  const route = j3(path.join(SRC, "app/api/bookkeeping/entries/route.ts"));
+  const OLD = "0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a", REQ = "1b1b1b1b-1b1b-4b1b-8b1b-1b1b1b1b1b1b";
+  const call = async (guardResult, extra = { replaces_entry_id: OLD }) => {
+    const rpcCalls = [], tables = [];
+    globalThis.__bkOwner = { ok: true, owner: { userId: "u1", profile: { id: "p1", currency: "XAF" }, supabase: {}, admin: {
+      from: (t) => { tables.push(t); const c = { select: () => c, eq: () => c, limit: async () => guardResult }; return c; },
+      rpc: async (name, args) => (rpcCalls.push([name, args]), { data: { entry: { id: "new" }, duplicate: false }, error: null }) } } };
+    const body = { kind: "sale", amount: 500, entry_date: "2026-01-10", client_request_id: REQ, ...extra };
+    const res = await route.POST(new Request("http://x/api", { method: "POST", body: JSON.stringify(body) }));
+    return { status: res.status, body: await res.json(), rpcCalls, tables };
+  };
+  try {
+    let r = await call({ data: [{ id: "pay1" }], error: null });
+    check("POST: replacing an invoice-payment entry is refused with 409 entry_linked_to_invoice_payment", r.status === 409 && r.body.error === "entry_linked_to_invoice_payment", JSON.stringify(r.body));
+    check("POST: ...and bk_record_entry is NEVER called (nothing voided, nothing inserted)", r.rpcCalls.length === 0 && r.tables.every((t) => t === "bk_document_payments"));
+    r = await call({ data: [], error: null });
+    check("POST: replacing an ordinary entry still works (201, RPC called once with the replaced id)", r.status === 201 && r.rpcCalls.length === 1 && r.rpcCalls[0][0] === "bk_record_entry" && r.rpcCalls[0][1].p_replaces_entry_id === OLD);
+    r = await call({ data: null, error: { code: "57014", message: "timeout" } });
+    check("POST: if the check itself fails the replacement is refused (500), never guessed", r.status === 500 && r.body.error === "internal_error" && r.rpcCalls.length === 0);
+    r = await call({ data: null, error: { code: "PGRST205", message: "Could not find the table 'public.bk_document_payments'" } });
+    check("POST: before Phase 2 is applied a replacement behaves exactly as Phase 1", r.status === 201 && r.rpcCalls.length === 1);
+    r = await call({ data: [{ id: "pay1" }], error: null }, {});
+    check("POST: a plain new entry (no replaces_entry_id) never runs the check and is created as before", r.status === 201 && r.rpcCalls.length === 1 && r.tables.length === 0 && r.rpcCalls[0][1].p_replaces_entry_id === null);
+    r = await call({ data: [{ id: "pay1" }], error: null }, { replaces_entry_id: "not-a-uuid" });
+    check("POST: an invalid replaces_entry_id is still a 400 validation error before any check", r.status === 400 && r.rpcCalls.length === 0 && r.tables.length === 0);
+    globalThis.__bkOwner = { ok: false, reason: "plan_not_enabled" };
+    const denied = await route.POST(new Request("http://x/api", { method: "POST", body: "{}" }));
+    check("POST: authorization still comes first", denied.status === 403);
+  } finally {
+    fs.rmSync(stub, { force: true });
+    delete globalThis.__bkOwner;
+  }
+  const src = strip(read("src/app/api/bookkeeping/entries/route.ts"));
+  check("POST: the guard runs after authorization and validation and before the RPC", src.indexOf("resolveBookkeepingOwner()") < src.indexOf("entryIsInvoicePayment(") && src.indexOf("validateEntryInput(") < src.indexOf("entryIsInvoicePayment(") && src.indexOf("entryIsInvoicePayment(") < src.indexOf('rpc("bk_record_entry"'));
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
