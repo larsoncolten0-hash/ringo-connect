@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Reorder } from "framer-motion";
 import { ShoppingBag } from "lucide-react";
@@ -43,6 +43,22 @@ export default function CatalogCard({
   );
   const [currency, setCurrency] = useState(initialCurrency || "USD");
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  // Products whose stock is controlled from Inventory (Business Toolkit Phase 4). Their count is read-only here and is never sent by
+  // the save below; the database ignores a browser write to it as well. Any failure (e.g. the table does not exist yet) = none are managed.
+  const [stockManaged, setStockManaged] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase.from("bk_stock_settings").select("product_id").eq("profile_id", profileId).eq("active", true);
+        if (live && !error && data) setStockManaged(new Set(data.map((r: any) => r.product_id)));
+      } catch {
+        /* inventory not available: every count stays editable as before */
+      }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId]);
   const persistTimer = useRef<ReturnType<typeof setTimeout>>();
   const pulse = useSavedPulse();
   const { draft, updateDraft } = useEditorPreview();
@@ -104,7 +120,8 @@ export default function CatalogCard({
             landing_url: p.landing_url,
             whatsapp_message: p.whatsapp_message,
             available: p.available !== false,
-            inventory_count: p.inventory_count === "" || p.inventory_count == null ? null : Number(p.inventory_count),
+            // A tracked product's count belongs to Inventory: it is left out of this save entirely.
+            ...(stockManaged.has(p.id) ? {} : { inventory_count: p.inventory_count === "" || p.inventory_count == null ? null : Number(p.inventory_count) }),
             // Only sent when the row actually carries the cta columns, so a
             // save can never fail on a database that hasn't got them yet.
             ...(p.cta_preset !== undefined
@@ -202,6 +219,7 @@ export default function CatalogCard({
           <ProductRow
             key={product.id}
             product={product}
+            stockManaged={stockManaged.has(product.id)}
             userId={userId}
             currency={currency}
             communityEnabled={communityEnabled}

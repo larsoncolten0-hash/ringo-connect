@@ -374,7 +374,18 @@ const sha = (s) => crypto.createHash("sha256").update(s).digest("hex");
     "src/app/api/shop/", "src/app/api/billing/", "src/app/api/music/", "src/app/api/orders/", "src/app/api/auth/", "src/app/auth/", "src/middleware.ts", "src/lib/supabase/", "src/lib/bookkeeping/", "src/app/api/bookkeeping/", "src/lib/documents/handlers.ts", "src/lib/documents/shareToken.ts", "src/lib/documents/publicShare.ts"];
   const hit = changed.filter((f) => PROTECTED.some((p) => f.startsWith(p)));
   check("NO protected file is modified or added: checkout, settlement, payments, protection, email provider, auth, middleware, Phase 1 bookkeeping, and the Phase 2 handlers/share security", hit.length === 0, hit.join(","));
-  eq("the only migration touched is the new Phase 3 one (Phase 1, Phase 2 and every earlier migration untouched)", changed.filter((f) => f.startsWith("supabase/migrations/")), ["supabase/migrations/2026-12-03_debtors_reminders.sql"]);
+  {
+    // Intended invariant: no migration that already exists in HEAD (Phase 1, Phase 2, Phase 3 and everything earlier) is modified, renamed or deleted;
+    // the only migrations that may appear in the working tree are NEW files dated after the Phase 3 one (a later phase), never an older slot.
+    const PHASE3 = "supabase/migrations/2026-12-03_debtors_reminders.sql";
+    const inHead = git(["ls-tree", "-r", "--name-only", "HEAD", "supabase/migrations/"]);
+    const modifiedExisting = git(["diff", "--name-only", "HEAD", "--", "supabase/migrations/"]);
+    const added = git(["ls-files", "--others", "--exclude-standard", "--", "supabase/migrations/"]);
+    const phase3Tracked = inHead.includes(PHASE3);
+    eq("no existing migration (Phase 1, Phase 2, Phase 3 or earlier) is modified, renamed or deleted", modifiedExisting.filter((f) => inHead.includes(f) || !added.includes(f)), []);
+    check("any migration added in the working tree is new and dated AFTER the Phase 3 one (never an older slot, never a rewrite)", added.every((f) => !inHead.includes(f) && f.slice("supabase/migrations/".length) > PHASE3.slice("supabase/migrations/".length)), added.join(","));
+    check("the Phase 3 migration is present, unchanged from its committed form (or, before it is committed, the only new migration)", phase3Tracked ? !changed.includes(PHASE3) : added.includes(PHASE3) && added.filter((f) => f !== PHASE3).every((f) => f > PHASE3));
+  }
   check("package.json and package-lock.json are unchanged (no dependency added)", !changed.includes("package.json") && !changed.includes("package-lock.json"));
   const p2 = ["src/lib/documents/actions.ts", "src/lib/documents/totals.ts", "src/lib/documents/numbering.ts", "src/lib/documents/snapshot.ts", "src/lib/documents/http.ts", "src/lib/documents/routeKit.ts"];
   check("the Phase 2 document library files other than the (unchanged) handlers are untouched", p2.every((f) => !changed.includes(f)));

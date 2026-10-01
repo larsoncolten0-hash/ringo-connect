@@ -17,6 +17,7 @@ import CustomerActionField from "./CustomerActionField";
 // Only structural actions (delete, drag-reorder) still happen immediately.
 export default function ProductRow({
   product,
+  stockManaged = false,
   userId,
   currency,
   communityEnabled,
@@ -31,6 +32,8 @@ export default function ProductRow({
   startExpanded,
 }: {
   product: any;
+  // Tracked in Inventory (Business Toolkit Phase 4): the stock count is read-only here.
+  stockManaged?: boolean;
   userId: string;
   currency: string;
   // Gates the one-shot "📣 Notify community" action below — see
@@ -257,13 +260,20 @@ export default function ProductRow({
                   />
                   {t.restaurant.availableLabel}
                 </label>
-                <input
-                  value={product.inventory_count ?? ""}
-                  onChange={(e) => onChange({ inventory_count: e.target.value.replace(/[^0-9]/g, "") })}
-                  placeholder={t.music.inventoryPlaceholder}
-                  inputMode="numeric"
-                  className="w-32 text-xs border border-ringo-border rounded-card px-2.5 py-1.5 bg-ringo-surface text-ringo-text"
-                />
+                {stockManaged ? (
+                  <p className="text-xs text-ringo-muted">
+                    {t.inventory.editor.managed(Number(product.inventory_count ?? 0))}{" "}
+                    <a href={`/dashboard/inventory/${product.id}`} className="font-medium text-ringo-indigo underline">{t.inventory.editor.manage}</a>
+                  </p>
+                ) : (
+                  <input
+                    value={product.inventory_count ?? ""}
+                    onChange={(e) => onChange({ inventory_count: e.target.value.replace(/[^0-9]/g, "") })}
+                    placeholder={t.music.inventoryPlaceholder}
+                    inputMode="numeric"
+                    className="w-32 text-xs border border-ringo-border rounded-card px-2.5 py-1.5 bg-ringo-surface text-ringo-text"
+                  />
+                )}
               </div>
               {notifyError && <p className="text-xs text-red-500">{notifyError}</p>}
               <div className="flex items-center justify-between gap-2">

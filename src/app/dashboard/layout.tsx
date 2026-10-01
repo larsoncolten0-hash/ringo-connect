@@ -8,6 +8,7 @@ import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import { getAssociationNavAccess } from "@/lib/association/access";
 import { shopIsVisibleFor } from "@/lib/shopAuth";
 import { documentsNavVisible } from "@/lib/documents/access";
+import { inventoryNavVisible } from "@/lib/inventory/access";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 import { countHidden } from "@/lib/planEntitlements";
@@ -147,6 +148,9 @@ export default async function DashboardLayout({
   // tables exist. Any failure just hides the entry. UX only: /dashboard/documents/** and /api/documents/** enforce access themselves.
   const hasDocuments = !isActingAsStaff && ownProfile ? await documentsNavVisible({ userId: user.id, profile: ownProfile }) : false;
 
+  // Business Toolkit inventory nav entry: same owner-only gate and "tables exist" rule as Invoices. UX only; /api/inventory/** and the database enforce access.
+  const hasInventory = !isActingAsStaff && ownProfile ? await inventoryNavVisible({ userId: user.id, profile: ownProfile }) : false;
+
   // Ambassador Program — whether the signed-in person (not the active
   // organization) has their own ambassador_profiles row. RLS already
   // permits reading one's own row via the session client, so no admin
@@ -189,6 +193,7 @@ export default async function DashboardLayout({
       hasTicketing={profileHasTicketing(profile)}
       hasShop={hasShop}
       hasDocuments={hasDocuments}
+      hasInventory={hasInventory}
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
       canUseLoyalty={canUseLoyalty}
