@@ -5,6 +5,7 @@ import { Check, Download, Loader2, Package, ShieldCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import type { ShopReceiptData } from "@/lib/productCheckout/receipt";
+import ShopReceiptPdfButton from "@/components/shop/ShopReceiptPdfButton";
 
 // The customer-facing receipt for a Shop order (Increment 5B) — deliberately a simple,
 // phone-first "here's what you bought" card, same audience and posture as the music/restaurant
@@ -412,6 +413,17 @@ export default function ShopOrderReceiptView({ data }: { data: ShopReceiptData }
             </div>
           )}
         </div>
+
+        {data.payment?.status === "succeeded" && (
+          <ShopReceiptPdfButton
+            href={`/shop/orders/${encodeURIComponent(data.orderId)}/pdf?lang=${locale === "en" ? "en" : "fr"}`}
+            label={r.downloadPdf}
+            busyLabel={r.preparingPdf}
+            errorLabel={r.pdfFailed}
+            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold disabled:opacity-60"
+            style={{ border: "1px solid #E5E7EB" }}
+          />
+        )}
 
         <p className="text-center text-xs" style={{ opacity: 0.4 }}>
           {r.receiptLabel(data.receiptNumber)}

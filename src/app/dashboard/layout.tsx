@@ -7,6 +7,10 @@ import { listUserOrganizations, pickActiveOrganization } from "@/lib/team/access
 import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import { getAssociationNavAccess } from "@/lib/association/access";
 import { shopIsVisibleFor } from "@/lib/shopAuth";
+import { documentsNavVisible } from "@/lib/documents/access";
+import { inventoryNavVisible } from "@/lib/inventory/access";
+import { reportsNavVisible } from "@/lib/reports/access";
+import { customersNavVisible } from "@/lib/customers/access";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 import { countHidden } from "@/lib/planEntitlements";
@@ -142,6 +146,19 @@ export default async function DashboardLayout({
   // commerce is off unless the profile already has orders. Any failure just hides the entry.
   const hasShop = !isActingAsStaff && ownProfile ? await shopIsVisibleFor(supabase, ownProfile) : false;
 
+  // Business Toolkit invoices nav entry: the viewer's OWN profile only (owner-only), entitled plan + category, and only once the Phase 2
+  // tables exist. Any failure just hides the entry. UX only: /dashboard/documents/** and /api/documents/** enforce access themselves.
+  const hasDocuments = !isActingAsStaff && ownProfile ? await documentsNavVisible({ userId: user.id, profile: ownProfile }) : false;
+
+  // Business Toolkit inventory nav entry: same owner-only gate and "tables exist" rule as Invoices. UX only; /api/inventory/** and the database enforce access.
+  const hasInventory = !isActingAsStaff && ownProfile ? await inventoryNavVisible({ userId: user.id, profile: ownProfile }) : false;
+
+  // Business Toolkit reports nav entry: same owner-only gate as Invoices and Inventory. UX only; /api/reports/** and the database enforce access.
+  const hasReports = !isActingAsStaff && ownProfile ? await reportsNavVisible({ userId: user.id, profile: ownProfile }) : false;
+
+  // Business Toolkit customers nav entry: same owner-only gate, shown once the Phase 3 contact table exists. UX only; /api/customers/** and the database enforce access.
+  const hasCustomers = !isActingAsStaff && ownProfile ? await customersNavVisible({ userId: user.id, profile: ownProfile }) : false;
+
   // Ambassador Program — whether the signed-in person (not the active
   // organization) has their own ambassador_profiles row. RLS already
   // permits reading one's own row via the session client, so no admin
@@ -183,6 +200,10 @@ export default async function DashboardLayout({
       isMusic={profileHasCategory(profile, "music_entertainment")}
       hasTicketing={profileHasTicketing(profile)}
       hasShop={hasShop}
+      hasDocuments={hasDocuments}
+      hasInventory={hasInventory}
+      hasReports={hasReports}
+      hasCustomers={hasCustomers}
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
       canUseLoyalty={canUseLoyalty}

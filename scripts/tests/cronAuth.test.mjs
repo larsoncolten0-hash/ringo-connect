@@ -78,9 +78,10 @@ for (const d of fs.readdirSync(dir)) {
   check(`source: /api/cron/${d} rejects when CRON_SECRET is unset`, guarded);
 }
 // scheduling: the original two daily jobs are unchanged; Ringo Protection,
-// the Ringo AI Content Calendar, and the Ambassador Program each
+// the Ringo AI Content Calendar, the Ambassador Program and the Business Toolkit
+// invoice reminders (dormant unless INVOICE_REMINDERS_CRON_ENABLED=true) each
 // legitimately added their own cron alongside them.
-check("source: vercel.json still has the original two daily jobs, plus only the approved later additions", JSON.stringify(JSON.parse(fs.readFileSync(path.join(REPO, "vercel.json"), "utf8"))) === JSON.stringify({ crons: [{ path: "/api/cron/downgrade-expired", schedule: "0 3 * * *" }, { path: "/api/cron/cleanup-demo-accounts", schedule: "0 4 * * *" }, { path: "/api/cron/protection-auto-release", schedule: "0 5 * * *" }, { path: "/api/cron/content-calendar-reminders", schedule: "0 6 * * *" }, { path: "/api/cron/ambassador-activation-sweep", schedule: "0 7 * * *" }, { path: "/api/cron/reconcile-signup-payments", schedule: "0 8 * * *" }] }));
+check("source: vercel.json still has the original two daily jobs, plus only the approved later additions", JSON.stringify(JSON.parse(fs.readFileSync(path.join(REPO, "vercel.json"), "utf8"))) === JSON.stringify({ crons: [{ path: "/api/cron/downgrade-expired", schedule: "0 3 * * *" }, { path: "/api/cron/cleanup-demo-accounts", schedule: "0 4 * * *" }, { path: "/api/cron/protection-auto-release", schedule: "0 5 * * *" }, { path: "/api/cron/content-calendar-reminders", schedule: "0 6 * * *" }, { path: "/api/cron/ambassador-activation-sweep", schedule: "0 7 * * *" }, { path: "/api/cron/reconcile-signup-payments", schedule: "0 8 * * *" }, { path: "/api/cron/invoice-reminders", schedule: "0 9 * * *" }] }));
 
 if (saved === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = saved;
 fs.rmSync(tmp, { recursive: true, force: true });

@@ -32,6 +32,7 @@ const PLACES: { path: string; label: Pick; note: string }[] = [
   { path: "/dashboard/tickets", label: (t) => t.nav.tickets, note: "Events, ticket types, check-in (Music & Entertainment, Events & Experiences)" },
   { path: "/dashboard/music", label: (t) => t.nav.music, note: "Music orders, sales, customers, earnings & payouts" },
   { path: "/dashboard/restaurant", label: (t) => t.nav.restaurant, note: "Orders, kitchen, tables, customers, sales" },
+  { path: "/dashboard/documents", label: (t) => t.nav.documents, note: "Invoices & payment receipts (Business & E-commerce owners whose plan includes the Business Toolkit): create/issue invoices, record payments, PDFs, share links" },
   { path: "/dashboard/loyalty", label: (t) => t.nav.loyalty, note: "Loyalty overview, scan, activity, packages, program setup" },
   { path: "/dashboard/team", label: (t) => t.nav.team, note: "Staff and roles (Business plans)" },
   { path: "/dashboard/subscription", label: (t) => t.nav.subscription, note: "Plan, upgrade, renewal" },

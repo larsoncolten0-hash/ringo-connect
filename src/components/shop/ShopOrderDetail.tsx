@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/currency";
 import { FulfillmentChip, PaymentChip } from "@/components/shop/ShopStatus";
 import { formatWhen } from "@/components/shop/ShopOrdersView";
 import { telHref, whatsappHref } from "@/components/shop/contactLinks";
+import ShopReceiptPdfButton from "@/components/shop/ShopReceiptPdfButton";
 import { isSellerErrorCode, type SellerErrorCode } from "@/lib/productCheckout/sellerErrors";
 import type { SellerOrderDetail } from "@/lib/productCheckout/sellerOrders";
 
@@ -222,6 +223,17 @@ export default function ShopOrderDetail({ order }: { order: SellerOrderDetail })
           {order.paymentInfo?.method && <Row name={s.method}>{s.methods[order.paymentInfo.method]}</Row>}
           {order.paymentInfo && <Row name={s.reference}>{order.paymentInfo.reference}</Row>}
         </dl>
+        {(order.payment === "paid" || order.payment === "refunded") && (
+          <div className="mt-3">
+            <ShopReceiptPdfButton
+              href={`/dashboard/shop/${encodeURIComponent(order.id)}/pdf?lang=${locale === "en" ? "en" : "fr"}`}
+              label={s.downloadReceiptPdf}
+              busyLabel={t.shopReceipt.preparingPdf}
+              errorLabel={s.receiptPdfFailed}
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-ringo-border/70 px-4 py-2 text-sm font-medium text-ringo-text disabled:opacity-60"
+            />
+          </div>
+        )}
       </section>
 
       <section className={card}>
