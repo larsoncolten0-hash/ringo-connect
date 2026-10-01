@@ -17,6 +17,7 @@ import { commerceModule } from "./modules/commerce";
 import { documentsModule } from "./modules/documents";
 import { receivablesModule } from "./modules/receivables";
 import { inventoryModule } from "./modules/inventory";
+import { reportsModule } from "./modules/reports";
 import { notificationsPwaModule } from "./modules/notificationsPwa";
 import { onboardingModule } from "./modules/onboarding";
 import { analyticsModule } from "./modules/analytics";
@@ -53,6 +54,7 @@ export const KNOWLEDGE_MODULES: readonly KnowledgeModule[] = [
   documentsModule,
   receivablesModule,
   inventoryModule,
+  reportsModule,
   notificationsPwaModule,
   onboardingModule,
   analyticsModule,

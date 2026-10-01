@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { FileText, Boxes, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound } from "lucide-react";
+import { FileText, Boxes, FileBarChart, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import ReferralPromoBanner from "@/components/dashboard/ReferralPromoBanner";
 import { referralPromoShowsOn } from "@/lib/referralPromo";
@@ -80,6 +80,7 @@ export default function DashboardShell({
   hasShop = false,
   hasDocuments = false,
   hasInventory = false,
+  hasReports = false,
   canManageTeam = false,
   canManageAssociation = false,
   canUseLoyalty = false,
@@ -141,6 +142,8 @@ export default function DashboardShell({
   hasDocuments?: boolean;
   // Business Toolkit inventory (/dashboard/inventory): same owner-only entitlement and table-existence rule as hasDocuments.
   hasInventory?: boolean;
+  // Business Toolkit reports (/dashboard/reports): same owner-only entitlement and table-existence rule as hasDocuments.
+  hasReports?: boolean;
   // Team & Organization Management — whether this account can see/manage
   // the Team section: the owner always can, a staff member only with the
   // staff.view permission (see dashboard/layout.tsx). Never trusted as the
@@ -285,6 +288,7 @@ export default function DashboardShell({
     ...(hasShop && !organization?.isStaff ? [{ href: "/dashboard/shop", label: t.nav.shop, icon: ShoppingBag, core: false }] : []),
     ...(hasDocuments && !organization?.isStaff ? [{ href: "/dashboard/documents", label: t.nav.documents, icon: FileText, core: false }] : []),
     ...(hasInventory && !organization?.isStaff ? [{ href: "/dashboard/inventory", label: t.nav.inventory, icon: Boxes, core: false }] : []),
+    ...(hasReports && !organization?.isStaff ? [{ href: "/dashboard/reports", label: t.nav.reports, icon: FileBarChart, core: false }] : []),
     ...(hasTicketing && !organization?.isStaff ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket, core: false }] : []),
     // Universal, unlike Restaurant/Music above — every category can turn
     // bookings on, so this is never gated by category. Always visible (not
