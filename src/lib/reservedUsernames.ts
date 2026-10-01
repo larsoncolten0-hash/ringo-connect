@@ -9,12 +9,13 @@
 // top-level routes.
 //
 //   my-ringo -> /my-ringo (the customer's own space, src/app/my-ringo)
+//   d        -> /d/[token] (secure document share links, src/app/d); a profile named "d" would be shadowed by it
 //
 // Every current username input already strips characters outside
 // [a-z0-9_], so a hyphenated name can't be typed into those forms today;
 // this exists so the rule also holds server-side (the approve route) and
 // keeps holding if that input filtering is ever loosened.
-const RESERVED_USERNAMES = new Set<string>(["my-ringo"]);
+const RESERVED_USERNAMES = new Set<string>(["my-ringo", "d"]);
 
 export function isReservedUsername(username: unknown): boolean {
   return typeof username === "string" && RESERVED_USERNAMES.has(username.trim().toLowerCase());

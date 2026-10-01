@@ -17,6 +17,22 @@ const nextConfig = {
     // handler.
     staleTimes: { dynamic: 0 },
   },
+  // Share links (/d/<token>) carry a secret in the URL: never cache, index, frame or leak it as a referrer. The page and route also
+  // set the same themselves; this covers every response beneath /d/.
+  async headers() {
+    return [
+      {
+        source: "/d/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

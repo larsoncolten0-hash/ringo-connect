@@ -7,6 +7,7 @@ import { listUserOrganizations, pickActiveOrganization } from "@/lib/team/access
 import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import { getAssociationNavAccess } from "@/lib/association/access";
 import { shopIsVisibleFor } from "@/lib/shopAuth";
+import { documentsNavVisible } from "@/lib/documents/access";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 import { countHidden } from "@/lib/planEntitlements";
@@ -142,6 +143,10 @@ export default async function DashboardLayout({
   // commerce is off unless the profile already has orders. Any failure just hides the entry.
   const hasShop = !isActingAsStaff && ownProfile ? await shopIsVisibleFor(supabase, ownProfile) : false;
 
+  // Business Toolkit invoices nav entry: the viewer's OWN profile only (owner-only), entitled plan + category, and only once the Phase 2
+  // tables exist. Any failure just hides the entry. UX only: /dashboard/documents/** and /api/documents/** enforce access themselves.
+  const hasDocuments = !isActingAsStaff && ownProfile ? await documentsNavVisible({ userId: user.id, profile: ownProfile }) : false;
+
   // Ambassador Program — whether the signed-in person (not the active
   // organization) has their own ambassador_profiles row. RLS already
   // permits reading one's own row via the session client, so no admin
@@ -183,6 +188,7 @@ export default async function DashboardLayout({
       isMusic={profileHasCategory(profile, "music_entertainment")}
       hasTicketing={profileHasTicketing(profile)}
       hasShop={hasShop}
+      hasDocuments={hasDocuments}
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
       canUseLoyalty={canUseLoyalty}

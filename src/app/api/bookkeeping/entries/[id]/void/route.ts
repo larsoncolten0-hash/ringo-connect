@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveBookkeepingOwner } from "@/lib/bookkeeping/access";
 import { denialResponse, rpcErrorResponse } from "@/lib/bookkeeping/http";
+import { entryIsInvoicePayment } from "@/lib/bookkeeping/invoicePaymentGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const body = await request.json().catch(() => null);
   const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
   if (!reason || reason.length > 300) return NextResponse.json({ error: "validation_failed", details: ["invalid_reason"] }, { status: 400 });
+
+  // Phase 2 invariant: an entry created by a seller-recorded invoice payment is voided ONLY together with that payment, through
+  // doc_void_payment. Refuse the manual void; every other entry is voided exactly as before. Unknown => refuse (fail closed).
+  const linked = await entryIsInvoicePayment(owner.admin, params.id);
+  if (linked === "yes") return NextResponse.json({ error: "entry_linked_to_invoice_payment" }, { status: 409 });
+  if (linked === "unknown") return NextResponse.json({ error: "internal_error" }, { status: 500 });
 
   const { data, error } = await owner.admin.rpc("bk_void_entry", { p_profile_id: owner.profile.id, p_actor_user_id: owner.userId, p_entry_id: params.id, p_reason: reason });
   if (error) return rpcErrorResponse(error.message);

@@ -14,7 +14,8 @@ const M = jiti(path.join(SRC, "lib/bookkeeping/money.ts"));
 const { decideBookkeepingAccess, BOOKKEEPING_CATEGORIES } = jiti(path.join(SRC, "lib/bookkeeping/decision.ts"));
 const { loadBookkeepingSummary } = jiti(path.join(SRC, "lib/bookkeeping/loader.ts"));
 const read = (f) => fs.readFileSync(path.join(REPO, f), "utf8").replace(/\r\n/g, "\n"); // same result on LF and CRLF checkouts
-const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/--.*$/gm, "");
+// line comments first: "x/**" inside a // comment must not be read as the start of a block comment
+const strip = (s) => s.replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/\/\*[\s\S]*?\*\//g, "").replace(/--.*$/gm, "");
 
 let pass = 0, fail = 0;
 const check = (name, cond, detail = "") => { if (cond) pass++; else { fail++; console.log("  FAIL:", name, "|", detail); } };
@@ -328,6 +329,58 @@ const S = (id, amount, paidAt, currency = "XAF") => ({ id, source: "product_orde
   const ok = { kind: "expense", amount: 100, entry_date: "2026-09-10" };
   const vv = (o) => B.validateEntryInput({ ...ok, ...o }, { currency: "XAF", today: "2026-09-30" });
   check("cash_settled must be a boolean", vv({ cash_settled: "yes" }).errors.includes("invalid_cash_settled") && vv({ cash_settled: 1 }).errors.includes("invalid_cash_settled") && vv({ cash_settled: false }).ok && vv({}).ok);
+}
+
+// =============================================================== Phase 2 guard on the Phase 1 void route (invoice-payment entries)
+{
+  const os = await import("os");
+  const { entryIsInvoicePayment } = jiti(path.join(SRC, "lib/bookkeeping/invoicePaymentGuard.ts"));
+  const fakeDb = (result) => ({ from: (table) => { fakeDb.tables.push(table); const c = { select: () => c, eq: () => c, limit: async () => (typeof result === "function" ? result() : result) }; return c; } });
+  fakeDb.tables = [];
+  eq("an entry referenced by a payment is blocked", await entryIsInvoicePayment(fakeDb({ data: [{ id: "p1" }], error: null }), "e1"), "yes");
+  eq("an unrelated entry is not blocked", await entryIsInvoicePayment(fakeDb({ data: [], error: null }), "e1"), "no");
+  eq("the check reads bk_document_payments", fakeDb.tables.every((t) => t === "bk_document_payments"), true);
+  eq("Phase 2 not applied (PostgREST: table not found) => nothing can be linked", await entryIsInvoicePayment(fakeDb({ data: null, error: { code: "PGRST205", message: "Could not find the table 'public.bk_document_payments' in the schema cache" } }), "e1"), "no");
+  eq("Phase 2 not applied (SQL 42P01) => nothing can be linked", await entryIsInvoicePayment(fakeDb({ data: null, error: { code: "42P01", message: 'relation "bk_document_payments" does not exist' } }), "e1"), "no");
+  eq("any OTHER error is unknown (fail closed)", await entryIsInvoicePayment(fakeDb({ data: null, error: { code: "57014", message: "statement timeout" } }), "e1"), "unknown");
+  eq("a thrown error is unknown (fail closed)", await entryIsInvoicePayment(fakeDb(() => { throw new Error("network"); }), "e1"), "unknown");
+
+  // The REAL route handler, with only the session resolver stubbed.
+  const stub = path.join(os.tmpdir(), `bk_access_stub_${process.pid}.cjs`);
+  fs.writeFileSync(stub, "module.exports = { resolveBookkeepingOwner: async () => globalThis.__bkOwner };");
+  const j2 = require("jiti")(import.meta.url, { alias: { "@/lib/bookkeeping/access": stub, "@": SRC }, interopDefault: true, cache: false });
+  const route = j2(path.join(SRC, "app/api/bookkeeping/entries/[id]/void/route.ts"));
+  const ENTRY = "0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a";
+  const call = async (guardResult, body = { reason: "wrong" }, id = ENTRY) => {
+    const rpcCalls = [];
+    globalThis.__bkOwner = { ok: true, owner: { userId: "u1", profile: { id: "p1", currency: "XAF" }, supabase: {}, admin: { from: (t) => fakeDb(guardResult).from(t), rpc: async (name, args) => (rpcCalls.push([name, args]), { data: { entry: { id }, already_voided: false }, error: null }) } } };
+    const res = await route.POST(new Request("http://x/api", { method: "POST", body: JSON.stringify(body) }), { params: { id } });
+    return { status: res.status, body: await res.json(), rpcCalls };
+  };
+  try {
+    let r = await call({ data: [{ id: "pay1" }], error: null });
+    check("ROUTE: voiding an invoice-payment entry is refused with 409 and the structured error", r.status === 409 && r.body.error === "entry_linked_to_invoice_payment", JSON.stringify(r));
+    check("ROUTE: ...and bk_void_entry is NEVER called (the invariant holds)", r.rpcCalls.length === 0);
+    r = await call({ data: [], error: null });
+    check("ROUTE: an ordinary Phase 1 entry is voided exactly as before (200, RPC called once with the owner's own ids)", r.status === 200 && r.rpcCalls.length === 1 && r.rpcCalls[0][0] === "bk_void_entry" && r.rpcCalls[0][1].p_profile_id === "p1" && r.rpcCalls[0][1].p_actor_user_id === "u1" && r.rpcCalls[0][1].p_entry_id === ENTRY && r.rpcCalls[0][1].p_reason === "wrong", JSON.stringify(r));
+    r = await call({ data: null, error: { code: "PGRST205", message: "Could not find the table 'public.bk_document_payments'" } });
+    check("ROUTE: before Phase 2 is applied the route behaves exactly as Phase 1 (void proceeds)", r.status === 200 && r.rpcCalls.length === 1);
+    r = await call({ data: null, error: { code: "57014", message: "timeout" } });
+    check("ROUTE: if the check itself fails unexpectedly the void is refused (500), never guessed", r.status === 500 && r.body.error === "internal_error" && r.rpcCalls.length === 0);
+    r = await call({ data: [], error: null }, { reason: "  " });
+    check("ROUTE: existing validation is unchanged (blank reason -> 400, no RPC)", r.status === 400 && r.body.error === "validation_failed" && r.rpcCalls.length === 0);
+    r = await call({ data: [], error: null }, { reason: "x" }, "not-a-uuid");
+    check("ROUTE: existing id validation is unchanged (404)", r.status === 404 && r.body.error === "entry_not_found" && r.rpcCalls.length === 0);
+    globalThis.__bkOwner = { ok: false, reason: "plan_not_enabled" };
+    const denied = await route.POST(new Request("http://x/api", { method: "POST", body: JSON.stringify({ reason: "x" }) }), { params: { id: ENTRY } });
+    check("ROUTE: authorization still comes first (denied callers never reach the guard)", denied.status === 403 && (await denied.json()).error === "plan_not_enabled");
+  } finally {
+    fs.rmSync(stub, { force: true });
+    delete globalThis.__bkOwner;
+  }
+  const routeSrc = strip(read("src/app/api/bookkeeping/entries/[id]/void/route.ts"));
+  check("the guard runs after authorization and before the RPC", routeSrc.indexOf("resolveBookkeepingOwner()") < routeSrc.indexOf("entryIsInvoicePayment(") && routeSrc.indexOf("entryIsInvoicePayment(") < routeSrc.indexOf('rpc("bk_void_entry"'));
+  check("the Phase 1 migration file and bk_void_entry function are untouched by this guard", !/bk_document_payments/.test(read("supabase/migrations/2026-12-01_bookkeeping_foundation.sql")));
 }
 
 console.log(`${pass} passed, ${fail} failed`);
