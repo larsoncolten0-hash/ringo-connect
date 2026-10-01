@@ -52,7 +52,7 @@ AUTOMATIC EMAIL REMINDERS. OFF by default, per business. To turn on, the busines
 
 NOT AVAILABLE (say so plainly, no workarounds or dates): online payment of an invoice by the customer; automatic WhatsApp or SMS; writing off or forgiving a remaining balance; changing the due date of an issued invoice; instalment plans, interest or late fees; customer overpayments or prepaid balances in this area; staff or accountant access; importing restaurant, music or shop orders as debts (those have their own order flows).
 
-HOW TO ANSWER. Use the exact labels above in the user's language. If the Debtors tab is not visible, their category or plan does not include it (or it is not enabled yet): say so and point to Subscription without quoting a price. You cannot see the user's own debtors or invoices (there is no tool for them): guide them to the screen instead, and never invent a balance.
+HOW TO ANSWER. Use the exact labels above in the user's language. If the Debtors tab is not visible, their category or plan does not include it (or it is not enabled yet): say so and point to Subscription without quoting a price. You cannot see the user's own debtors or invoices (get_outstanding_invoices exists when the Business tools of the business_ai topic are in your tool list for this page; otherwise there is no tool for them): guide them to the screen instead, and never invent a balance.
 `.trim(),
   actions: [
     "Start a credit sale (invoice with customer, due date and optional deposit)",

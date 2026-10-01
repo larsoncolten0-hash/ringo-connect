@@ -47,6 +47,8 @@ export interface AiToolContext {
   workspace: AiWorkspace;
   snapshot: WorkspaceSnapshot;
   locale: AiLocale;
+  /** Test seam only: the current instant for tools whose answers depend on the date (Business Toolkit tools). Never set in production. */
+  now?: Date;
   /** The server-resolved conversation this request belongs to (draft tools scope to it). */
   conversationId?: string;
   /** Streams a draft's review card to the panel (draft tools only). */

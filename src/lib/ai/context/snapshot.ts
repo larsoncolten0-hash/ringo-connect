@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getLoyaltyOptions, type LoyaltyAvailability } from "@/lib/loyalty/categories";
 import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
+import { BOOKKEEPING_CATEGORIES } from "@/lib/bookkeeping/decision";
 import type { AiWorkspace } from "@/lib/ai/types";
 import { countActiveConnections, countActiveLoyaltyPrograms } from "./scopedCounts";
 
@@ -41,6 +42,12 @@ export interface WorkspaceSnapshot {
   isMusic: boolean;
   isRestaurant: boolean;
   hasTicketing: boolean;
+  /**
+   * Whether the Business Toolkit AI tools may be OFFERED to this workspace: a Business Toolkit category AND a plan with both ai_enabled and
+   * business_toolkit_enabled. This only decides which tools the model sees; every tool re-checks the real gate (owner, not demo, category, plan, RLS)
+   * on the server when it runs (src/lib/ai/business/gate.ts). false when anything is unreadable.
+   */
+  businessToolkitAi: boolean;
   restaurant: { orderingEnabled: boolean; dineInEnabled: boolean; takeawayEnabled: boolean; deliveryEnabled: boolean } | null;
   /** Platform-wide switch (Admin Settings → Commerce/Shop) — not something this profile controls. */
   platformCommerceEnabled: boolean;
@@ -106,6 +113,16 @@ async function countRows(db: Db, table: string, profileId: string, extra?: (q: a
   return count || 0;
 }
 
+/** The owner's plan flag for the Business Toolkit; false (never throws) when it cannot be read. Separate from the main plan query so that query is unchanged. */
+async function businessToolkitPlanEnabled(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await createAdminClient().from("users").select("plans(business_toolkit_enabled)").eq("id", userId).maybeSingle();
+    return !error && (data as any)?.plans?.business_toolkit_enabled === true;
+  } catch {
+    return false;
+  }
+}
+
 const clip = (v: unknown, max: number): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
 export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<WorkspaceSnapshot> {
@@ -142,6 +159,8 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
   const isMusic = profileHasCategory(categoryShape, "music_entertainment");
   const isRestaurant = profileHasCategory(categoryShape, "restaurant_food");
   const hasTicketing = profileHasTicketing(categoryShape);
+  const businessToolkitAi =
+    BOOKKEEPING_CATEGORIES.some((c) => profileHasCategory(categoryShape, c)) && planRow.ai_enabled === true && (await businessToolkitPlanEnabled(workspace.userId));
 
   const [
     links,
@@ -239,6 +258,7 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
     isMusic,
     isRestaurant,
     hasTicketing,
+    businessToolkitAi,
     restaurant: isRestaurant
       ? {
           orderingEnabled: profile.ordering_enabled !== false,

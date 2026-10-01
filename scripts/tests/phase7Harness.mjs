@@ -40,6 +40,7 @@ export function makeDb(tables, log, fail) {
         if (op === "lt") return x !== null && x !== undefined && x < v;
         if (op === "is") return (x ?? null) === v;
         if (op === "notnull") return (x ?? null) !== null;
+        if (op === "or") return v.some(([col, pat]) => typeof row[col] === "string" && row[col].toLowerCase().includes(pat));
         return true;
       }));
       for (const [c, asc] of [...q.sort].reverse()) r = [...r].sort((a, b) => (String(a[c] ?? "") < String(b[c] ?? "") ? -1 : String(a[c] ?? "") > String(b[c] ?? "") ? 1 : 0) * (asc ? 1 : -1));
@@ -60,6 +61,7 @@ export function makeDb(tables, log, fail) {
       in(c, v) { q.f.push(["in", c, v]); call.ops.push(["in", c, v]); return chain; },
       gte(c, v) { q.f.push(["gte", c, v]); return chain; }, lte(c, v) { q.f.push(["lte", c, v]); return chain; }, lt(c, v) { q.f.push(["lt", c, v]); return chain; },
       is(c, v) { q.f.push(["is", c, v]); return chain; },
+      or(str) { q.f.push(["or", "", String(str).split(",").map((cl) => { const i = cl.indexOf(".ilike."); return i < 0 ? ["", String.fromCharCode(0)] : [cl.slice(0, i), cl.slice(i + 7).replace(/%/g, "").toLowerCase()]; })]); return chain; },
       not(c, op, v) { if (op === "is" && v === null) q.f.push(["notnull", c, null]); return chain; },
       order(c, o) { q.sort.push([c, o?.ascending !== false]); return chain; },
       limit(n) { q.limit = n; return chain; },

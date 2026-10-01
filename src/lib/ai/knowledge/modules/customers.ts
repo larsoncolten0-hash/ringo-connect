@@ -47,7 +47,7 @@ NEEDS ATTENTION. The ${both(ca.tabAttention, fa.tabAttention)} tab, next to ${bo
 
 NOT AVAILABLE (say so plainly, no workarounds or dates): linking or merging with Ringo accounts or Connect/Stay Connected customers, loyalty information, community subscribers or marketing consent, sending messages to customers from here, exporting customers, customer segments, confirming an order as a customer's, history from restaurant, music, booking or ticket systems, deleting customers or erasing personal data from here, staff or accountant access.
 
-HOW TO ANSWER. Use the exact labels above in the user's language. If Customers is not in the menu, their category or plan does not include it (or it is not enabled yet): say so and point to Subscription without quoting a price. You cannot see the user's own customers or orders (there is no tool for them): explain how it works and guide them to the screen, and never invent a customer or a figure.
+HOW TO ANSWER. Use the exact labels above in the user's language. If Customers is not in the menu, their category or plan does not include it (or it is not enabled yet): say so and point to Subscription without quoting a price. You cannot see the user's own customers or orders (get_customer_statement exists when the Business tools of the business_ai topic are in your tool list for this page; otherwise there is no tool for them): explain how it works and guide them to the screen, and never invent a customer or a figure.
 `.trim(),
   actions: [
     "Open Needs attention: overdue, not yet due, recently invoiced and unpaid, and quiet customers",

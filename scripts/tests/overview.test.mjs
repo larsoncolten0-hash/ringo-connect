@@ -332,6 +332,8 @@ const ov = async (owner = mkOwner(), now = NOW) => (await H.overviewSummary(owne
   let changed = [];
   try { changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])]; } catch { /* not a git checkout */ }
   const ALLOWED = [
+    // Ringo AI Business Toolkit Phase A (read tools): the AI business code, its registration, snapshot flag, prompt, knowledge and labels (aiBusinessTools.test.mjs)
+    /^src\/lib\/ai\/(business\/|tools\/(index|types)\.ts$|tools\/definitions\/business\.ts$|context\/snapshot\.ts$|prompts\/system\.ts$|knowledge\/(index\.ts|modules\/(businessAi|reports|customers|documents|inventory|receivables)\.ts)$)/, /^scripts\/tests\/aiBusinessTools\.test\.mjs$/,
     /^src\/lib\/overview\//, /^src\/app\/api\/overview\//, /^src\/components\/overview\//, /^src\/app\/dashboard\/reports\/(page|monthly\/page)\.tsx$/,
     /^src\/lib\/reports\/build\.ts$/, /^src\/components\/reports\/ReportsTabs\.tsx$/, /^src\/lib\/i18n\/translations\.ts$/, /^src\/lib\/ai\/knowledge\/modules\/(reports|customers)\.ts$/,
     /^scripts\/tests\/(overview|customers|reports|inventory|receivables|bookkeeping|trends|entryCorrection|entryCorrectionSql|customerAttention)\.test\.mjs$/, /^scripts\/tests\/phase7Harness\.mjs$/,

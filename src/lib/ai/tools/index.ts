@@ -11,6 +11,7 @@ import { getMyConnectSummary } from "./definitions/connectSummary";
 import { getMyRestaurantSales } from "./definitions/restaurantSales";
 import { getMyMusicSales } from "./definitions/musicSales";
 import { getMyEventSales } from "./definitions/eventSales";
+import { BUSINESS_AI_TOOLS } from "./definitions/business";
 import { lookupRingoHelp } from "./definitions/lookupHelp";
 import { getSetupOptions } from "./definitions/setupOptions";
 import {
@@ -46,6 +47,8 @@ export const AI_TOOLS: readonly AiTool<any>[] = [
   getMyRestaurantSales,
   getMyMusicSales,
   getMyEventSales,
+  // Business Toolkit read tools (Phase A): offered only to Business Toolkit workspaces and re-gated on the server when they run.
+  ...BUSINESS_AI_TOOLS,
   lookupRingoHelp,
   getSetupOptions,
   createProfileDraft,

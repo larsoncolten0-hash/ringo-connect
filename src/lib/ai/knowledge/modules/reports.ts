@@ -61,7 +61,7 @@ CURRENCY AND SCOPE. All figures are in the business's own currency; records in o
 
 NOT AVAILABLE (say so plainly, no workarounds or dates): profit and loss statements, tax or VAT returns, a custom date range, CSV or Excel export, sharing a report by link, scheduled or emailed reports, staff or accountant access, forecasts or projections, and as-of-month-end balances for debtors or stock.
 
-HOW TO ANSWER. Use the exact labels above in the user's language. If Reports is not in the menu, their category or plan does not include it (or it is not enabled yet): say so and point to Subscription without quoting a price. You cannot see the user's own figures (there is no tool for them): explain definitions and guide them to the screen, and never invent a number.
+HOW TO ANSWER. Use the exact labels above in the user's language. If Reports is not in the menu, their category or plan does not include it (or it is not enabled yet): say so and point to Subscription without quoting a price. You cannot see the user's own figures (get_business_summary, get_sales and get_business_trends exist when the Business tools of the business_ai topic are in your tool list for this page; otherwise there is no tool for them): explain definitions and guide them to the screen, and never invent a number.
 `.trim(),
   actions: [
     "See trends over 3, 6 or 12 months, the comparison with the previous period and the year to date",
