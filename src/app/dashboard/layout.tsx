@@ -10,6 +10,7 @@ import { shopIsVisibleFor } from "@/lib/shopAuth";
 import { documentsNavVisible } from "@/lib/documents/access";
 import { inventoryNavVisible } from "@/lib/inventory/access";
 import { reportsNavVisible } from "@/lib/reports/access";
+import { customersNavVisible } from "@/lib/customers/access";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 import { countHidden } from "@/lib/planEntitlements";
@@ -155,6 +156,9 @@ export default async function DashboardLayout({
   // Business Toolkit reports nav entry: same owner-only gate as Invoices and Inventory. UX only; /api/reports/** and the database enforce access.
   const hasReports = !isActingAsStaff && ownProfile ? await reportsNavVisible({ userId: user.id, profile: ownProfile }) : false;
 
+  // Business Toolkit customers nav entry: same owner-only gate, shown once the Phase 3 contact table exists. UX only; /api/customers/** and the database enforce access.
+  const hasCustomers = !isActingAsStaff && ownProfile ? await customersNavVisible({ userId: user.id, profile: ownProfile }) : false;
+
   // Ambassador Program — whether the signed-in person (not the active
   // organization) has their own ambassador_profiles row. RLS already
   // permits reading one's own row via the session client, so no admin
@@ -199,6 +203,7 @@ export default async function DashboardLayout({
       hasDocuments={hasDocuments}
       hasInventory={hasInventory}
       hasReports={hasReports}
+      hasCustomers={hasCustomers}
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
       canUseLoyalty={canUseLoyalty}
