@@ -27,6 +27,7 @@ import FeaturedMenuSection from "./restaurant/FeaturedMenuSection";
 import OpeningHoursRow from "./restaurant/OpeningHoursRow";
 import ImageGallery from "./ImageGallery";
 import ShareButton from "./ShareButton";
+import { displayHref } from "@/lib/linkUrl";
 import FanRecognitionHeader from "./FanRecognitionHeader";
 import BookingButton from "./BookingButton";
 import AddToHomeScreen from "./AddToHomeScreen";
@@ -752,7 +753,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                 .map((link: any) => (
                   <a
                     key={link.id}
-                    href={link.url}
+                    href={displayHref(link.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => logClick("link", link.id, { name: link.title })}

@@ -1,5 +1,6 @@
 "use client";
 
+import { displayHref } from "@/lib/linkUrl";
 import {
   FaInstagram,
   FaTiktok,
@@ -72,7 +73,7 @@ export default function SocialIcon({
   if (themed && brand) {
     return (
       <a
-        href={url}
+        href={displayHref(url)}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={platform}
@@ -86,7 +87,7 @@ export default function SocialIcon({
 
   return (
     <a
-      href={url}
+      href={displayHref(url)}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={platform}

@@ -2,6 +2,7 @@
 
 import { ExternalLink, Tag, Sparkles, UtensilsCrossed, BookOpen, QrCode, Palette, MessageCircle, Share2, Link2, Disc3, Music, ShoppingBag, Ticket, Pin, Info, Radar } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { MotionConfig } from "framer-motion";
 import { useLanguage } from "@/components/LanguageProvider";
 import { Accordion, AccordionLinkItem } from "@/components/ui/Accordion";
 import EditorSection from "@/components/dashboard/EditorSection";
@@ -27,6 +28,8 @@ import { EditorCardBareGroup } from "@/components/editor/EditorCard";
 import { EditorPreviewProvider, useEditorPreview } from "@/components/editor/EditorPreviewContext";
 import LivePreviewPanel from "@/components/editor/LivePreviewPanel";
 import { ItemShareProvider } from "@/components/dashboard/ItemShareButton";
+import { UnsavedProvider } from "@/components/dashboard/unsavedRegistry";
+import UnsavedNavigationGuard from "@/components/dashboard/UnsavedNavigationGuard";
 import { getCategory, getMusicRole, profileHasCategory, profileHasTicketing } from "@/lib/categories";
 
 export default function Editor({
@@ -45,9 +48,18 @@ export default function Editor({
     // saved — every card below pushes its own changes into this same
     // draft the moment they happen, so LivePreviewPanel always reflects
     // the current on-screen state, saved or not.
-    <EditorPreviewProvider initialProfile={profile}>
-      <EditorCards profile={profile} plan={plan} userId={userId} siteUrl={siteUrl} />
-    </EditorPreviewProvider>
+    // plan is passed through so the preview and the post-save hint apply the same entitlements as the
+    // public page. MotionConfig makes every framer-motion transform/layout animation in the editor
+    // respect the visitor's "reduce motion" setting. UnsavedProvider + UnsavedNavigationGuard protect
+    // real unsaved work from refresh/close/in-app navigation, and do nothing while nothing is unsaved.
+    <MotionConfig reducedMotion="user">
+      <EditorPreviewProvider initialProfile={profile} plan={plan}>
+        <UnsavedProvider>
+          <UnsavedNavigationGuard />
+          <EditorCards profile={profile} plan={plan} userId={userId} siteUrl={siteUrl} />
+        </UnsavedProvider>
+      </EditorPreviewProvider>
+    </MotionConfig>
   );
 }
 

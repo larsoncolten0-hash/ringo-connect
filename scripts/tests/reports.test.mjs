@@ -9,11 +9,12 @@ import zlib from "zlib";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { isPhase2EditorFile } from "./phase2Files.mjs";
 // Record Sale (standalone receipts, branding, payment details, print, footer, navigation): the files that release changes on purpose. See recordSaleUnit.test.mjs / recordSaleSql.test.mjs.
 const RECORD_SALE_ONLY = /^(src\/(lib\/(sales\/|documents\/pdf\/(logo|render|templates\/v[12])|documents\/(handlers|http|snapshot|types|validation|brand|actions|publicShare)\.ts$|bookkeeping\/(saleReceiptGuard|recordEntry)\.ts$|corrections\/entries\.ts$)|components\/(sales\/|documents\/(BusinessProfileForm|DocumentActions|DocumentView|PublicDocumentView|PrintButton|shared)\.tsx$|overview\/OverviewView\.tsx$|reports\/ReportsTabs\.tsx$|dashboard\/DashboardShell\.tsx$)|app\/(api\/sales\/|d\/\[token\]\/(page\.tsx$|logo\/)|dashboard\/(sales|bookkeeping)\/|dashboard\/layout\.tsx$|dashboard\/reports\/entries\/page\.tsx$|api\/bookkeeping\/entries\/\[id\]\/void\/route\.ts$))|supabase\/(migrations|support)\/2026-12-06_record_sale_receipts_branding)/;
 // Ringo guidance (Phase 1) intentionally extends the existing completion card; that one editor file is the only allowance here. See profileHealth.test.mjs.
 const GUIDANCE_FILES = /^src\/components\/editor\/ProfileCompletionCard\.tsx$/;
-const RECORD_SALE_FILES = { test: (f) => RECORD_SALE_ONLY.test(f) || GUIDANCE_FILES.test(f) };
+const RECORD_SALE_FILES = { test: (f) => RECORD_SALE_ONLY.test(f) || GUIDANCE_FILES.test(f) || isPhase2EditorFile(f) }; // Phase 2: only the editor files it lists, see phase2Files.mjs
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));

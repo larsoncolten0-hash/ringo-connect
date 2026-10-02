@@ -105,15 +105,19 @@ const check = (name, cond, detail = "") => {
 // ---------------------------------------------------------------- 5. dashboard editor: owner still sees and can edit EVERYTHING, with an honest "hidden from your public profile" note
 {
   const linksCardSrc = read("src/components/editor/LinksCard.tsx");
-  check("LinksCard still initializes from the FULL initialLinks prop (no filtering applied to what the owner can edit)", /useState\(\s*\[\.\.\.initialLinks\]\.sort/.test(linksCardSrc));
+  // The cards now keep their rows through the shared useAutosavedRows hook (Phase 2). The owner-sees-everything
+  // guarantee is unchanged: the FULL initial list goes in, it is only sorted, and the hook never applies a plan limit.
+  const rowsHookSrc = read("src/components/editor/useAutosavedRows.ts");
+  check("the shared rows hook starts from the FULL initial list (sorted only) and knows nothing about plan limits", /useState<T\[\]>\(\(\) => \[\.\.\.initial\]\.sort\(bySort\)\)/.test(rowsHookSrc) && !/planEntitlements|splitByPlanLimit|countHidden|maxLinks|maxProducts|limitReached/.test(rowsHookSrc));
+  check("LinksCard still initializes from the FULL initialLinks prop (no filtering applied to what the owner can edit)", /useAutosavedRows<any>\("links", "links", initialLinks\)/.test(linksCardSrc));
   check("LinksCard computes a hidden count from the same shared helper, never a reimplemented limit check", /countHidden\(links\.length, maxLinks\)/.test(linksCardSrc));
   check("LinksCard shows the new hidden-count message distinctly from the existing 'limit reached, can't add more' message", /t\.editor\.linksHiddenByPlan/.test(linksCardSrc) && /t\.editor\.linkLimitReached/.test(linksCardSrc));
-  check("deleteLink/addLink logic is untouched — no new restriction on editing an existing, already-saved link", /const deleteLink = async \(id: string\) => \{/.test(linksCardSrc));
+  check("deleting a saved link is unrestricted: it goes straight through the hook's remove, with no plan condition", /remove: deleteLink/.test(linksCardSrc) && /const remove = async \(id: string\): Promise<boolean> => \{/.test(rowsHookSrc) && !/maxLinks|limitReached/.test(rowsHookSrc.slice(rowsHookSrc.indexOf("const remove"), rowsHookSrc.indexOf("const reorder"))));
 
   const catalogCardSrc = read("src/components/editor/CatalogCard.tsx");
-  check("CatalogCard still initializes from the FULL initialProducts prop", /useState\(\s*\[\.\.\.initialProducts\]\.sort/.test(catalogCardSrc));
+  check("CatalogCard still initializes from the FULL initialProducts prop", /useAutosavedRows<any>\("products", "products", initialProducts\)/.test(catalogCardSrc));
   check("CatalogCard shows the new hidden-count message", /t\.editor\.productsHiddenByPlan/.test(catalogCardSrc));
-  check("deleteProduct logic is untouched", /const deleteProduct = async \(id: string\) => \{/.test(catalogCardSrc));
+  check("deleting a saved product is unrestricted: it goes straight through the hook's remove, with no plan condition", /remove: deleteProduct/.test(catalogCardSrc) && !/maxProducts|catalogLocked/.test(rowsHookSrc));
 }
 
 // ---------------------------------------------------------------- 6. theme: locked in the editor, but the saved values are never cleared

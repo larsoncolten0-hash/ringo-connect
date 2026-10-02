@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion";
 import { GripVertical, ChevronDown, Lock } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useMotionDuration } from "@/components/ui/useMotionDuration";
 import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import ImageUploadField from "./ImageUploadField";
 import AudioUploadField from "./AudioUploadField";
@@ -29,6 +30,7 @@ export default function TrackRow({
   startExpanded?: boolean;
 }) {
   const { t } = useLanguage();
+  const dur = useMotionDuration();
   const controls = useDragControls();
   const [expanded, setExpanded] = useState(!!startExpanded);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -93,7 +95,7 @@ export default function TrackRow({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: dur(0.2) }}
             className="overflow-hidden"
           >
             <div className="px-2.5 pb-2.5 pt-1 border-t border-ringo-border flex flex-col gap-2">
@@ -255,7 +257,7 @@ export default function TrackRow({
                 {t.restaurant.availableLabel}
               </label>
 
-              <button onClick={onDelete} className="self-start text-xs text-red-500 px-1 py-1">
+              <button type="button" onClick={onDelete} className="self-start min-h-[44px] text-xs text-red-500 px-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50">
                 {t.editor.delete}
               </button>
             </div>

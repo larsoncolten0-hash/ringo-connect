@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion";
 import { GripVertical, ChevronDown, Star, ImagePlus } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useMotionDuration } from "@/components/ui/useMotionDuration";
 import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import { formatPrice } from "@/lib/currency";
 import ImageGalleryUploadField from "./ImageGalleryUploadField";
@@ -19,6 +20,7 @@ export default function MenuItemRow({
   onChange,
   onDelete,
   startExpanded,
+  error,
 }: {
   item: any;
   userId: string;
@@ -26,8 +28,13 @@ export default function MenuItemRow({
   onChange: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
+  /** Why the last Save did not accept this dish (shown under the name). */
+  error?: string;
 }) {
   const { t } = useLanguage();
+  const dur = useMotionDuration();
+  // added with "Add item" and not saved yet: it exists on screen only
+  const isNew = typeof item.id === "string" && item.id.startsWith("new:");
   const controls = useDragControls();
   const [expanded, setExpanded] = useState(!!startExpanded);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -85,7 +92,10 @@ export default function MenuItemRow({
               </span>
             )}
           </p>
-          <p className="text-xs text-ringo-muted truncate">{item.price ? formatPrice(item.price, currency) : ""}</p>
+          <p className="text-xs text-ringo-muted truncate">
+            {isNew && <span className="font-medium text-ringo-indigo">{t.editor.validation.notSavedYet}{item.price ? " · " : ""}</span>}
+            {item.price ? formatPrice(item.price, currency) : ""}
+          </p>
         </button>
 
         <ItemShareButton kind="menu_item" id={item.id} title={item.name || ""} imageUrl={item.image_urls?.[0] || item.image_url} />
@@ -102,7 +112,7 @@ export default function MenuItemRow({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: dur(0.2) }}
             className="overflow-hidden"
           >
             <div className="px-2.5 pb-2.5 pt-1 border-t border-ringo-border flex flex-col gap-2">
@@ -122,7 +132,10 @@ export default function MenuItemRow({
                   value={item.name}
                   onChange={(e) => onChange({ name: e.target.value })}
                   placeholder={t.restaurant.itemNamePlaceholder}
-                  className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
+                  aria-label={`${t.restaurant.itemNamePlaceholder} (${t.editor.validation.required})`}
+                  aria-required="true"
+                  aria-invalid={!!error}
+                  className={`flex-1 min-w-0 text-sm border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text ${error ? "border-red-500" : "border-ringo-border"}`}
                 />
                 <input
                   value={item.price ?? ""}
@@ -132,10 +145,12 @@ export default function MenuItemRow({
                   className="w-24 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
                 />
               </div>
+              {error && <p role="alert" className="text-xs text-red-500 -mt-1">{error}</p>}
               <textarea
                 value={item.description ?? ""}
                 onChange={(e) => onChange({ description: e.target.value })}
-                placeholder={t.restaurant.itemDescriptionPlaceholder}
+                placeholder={`${t.restaurant.itemDescriptionPlaceholder} (${t.editor.validation.optional})`}
+                aria-label={`${t.restaurant.itemDescriptionPlaceholder} (${t.editor.validation.optional})`}
                 rows={2}
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text resize-none"
               />
@@ -143,6 +158,7 @@ export default function MenuItemRow({
                 value={item.prep_time_minutes ?? ""}
                 onChange={(e) => onChange({ prep_time_minutes: e.target.value.replace(/[^0-9]/g, "") })}
                 placeholder={t.restaurant.prepTimePlaceholder}
+                aria-label={t.restaurant.prepTimePlaceholder}
                 inputMode="numeric"
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
               />
@@ -166,7 +182,7 @@ export default function MenuItemRow({
                   {t.restaurant.featuredLabel}
                 </label>
               </div>
-              <button onClick={onDelete} className="self-start text-xs text-red-500 px-1 py-1">
+              <button type="button" onClick={onDelete} className="self-start min-h-[44px] text-xs text-red-500 px-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
                 {t.editor.delete}
               </button>
             </div>

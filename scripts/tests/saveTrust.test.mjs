@@ -176,11 +176,15 @@ test("every card that persists on its own is covered by the touch signal, even t
 });
 
 // ------------------------------------------------------------------ why refresh() cannot clobber the draft or the open section
-test("refresh() safety: the preview draft ignores later prop changes (it is state seeded once from props)", () => {
+test("refresh() safety: the preview draft is seeded once and never replaced wholesale by later props", () => {
   const ctx = strip(read("src/components/editor/EditorPreviewContext.tsx"));
   assert.match(ctx, /useState<DraftProfile>\(initialProfile\)/);
-  assert.doesNotMatch(ctx, /useEffect\([\s\S]*initialProfile/, "no effect re-seeds the draft from props");
   assert.match(ctx, /updateDraft: \(patch\) => setDraft\(\(prev\) => \(\{ \.\.\.prev, \.\.\.patch \}\)\)/);
+  // The only effect that reads fresh props may restore the keys a Discard queued, nothing else.
+  assert.doesNotMatch(ctx, /setDraft\(\s*(initialProfile|serverRef\.current)\s*\)/, "no wholesale re-seed");
+  const effect = ctx.slice(ctx.indexOf("useEffect("), ctx.indexOf("const value = useMemo"));
+  assert.match(effect, /if \(pendingRestore\.current\.size === 0\) return;/, "a refresh with nothing queued changes nothing");
+  assert.match(effect, /restoreKeys\(prev, serverRef\.current, keys\)/);
 });
 test("refresh() safety: the open section lives in client state, and the default open id is only read on mount", () => {
   const acc = strip(read("src/components/ui/Accordion.tsx"));

@@ -131,7 +131,9 @@ h1, h2, h3, .font-display {
   .animate-ring-pulse-2,
   .animate-ring-pulse-3,
   .animate-orbit,
-  .animate-dropdown-in {
+  .animate-dropdown-in,
+  .animate-fade-up,
+  .animate-fade-in {
     animation: none !important;
   }
   .skeleton::after {

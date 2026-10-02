@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Reorder } from "framer-motion";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -14,6 +14,8 @@ export default function MenuCategorySection({
   canMoveUp,
   canMoveDown,
   justAddedItemId,
+  justAdded,
+  errors,
   onRenameCategory,
   onDeleteCategory,
   onMoveCategory,
@@ -29,6 +31,10 @@ export default function MenuCategorySection({
   canMoveUp: boolean;
   canMoveDown: boolean;
   justAddedItemId: string | null;
+  /** This category was just created: select its default name so typing replaces it. */
+  justAdded?: boolean;
+  /** Per-dish reasons the last Save refused a dish, keyed by dish id. */
+  errors?: Record<string, string>;
   onRenameCategory: (name: string) => void;
   onDeleteCategory: () => void;
   onMoveCategory: (direction: "up" | "down") => void;
@@ -40,34 +46,68 @@ export default function MenuCategorySection({
   const { t } = useLanguage();
   const [name, setName] = useState(category.name);
   const [collapsed, setCollapsed] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (justAdded) nameRef.current?.select();
+  }, [justAdded]);
+
+  // A category must keep a name: leaving the field empty puts the previous name back instead of saving a blank one.
+  const commitName = () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setName(category.name);
+      return;
+    }
+    if (trimmed !== category.name) onRenameCategory(trimmed);
+  };
+
+  const iconBtn =
+    "shrink-0 w-11 h-11 flex items-center justify-center rounded-lg text-ringo-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";
 
   return (
     <div className="border border-ringo-border rounded-card overflow-hidden">
-      <div className="flex items-center gap-1.5 p-2.5 bg-ringo-muted/5">
-        <div className="flex flex-col -gap-1 shrink-0">
-          <button onClick={() => onMoveCategory("up")} disabled={!canMoveUp} className="text-ringo-muted disabled:opacity-30 -mb-1">
-            <ChevronUp size={13} />
+      <div className="flex items-center gap-0.5 p-1.5 bg-ringo-muted/5">
+        <div className="flex shrink-0">
+          <button
+            type="button"
+            onClick={() => onMoveCategory("up")}
+            disabled={!canMoveUp}
+            aria-label={t.restaurant.moveCategoryUp}
+            className={`${iconBtn} w-9 disabled:opacity-30`}
+          >
+            <ChevronUp size={15} aria-hidden="true" />
           </button>
-          <button onClick={() => onMoveCategory("down")} disabled={!canMoveDown} className="text-ringo-muted disabled:opacity-30">
-            <ChevronDown size={13} />
+          <button
+            type="button"
+            onClick={() => onMoveCategory("down")}
+            disabled={!canMoveDown}
+            aria-label={t.restaurant.moveCategoryDown}
+            className={`${iconBtn} w-9 disabled:opacity-30`}
+          >
+            <ChevronDown size={15} aria-hidden="true" />
           </button>
         </div>
         <input
+          ref={nameRef}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onBlur={() => name !== category.name && onRenameCategory(name)}
+          onBlur={commitName}
           placeholder={t.restaurant.categoryNamePlaceholder}
-          className="flex-1 min-w-0 text-sm font-medium bg-transparent text-ringo-text px-1.5 py-1"
+          aria-label={t.restaurant.categoryNamePlaceholder}
+          className="flex-1 min-w-0 min-h-[44px] text-sm font-medium bg-transparent text-ringo-text px-1.5 py-1"
         />
         <button
+          type="button"
           onClick={() => setCollapsed((v) => !v)}
-          className="shrink-0 text-ringo-muted p-1"
-          aria-label="toggle"
+          className={iconBtn}
+          aria-label={t.restaurant.toggleCategory}
+          aria-expanded={!collapsed}
         >
-          <ChevronDown size={15} className={`transition-transform ${collapsed ? "" : "rotate-180"}`} />
+          <ChevronDown size={15} aria-hidden="true" className={`transition-transform ${collapsed ? "" : "rotate-180"}`} />
         </button>
-        <button onClick={onDeleteCategory} className="shrink-0 text-ringo-muted hover:text-red-500 p-1">
-          <X size={15} />
+        <button type="button" onClick={onDeleteCategory} aria-label={t.restaurant.deleteCategory} className={`${iconBtn} hover:text-red-500`}>
+          <X size={15} aria-hidden="true" />
         </button>
       </div>
 
@@ -83,6 +123,7 @@ export default function MenuCategorySection({
                 userId={userId}
                 currency={currency}
                 startExpanded={item.id === justAddedItemId}
+                error={errors?.[item.id]}
                 onChange={(patch) => onChangeItem(item.id, patch)}
                 onDelete={() => onDeleteItem(item.id)}
               />
@@ -91,7 +132,12 @@ export default function MenuCategorySection({
 
           {/* data-tour target for the onboarding tour's Restaurant-branch
               step (src/lib/onboardingTour.ts) — plain attribute, additive only. */}
-          <button data-tour="add-menu-item" onClick={onAddItem} className="self-start text-xs font-medium text-ringo-indigo px-1 py-1">
+          <button
+            type="button"
+            data-tour="add-menu-item"
+            onClick={onAddItem}
+            className="self-start min-h-[44px] text-xs font-medium text-ringo-indigo px-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
+          >
             {t.restaurant.addItem}
           </button>
         </div>

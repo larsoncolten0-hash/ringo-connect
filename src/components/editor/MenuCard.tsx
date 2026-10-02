@@ -9,11 +9,18 @@ import EditorCard from "./EditorCard";
 import EmptyState from "./EmptyState";
 import MenuCategorySection from "./MenuCategorySection";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
-import { useEditorPreview } from "./EditorPreviewContext";
+import { useAutosavedRows } from "./useAutosavedRows";
+import { planMenuItemsSave } from "./menuSave";
 
 // Only ever rendered for a profile tagged Restaurant & Food. Two-level
 // CRUD (categories, each holding items) — see the migration's comment on
 // why there's no separate menu_item_options table yet.
+//
+// Categories are structural: adding one creates it straight away, with a real default name (never a
+// blank one), and renaming/reordering/deleting save on their own through the section's auto-save
+// engine (failures are reported and rolled back or kept for a retry). Dishes are saved by "Save
+// Changes": "Add item" makes a dish on screen only, and Save creates it once it has a name (an empty
+// one is dropped), so no empty dish is ever stored.
 export default function MenuCard({
   profileId,
   userId,
@@ -29,137 +36,107 @@ export default function MenuCard({
 }) {
   const supabase = createClient();
   const { t } = useLanguage();
-  const [categories, setCategories] = useState(
-    [...initialCategories].sort((a, b) => a.sort_order - b.sort_order)
-  );
-  const [items, setItems] = useState(initialItems);
+  const categoriesApi = useAutosavedRows<any>("menu_categories", "menu_categories", initialCategories);
+  const itemsApi = useAutosavedRows<any>("menu_items", "menu_items", initialItems);
+  const categories = categoriesApi.rows;
+  const items = itemsApi.rows;
   const [justAddedItemId, setJustAddedItemId] = useState<string | null>(null);
+  const [justAddedCategoryId, setJustAddedCategoryId] = useState<string | null>(null);
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const pulse = useSavedPulse();
-  const { updateDraft } = useEditorPreview();
-
-  const syncDraft = (nextCategories = categories, nextItems = items) => {
-    updateDraft({ menu_categories: nextCategories, menu_items: nextItems });
-  };
 
   const addCategory = async () => {
-    const { data } = await supabase
-      .from("menu_categories")
-      .insert({ profile_id: profileId, name: "", sort_order: categories.length })
-      .select()
-      .single();
-    if (data) {
-      const next = [...categories, data];
-      setCategories(next);
-      syncDraft(next);
-    }
+    const created = await categoriesApi.add({ profile_id: profileId, name: t.restaurant.newCategoryName, sort_order: categories.length });
+    if (created) setJustAddedCategoryId(created.id);
   };
 
   const renameCategory = async (id: string, name: string) => {
-    const next = categories.map((c) => (c.id === id ? { ...c, name } : c));
-    setCategories(next);
-    syncDraft(next);
-    await supabase.from("menu_categories").update({ name }).eq("id", id);
+    categoriesApi.update(id, { name });
+    await categoriesApi.persist(id, { name });
   };
 
   const deleteCategory = async (id: string) => {
-    const itemCount = items.filter((i) => i.menu_category_id === id).length;
-    if (itemCount > 0 && !window.confirm(`Delete this category and its ${itemCount} item(s)?`)) return;
-
-    const nextCategories = categories.filter((c) => c.id !== id);
-    const nextItems = items.filter((i) => i.menu_category_id !== id);
-    setCategories(nextCategories);
-    setItems(nextItems);
-    syncDraft(nextCategories, nextItems);
-    await supabase.from("menu_categories").delete().eq("id", id);
+    const owned = items.filter((i) => i.menu_category_id === id);
+    if (owned.length > 0 && !window.confirm(t.restaurant.deleteCategoryConfirm(owned.length))) return;
+    // its dishes go with it; if the delete fails both come back
+    itemsApi.replace(items.filter((i) => i.menu_category_id !== id));
+    const ok = await categoriesApi.remove(id);
+    if (!ok) itemsApi.restoreRows(owned);
   };
 
-  const moveCategory = async (id: string, direction: "up" | "down") => {
+  const moveCategory = (id: string, direction: "up" | "down") => {
     const idx = categories.findIndex((c) => c.id === id);
     const swapWith = direction === "up" ? idx - 1 : idx + 1;
     if (swapWith < 0 || swapWith >= categories.length) return;
     const next = [...categories];
     [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
-    const reindexed = next.map((c, i) => ({ ...c, sort_order: i }));
-    setCategories(reindexed);
-    syncDraft(reindexed);
-    await Promise.all(
-      reindexed.map((c) => supabase.from("menu_categories").update({ sort_order: c.sort_order }).eq("id", c.id))
-    );
+    categoriesApi.reorder(next);
   };
 
-  const addItem = async (categoryId: string) => {
-    const itemsInCategory = items.filter((i) => i.menu_category_id === categoryId);
-    const { data } = await supabase
-      .from("menu_items")
-      .insert({
-        profile_id: profileId,
-        menu_category_id: categoryId,
-        name: "",
-        sort_order: itemsInCategory.length,
-      })
-      .select()
-      .single();
-    if (data) {
-      const next = [...items, data];
-      setItems(next);
-      syncDraft(categories, next);
-      setJustAddedItemId(data.id);
-    }
+  const addItem = (categoryId: string) => {
+    const inCategory = items.filter((i) => i.menu_category_id === categoryId).length;
+    const row = itemsApi.addLocal({
+      menu_category_id: categoryId,
+      name: "",
+      price: "",
+      description: "",
+      image_url: null,
+      image_urls: [],
+      prep_time_minutes: null,
+      available: true,
+      featured: false,
+      sort_order: inCategory,
+    } as any);
+    setJustAddedItemId(row.id);
   };
 
-  const changeItem = (id: string, patch: any) => {
-    const next = items.map((i) => (i.id === id ? { ...i, ...patch } : i));
-    setItems(next);
-    syncDraft(categories, next);
-  };
+  const itemPayload = (i: any) => ({
+    name: typeof i.name === "string" ? i.name.trim() : i.name,
+    price: i.price === "" || i.price == null ? 0 : i.price,
+    description: i.description,
+    image_url: i.image_url,
+    image_urls: i.image_urls,
+    prep_time_minutes: i.prep_time_minutes === "" || i.prep_time_minutes == null ? null : Number(i.prep_time_minutes),
+    available: i.available !== false,
+    featured: !!i.featured,
+  });
 
-  // One explicit save for every item's fields across every category —
-  // mirrors WhatsAppCard: nothing reaches Supabase until this is clicked.
-  // Adding/deleting/reordering items or categories stay immediate.
+  // One explicit save for every dish across every category — nothing reaches Supabase until this runs.
+  // A dish needs a name: empty dishes added on screen are dropped, never stored.
   const saveAllItems = async (): Promise<boolean> => {
-    const results = await Promise.all(
-      items.map((i) =>
-        supabase
-          .from("menu_items")
-          .update({
-            name: i.name,
-            price: i.price === "" || i.price == null ? 0 : i.price,
-            description: i.description,
-            image_url: i.image_url,
-            image_urls: i.image_urls,
-            prep_time_minutes: i.prep_time_minutes === "" || i.prep_time_minutes == null ? null : Number(i.prep_time_minutes),
-            available: i.available !== false,
-            featured: !!i.featured,
-          })
-          .eq("id", i.id)
-      )
+    const plan = planMenuItemsSave(items);
+    const messages: Record<string, string> = {};
+    for (const id of Object.keys(plan.errors)) messages[id] = t.editor.validation.nameRequired;
+    setRowErrors(messages);
+    if (Object.keys(messages).length > 0) return false;
+
+    for (const id of plan.drop) void itemsApi.remove(id);
+    const updates = await Promise.all(
+      plan.updates.map(async (u) => ({ error: (await supabase.from("menu_items").update(itemPayload(u.row)).eq("id", u.row.id)).error }))
     );
-    if (results.some((r) => r.error)) return false;
+    let failed = updates.some((x) => x.error);
+    for (const ins of plan.inserts) {
+      const { data, error } = await supabase
+        .from("menu_items")
+        .insert({
+          ...itemPayload(ins.row),
+          profile_id: profileId,
+          menu_category_id: ins.row.menu_category_id,
+          sort_order: ins.row.sort_order ?? ins.position,
+        })
+        .select()
+        .single();
+      if (error || !data) {
+        failed = true;
+        continue;
+      }
+      itemsApi.swapIn(ins.row.id, { ...ins.row, ...data });
+    }
+    if (failed) return false;
     pulse.show();
     return true;
   };
   const inSection = useSectionSave(saveAllItems);
-
-  const deleteItem = async (id: string) => {
-    const next = items.filter((i) => i.id !== id);
-    setItems(next);
-    syncDraft(categories, next);
-    await supabase.from("menu_items").delete().eq("id", id);
-  };
-
-  const reorderItemsInCategory = (categoryId: string, newOrder: any[]) => {
-    const reindexed = newOrder.map((it, i) => ({ ...it, sort_order: i }));
-    const next = items.map((i) => {
-      if (i.menu_category_id !== categoryId) return i;
-      const updated = reindexed.find((r) => r.id === i.id);
-      return updated || i;
-    });
-    setItems(next);
-    syncDraft(categories, next);
-    Promise.all(
-      reindexed.map((it) => supabase.from("menu_items").update({ sort_order: it.sort_order }).eq("id", it.id))
-    );
-  };
 
   return (
     <EditorCard
@@ -168,7 +145,7 @@ export default function MenuCard({
       action={
         <>
           <SavedPulse visible={pulse.visible} label={t.editor.saved} />
-          <button onClick={addCategory} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
+          <button type="button" onClick={addCategory} className="text-xs px-3 py-2.5 min-h-[44px] rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
             {t.restaurant.addCategory}
           </button>
         </>
@@ -176,7 +153,7 @@ export default function MenuCard({
     >
       <p className="text-xs text-ringo-muted -mt-2 mb-3">{t.restaurant.menuHint}</p>
 
-      {categories.length === 0 && <EmptyState icon={BookOpen} title={t.restaurant.noCategoriesYet} />}
+      {categories.length === 0 && <EmptyState icon={BookOpen} title={t.restaurant.noCategoriesYet} hint={t.restaurant.menuEmptyHint} />}
 
       <div className="flex flex-col gap-3">
         {categories.map((category, idx) => {
@@ -193,13 +170,18 @@ export default function MenuCard({
               canMoveUp={idx > 0}
               canMoveDown={idx < categories.length - 1}
               justAddedItemId={justAddedItemId}
+              justAdded={category.id === justAddedCategoryId}
+              errors={rowErrors}
               onRenameCategory={(name) => renameCategory(category.id, name)}
               onDeleteCategory={() => deleteCategory(category.id)}
               onMoveCategory={(dir) => moveCategory(category.id, dir)}
               onAddItem={() => addItem(category.id)}
-              onChangeItem={changeItem}
-              onDeleteItem={deleteItem}
-              onReorderItems={(newOrder) => reorderItemsInCategory(category.id, newOrder)}
+              onChangeItem={(id, patch) => {
+                if (rowErrors[id]) setRowErrors((prev) => ({ ...prev, [id]: "" }));
+                itemsApi.update(id, patch);
+              }}
+              onDeleteItem={(id) => void itemsApi.remove(id)}
+              onReorderItems={(newOrder) => itemsApi.reorder(newOrder, category.id)}
             />
           );
         })}
@@ -207,8 +189,9 @@ export default function MenuCard({
 
       {items.length > 0 && !inSection && (
         <button
+          type="button"
           onClick={saveAllItems}
-          className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
+          className="self-start mt-3 px-4 py-2 min-h-[44px] rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
         >
           {t.editor.save}
         </button>

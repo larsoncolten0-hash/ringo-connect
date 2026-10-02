@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import NextLink from "next/link";
 import { Reorder } from "framer-motion";
 import { Link2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { normalizeLinkUrl } from "@/lib/linkUrl";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useSectionSave } from "@/components/dashboard/sectionSave";
 import EditorCard from "./EditorCard";
 import EmptyState from "./EmptyState";
 import LinkRow from "./LinkRow";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
-import { useEditorPreview } from "./EditorPreviewContext";
+import { useAutosavedRows } from "./useAutosavedRows";
+import { planLinksSave, type LinkRowLike } from "./linksSave";
 import { countHidden } from "@/lib/planEntitlements";
 
 export default function LinksCard({
@@ -27,85 +29,79 @@ export default function LinksCard({
 }) {
   const supabase = createClient();
   const { t } = useLanguage();
-  const [links, setLinks] = useState(
-    [...initialLinks].sort((a, b) => a.sort_order - b.sort_order)
-  );
+  // delete / reorder go through the section's auto-save engine (see useAutosavedRows). "Add link" makes a
+  // row on screen only; it is created in the database by Save, and only if it has a usable address.
+  const { rows: links, update: updateLink, remove: deleteLink, reorder: handleReorder, addLocal, swapIn } = useAutosavedRows<any>("links", "links", initialLinks);
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
-  const persistTimer = useRef<ReturnType<typeof setTimeout>>();
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const pulse = useSavedPulse();
-  const { updateDraft } = useEditorPreview();
 
   const limitReached = maxLinks != null && links.length >= maxLinks;
   // Existing links past the plan's current limit are never removed here (still fully editable,
   // still reorderable) — this only surfaces that a real visitor won't currently see all of them.
   const hiddenCount = countHidden(links.length, maxLinks);
 
-  const addLink = async () => {
+  const addLink = () => {
     if (limitReached) return;
-    const { data } = await supabase
-      .from("links")
-      .insert({ profile_id: profileId, title: "", url: "https://", sort_order: links.length })
-      .select()
-      .single();
-    if (data) {
-      const next = [...links, data];
-      setLinks(next);
-      updateDraft({ links: next });
-      setJustAddedId(data.id);
-    }
+    const row = addLocal({ title: "", url: "", description: "", image_url: null } as any);
+    setJustAddedId(row.id);
   };
 
-  const updateLink = (id: string, patch: any) => {
-    setLinks((prev) => {
-      const next = prev.map((l) => (l.id === id ? { ...l, ...patch } : l));
-      updateDraft({ links: next });
-      return next;
-    });
-  };
-
-  // One explicit save for every link's fields at once — mirrors
-  // WhatsAppCard: nothing reaches Supabase until this is clicked. Adding,
-  // deleting, and reordering links stay immediate (structural, not edits).
+  // One explicit save for every link at once — nothing reaches Supabase until this runs. It
+  //   - creates the rows added with "Add link" that have a usable address, and quietly drops empty ones,
+  //   - adds https:// to a bare address like example.com (the final address is shown back in the list),
+  //   - refuses a link with no usable address, with the reason shown on that link.
   const saveAll = async (): Promise<boolean> => {
-    const results = await Promise.all(
-      links.map((l) =>
-        supabase
+    const plan = planLinksSave(links as LinkRowLike[], (url) => normalizeLinkUrl(url));
+    const messages: Record<string, string> = {};
+    for (const [id, reason] of Object.entries(plan.errors)) {
+      messages[id] = reason === "required" ? t.editor.validation.urlRequired : t.editor.validation.urlInvalid;
+    }
+    setRowErrors(messages);
+    if (Object.keys(messages).length > 0) return false;
+
+    let failed = false;
+    for (const id of plan.drop) void deleteLink(id); // empty rows added on screen: nothing was ever saved for them
+    // Updates for rows that already exist
+    const updates = await Promise.all(
+      plan.updates.map(async (u) => {
+        const { error } = await supabase
           .from("links")
-          .update({ title: l.title, url: l.url, description: l.description, image_url: l.image_url })
-          .eq("id", l.id)
-      )
+          .update({ title: u.row.title, url: u.payload.url, description: u.row.description, image_url: u.row.image_url })
+          .eq("id", u.row.id);
+        return { u, error };
+      })
     );
-    if (results.some((r) => r.error)) return false;
+    for (const { u, error } of updates) {
+      if (error) failed = true;
+      else if (u.payload.url !== u.row.url) updateLink(u.row.id, { url: u.payload.url }); // show the final address (https:// added)
+    }
+    // Inserts for rows added on screen; each one is swapped for its real row the moment it exists, so a
+    // retry after a partial failure can never create it twice.
+    for (const ins of plan.inserts) {
+      const { data, error } = await supabase
+        .from("links")
+        .insert({
+          profile_id: profileId,
+          title: ins.row.title ?? "",
+          url: ins.payload.url,
+          description: ins.row.description ?? null,
+          image_url: ins.row.image_url ?? null,
+          sort_order: ins.position,
+        })
+        .select()
+        .single();
+      if (error || !data) {
+        failed = true;
+        continue;
+      }
+      swapIn(ins.row.id, data);
+    }
+    if (failed) return false;
     pulse.show();
     return true;
   };
   const inSection = useSectionSave(saveAll);
-
-  const deleteLink = async (id: string) => {
-    setLinks((prev) => {
-      const next = prev.filter((l) => l.id !== id);
-      updateDraft({ links: next });
-      return next;
-    });
-    await supabase.from("links").delete().eq("id", id);
-  };
-
-  // Reorder fires continuously while dragging — debounce the DB writes so
-  // we're not hammering Supabase on every pixel of movement, while state
-  // (and therefore the visual order) updates instantly. sort_order is
-  // stamped onto the in-memory items immediately too (not just written to
-  // Supabase later) — the live preview re-sorts by that field the same
-  // way the real public page does, so without this the drag would look
-  // like it snaps back until the debounced write actually lands.
-  const handleReorder = (newOrder: any[]) => {
-    const reindexed = newOrder.map((link, i) => ({ ...link, sort_order: i }));
-    setLinks(reindexed);
-    updateDraft({ links: reindexed });
-    clearTimeout(persistTimer.current);
-    persistTimer.current = setTimeout(() => {
-      Promise.all(reindexed.map((link) => supabase.from("links").update({ sort_order: link.sort_order }).eq("id", link.id)));
-    }, 400);
-  };
 
   return (
     <EditorCard
@@ -117,10 +113,11 @@ export default function LinksCard({
           {/* data-tour target for the onboarding tour's default-category
               step (src/lib/onboardingTour.ts) — plain attribute, additive only. */}
           <button
+            type="button"
             data-tour="add-link"
             onClick={addLink}
             disabled={limitReached}
-            className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white disabled:opacity-40 transition hover:brightness-110 active:scale-[0.97]"
+            className="text-xs px-3 py-2.5 min-h-[44px] rounded-card bg-ringo-indigo text-white disabled:opacity-40 transition hover:brightness-110 active:scale-[0.97]"
           >
             {t.editor.addLink}
           </button>
@@ -146,7 +143,7 @@ export default function LinksCard({
       )}
       {links.length === 0 && (
         <div className="mb-2">
-          <EmptyState icon={Link2} title={t.editor.noLinksYet} />
+          <EmptyState icon={Link2} title={t.editor.noLinksYet} hint={t.editor.linksEmptyHint} />
         </div>
       )}
 
@@ -157,7 +154,11 @@ export default function LinksCard({
             link={link}
             userId={userId}
             startExpanded={link.id === justAddedId}
-            onChange={(patch) => updateLink(link.id, patch)}
+            error={rowErrors[link.id]}
+            onChange={(patch) => {
+              if (rowErrors[link.id]) setRowErrors((prev) => ({ ...prev, [link.id]: "" }));
+              updateLink(link.id, patch);
+            }}
             onDelete={() => deleteLink(link.id)}
           />
         ))}
@@ -165,8 +166,9 @@ export default function LinksCard({
 
       {links.length > 0 && !inSection && (
         <button
+          type="button"
           onClick={saveAll}
-          className="self-start mt-3 px-4 py-2 rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
+          className="self-start mt-3 px-4 py-2 min-h-[44px] rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
         >
           {t.editor.save}
         </button>

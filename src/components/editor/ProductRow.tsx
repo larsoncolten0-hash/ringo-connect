@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Reorder, useDragControls, AnimatePresence, motion } from "framer-motion";
 import { GripVertical, ChevronDown, ImagePlus, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useMotionDuration } from "@/components/ui/useMotionDuration";
 import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import { formatPrice } from "@/lib/currency";
 import ImageGalleryUploadField from "./ImageGalleryUploadField";
@@ -30,6 +31,7 @@ export default function ProductRow({
   onChange,
   onDelete,
   startExpanded,
+  error,
 }: {
   product: any;
   // Tracked in Inventory (Business Toolkit Phase 4): the stock count is read-only here.
@@ -50,8 +52,13 @@ export default function ProductRow({
   onChange: (patch: any) => void;
   onDelete: () => void;
   startExpanded?: boolean;
+  /** Why the last Save did not accept this product (shown under the name). */
+  error?: string;
 }) {
   const { t } = useLanguage();
+  const dur = useMotionDuration();
+  // added with "Add" and not saved yet: it exists on screen only
+  const isNew = typeof product.id === "string" && product.id.startsWith("new:");
   const controls = useDragControls();
   const [expanded, setExpanded] = useState(!!startExpanded);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -127,7 +134,10 @@ export default function ProductRow({
           <p className="text-sm font-medium text-ringo-text truncate">
             {product.name || t.editor.untitledProduct}
           </p>
-          <p className="text-xs text-ringo-muted truncate">{product.price ? formatPrice(product.price, currency) : ""}</p>
+          <p className="text-xs text-ringo-muted truncate">
+            {isNew && <span className="font-medium text-ringo-indigo">{t.editor.validation.notSavedYet}{product.price ? " · " : ""}</span>}
+            {product.price ? formatPrice(product.price, currency) : ""}
+          </p>
         </button>
 
         {product.available !== false && (
@@ -146,7 +156,7 @@ export default function ProductRow({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: dur(0.2) }}
             className="overflow-hidden"
           >
             <div className="px-2.5 pb-2.5 pt-1 border-t border-ringo-border flex flex-col gap-2">
@@ -161,7 +171,7 @@ export default function ProductRow({
                         key={type}
                         type="button"
                         onClick={() => onChange({ product_type: type })}
-                        className={`text-xs px-2.5 py-1.5 rounded-full border transition ${
+                        className={`text-xs px-3 py-2 min-h-[44px] rounded-full border transition ${
                           (product.product_type || "physical") === type
                             ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo font-medium"
                             : "border-ringo-border text-ringo-muted"
@@ -204,7 +214,10 @@ export default function ProductRow({
                   value={product.name}
                   onChange={(e) => onChange({ name: e.target.value })}
                   placeholder={t.editor.productName}
-                  className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
+                  aria-label={`${t.editor.productName} (${t.editor.validation.required})`}
+                  aria-required="true"
+                  aria-invalid={!!error}
+                  className={`flex-1 min-w-0 text-sm border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text ${error ? "border-red-500" : "border-ringo-border"}`}
                 />
                 <input
                   value={product.price ?? ""}
@@ -275,12 +288,13 @@ export default function ProductRow({
                   />
                 )}
               </div>
+              {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
               {notifyError && <p className="text-xs text-red-500">{notifyError}</p>}
               <div className="flex items-center justify-between gap-2">
-                <button onClick={onDelete} className="text-xs text-red-500 px-1 py-1">
+                <button type="button" onClick={onDelete} className="min-h-[44px] text-xs text-red-500 px-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
                   {t.editor.delete}
                 </button>
-                {communityEnabled && product.name?.trim() && !product.community_notified_at && (
+                {communityEnabled && !isNew && product.name?.trim() && !product.community_notified_at && (
                   <button
                     onClick={notifyCommunity}
                     disabled={notifying}

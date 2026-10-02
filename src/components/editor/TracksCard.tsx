@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Reorder } from "framer-motion";
 import { Music } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getMusicRole } from "@/lib/categories";
 import EditorCard from "./EditorCard";
 import TrackRow from "./TrackRow";
 import { useEditorPreview } from "./EditorPreviewContext";
+import { useAutosavedRows } from "./useAutosavedRows";
+import { isBlankTrack } from "./musicBlank";
 
 // Only ever rendered for a profile tagged Music & Entertainment — see
 // Editor.tsx. "Latest Music" / "Latest Beats" — a handful of featured
@@ -23,12 +24,15 @@ export default function TracksCard({
   userId: string;
   initialTracks: any[];
 }) {
-  const supabase = createClient();
   const { t, locale } = useLanguage();
-  const [tracks, setTracks] = useState([...initialTracks].sort((a, b) => a.sort_order - b.sort_order));
+  // add / remove / reorder / blur-saves all go through the section's auto-save engine (see
+  // useAutosavedRows): failures are reported and rolled back or kept for a retry, never silent.
+  const { rows: tracks, update: updateTrack, persist: persistTrack, add, remove: deleteTrack, reorder: handleReorder } = useAutosavedRows<any>("tracks", "tracks", initialTracks, {
+    // a track added and never given ANY content (see musicBlank.ts) is removed when this section closes
+    isBlank: isBlankTrack,
+  });
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
-  const persistTimer = useRef<ReturnType<typeof setTimeout>>();
-  const { draft, updateDraft } = useEditorPreview();
+  const { draft } = useEditorPreview();
 
   // Retitles with the creator's chosen role — "Latest Beats" for a
   // producer, "Latest Mixes" for a DJ, etc. — falling back to the generic
@@ -36,48 +40,8 @@ export default function TracksCard({
   const title = getMusicRole(draft.music_role)?.sectionLabel[locale] || t.music.tracksTitleFallback;
 
   const addTrack = async () => {
-    const { data } = await supabase
-      .from("tracks")
-      .insert({ profile_id: profileId, title: "", sort_order: tracks.length })
-      .select()
-      .single();
-    if (data) {
-      const next = [...tracks, data];
-      setTracks(next);
-      updateDraft({ tracks: next });
-      setJustAddedId(data.id);
-    }
-  };
-
-  const updateTrack = (id: string, patch: any) => {
-    setTracks((prev) => {
-      const next = prev.map((tr) => (tr.id === id ? { ...tr, ...patch } : tr));
-      updateDraft({ tracks: next });
-      return next;
-    });
-  };
-
-  const persistTrack = async (id: string, patch: any) => {
-    await supabase.from("tracks").update(patch).eq("id", id);
-  };
-
-  const deleteTrack = async (id: string) => {
-    setTracks((prev) => {
-      const next = prev.filter((tr) => tr.id !== id);
-      updateDraft({ tracks: next });
-      return next;
-    });
-    await supabase.from("tracks").delete().eq("id", id);
-  };
-
-  const handleReorder = (newOrder: any[]) => {
-    const reindexed = newOrder.map((tr, i) => ({ ...tr, sort_order: i }));
-    setTracks(reindexed);
-    updateDraft({ tracks: reindexed });
-    clearTimeout(persistTimer.current);
-    persistTimer.current = setTimeout(() => {
-      Promise.all(reindexed.map((tr) => supabase.from("tracks").update({ sort_order: tr.sort_order }).eq("id", tr.id)));
-    }, 400);
+    const created = await add({ profile_id: profileId, title: "", sort_order: tracks.length });
+    if (created) setJustAddedId(created.id);
   };
 
   return (
@@ -87,7 +51,7 @@ export default function TracksCard({
       // data-tour target for the onboarding tour's Music-branch step
       // (src/lib/onboardingTour.ts) — plain attribute, additive only.
       action={
-        <button data-tour="add-track" onClick={addTrack} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
+        <button type="button" data-tour="add-track" onClick={addTrack} className="text-xs px-3 py-2.5 min-h-[44px] rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
           {t.music.addTrack}
         </button>
       }

@@ -8,11 +8,12 @@ import path from "path";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { isPhase2File } from "./phase2Files.mjs";
 // Record Sale (standalone receipts, branding, payment details, print, footer, navigation): the files that release changes on purpose. See recordSaleUnit.test.mjs / recordSaleSql.test.mjs.
 const RECORD_SALE_ONLY = /^(src\/(lib\/(sales\/|documents\/pdf\/(logo|render|templates\/v[12])|documents\/(handlers|http|snapshot|types|validation|brand|actions|publicShare)\.ts$|bookkeeping\/(saleReceiptGuard|recordEntry)\.ts$|corrections\/entries\.ts$)|components\/(sales\/|documents\/(BusinessProfileForm|DocumentActions|DocumentView|PublicDocumentView|PrintButton|shared)\.tsx$|overview\/OverviewView\.tsx$|reports\/ReportsTabs\.tsx$|dashboard\/DashboardShell\.tsx$)|app\/(api\/sales\/|d\/\[token\]\/(page\.tsx$|logo\/)|dashboard\/(sales|bookkeeping)\/|dashboard\/layout\.tsx$|dashboard\/reports\/entries\/page\.tsx$|api\/bookkeeping\/entries\/\[id\]\/void\/route\.ts$))|supabase\/(migrations|support)\/2026-12-06_record_sale_receipts_branding)/;
 // Ringo guidance (Profile Health / Ringo Home, Phase 1): the files that change adds on purpose. See profileHealth.test.mjs. Later phases' scope guards allow these, the same way they allow RECORD_SALE_FILES.
 const GUIDANCE_FILES = /^(src\/(app\/\[username\]\/page\.tsx$|app\/dashboard\/(home\/|analytics\/page\.tsx$)|components\/(guidance\/|AnalyticsView\.tsx$|Editor\.tsx$|editor\/ProfileCompletionCard\.tsx$|dashboard\/(DashboardShell\.tsx|EditorSection\.tsx|sectionSaveState\.ts)$)|lib\/(profileHealth\/|i18n\/translations\.ts$|ai\/knowledge\/(index|navigation)\.ts$|ai\/knowledge\/modules\/guidance\.ts$))|scripts\/tests\/(profileHealth|saveTrust)\.test\.mjs$)/;
-const RECORD_SALE_FILES = { test: (f) => RECORD_SALE_ONLY.test(f) || GUIDANCE_FILES.test(f) };
+const RECORD_SALE_FILES = { test: (f) => RECORD_SALE_ONLY.test(f) || GUIDANCE_FILES.test(f) || isPhase2File(f) }; // Phase 2: an explicit file list, see phase2Files.mjs
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
