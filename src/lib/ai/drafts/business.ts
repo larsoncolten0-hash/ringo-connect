@@ -116,7 +116,7 @@ export const entryCreateDraft: DraftDefinition<EntryDraftPayload> = {
     const r = await recordEntry(o, { kind: p.kind, amount: p.amount, entry_date: p.date, category: p.category, description: p.description, cash_settled: p.settled, client_request_id: draft.targetId });
     return outcome({ status: r.status, body: r.body }, (b) => ({ resultId: b?.entry?.id ?? null }));
   },
-  reviewPath: () => "/dashboard/reports/entries",
+  reviewPath: () => "/dashboard/bookkeeping",
 };
 
 // ============================================================================================================================ bk.invoice.create

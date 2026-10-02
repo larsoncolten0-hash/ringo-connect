@@ -19,9 +19,11 @@ export type DocumentActions = {
   pdf: boolean;
   share: boolean;
   correct: boolean;
+  /** A Record Sale receipt can be voided (atomic reversal of its bookkeeping sale and stock). Never offered for any other document. */
+  voidSale: boolean;
 };
 
-export function documentActions(d: { docType: string; status: string; totalMinor: number; amountPaidMinor: number; wasIssued: boolean; replaced: boolean }): DocumentActions {
+export function documentActions(d: { docType: string; status: string; totalMinor: number; amountPaidMinor: number; wasIssued: boolean; replaced: boolean; saleReceipt?: boolean }): DocumentActions {
   const invoice = d.docType === "invoice";
   const balance = Math.max(0, d.totalMinor - d.amountPaidMinor);
   return {
@@ -33,5 +35,6 @@ export function documentActions(d: { docType: string; status: string; totalMinor
     pdf: true,
     share: d.status === "issued" || d.status === "partially_paid" || d.status === "paid",
     correct: invoice && d.status === "void" && d.wasIssued && !d.replaced,
+    voidSale: d.docType === "receipt" && d.saleReceipt === true && d.status === "issued",
   };
 }

@@ -4,7 +4,7 @@
 import { currencyMinorDigits, parseMinor } from "@/lib/bookkeeping/money";
 import { DOCUMENT_LOCALES, DOCUMENT_STATUSES, DOCUMENT_TYPES, type DocumentLocale, type DocumentStatus, type DocumentType } from "./constants";
 import { parseQuantityMilli } from "./totals";
-import type { DocumentModel, LineModel, PartyModel, PaymentFacts } from "./types";
+import type { BrandingModel, DocumentModel, LineModel, PartyModel, PaymentFacts, PaymentDetails } from "./types";
 
 type Row = Record<string, any>;
 
@@ -21,6 +21,24 @@ function party(snap: unknown, kind: "seller" | "customer"): PartyModel {
   return kind === "seller"
     ? { name: str(s.display_name), legalName: str(s.legal_name), address: str(s.address), phone: str(s.phone), email: str(s.email), taxId: str(s.tax_id), registrationNo: str(s.registration_no) }
     : { name: str(s.name), legalName: null, address: str(s.address), phone: str(s.phone), email: str(s.email), taxId: str(s.tax_id), registrationNo: null };
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The branding frozen in the seller snapshot at issue (template v2). Anything that is not exactly a hex colour / stored-logo id / known text is dropped. */
+export function brandingFrom(snap: unknown): BrandingModel {
+  const s = (snap && typeof snap === "object" ? snap : {}) as Row;
+  const pd = s.payment_details && typeof s.payment_details === "object" ? (s.payment_details as Row) : null;
+  const paymentDetails: PaymentDetails | null = pd
+    ? { bankName: str(pd.bank_name), accountName: str(pd.account_name), accountNumber: str(pd.account_number), momoProvider: str(pd.momo_provider), momoNumber: str(pd.momo_number), instructions: str(pd.instructions) }
+    : null;
+  const hasAny = paymentDetails && Object.values(paymentDetails).some((v) => v !== null);
+  return {
+    accent: typeof s.accent_color === "string" && HEX.test(s.accent_color) ? s.accent_color.toLowerCase() : null,
+    logoAssetId: typeof s.logo_asset_id === "string" && UUID_RE.test(s.logo_asset_id) ? s.logo_asset_id.toLowerCase() : null,
+    paymentDetails: hasAny ? paymentDetails : null,
+  };
 }
 
 export function lineModels(lines: Row[], digits: number): LineModel[] {
@@ -60,6 +78,7 @@ export function modelFromRows(input: { doc: Row; lines: Row[]; parent?: { doc: R
       amountMinor: minor(t.amount, digits, "payment amount"),
       balanceAfterMinor: minor(t.balance_after ?? 0, digits, "balance after"),
       invoiceNumber: typeof t.invoice_number === "string" ? t.invoice_number : "",
+      sale: t.kind === "sale",
     };
   }
 
@@ -88,6 +107,7 @@ export function modelFromRows(input: { doc: Row; lines: Row[]; parent?: { doc: R
     payment,
     parent: input.parent ? { number: String(input.parent.doc.number || ""), lines: lineModels(input.parent.lines, digits) } : null,
     isVoid: d.status === "void",
+    branding: brandingFrom(d.seller_snapshot),
     todayKey: input.todayKey,
   };
 }

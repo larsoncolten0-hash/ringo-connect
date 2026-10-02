@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CircleDollarSign, Download, FilePenLine, FilePlus2, Send, Trash2, XCircle } from "lucide-react";
+import { CircleDollarSign, Download, FilePenLine, FilePlus2, Printer, Send, Trash2, XCircle } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import type { DocumentActions as Flags } from "@/lib/documents/actions";
 import { ConfirmModal, PaymentModal, ReasonModal } from "./DocModals";
 import { ShareButton } from "./ShareModal";
-import { callApi, dangerButton, downloadPdf, primaryButton, secondaryButton, useErrorText } from "./shared";
+import { callApi, dangerButton, downloadPdf, primaryButton, printPdf, secondaryButton, useErrorText } from "./shared";
 
 export type ActionDoc = { id: string; number: string | null; currency: string; balanceMinor: number; issueDate: string | null };
 
@@ -33,6 +33,12 @@ export default function DocumentActions({ doc, actions, onChanged, onGone }: { d
     if (err) setMessage(err.error === "network" ? u.errors.network : errorText(err) || u.downloadFailed);
   };
 
+  const print = async () => {
+    setMessage("");
+    const err = await printPdf(doc.id);
+    if (err) setMessage(u.printFailed);
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
@@ -40,6 +46,7 @@ export default function DocumentActions({ doc, actions, onChanged, onGone }: { d
         {actions.issue && <button onClick={() => setDialog("issue")} className={primaryButton}><Send size={15} />{u.issue}</button>}
         {actions.recordPayment && <button onClick={() => setDialog("payment")} className={primaryButton}><CircleDollarSign size={15} />{u.recordPayment}</button>}
         {actions.pdf && !actions.edit && <button onClick={pdf} disabled={busyPdf} className={secondaryButton}><Download size={15} />{u.downloadPdf}</button>}
+        {actions.pdf && !actions.edit && <button onClick={print} className={secondaryButton}><Printer size={15} />{u.print}</button>}
         {actions.share && <ShareButton docId={doc.id} number={doc.number} className={secondaryButton} />}
         {actions.correct && <Link href={`/dashboard/documents/new?correct=${doc.id}`} className={secondaryButton}><FilePlus2 size={15} />{u.correct}</Link>}
         {actions.void && <button onClick={() => setDialog("void")} className={dangerButton}><XCircle size={15} />{u.voidInvoice}</button>}

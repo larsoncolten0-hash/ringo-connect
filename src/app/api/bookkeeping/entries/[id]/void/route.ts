@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveBookkeepingOwner } from "@/lib/bookkeeping/access";
 import { denialResponse, rpcErrorResponse } from "@/lib/bookkeeping/http";
 import { entryIsInvoicePayment } from "@/lib/bookkeeping/invoicePaymentGuard";
+import { entryIsSaleReceipt } from "@/lib/bookkeeping/saleReceiptGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // doc_void_payment. Refuse the manual void; every other entry is voided exactly as before. Unknown => refuse (fail closed).
   const linked = await entryIsInvoicePayment(owner.admin, params.id);
   if (linked === "yes") return NextResponse.json({ error: "entry_linked_to_invoice_payment" }, { status: 409 });
+  // Record Sale invariant: the bookkeeping sale of a sale receipt is never voided on its own
+  const saleLink = await entryIsSaleReceipt(owner.admin, params.id);
+  if (saleLink === "yes") return NextResponse.json({ error: "entry_linked_to_sale" }, { status: 409 });
+  if (saleLink === "unknown") return NextResponse.json({ error: "internal_error" }, { status: 500 });
   if (linked === "unknown") return NextResponse.json({ error: "internal_error" }, { status: 500 });
 
   const { data, error } = await owner.admin.rpc("bk_void_entry", { p_profile_id: owner.profile.id, p_actor_user_id: owner.userId, p_entry_id: params.id, p_reason: reason });

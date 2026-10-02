@@ -61,6 +61,39 @@ export async function downloadPdf(id: string): Promise<{ error: string } | null>
   }
 }
 
+/**
+ * Prints the document's PDF without downloading it first: the PDF is fetched, loaded into an invisible frame and the browser's print dialog is opened on it.
+ * Returns an error when the PDF could not be fetched or the browser blocked printing (the caller then offers Download PDF).
+ */
+export async function printPdf(id: string): Promise<{ error: string } | null> {
+  try {
+    const res = await fetch(`/api/documents/${encodeURIComponent(id)}/pdf`);
+    if (!res.ok) return (await res.json().catch(() => ({ error: "generic" }))) as { error: string };
+    const blob = new Blob([await res.blob()], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const frame = document.createElement("iframe");
+    frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+    frame.src = url;
+    const cleanup = () => { frame.remove(); URL.revokeObjectURL(url); };
+    return await new Promise((resolve) => {
+      frame.onload = () => {
+        try {
+          frame.contentWindow?.focus();
+          frame.contentWindow?.print();
+          setTimeout(cleanup, 60_000);
+          resolve(null);
+        } catch {
+          cleanup();
+          resolve({ error: "print" });
+        }
+      };
+      document.body.appendChild(frame);
+    });
+  } catch {
+    return { error: "network" };
+  }
+}
+
 /** A UUID for idempotency keys. crypto.randomUUID needs a secure context; the fallback keeps the key unique enough for a retry guard. */
 export function newRequestId(): string {
   const c: any = typeof crypto !== "undefined" ? crypto : null;

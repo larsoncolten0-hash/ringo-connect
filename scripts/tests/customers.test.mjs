@@ -9,6 +9,8 @@ import path from "path";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+// Record Sale (standalone receipts, branding, payment details, print, footer, navigation): the files that release changes on purpose. See recordSaleUnit.test.mjs / recordSaleSql.test.mjs.
+const RECORD_SALE_FILES = /^(src\/(lib\/(sales\/|documents\/pdf\/(logo|render|templates\/v[12])|documents\/(handlers|http|snapshot|types|validation|brand|actions|publicShare)\.ts$|bookkeeping\/(saleReceiptGuard|recordEntry)\.ts$|corrections\/entries\.ts$)|components\/(sales\/|documents\/(BusinessProfileForm|DocumentActions|DocumentView|PublicDocumentView|PrintButton|shared)\.tsx$|overview\/OverviewView\.tsx$|reports\/ReportsTabs\.tsx$|dashboard\/DashboardShell\.tsx$)|app\/(api\/sales\/|d\/\[token\]\/(page\.tsx$|logo\/)|dashboard\/(sales|bookkeeping)\/|dashboard\/layout\.tsx$|dashboard\/reports\/entries\/page\.tsx$|api\/bookkeeping\/entries\/\[id\]\/void\/route\.ts$))|supabase\/(migrations|support)\/2026-12-06_record_sale_receipts_branding)/;
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -479,9 +481,9 @@ const DIR = () => [
   // Phase 7 legitimately touches exactly these files under a guarded path: the optional `sections` flags of the report builder (default behaviour unchanged,
   // proven by overview.test.mjs and trends.test.mjs), the Reports tab list, and the entry-correction route, history fields and screen (entryCorrection.test.mjs).
   const PHASE7_ALLOWED = ["src/lib/reports/build.ts", "src/components/reports/ReportsTabs.tsx", "src/app/api/reports/entries/route.ts", "src/app/api/reports/entries/[id]/correct/route.ts", "src/components/bookkeeping/EntriesView.tsx", "src/components/bookkeeping/EntryCorrectionDialog.tsx", "src/app/api/bookkeeping/entries/route.ts", "src/lib/bookkeeping/recordEntry.ts", "src/lib/bookkeeping/decision.ts", "src/lib/inventory/access.ts", "supabase/migrations/2026-12-05_ringo_ai_business_drafts.sql", "supabase/support/2026-12-05_ringo_ai_business_drafts.rollback.sql"];
-  const touched = changed.filter((f) => protectedRe.test(f) && !PHASE7_ALLOWED.includes(f));
+  const touched = changed.filter((f) => protectedRe.test(f) && !PHASE7_ALLOWED.includes(f) && !RECORD_SALE_FILES.test(f));
   check("no protected path (migrations, checkout, payments, Connect/customer sessions, loyalty, community, invoices, receivables, bookkeeping, inventory, reports, auth, middleware, team, music, restaurant, tickets) is modified", touched.length === 0, touched.join(", "));
-  check("no migration, no package file (except the un-applied AI business-drafts migration)", !changed.filter((f) => !/ringo_ai_business_drafts/.test(f)).some((f) => /^supabase\/migrations\//.test(f) || /^(package\.json|package-lock\.json)$/.test(f)));
+  check("no migration, no package file (except the un-applied AI business-drafts migration)", !changed.filter((f) => !/ringo_ai_business_drafts/.test(f) && !RECORD_SALE_FILES.test(f)).some((f) => /^supabase\/migrations\//.test(f) || /^(package\.json|package-lock\.json)$/.test(f)));
 }
 
 for (const f of tmp) try { fs.unlinkSync(f); } catch {}

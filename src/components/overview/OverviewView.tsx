@@ -157,7 +157,7 @@ export default function OverviewView() {
                 ))}
               </ul>
             )}
-            <div><Link href="/dashboard/reports/entries" className="text-sm text-ringo-indigo underline">{u.viewEntries}</Link></div>
+            <div><Link href="/dashboard/bookkeeping" className="text-sm text-ringo-indigo underline">{u.viewEntries}</Link></div>
 
             <h3 className="mt-2 text-sm font-medium text-ringo-text">{u.ordersTitle}</h3>
             {!data.recent.orders.available ? <Note>{u.sectionUnavailable}</Note> : data.recent.orders.items.length === 0 ? <Note>{u.noneYet}</Note> : (

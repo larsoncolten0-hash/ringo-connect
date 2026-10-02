@@ -270,8 +270,14 @@ const resolveOk = (docId = ID(1), profileId = OWNER.profileId) => ({ data: { doc
   const out = ts.transpileModule(srcTsx, { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2019, esModuleInterop: true } }).outputText
     .replace(/require\("react\/jsx-runtime"\)/g, `require(${JSON.stringify(require.resolve("react/jsx-runtime"))})`)
     .replace(/require\("@\/([^"]+)"\)/g, (_, p) => `require(${JSON.stringify(path.join(SRC, p + ".ts").split(path.sep).join("/"))})`);
+  // the page imports the small client PrintButton: compile it the same way and point the import at it
+  const printOut = ts.transpileModule(read("src/components/documents/PrintButton.tsx"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2019, esModuleInterop: true } }).outputText
+    .replace(/require\("react\/jsx-runtime"\)/g, `require(${JSON.stringify(require.resolve("react/jsx-runtime"))})`);
+  const printFile = path.join(os.tmpdir(), `share_print_${process.pid}.cjs`);
+  fs.writeFileSync(printFile, printOut);
+  tmp.push(printFile);
   const viewFile = path.join(os.tmpdir(), `share_view_${process.pid}.cjs`);
-  fs.writeFileSync(viewFile, out);
+  fs.writeFileSync(viewFile, out.replace(/require\("\.\/PrintButton"\)/g, `require(${JSON.stringify(printFile.split(path.sep).join("/"))})`));
   tmp.push(viewFile);
   const View = jiti(viewFile);
   const SM = jiti(path.join(SRC, "lib/documents/snapshot.ts"));

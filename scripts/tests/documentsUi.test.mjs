@@ -110,7 +110,7 @@ const code = Object.fromEntries(UI_FILES.map((f) => [f, strip(read(f))]));
   check("the UI never writes to the database directly (no insert/update/delete/upsert/rpc)", Object.values(code).every((s) => !/\.(insert|update|delete|upsert|rpc)\s*\(/.test(s)));
   check("the only direct database read in the UI is the owner's own product list", Object.entries(code).every(([, s]) => [...s.matchAll(/\.from\("(\w+)"\)/g)].every((m) => m[1] === "products")));
   const urls = Object.values(code).flatMap((s) => [...s.matchAll(/["`](\/api\/[^"`$?]*)/g)].map((m) => m[1]));
-  check("every API call goes to /api/documents/** (or, from the Phase 3 credit-sale/contact features, /api/receivables/**)", urls.length > 5 && urls.every((u) => u.startsWith("/api/documents") || u.startsWith("/api/receivables")), [...new Set(urls)].join());
+  check("every API call goes to /api/documents/** (or, from the Phase 3 credit-sale/contact features, /api/receivables/**; or /api/sales/ for the Record Sale void action on a sale receipt)", urls.length > 5 && urls.every((u) => u.startsWith("/api/documents") || u.startsWith("/api/receivables") || u.startsWith("/api/sales/")), [...new Set(urls)].join());
   check("no component posts a total, number, issue date, hash or profile id", Object.values(code).every((s) => !/(total|number|issue_date|content_hash|profile_id|amount_paid|status)\s*:\s*[a-z]/i.test((s.match(/callApi\("(POST|PUT)"[^;]*;/g) || []).join(" ")) || true));
   const editor = code["src/components/documents/InvoiceEditor.tsx"];
   const bodyKeys = [...(editor.match(/const body: Record<string, unknown> = \{([\s\S]*?)\n    \};/)?.[1] || "").matchAll(/\b([a-z_]+):/g)].map((m) => m[1]);

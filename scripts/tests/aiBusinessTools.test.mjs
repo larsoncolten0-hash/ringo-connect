@@ -487,9 +487,11 @@ const sales = async (period, o = {}, extra = {}) => (await call("get_sales", { p
     /^src\/lib\/ai\/knowledge\/index\.ts$/, /^src\/lib\/ai\/knowledge\/modules\/(businessAi|reports|customers|documents|inventory|receivables)\.ts$/, /^src\/lib\/i18n\/translations\.ts$/,
     /^scripts\/tests\/(aiBusinessTools\.test|phase7Harness|overview\.test)\.m?js$/, /^docs\//,
   ];
-  const outside = changed.filter((f) => !ALLOWED.some((re) => re.test(f)));
+  // the later Record Sale release (standalone receipts, branding, payment details, print, navigation) is its own change set, covered by recordSaleUnit.test.mjs / recordSaleSql.test.mjs
+  const RECORD_SALE = /^(src\/(lib\/(sales\/|documents\/|bookkeeping\/saleReceiptGuard\.ts$|corrections\/entries\.ts$)|components\/(sales\/|documents\/|overview\/OverviewView\.tsx$|reports\/ReportsTabs\.tsx$|dashboard\/DashboardShell\.tsx$)|app\/(api\/sales\/|d\/\[token\]\/|dashboard\/(sales|bookkeeping)\/|dashboard\/layout\.tsx$|dashboard\/reports\/entries\/page\.tsx$|api\/bookkeeping\/entries\/\[id\]\/void\/route\.ts$))|supabase\/(migrations|support)\/2026-12-06_record_sale_receipts_branding|scripts\/tests\/(recordSale(Unit|Sql)\.test|pgliteShim|documents|documentsShare|documentsAi|documentsUi|trends|overview|reports|customers|inventory|receivables|bookkeeping)(?:\.test)?\.m?js)/;
+  const outside = changed.filter((f) => !ALLOWED.some((re) => re.test(f)) && !RECORD_SALE.test(f));
   check("only the intended Ringo AI business files changed (AI tools and drafts, gate, registry, snapshot, prompt, knowledge, labels, the shared recordEntry/category gate, the un-applied migration, tests)", outside.length === 0, outside.join(", "));
-  check("no package file, no Toolkit/documents/receivables/reports/customers library and no other API route changed; the only migration is the un-applied AI drafts one", !changed.some((f) => /^(package(-lock)?\.json$|src\/lib\/(documents|receivables|reports|customers|overview|corrections)\/|src\/app\/api\/(?!ai\/drafts\/|bookkeeping\/entries\/route\.ts))/.test(f) || (/^supabase\//.test(f) && !/2026-12-05_ringo_ai_business_drafts/.test(f))), changed.join());
+  check("no package file, no Toolkit/documents/receivables/reports/customers library and no other API route changed; the only migration is the un-applied AI drafts one", !changed.filter((f) => !RECORD_SALE.test(f)).some((f) => /^(package(-lock)?\.json$|src\/lib\/(documents|receivables|reports|customers|overview|corrections)\/|src\/app\/api\/(?!ai\/drafts\/|bookkeeping\/entries\/route\.ts))/.test(f) || (/^supabase\//.test(f) && !/2026-12-05_ringo_ai_business_drafts/.test(f))), changed.join());
 }
 
 for (const f of tmp) try { fs.unlinkSync(f); } catch {}

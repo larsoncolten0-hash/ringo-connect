@@ -7,6 +7,7 @@
 import { modelFromRows } from "./snapshot";
 import { toLocalDateKey } from "@/lib/bookkeeping/summary";
 import { DOCUMENT_TIME_ZONE } from "./constants";
+import { loadBrandAsset } from "./brand";
 import { renderStoredPdf, loadDocumentFrom, type ApiResult } from "./handlers";
 import { hashClientIp, hashShareToken, isWellFormedShareToken } from "./shareToken";
 import type { DocumentModel } from "./types";
@@ -62,6 +63,25 @@ export async function openShare(admin: any, token: string, ip: string): Promise<
   } catch {
     return { kind: "unavailable" };
   }
+}
+
+/** The logo behind a share link: the document's own FROZEN copy (by the id in its snapshot), never the live profile picture. */
+export async function openSharedLogo(admin: any, token: string, ip: string): Promise<{ kind: "limited" } | { kind: "unavailable" } | { kind: "ok"; bytes: Uint8Array; contentType: string }> {
+  if (!(await allowed(admin, ip))) return { kind: "limited" };
+  const hit = await resolve(admin, token);
+  if (!hit || hit.status === "draft") return { kind: "unavailable" };
+  const loaded = await loadDocumentFrom(admin, hit.profileId, hit.documentId);
+  if ("error" in loaded) return { kind: "unavailable" };
+  let assetId: string | null = null;
+  try {
+    assetId = modelFromRows({ doc: loaded.doc, lines: loaded.lines, parent: null }).branding.logoAssetId;
+  } catch {
+    return { kind: "unavailable" };
+  }
+  if (!assetId) return { kind: "unavailable" };
+  const img = await loadBrandAsset(admin, hit.profileId, assetId);
+  if (!img) return { kind: "unavailable" };
+  return { kind: "ok", bytes: img.bytes, contentType: img.kind === "png" ? "image/png" : "image/jpeg" };
 }
 
 /** The PDF behind a share link: identical bytes to the owner's download. */

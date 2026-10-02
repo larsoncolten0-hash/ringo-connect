@@ -35,7 +35,7 @@ export default async function SharedDocumentPage({ params }: { params: { token: 
   }
 
   if (outcome.kind === "ok") {
-    return <PublicDocumentView model={outcome.model} pdfHref={`/d/${encodeURIComponent(params.token)}/pdf`} />;
+    return <PublicDocumentView model={outcome.model} pdfHref={`/d/${encodeURIComponent(params.token)}/pdf`} logoHref={outcome.model.branding.logoAssetId ? `/d/${encodeURIComponent(params.token)}/logo` : null} />;
   }
   const en = translations.en.documents.public;
   const fr = translations.fr.documents.public;

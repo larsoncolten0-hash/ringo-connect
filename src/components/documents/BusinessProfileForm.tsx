@@ -16,7 +16,7 @@ export default function BusinessProfileForm() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [suggestion, setSuggestion] = useState("");
-  const [f, setF] = useState({ display_name: "", legal_name: "", address: "", phone: "", email: "", tax_id: "", registration_no: "", default_terms: "", default_due_days: "", tax_label: "", tax_rate: "" });
+  const [f, setF] = useState({ display_name: "", legal_name: "", address: "", phone: "", email: "", tax_id: "", registration_no: "", default_terms: "", default_due_days: "", tax_label: "", tax_rate: "", bank_name: "", account_name: "", account_number: "", momo_provider: "", momo_number: "", pay_instructions: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -35,6 +35,8 @@ export default function BusinessProfileForm() {
           tax_id: p.tax_id ?? "", registration_no: p.registration_no ?? "", default_terms: p.default_terms ?? "",
           default_due_days: p.default_due_days === null || p.default_due_days === undefined ? "" : String(p.default_due_days),
           tax_label: p.tax_label ?? "", tax_rate: p.tax_rate_bp === null || p.tax_rate_bp === undefined ? "" : bpToPercentText(p.tax_rate_bp),
+          bank_name: p.payment_details?.bank_name ?? "", account_name: p.payment_details?.account_name ?? "", account_number: p.payment_details?.account_number ?? "",
+          momo_provider: p.payment_details?.momo_provider ?? "", momo_number: p.payment_details?.momo_number ?? "", pay_instructions: p.payment_details?.instructions ?? "",
         });
       }
     })();
@@ -59,6 +61,7 @@ export default function BusinessProfileForm() {
       tax_id: f.tax_id || null, registration_no: f.registration_no || null, default_terms: f.default_terms || null,
       default_due_days: f.default_due_days.trim() === "" ? null : Number(f.default_due_days),
       tax_label: labelSet ? f.tax_label : null, tax_rate_bp: rate,
+      payment_details: { bank_name: f.bank_name, account_name: f.account_name, account_number: f.account_number, momo_provider: f.momo_provider, momo_number: f.momo_number, instructions: f.pay_instructions },
     });
     setBusy(false);
     if (!r.ok) return setError(errorText(r.data));
@@ -103,6 +106,19 @@ export default function BusinessProfileForm() {
             <label className={labelClass}>{u.taxRate}<input value={f.tax_rate} onChange={set("tax_rate")} inputMode="decimal" className={inputClass} /></label>
           </div>
           <p className="text-xs text-ringo-muted leading-relaxed">{u.taxHint}</p>
+        </fieldset>
+
+        <fieldset className="flex flex-col gap-3 rounded-xl border border-ringo-border/60 p-3">
+          <legend className="px-1 text-xs font-medium text-ringo-muted">{u.payDetailsTitle}</legend>
+          <p className="text-xs text-ringo-muted leading-relaxed">{u.payDetailsHint}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className={labelClass}>{u.bankName}<input value={f.bank_name} onChange={set("bank_name")} maxLength={120} className={inputClass} /></label>
+            <label className={labelClass}>{u.accountName}<input value={f.account_name} onChange={set("account_name")} maxLength={120} className={inputClass} /></label>
+            <label className={labelClass}>{u.accountNumber}<input value={f.account_number} onChange={set("account_number")} maxLength={120} className={inputClass} /></label>
+            <label className={labelClass}>{u.momoProvider}<input value={f.momo_provider} onChange={set("momo_provider")} maxLength={120} className={inputClass} /></label>
+            <label className={labelClass}>{u.momoNumber}<input value={f.momo_number} onChange={set("momo_number")} maxLength={120} inputMode="tel" className={inputClass} /></label>
+          </div>
+          <label className={labelClass}>{u.payInstructions}<textarea value={f.pay_instructions} onChange={set("pay_instructions")} maxLength={500} rows={2} className={inputClass} /></label>
         </fieldset>
 
         {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}

@@ -225,7 +225,7 @@ const pt = (t, y, m) => t.points.find((p) => p.year === y && p.month === m);
   check("loading, empty and error states exist for the trend and the year to date", /trendsLoading/.test(ui) && /trendsEmpty/.test(ui) && /trendsUnavailable/.test(ui) && /ytdLoading/.test(ui) && /ytdUnavailable/.test(ui) && /role="alert"/.test(ui));
   check("the currency is shown (shownIn, table caption, chart label)", /shownIn\(cur\)/.test(ui) && /\(\{cur\}\)/.test(ui) && /chartLabel\(metricName, cur\)/.test(ui));
   const tabs = strip(read("src/components/reports/ReportsTabs.tsx"));
-  check("tabs in order: Overview, Monthly report, Trends, Bookkeeping entries", tabs.indexOf('"/dashboard/reports",') < tabs.indexOf("/dashboard/reports/monthly") && tabs.indexOf("/dashboard/reports/monthly") < tabs.indexOf("/dashboard/reports/trends") && tabs.indexOf("/dashboard/reports/trends") < tabs.indexOf("/dashboard/reports/entries"));
+  check("tabs in order: Overview, Monthly report, Trends (Bookkeeping entries moved out to their own dashboard entry)", tabs.indexOf('"/dashboard/reports",') < tabs.indexOf("/dashboard/reports/monthly") && tabs.indexOf("/dashboard/reports/monthly") < tabs.indexOf("/dashboard/reports/trends") && !tabs.includes("/dashboard/reports/entries"));
   check("the Trends page exists", /TrendsView/.test(read("src/app/dashboard/reports/trends/page.tsx")));
 
   const flat = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" ? flat(v, `${p}${k}.`) : [`${p}${k}`]));

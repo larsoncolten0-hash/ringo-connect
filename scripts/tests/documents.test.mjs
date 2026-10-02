@@ -218,7 +218,7 @@ const pages = async (bytes) => (await PDFDocument.load(bytes)).getPageCount();
   check("an unknown template version is an error, never a different layout", /unsupported document template version 99/.test(err || ""));
   const safeRes = await R.renderDocumentPdfSafe({ ...m, templateVersion: 99 });
   check("renderDocumentPdfSafe turns that into a result, not an exception", safeRes.ok === false && /unsupported/.test(safeRes.error));
-  eq("only template version 1 exists", R.supportedTemplateVersions(), [1]);
+  eq("template versions: 1 (every document issued before Record Sale, untouched) and 2 (documents issued from then on); nothing else", R.supportedTemplateVersions(), [1, 2]);
 
   // fuzz: random hostile text in every field never crashes the renderer
   const rs = (max) => { let s = ""; const k = Math.floor(Math.random() * max); for (let i = 0; i < k; i++) s += String.fromCodePoint(Math.random() < 0.4 ? 32 + Math.floor(Math.random() * 200) : Math.floor(Math.random() * 0x2ffff)); return s; };

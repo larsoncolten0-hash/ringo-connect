@@ -12,6 +12,7 @@ import { SHARE_DEFAULT_DAYS, SHARE_MAX_ACTIVE, SHARE_MAX_DAYS } from "./shareCon
 import { generateShareToken, hashShareToken, shareUrl } from "./shareToken";
 import { DOCUMENT_STATUSES, DOCUMENT_TIME_ZONE } from "./constants";
 import { docError } from "./http";
+import { loadBrandAsset, syncBrandLogo } from "./brand";
 import { renderDocumentPdfSafe } from "./pdf/render";
 import { safeFilename } from "./pdfText";
 import { modelFromRows } from "./snapshot";
@@ -54,11 +55,20 @@ export async function putBusinessProfile(owner: DocOwner, body: unknown): Promis
   const p = parseBusinessProfileBody(body);
   if (!p.ok) return bad(p.details);
   const v = p.value;
-  return rpc(owner, "doc_upsert_business_profile", {
+  const args = {
     ...base(owner), p_display_name: v.display_name, p_legal_name: v.legal_name, p_address: v.address, p_phone: v.phone, p_email: v.email,
     p_tax_id: v.tax_id, p_registration_no: v.registration_no, p_default_terms: v.default_terms, p_default_due_days: v.default_due_days,
     p_tax_label: v.tax_label, p_tax_rate_bp: v.tax_rate_bp,
-  });
+  };
+  // The 14-argument overload also stores the payment details (one transaction, one Save). Before the Record Sale migration is applied it does not exist:
+  // saving the other details must keep working, so that case falls back to the original function; payment details cannot be saved until then.
+  const full = await owner.admin.rpc("doc_upsert_business_profile", { ...args, p_payment_details: v.payment_details });
+  if (!full.error) return { status: 200, body: full.data };
+  if (full.error.code === "PGRST202" || /could not find the function/i.test(String(full.error.message))) {
+    if (v.payment_details) return { status: 503, body: { error: "documents_unavailable" } };
+    return rpc(owner, "doc_upsert_business_profile", args);
+  }
+  return docError(full.error);
 }
 
 // ----------------------------------------------------------------------------------------- list
@@ -168,7 +178,7 @@ export async function getDocument(owner: DocOwner, id: string): Promise<ApiResul
   });
   const balance = Math.max(0, model.totalMinor - model.amountPaidMinor);
   const isInvoice = doc.doc_type === "invoice";
-  const actions = documentActions({ docType: doc.doc_type, status: doc.status, totalMinor: model.totalMinor, amountPaidMinor: model.amountPaidMinor, wasIssued: !!doc.issued_at, replaced: !!replacedBy.data });
+  const actions = documentActions({ docType: doc.doc_type, status: doc.status, totalMinor: model.totalMinor, amountPaidMinor: model.amountPaidMinor, wasIssued: !!doc.issued_at, replaced: !!replacedBy.data, saleReceipt: doc.doc_type === "receipt" && doc.source_type === "sale" });
   return {
     status: 200,
     body: {
@@ -227,6 +237,8 @@ export async function discardDraft(owner: DocOwner, id: string): Promise<ApiResu
 export async function issueDocument(owner: DocOwner, id: string): Promise<ApiResult> {
   if (!isUuid(id)) return notFound();
   // Nothing from the client is used: number, date, totals, snapshots and hash all come from the database.
+  // Just before issuing, the profile picture is copied into the immutable logo store so the document freezes a reference to THAT copy (never the live URL).
+  await syncBrandLogo(owner);
   return rpc(owner, "doc_issue", { ...base(owner), p_document_id: id });
 }
 
@@ -289,7 +301,8 @@ export async function renderStoredPdf(db: any, admin: any, profileId: string, id
   } catch {
     return { status: 500, body: { error: "document_unreadable" } };
   }
-  const out = await renderDocumentPdfSafe(model);
+  // a v2 document references its FROZEN logo copy by id; it is read from the immutable store, never from the live profile picture
+  const out = await renderDocumentPdfSafe(model, { loadLogo: (assetId) => loadBrandAsset(admin, profileId, assetId) });
   if (!out.ok) {
     console.error("documents pdf: render failed:", out.error);
     return { status: 500, body: { error: "pdf_failed" } };

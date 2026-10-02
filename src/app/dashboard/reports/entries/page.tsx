@@ -1,5 +1,6 @@
-import EntriesView from "@/components/bookkeeping/EntriesView";
+import { redirect } from "next/navigation";
 
-export default function BookkeepingEntriesPage() {
-  return <EntriesView />;
+// Bookkeeping moved out of Reports to /dashboard/bookkeeping; this keeps old bookmarks and links working.
+export default function LegacyBookkeepingEntriesPage() {
+  redirect("/dashboard/bookkeeping");
 }

@@ -13,13 +13,13 @@ export type TemplateResult = { watermark: string | null };
 
 const RIGHT_X = PAGE_W - MARGIN;
 
-function formatRate(bp: number, locale: "en" | "fr"): string {
+export function formatRate(bp: number, locale: "en" | "fr"): string {
   const whole = Math.trunc(bp / 100);
   const frac = String(bp % 100).padStart(2, "0").replace(/0+$/, "");
   return String(whole) + (frac ? (locale === "fr" ? "," : ".") + frac : "") + "%";
 }
 
-function partyLines(p: PartyModel, labels: DocumentLabels, seller: boolean): string[] {
+export function partyLines(p: PartyModel, labels: DocumentLabels, seller: boolean): string[] {
   const out: string[] = [];
   const name = safe(p.name, seller ? LIMITS.displayName : LIMITS.customerName);
   if (seller && p.legalName) {
@@ -95,14 +95,14 @@ function tableColumns(m: DocumentModel, labels: DocumentLabels, lines: LineModel
   return cols;
 }
 
-function drawTable(sheet: Sheet, m: DocumentModel, labels: DocumentLabels, lines: LineModel[], withMoney: boolean): void {
+export function drawTable(sheet: Sheet, m: DocumentModel, labels: DocumentLabels, lines: LineModel[], withMoney: boolean, accent: ReturnType<typeof rgb> = ACCENT): void {
   const cols = tableColumns(m, labels, lines, withMoney);
   const xOf = (i: number) => MARGIN + cols.slice(0, i).reduce((s, c) => s + c.w, 0);
 
   const header = () => {
     sheet.page.drawRectangle({ x: MARGIN, y: sheet.y - 17, width: CONTENT_W, height: 17, color: SOFT });
     cols.forEach((c, i) => {
-      sheet.draw(safe(c.label, 28), { x: xOf(i) + 4, width: c.w - 8, size: 8, font: sheet.bold, color: ACCENT, align: c.right ? "right" : "left" }, sheet.y - 4);
+      sheet.draw(safe(c.label, 28), { x: xOf(i) + 4, width: c.w - 8, size: 8, font: sheet.bold, color: accent, align: c.right ? "right" : "left" }, sheet.y - 4);
     });
     sheet.y -= 22;
   };
@@ -136,7 +136,7 @@ function drawTable(sheet: Sheet, m: DocumentModel, labels: DocumentLabels, lines
   sheet.y -= 6;
 }
 
-function totalRow(sheet: Sheet, label: string, value: string, opts: { bold?: boolean; size?: number; color?: ReturnType<typeof rgb> } = {}): void {
+export function totalRow(sheet: Sheet, label: string, value: string, opts: { bold?: boolean; size?: number; color?: ReturnType<typeof rgb> } = {}): void {
   const size = opts.size ?? 10;
   const font = opts.bold ? sheet.bold : sheet.regular;
   const x = RIGHT_X - 230;
@@ -145,7 +145,7 @@ function totalRow(sheet: Sheet, label: string, value: string, opts: { bold?: boo
   sheet.y -= size + 6;
 }
 
-function textSections(sheet: Sheet, m: DocumentModel, labels: DocumentLabels): void {
+export function textSections(sheet: Sheet, m: DocumentModel, labels: DocumentLabels): void {
   for (const [label, body, max] of [
     [labels.notes, m.notes, LIMITS.notes],
     [labels.terms, m.terms, LIMITS.terms],

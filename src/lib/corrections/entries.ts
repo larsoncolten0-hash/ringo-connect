@@ -11,6 +11,7 @@
 //   * the request id makes a double submit or a retry replay the same result instead of correcting twice.
 import { currencyMinorDigits, minorToAmountString, parseMinor } from "@/lib/bookkeeping/money";
 import { entryIsInvoicePayment } from "@/lib/bookkeeping/invoicePaymentGuard";
+import { entryIsSaleReceipt } from "@/lib/bookkeeping/saleReceiptGuard";
 import { rpcErrorResponse } from "@/lib/bookkeeping/http";
 import { DEFAULT_TIME_ZONE, toLocalDateKey, validateEntryInput } from "@/lib/bookkeeping/summary";
 import type { ApiResult, DocOwner } from "@/lib/documents/handlers";
@@ -51,6 +52,9 @@ export async function correctEntry(owner: DocOwner, id: string, rawBody: unknown
   const link = await entryIsInvoicePayment(owner.admin, id);
   if (link === "yes" || original.category === RESERVED_CATEGORY) return conflict("entry_linked_to_invoice_payment");
   if (link === "unknown") return internal();
+  const saleLink = await entryIsSaleReceipt(owner.admin, id);
+  if (saleLink === "yes") return conflict("entry_linked_to_sale");
+  if (saleLink === "unknown") return internal();
 
   // ---- what the client may NOT change: kind, order link, replaced entry. A repeat of the original value is harmless; any other value is refused.
   if (has(body, "kind") && body.kind !== original.kind) return bad(["kind_cannot_change"]);

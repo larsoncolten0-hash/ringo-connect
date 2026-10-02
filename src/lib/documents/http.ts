@@ -5,6 +5,7 @@
 const STATUS: Record<string, number> = {
   // not found
   profile_unavailable: 404, document_not_found: 404, payment_not_found: 404, share_not_found: 404, product_not_found: 404,
+  customer_not_found: 404,
   // not allowed
   not_owner: 403, toolkit_not_enabled: 403, demo_profile_not_supported: 403,
   // invalid input
@@ -14,11 +15,13 @@ const STATUS: Record<string, number> = {
   amount_too_large: 400, discount_exceeds_amount: 400, no_lines: 400, zero_total: 400, customer_required: 400, invalid_due_date: 400,
   request_id_required: 400, invalid_amount: 400, invalid_method: 400, invalid_reference: 400, invalid_paid_on: 400, reason_required: 400,
   invalid_replacement: 400, invalid_token_hash: 400, invalid_expiry: 400, date_in_future: 400,
+  invalid_sold_on: 400, invalid_payment_details: 400,
   // state conflicts
   document_not_draft: 409, document_void: 409, invoice_not_payable: 409, invoice_has_payments: 409, use_void_payment: 409, currency_changed: 409,
+  insufficient_stock: 409, request_id_conflict: 409,
   exceeds_balance: 409, tax_not_configured: 409, document_not_shareable: 409, too_many_shares: 409, order_already_counted: 409,
   // should never happen (guards against our own bugs): reported as server errors
-  totals_mismatch: 500, bookkeeping_conflict: 500,
+  totals_mismatch: 500, bookkeeping_conflict: 500, sale_conflict: 500,
 };
 
 const UNAVAILABLE_CODES = new Set(["PGRST202", "PGRST205", "42883", "42P01"]);

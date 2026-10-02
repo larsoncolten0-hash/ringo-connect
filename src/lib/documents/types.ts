@@ -35,6 +35,26 @@ export type PaymentFacts = {
   amountMinor: number;
   balanceAfterMinor: number;
   invoiceNumber: string;
+  /** True for a standalone SALE receipt (a recorded sale, no invoice behind it); false for the receipt of an invoice payment. */
+  sale: boolean;
+};
+
+/** Structured payment instructions the business configured (printed on invoices). Frozen in the seller snapshot at issue. */
+export type PaymentDetails = {
+  bankName: string | null;
+  accountName: string | null;
+  accountNumber: string | null;
+  momoProvider: string | null;
+  momoNumber: string | null;
+  instructions: string | null;
+};
+
+/** Template v2 branding, frozen in the seller snapshot at issue (never read from the live profile when a document is re-rendered). */
+export type BrandingModel = {
+  accent: string | null; // #rrggbb
+  /** The immutable stored copy of the logo (bk_brand_assets), never the live profile picture URL. */
+  logoAssetId: string | null;
+  paymentDetails: PaymentDetails | null;
 };
 
 export type DocumentModel = {
@@ -63,6 +83,8 @@ export type DocumentModel = {
   /** Receipts: the invoice this payment belongs to (for reference printing). */
   parent: { number: string; lines: LineModel[] } | null;
   isVoid: boolean;
+  /** Frozen branding of a template-v2 document; all-null for documents issued before it existed. */
+  branding: BrandingModel;
   /** Business-local "today", supplied by the caller, used only to show an overdue marker. */
   todayKey?: string;
 };

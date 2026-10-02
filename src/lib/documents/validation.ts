@@ -158,7 +158,12 @@ export function parseReasonBody(body: unknown): Parsed<{ reason: string }> {
 export type BusinessProfileInput = {
   display_name: string; legal_name: string | null; address: string | null; phone: string | null; email: string | null; tax_id: string | null;
   registration_no: string | null; default_terms: string | null; default_due_days: number | null; tax_label: string | null; tax_rate_bp: number | null;
+  /** Structured payment instructions (bank, account, mobile money, other); null when none. Keys are whitelisted; the database re-cleans them. */
+  payment_details: Record<string, string> | null;
 };
+
+export const PAYMENT_DETAIL_KEYS = ["bank_name", "account_name", "account_number", "momo_provider", "momo_number", "instructions"] as const;
+export const PAYMENT_DETAIL_MAX = { bank_name: 120, account_name: 120, account_number: 120, momo_provider: 120, momo_number: 120, instructions: 500 } as const;
 
 export function parseBusinessProfileBody(body: unknown): Parsed<BusinessProfileInput> {
   if (!isObj(body)) return { ok: false, details: ["invalid_body"] };
@@ -190,10 +195,25 @@ export function parseBusinessProfileBody(body: unknown): Parsed<BusinessProfileI
     else rate = n;
   }
   if ((label === null || label.trim() === "") !== (rate === null)) errors.push("tax_incomplete");   // tax is ON only when both are set; OFF by default
+  let paymentDetails: Record<string, string> | null = null;
+  const pd = body.payment_details;
+  if (pd !== undefined && pd !== null) {
+    if (!isObj(pd)) errors.push("invalid_payment_details");
+    else {
+      const out: Record<string, string> = {};
+      for (const k of PAYMENT_DETAIL_KEYS) {
+        const v = pd[k];
+        if (v === undefined || v === null || v === "") continue;
+        if (typeof v !== "string" || len(v) > PAYMENT_DETAIL_MAX[k]) errors.push("invalid_payment_details");
+        else if (v.trim() !== "") out[k] = v.trim();
+      }
+      paymentDetails = Object.keys(out).length ? out : null;
+    }
+  }
   const value: BusinessProfileInput = {
     display_name: typeof name === "string" ? name : "", legal_name: opt("legal_name", LIMITS.legalName), address: opt("address", LIMITS.address),
     phone: opt("phone", LIMITS.phone), email, tax_id: opt("tax_id", LIMITS.taxId), registration_no: opt("registration_no", LIMITS.registrationNo),
-    default_terms: opt("default_terms", LIMITS.terms), default_due_days: dueDays, tax_label: label, tax_rate_bp: rate,
+    default_terms: opt("default_terms", LIMITS.terms), default_due_days: dueDays, tax_label: label, tax_rate_bp: rate, payment_details: paymentDetails,
   };
   return errors.length ? { ok: false, details: errors } : { ok: true, value };
 }

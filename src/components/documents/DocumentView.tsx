@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Download, Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Download, Loader2, Printer, Plus, XCircle } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatDateKey, formatMoney, formatQuantityMilli } from "@/lib/documents/moneyFormat";
 import type { DocumentModel, LineModel, PartyModel } from "@/lib/documents/types";
@@ -11,7 +11,7 @@ import { ReasonModal } from "./DocModals";
 import DocumentActions from "./DocumentActions";
 import { ShareButton } from "./ShareModal";
 import InvoiceCustomerSection from "@/components/receivables/InvoiceCustomerSection";
-import { StatusBadge, callApi, downloadPdf, secondaryButton, useErrorText } from "./shared";
+import { StatusBadge, callApi, dangerButton, downloadPdf, primaryButton, printPdf, secondaryButton, useErrorText } from "./shared";
 
 type PaymentView = { id: string; receipt_document_id: string; receipt_number: string | null; receipt_status: string | null; amount_minor: number; balance_after_minor: number; method: string; reference: string | null; paid_on: string; recorded_at: string; voided: boolean; void_reason: string | null; can_void: boolean };
 type View = {
@@ -43,7 +43,7 @@ export default function DocumentView({ id }: { id: string }) {
 
   if (loading) return <div className="py-12 flex items-center justify-center text-ringo-muted"><Loader2 size={20} className="animate-spin" /><span className="sr-only">{u.loading}</span></div>;
   if (error || !view) return <div className="flex flex-col items-start gap-3"><p role="alert" className="text-sm text-rose-600">{error || u.notFound}</p><Link href="/dashboard/documents" className={secondaryButton}>{u.back}</Link></div>;
-  return view.doc_type === "receipt" ? <ReceiptBody view={view} /> : <InvoiceBody view={view} reload={load} gone={() => router.push("/dashboard/documents")} />;
+  return view.doc_type === "receipt" ? <ReceiptBody view={view} reload={load} /> : <InvoiceBody view={view} reload={load} gone={() => router.push("/dashboard/documents")} />;
 }
 
 // ------------------------------------------------------------------------------------------------- shared bits
@@ -94,6 +94,17 @@ function Pdf({ id, label }: { id: string; label: string }) {
       <button onClick={async () => { setBusy(true); setMsg(""); const err = await downloadPdf(id); setBusy(false); if (err) setMsg(errorText(err) || t.documents.ui.downloadFailed); }} disabled={busy} className={secondaryButton}>
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}{label}
       </button>
+      {msg && <p role="alert" className="text-xs text-rose-600">{msg}</p>}
+    </div>
+  );
+}
+
+function PrintBtn({ id }: { id: string }) {
+  const { t } = useLanguage();
+  const [msg, setMsg] = useState("");
+  return (
+    <div className="flex flex-col gap-1">
+      <button onClick={async () => { setMsg(""); const err = await printPdf(id); if (err) setMsg(t.documents.ui.printFailed); }} className={secondaryButton}><Printer size={15} />{t.documents.ui.print}</button>
       {msg && <p role="alert" className="text-xs text-rose-600">{msg}</p>}
     </div>
   );
@@ -268,15 +279,25 @@ function SumRow({ label, value, strong = false }: { label: string; value: string
 }
 
 // ------------------------------------------------------------------------------------------------- receipt (RCT-)
-function ReceiptBody({ view }: { view: View }) {
+function ReceiptBody({ view, reload }: { view: View; reload: () => void }) {
   const { t, locale } = useLanguage();
   const u = t.documents.ui;
   const m = view.model;
   const p = m.payment;
+  const sale = !!p?.sale;
+  const justRecorded = useSearchParams()?.get("sale") === "1";
+  const errorText = useErrorText();
+  const [voiding, setVoiding] = useState(false);
   return (
     <div className="flex flex-col gap-5 max-w-2xl">
+      {sale && justRecorded && (
+        <div role="status" className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4">
+          <p className="text-sm font-medium text-ringo-text">{u.saleRecordedTitle(m.number ?? "")}</p>
+          <p className="mt-1 text-sm text-ringo-muted">{u.saleRecordedBody}</p>
+        </div>
+      )}
       <div className="flex flex-col gap-2">
-        <Link href={view.parent ? `/dashboard/documents/${view.parent.id}` : "/dashboard/documents"} className="text-sm text-ringo-muted hover:text-ringo-text w-fit">← {view.parent ? `${u.forInvoice} ${view.parent.number}` : u.back}</Link>
+        <Link href={sale ? "/dashboard/sales" : view.parent ? `/dashboard/documents/${view.parent.id}` : "/dashboard/documents"} className="text-sm text-ringo-muted hover:text-ringo-text w-fit">← {sale ? t.sales.title : view.parent ? `${u.forInvoice} ${view.parent.number}` : u.back}</Link>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em] break-words">{u.receiptHeading} {m.number}</h1>
           <StatusBadge status={view.status} />
@@ -287,7 +308,7 @@ function ReceiptBody({ view }: { view: View }) {
 
       <Card>
         {/* This is the sentence that matters: a receipt for a payment the business recorded, never a Ringo-verified payment. */}
-        <p className="text-sm font-medium text-ringo-text">{u.recordedByBusiness}</p>
+        <p className="text-sm font-medium text-ringo-text">{sale ? u.saleReceiptNote : u.recordedByBusiness}</p>
         {p && (
           <>
             <div className="rounded-xl border border-ringo-border/60 p-4">
@@ -297,11 +318,11 @@ function ReceiptBody({ view }: { view: View }) {
             </div>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div><dt className="text-xs text-ringo-muted">{u.receiptNumber}</dt><dd className="text-ringo-text">{m.number}</dd></div>
-              <div><dt className="text-xs text-ringo-muted">{u.forInvoice}</dt><dd className="text-ringo-text">{view.parent ? <Link href={`/dashboard/documents/${view.parent.id}`} className="text-ringo-indigo hover:underline">{p.invoiceNumber}</Link> : p.invoiceNumber}</dd></div>
+              {!sale && <div><dt className="text-xs text-ringo-muted">{u.forInvoice}</dt><dd className="text-ringo-text">{view.parent ? <Link href={`/dashboard/documents/${view.parent.id}`} className="text-ringo-indigo hover:underline">{p.invoiceNumber}</Link> : p.invoiceNumber}</dd></div>}
               <div><dt className="text-xs text-ringo-muted">{u.paymentDate}</dt><dd className="text-ringo-text">{formatDateKey(p.paidOn, locale)}</dd></div>
               <div><dt className="text-xs text-ringo-muted">{u.paymentMethod}</dt><dd className="text-ringo-text">{t.documents.pdf.methods[p.method] ?? p.method}</dd></div>
-              <div><dt className="text-xs text-ringo-muted">{u.reference}</dt><dd className="text-ringo-text break-words">{p.reference || "—"}</dd></div>
-              <div><dt className="text-xs text-ringo-muted">{u.balanceAfter}</dt><dd className="text-ringo-text tabular-nums">{formatMoney(p.balanceAfterMinor, m.currency, locale)}</dd></div>
+              {!sale && <div><dt className="text-xs text-ringo-muted">{u.reference}</dt><dd className="text-ringo-text break-words">{p.reference || "—"}</dd></div>}
+              {!sale && <div><dt className="text-xs text-ringo-muted">{u.balanceAfter}</dt><dd className="text-ringo-text tabular-nums">{formatMoney(p.balanceAfterMinor, m.currency, locale)}</dd></div>}
             </dl>
           </>
         )}
@@ -310,9 +331,15 @@ function ReceiptBody({ view }: { view: View }) {
       <Card>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <PartyBlock title={u.from} p={m.seller} seller />
-          <PartyBlock title={u.billedTo} p={m.customer} seller={false} />
+          {m.customer.name || !sale ? <PartyBlock title={u.billedTo} p={m.customer} seller={false} /> : <div><h3 className="text-xs font-medium text-ringo-muted mb-1">{u.billedTo}</h3><p className="text-ringo-muted">{u.walkInCustomer}</p></div>}
         </div>
       </Card>
+
+      {sale && m.lines.length > 0 && (
+        <Card title={u.items}>
+          <ItemsList lines={m.lines} m={m} showMoney />
+        </Card>
+      )}
 
       {m.parent && m.parent.lines.length > 0 && (
         <Card title={`${u.items} · ${m.parent.number}`}>
@@ -320,7 +347,17 @@ function ReceiptBody({ view }: { view: View }) {
         </Card>
       )}
 
-      <div className="flex flex-wrap gap-2"><Pdf id={view.id} label={u.downloadReceipt} />{view.actions?.share && <ShareButton docId={view.id} number={m.number} className={secondaryButton} />}</div>
+      <div className="flex flex-wrap gap-2">
+        <PrintBtn id={view.id} />
+        <Pdf id={view.id} label={u.downloadReceipt} />
+        {view.actions?.share && <ShareButton docId={view.id} number={m.number} className={secondaryButton} />}
+        {sale && <Link href="/dashboard/sales" className={primaryButton}><Plus size={15} />{t.sales.title}</Link>}
+        {view.actions?.voidSale && <button onClick={() => setVoiding(true)} className={dangerButton}><XCircle size={15} />{u.voidSale}</button>}
+      </div>
+      {voiding && (
+        <ReasonModal title={u.voidSaleTitle} body={u.voidSaleBody} confirmLabel={u.voidSale} onClose={() => setVoiding(false)}
+          onConfirm={async (reason) => { const r = await callApi("POST", `/api/sales/${encodeURIComponent(view.id)}/void`, { reason }); if (!r.ok) return errorText(r.data); setVoiding(false); reload(); return null; }} />
+      )}
     </div>
   );
 }

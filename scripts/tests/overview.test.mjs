@@ -8,6 +8,8 @@ import path from "path";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+// Record Sale (standalone receipts, branding, payment details, print, footer, navigation): the files that release changes on purpose. See recordSaleUnit.test.mjs / recordSaleSql.test.mjs.
+const RECORD_SALE_FILES = /^(src\/(lib\/(sales\/|documents\/pdf\/(logo|render|templates\/v[12])|documents\/(handlers|http|snapshot|types|validation|brand|actions|publicShare)\.ts$|bookkeeping\/(saleReceiptGuard|recordEntry)\.ts$|corrections\/entries\.ts$)|components\/(sales\/|documents\/(BusinessProfileForm|DocumentActions|DocumentView|PublicDocumentView|PrintButton|shared)\.tsx$|overview\/OverviewView\.tsx$|reports\/ReportsTabs\.tsx$|dashboard\/DashboardShell\.tsx$)|app\/(api\/sales\/|d\/\[token\]\/(page\.tsx$|logo\/)|dashboard\/(sales|bookkeeping)\/|dashboard\/layout\.tsx$|dashboard\/reports\/entries\/page\.tsx$|api\/bookkeeping\/entries\/\[id\]\/void\/route\.ts$))|supabase\/(migrations|support)\/2026-12-06_record_sale_receipts_branding)/;
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -295,9 +297,9 @@ const ov = async (owner = mkOwner(), now = NOW) => (await H.overviewSummary(owne
 // ------------------------------------------------------------------------ navigation and pages
 {
   const tabs = strip(read("src/components/reports/ReportsTabs.tsx"));
-  check("tabs: Overview (landing), Monthly report, Bookkeeping entries, with the Overview active only on the exact landing page", /href: "\/dashboard\/reports", label: t\.overview\.ui\.tabOverview/.test(tabs) && /href: "\/dashboard\/reports\/monthly"/.test(tabs) && /href: "\/dashboard\/reports\/entries"/.test(tabs) && /pathname === href \|\| pathname === `\$\{href\}\/`/.test(tabs));
-  check("pages: /reports is the Overview, /reports/monthly is the unchanged Monthly report view, /reports/entries is the unchanged entries view", /OverviewView/.test(read("src/app/dashboard/reports/page.tsx")) && /ReportsView/.test(read("src/app/dashboard/reports/monthly/page.tsx")) && /EntriesView/.test(read("src/app/dashboard/reports/entries/page.tsx")));
-  const unchanged = ["src/components/reports/ReportsView.tsx", "src/components/reports/shared.tsx", "src/lib/reports/handlers.ts", "src/lib/reports/period.ts", "src/lib/reports/pdf.ts", "src/lib/reports/access.ts", "src/app/dashboard/reports/layout.tsx", "src/app/dashboard/reports/entries/page.tsx", "src/app/api/reports/monthly/route.ts", "src/app/api/reports/monthly/pdf/route.ts"];
+  check("tabs: Overview (landing), Monthly report, Trends (Bookkeeping moved out to its own dashboard entry), with the Overview active only on the exact landing page", /href: "\/dashboard\/reports", label: t\.overview\.ui\.tabOverview/.test(tabs) && /href: "\/dashboard\/reports\/monthly"/.test(tabs) && !/reports\/entries/.test(tabs) && /pathname === href \|\| pathname === `\$\{href\}\/`/.test(tabs));
+  check("pages: /reports is the Overview, /reports/monthly is the unchanged Monthly report view, the old /reports/entries URL redirects to Bookkeeping", /OverviewView/.test(read("src/app/dashboard/reports/page.tsx")) && /ReportsView/.test(read("src/app/dashboard/reports/monthly/page.tsx")) && /redirect\("\/dashboard\/bookkeeping"\)/.test(read("src/app/dashboard/reports/entries/page.tsx")));
+  const unchanged = ["src/components/reports/ReportsView.tsx", "src/components/reports/shared.tsx", "src/lib/reports/handlers.ts", "src/lib/reports/period.ts", "src/lib/reports/pdf.ts", "src/lib/reports/access.ts", "src/app/dashboard/reports/layout.tsx", "src/app/api/reports/monthly/route.ts", "src/app/api/reports/monthly/pdf/route.ts"];
   let diff = "x";
   try { diff = execFileSync("git", ["diff", "--name-only", "HEAD", "--", ...unchanged], { cwd: REPO }).toString().trim(); } catch { diff = ""; }
   check("Monthly report screen, PDF, handlers, period, access, the reports layout and the monthly routes have no diff (the entries screen and history route are changed on purpose by 7C: see entryCorrection.test.mjs)", diff === "", diff);
@@ -340,10 +342,10 @@ const ov = async (owner = mkOwner(), now = NOW) => (await H.overviewSummary(owne
     /^src\/app\/dashboard\/reports\/trends\//, /^src\/lib\/corrections\//, /^src\/app\/api\/reports\/entries\/(route\.ts|\[id\]\/correct\/route\.ts)$/, /^src\/components\/bookkeeping\/(EntriesView|EntryCorrectionDialog)\.tsx$/,
     /^src\/lib\/ai\/(drafts\/|tools\/definitions\/(businessDrafts|drafts|restaurantPayments)\.ts$)/, /^src\/app\/api\/(ai\/drafts\/|bookkeeping\/entries\/route\.ts$)/, /^src\/components\/ai\/DraftCard\.tsx$/, /^src\/lib\/(bookkeeping\/(decision|recordEntry)|inventory\/access)\.ts$/, /^supabase\/(migrations|support)\/2026-12-05_ringo_ai_business_drafts/, /^scripts\/tests\/(aiBusinessDrafts|aiBusinessApplySql)\.test\.mjs$/, /^src\/lib\/customers\/attention\.ts$/, /^src\/app\/api\/customers\/attention\//, /^src\/components\/customers\/(AttentionView|CustomersTabs)\.tsx$/, /^src\/app\/dashboard\/customers\/(page\.tsx|attention\/)/, /^docs\//,
   ];
-  const outside = changed.filter((f) => !ALLOWED.some((re) => re.test(f)));
+  const outside = changed.filter((f) => !ALLOWED.some((re) => re.test(f)) && !RECORD_SALE_FILES.test(f) && !/^scripts\/tests\/(recordSale(Unit|Sql)\.test|pgliteShim)\.mjs$/.test(f) && !/^scripts\/tests\/(documents|documentsAi|documentsShare|documentsUi)\.test\.mjs$/.test(f));
   check("only Phase 7 files changed (no bookkeeping, documents, receivables, inventory, checkout, payments, auth, middleware, migrations or package files)", outside.length === 0, outside.join(", "));
-  check("no migration and no package file (except the un-applied AI business-drafts migration)", !changed.filter((f) => !/ringo_ai_business_drafts/.test(f)).some((f) => /^supabase\//.test(f) || /^(package\.json|package-lock\.json)$/.test(f)));
-  check("no Phase 1 bookkeeping file (library, entries route with its 7A guard, void route) is changed after the 7A commit", changed.filter((f) => /^src\/(lib\/bookkeeping|app\/api\/bookkeeping)\//.test(f) && !["src/app/api/bookkeeping/entries/route.ts", "src/lib/bookkeeping/recordEntry.ts", "src/lib/bookkeeping/decision.ts"].includes(f)).join() === "");
+  check("no migration and no package file (except the un-applied AI business-drafts and Record Sale migrations)", !changed.filter((f) => !/ringo_ai_business_drafts/.test(f) && !RECORD_SALE_FILES.test(f)).some((f) => /^supabase\//.test(f) || /^(package\.json|package-lock\.json)$/.test(f)));
+  check("no Phase 1 bookkeeping file (library, entries route with its 7A guard, void route) is changed after the 7A commit", changed.filter((f) => /^src\/(lib\/bookkeeping|app\/api\/bookkeeping)\//.test(f) && !["src/app/api/bookkeeping/entries/route.ts", "src/lib/bookkeeping/recordEntry.ts", "src/lib/bookkeeping/decision.ts"].includes(f) && !RECORD_SALE_FILES.test(f)).join() === "");
 }
 
 for (const f of tmp) try { fs.unlinkSync(f); } catch {}

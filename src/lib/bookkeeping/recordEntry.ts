@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { rpcErrorResponse } from "./http";
 import { entryIsInvoicePayment } from "./invoicePaymentGuard";
+import { entryIsSaleReceipt } from "./saleReceiptGuard";
 import { currencyMinorDigits, minorToAmountString } from "./money";
 import { DEFAULT_TIME_ZONE, toLocalDateKey, validateEntryInput } from "./summary";
 
@@ -34,6 +35,10 @@ export async function recordEntry(owner: RecordEntryOwner, body: Record<string, 
     const linked = await entryIsInvoicePayment(owner.admin, body.replaces_entry_id);
     if (linked === "yes") return fail(409, { error: "entry_linked_to_invoice_payment" });
     if (linked === "unknown") return fail(500, { error: "internal_error" });
+    // Record Sale invariant: the bookkeeping sale of a sale receipt is never replaced on its own
+    const saleLink = await entryIsSaleReceipt(owner.admin, body.replaces_entry_id);
+    if (saleLink === "yes") return fail(409, { error: "entry_linked_to_sale" });
+    if (saleLink === "unknown") return fail(500, { error: "internal_error" });
   }
 
   const { data, error } = await owner.admin.rpc("bk_record_entry", {
