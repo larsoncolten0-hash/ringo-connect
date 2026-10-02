@@ -105,14 +105,19 @@ export default async function PublicProfilePage({
   // the Meta Conversions API PageView, run together so the CAPI call
   // (a network hop to graph.facebook.com) doesn't add its latency on
   // top of the DB insert's.
+  // The owner previewing their own page is not a visit: skip OUR page-view row for them (isOwner comes
+  // from the signed-in session above). Anonymous and other signed-in visitors are still recorded, and
+  // the click tracking in /api/track is untouched.
   const [trackResult] = await Promise.allSettled([
-    supabase.from("click_events").insert({
-      profile_id: profile.id,
-      target_type: "page",
-      referrer,
-      country,
-      city,
-    }),
+    isOwner
+      ? Promise.resolve({ error: null })
+      : supabase.from("click_events").insert({
+          profile_id: profile.id,
+          target_type: "page",
+          referrer,
+          country,
+          city,
+        }),
     pixelsEnabled
       ? sendMetaPageView(pixelConfig, {
           eventId: pageViewEventId,

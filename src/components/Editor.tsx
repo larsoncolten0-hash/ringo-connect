@@ -131,7 +131,7 @@ function EditorCards({
           initialIconMaskable512Url={profile.avatar_icon_maskable_512_url}
         />
 
-        <ProfileCompletionCard />
+        <ProfileCompletionCard plan={plan} />
 
         <Accordion defaultOpenId={initialSection} className="rounded-[20px] border border-ringo-border/60 bg-ringo-surface px-4 sm:px-5">
           <EditorSection id="category" icon={Tag} title={t.editor.category.title}>

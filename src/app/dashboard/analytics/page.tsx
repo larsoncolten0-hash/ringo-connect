@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AnalyticsView from "@/components/AnalyticsView";
+import { siteBase } from "@/lib/deepLinks";
 
 // See src/app/admin/settings/page.tsx for why this matters.
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function AnalyticsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id")
+    .select("id, username, name")
     .eq("user_id", user.id)
     .single();
 
@@ -53,6 +54,8 @@ export default async function AnalyticsPage() {
       links={links || []}
       products={products || []}
       fullAnalyticsEnabled={fullAnalyticsEnabled}
+      profileUrl={`${siteBase(process.env.NEXT_PUBLIC_SITE_URL)}/${profile.username}`}
+      shareTitle={(profile.name || "").trim() || profile.username}
     />
   );
 }
