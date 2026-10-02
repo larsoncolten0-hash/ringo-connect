@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
@@ -9,6 +9,8 @@ import SaveButton, { type SaveState } from "@/components/dashboard/SaveButton";
 import UnsavedChangesDialog from "@/components/dashboard/UnsavedChangesDialog";
 import { SectionSaveContext, type SectionSaveFn } from "@/components/dashboard/sectionSave";
 import { useSound } from "@/components/SoundProvider";
+import { useEditorPreview } from "@/components/editor/EditorPreviewContext";
+import { createSyncTracker, saveOutcome, showSaveAction } from "@/components/dashboard/sectionSaveState";
 
 // The Editor-specific dropdown row — each existing editor card (Profile,
 // Category, Music & Entertainment, Brand color, WhatsApp, Social Links,
@@ -56,7 +58,8 @@ export default function EditorSection({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { requestClose } = useAccordion();
+  const { requestClose, openId } = useAccordion();
+  const { draft } = useEditorPreview();
   const { play } = useSound();
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -82,6 +85,31 @@ export default function EditorSection({
   // Changes" (true, proceed).
   const resolveGuardRef = useRef<((keepOpen: boolean) => void) | null>(null);
 
+  // Keeps cards' initial values current. Cards initialise from the server snapshot (the `profile`
+  // props) every time they mount, and a closed section unmounts, so after an edit the snapshot must be
+  // re-fetched or a reopened section shows the old values. router.refresh() only swaps those server
+  // props: EditorPreviewProvider keeps its draft in useState(initialProfile) (it ignores later prop
+  // changes) and the accordion keeps its own open state, so neither is reset by it.
+  //   - after a successful Save, refresh right away (the 900 ms close delay hides the latency);
+  //   - when the section closes after anything changed while it was open (draft replaced, or any
+  //     interaction inside it) refresh once. This covers cards that persist on their own, which never
+  //     reach the Save path, and the immediate add/delete actions inside buffered cards.
+  // The bookkeeping lives in createSyncTracker (sectionSaveState.ts) so it can be tested without React.
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const syncRef = useRef<ReturnType<typeof createSyncTracker> | null>(null);
+  if (!syncRef.current) syncRef.current = createSyncTracker();
+  const sync = syncRef.current;
+  const openHere = openId === id;
+  useEffect(() => {
+    if (openHere) {
+      sync.opened(draftRef.current);
+      return;
+    }
+    if (sync.closed(draftRef.current)) router.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openHere]);
+
   const guard = () => {
     if (!dirty) return true;
     return new Promise<boolean>((resolve) => {
@@ -92,6 +120,9 @@ export default function EditorSection({
 
   const handleSave = async () => {
     if (saveState === "saving") return;
+    // No card in this section registered a save handler: there is nothing for this button to persist,
+    // so never run a "save" (and never report one). The button is hidden in that case anyway.
+    if (saversRef.current.size === 0) return;
     // Commits whatever the user was mid-typing, then waits a tick so any
     // state update that blur triggers is rendered before the saves read it.
     (document.activeElement as HTMLElement | null)?.blur?.();
@@ -108,15 +139,19 @@ export default function EditorSection({
       })
     );
 
-    if (results.every(Boolean)) {
+    const outcome = saveOutcome(results);
+    if (outcome === "success") {
       setSaveState("success");
       setDirty(false);
       play("success");
+      // Pull the just-saved values into the server snapshot so reopening shows them, not the old ones.
+      sync.synced(draftRef.current);
+      router.refresh();
       window.setTimeout(() => {
         setSaveState("idle");
         requestClose(id);
       }, 900);
-    } else {
+    } else if (outcome === "error") {
       // Stay open with the edits still in place so the user can retry.
       setSaveState("error");
       window.setTimeout(() => setSaveState("idle"), 2500);
@@ -132,6 +167,7 @@ export default function EditorSection({
   const handleDiscard = () => {
     setShowUnsavedDialog(false);
     setDirty(false);
+    sync.synced(draftRef.current); // the refresh below already re-syncs
     resolveGuardRef.current?.(true);
     resolveGuardRef.current = null;
     // Re-fetches this route's server data and re-renders every card from
@@ -145,14 +181,25 @@ export default function EditorSection({
     <>
       <AccordionItem id={id} icon={icon} title={title} subtitle={subtitle} badge={badge} guard={guard}>
         <SectionSaveContext.Provider value={sectionSave}>
-        <div onChangeCapture={() => setDirty(true)} onInputCapture={() => setDirty(true)} className="flex flex-col gap-5">
+        <div
+          onChangeCapture={() => {
+            setDirty(true);
+            sync.touch();
+          }}
+          onInputCapture={() => {
+            setDirty(true);
+            sync.touch();
+          }}
+          onClickCapture={() => sync.touch()}
+          className="flex flex-col gap-5"
+        >
           {children}
-          {/* Only appears once there's actually something to save. Stays
-              mounted through the saving → success sequence (dirty clears
-              the instant success starts) so that moment is never cut off
+          {/* Only appears when a card in this section registered a save handler (or a save is in
+              flight). Cards that persist on their own never get a Save that would save nothing.
+              Stays mounted through the saving → success sequence so that moment is never cut off
               mid-animation. */}
           <AnimatePresence>
-            {(dirty || saveState !== "idle" || saverCount > 0) && (
+            {showSaveAction({ saverCount, saveState }) && (
               <motion.div
                 initial={{ opacity: 0, y: 6, height: 0 }}
                 animate={{ opacity: 1, y: 0, height: "auto" }}

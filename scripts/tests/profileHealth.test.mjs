@@ -29,7 +29,7 @@ function test(name, fn) {
 const FREE = { max_products: 0, max_links: 5, bookings_feature_enabled: true };
 const PAID = { max_products: 20, max_links: null, bookings_feature_enabled: true };
 const ids = (items) => items.map((i) => i.id);
-const base = { name: "Ama", avatar_url: "x.png", bio: "Hello", whatsapp_number: "+237600000000", social_links: [{}], links: [{}], published: true };
+const base = { name: "Ama", avatar_url: "x.png", bio: "Hello", whatsapp_number: "+237600000000", social_links: [{}], links: [{ url: "https://example.com" }], published: true };
 
 // ------------------------------------------------------------------ universal
 test("0% profile (nothing filled, no category)", () => {
@@ -91,7 +91,7 @@ test("paid plan: catalogue counts for service categories", () => {
   const profile = { ...base, category: "beauty_wellness", about_location: "Douala", about_hours: "9-5" };
   const h = H.computeProfileHealth({ profile, plan: PAID });
   assert.ok(ids(h.missingItems).includes("catalog"));
-  const done = H.computeProfileHealth({ profile: { ...profile, products: [{ image_url: "a" }] }, plan: PAID });
+  const done = H.computeProfileHealth({ profile: { ...profile, products: [{ name: "Item", image_url: "a" }] }, plan: PAID });
   assert.equal(done.percentage, 100);
 });
 
@@ -111,7 +111,7 @@ test("restaurant: menu + location + opening hours, no catalogue", () => {
   assert.deepEqual(ids(h.missingItems).sort(), ["hours", "location", "menuItems"]);
   assert.ok(!ids(h.items).includes("catalog"));
   const done = H.computeProfileHealth({
-    profile: { ...base, category: "restaurant_food", about_location: "Akwa", menu_items: [{ image_url: "p" }], opening_hours: { mon: { open: "08:00", close: "22:00", closed: false } } },
+    profile: { ...base, category: "restaurant_food", about_location: "Akwa", menu_items: [{ name: "Dish", image_url: "p" }], opening_hours: { mon: { open: "08:00", close: "22:00", closed: false } } },
     plan: PAID,
   });
   assert.equal(done.percentage, 100);
@@ -126,8 +126,8 @@ test("music: a track OR a release satisfies the offering; no location/hours/cata
   const p = { ...base, category: "music_entertainment" };
   const none = H.computeProfileHealth({ profile: p, plan: PAID });
   assert.deepEqual(ids(none.missingItems), ["tracks"]);
-  assert.equal(H.computeProfileHealth({ profile: { ...p, music_releases: [{}] }, plan: PAID }).percentage, 100);
-  assert.equal(H.computeProfileHealth({ profile: { ...p, tracks: [{}] }, plan: PAID }).percentage, 100);
+  assert.equal(H.computeProfileHealth({ profile: { ...p, music_releases: [{ title: "EP" }] }, plan: PAID }).percentage, 100);
+  assert.equal(H.computeProfileHealth({ profile: { ...p, tracks: [{ title: "Song" }] }, plan: PAID }).percentage, 100);
 });
 
 test("events category counts events, not a catalogue", () => {
@@ -191,7 +191,7 @@ test("restaurant with no menu is asked for the menu before location/hours", () =
 test("next action changes when state changes", () => {
   const p = { ...base, category: "restaurant_food" };
   const before = H.computeProfileHealth({ profile: p, plan: PAID }).nextAction.id;
-  const after = H.computeProfileHealth({ profile: { ...p, menu_items: [{ image_url: "x" }] }, plan: PAID }).nextAction.id;
+  const after = H.computeProfileHealth({ profile: { ...p, menu_items: [{ name: "Dish", image_url: "x" }] }, plan: PAID }).nextAction.id;
   assert.notEqual(before, after);
   assert.equal(after, "location");
 });
@@ -213,7 +213,7 @@ test("share action is a 'share' action, not a route", () => {
 });
 
 test("never recommends something already complete", () => {
-  const h = H.computeProfileHealth({ profile: { ...base, category: "restaurant_food", menu_items: [{ image_url: "x" }], about_location: "a", opening_hours: { mon: {} } }, plan: PAID });
+  const h = H.computeProfileHealth({ profile: { ...base, category: "restaurant_food", menu_items: [{ name: "Dish", image_url: "x" }], about_location: "a", opening_hours: { mon: {} } }, plan: PAID });
   const completed = new Set(ids(h.completedItems));
   for (const r of h.recommendations.filter((x) => x.kind === "complete")) assert.ok(!completed.has(r.id));
   assert.ok(!ids(h.recommendations).includes("menuPhotos") || h.recommendations.find((r) => r.id === "menuPhotos").kind === "grow");
@@ -245,17 +245,17 @@ test("music with no tracks is asked for music; a professional/beauty page is ask
 // ------------------------------------------------------------------ recommendations
 test("recommendation disappears when its condition is resolved", () => {
   const p = { ...base, category: "restaurant_food", about_location: "a", opening_hours: { mon: {} } };
-  const withoutPhoto = H.computeProfileHealth({ profile: { ...p, menu_items: [{ image_url: null }] }, plan: PAID });
+  const withoutPhoto = H.computeProfileHealth({ profile: { ...p, menu_items: [{ name: "Dish", image_url: null }] }, plan: PAID });
   assert.ok(ids(withoutPhoto.recommendations).includes("menuPhotos"));
-  const withPhoto = H.computeProfileHealth({ profile: { ...p, menu_items: [{ image_url: "pic.png" }] }, plan: PAID });
+  const withPhoto = H.computeProfileHealth({ profile: { ...p, menu_items: [{ name: "Dish", image_url: "pic.png" }] }, plan: PAID });
   assert.ok(!ids(withPhoto.recommendations).includes("menuPhotos"));
 });
 
 test("unsupported features are never recommended", () => {
-  const music = H.computeProfileHealth({ profile: { ...base, category: "music_entertainment", tracks: [{}], menu_items: [{}] }, plan: PAID });
+  const music = H.computeProfileHealth({ profile: { ...base, category: "music_entertainment", tracks: [{ title: "Song" }], menu_items: [{ name: "Dish" }] }, plan: PAID });
   assert.ok(!ids(music.recommendations).includes("menuPhotos"));
   // free plan: no product photos suggestion (catalogue locked)
-  const free = H.computeProfileHealth({ profile: { ...base, category: "business_ecommerce", products: [{ image_url: null }] }, plan: FREE });
+  const free = H.computeProfileHealth({ profile: { ...base, category: "business_ecommerce", products: [{ name: "Item", image_url: null }] }, plan: FREE });
   assert.ok(!ids(free.recommendations).includes("productPhotos"));
   // bookings turned off by the plan
   const noBooking = H.computeProfileHealth({ profile: { ...base, category: "beauty_wellness", bookings_enabled: false }, plan: { ...PAID, bookings_feature_enabled: false } });
@@ -271,10 +271,10 @@ test("unsupported features are never recommended", () => {
 });
 
 test("music: add-release only when tracks exist and releases do not; music gets event suggestion, events category does not", () => {
-  const a = H.computeProfileHealth({ profile: { ...base, category: "music_entertainment", tracks: [{}] }, plan: PAID });
+  const a = H.computeProfileHealth({ profile: { ...base, category: "music_entertainment", tracks: [{ title: "Song" }] }, plan: PAID });
   assert.ok(ids(a.recommendations).includes("addRelease"));
   assert.ok(ids(a.recommendations).includes("addEvent"));
-  const b = H.computeProfileHealth({ profile: { ...base, category: "music_entertainment", tracks: [{}], music_releases: [{}] }, plan: PAID });
+  const b = H.computeProfileHealth({ profile: { ...base, category: "music_entertainment", tracks: [{ title: "Song" }], music_releases: [{ title: "EP" }] }, plan: PAID });
   assert.ok(!ids(b.recommendations).includes("addRelease"));
   const ev = H.computeProfileHealth({ profile: { ...base, category: "events_experiences" }, plan: PAID });
   assert.ok(!ids(ev.recommendations).includes("addEvent"));
@@ -413,7 +413,7 @@ test("every recommendation, checklist and milestone id has wording", () => {
   const { CATEGORY_IDS } = jiti(path.join(SRC, "lib/categories.ts"));
   const emitted = new Set();
   for (const category of CATEGORY_IDS) {
-    const h = H.computeProfileHealth({ profile: { category, products: [{}], menu_items: [{}], tracks: [{}], published: true }, plan: PAID, activity: { totalPageViews: 99 } });
+    const h = H.computeProfileHealth({ profile: { category, products: [{ name: "Item" }], menu_items: [{ name: "Dish" }], tracks: [{ title: "Song" }], published: true }, plan: PAID, activity: { totalPageViews: 99 } });
     h.recommendations.forEach((r) => emitted.add(r.id));
     h.items.forEach((i) => emitted.add(i.id));
   }
@@ -427,6 +427,93 @@ test("catalogue wording uses the category's own bilingual label", () => {
 
 // ------------------------------------------------------------------ wiring: the UI actually uses the logic; nothing sensitive touched
 const read = (f) => fs.readFileSync(path.join(REPO, f), "utf8").replace(/\r\n/g, "\n");
+
+// ------------------------------------------------------------------ blank placeholder rows are not content (Phase 2A)
+// The editor's "Add" inserts an empty row immediately (links: url "https://"; products/menu items: blank name; tracks/releases: blank title).
+const noLinks = { ...base, category: "other", links: [] };
+const missing = (profile, plan = PAID) => ids(H.computeProfileHealth({ profile, plan }).missingItems);
+
+test("usable-URL rule: scheme-only and blank values are placeholders, real targets count", () => {
+  for (const v of ["", "   ", "https://", "http://", "  https://  ", "https:///", null, undefined, 5]) assert.equal(H.hasUsableUrl(v), false, String(v));
+  for (const v of ["https://example.com", "http://a.co/x", "example.com", "mailto:a@b.co", "tel:+237600000000", "  https://a.io  "]) assert.equal(H.hasUsableUrl(v), true, v);
+});
+test("links: an empty row does not count", () => {
+  assert.ok(missing({ ...noLinks, links: [{ title: "", url: "" }] }).includes("links"));
+  assert.ok(missing({ ...noLinks, links: [{}] }).includes("links"));
+});
+test("links: the 'https://' placeholder the editor inserts does not count", () => {
+  assert.ok(missing({ ...noLinks, links: [{ title: "", url: "https://" }] }).includes("links"));
+  assert.ok(missing({ ...noLinks, links: [{ title: "", url: "http://" }, { title: "", url: "https://" }] }).includes("links"));
+});
+test("links: a meaningful row counts, alone or beside blank ones; a title without a usable URL does not", () => {
+  assert.ok(!missing({ ...noLinks, links: [{ title: "", url: "https://example.com" }] }).includes("links"));
+  assert.ok(!missing({ ...noLinks, links: [{ title: "", url: "https://" }, { title: "Shop", url: "https://shop.example" }] }).includes("links"));
+  assert.ok(missing({ ...noLinks, links: [{ title: "My site", url: "https://" }] }).includes("links"));
+});
+test("products: an empty-name row does not count; a named row does (catalogue categories on a paid plan)", () => {
+  const p = { ...base, category: "beauty_wellness", about_location: "Douala", about_hours: "9-5" };
+  assert.ok(missing({ ...p, products: [{ name: "" }] }).includes("catalog"));
+  assert.ok(missing({ ...p, products: [{ name: "   ", image_url: "x.png" }] }).includes("catalog"));
+  assert.ok(!missing({ ...p, products: [{ name: "Braids" }] }).includes("catalog"));
+  assert.ok(!missing({ ...p, products: [{ name: "" }, { name: "Braids" }] }).includes("catalog"));
+});
+test("tracks: an empty-title row does not count; a titled row does", () => {
+  const p = { ...base, category: "music_entertainment" };
+  assert.ok(missing({ ...p, tracks: [{ title: "" }] }).includes("tracks"));
+  assert.ok(!missing({ ...p, tracks: [{ title: "Song" }] }).includes("tracks"));
+});
+test("releases: an empty-title row does not count; a titled row does", () => {
+  const p = { ...base, category: "music_entertainment" };
+  assert.ok(missing({ ...p, music_releases: [{ title: "" }] }).includes("tracks"));
+  assert.ok(!missing({ ...p, music_releases: [{ title: "EP" }] }).includes("tracks"));
+});
+test("menu items: an empty-name row does not count; a named row does", () => {
+  const p = { ...base, category: "restaurant_food", about_location: "Akwa", opening_hours: { mon: { open: "08:00", close: "22:00", closed: false } } };
+  assert.ok(missing({ ...p, menu_items: [{ name: "" }] }).includes("menuItems"));
+  assert.ok(!missing({ ...p, menu_items: [{ name: "Ndolé" }] }).includes("menuItems"));
+  assert.equal(H.computeProfileHealth({ profile: { ...p, menu_items: [{ name: "Ndolé" }] }, plan: PAID }).percentage, 100);
+});
+test("menu categories: an empty category is not content, and categories alone never satisfy the menu criterion", () => {
+  assert.equal(H.meaningfulRows({ menu_categories: [{ name: "" }, { name: "  " }, {}] }).menuCategories.length, 0);
+  assert.equal(H.meaningfulRows({ menu_categories: [{ name: "Starters" }] }).menuCategories.length, 1);
+  const p = { ...base, category: "restaurant_food" };
+  assert.ok(missing({ ...p, menu_categories: [{ name: "" }] }).includes("menuItems"));
+  assert.ok(missing({ ...p, menu_categories: [{ name: "Starters" }] }).includes("menuItems"), "no criterion counts categories");
+});
+test("blank rows add no photo / release suggestions either (they are not items)", () => {
+  const food = H.computeProfileHealth({ profile: { ...base, category: "restaurant_food", about_location: "a", opening_hours: { mon: {} }, menu_items: [{ name: "", image_url: null }] }, plan: PAID });
+  assert.ok(!ids(food.recommendations).includes("menuPhotos"));
+  const shop = H.computeProfileHealth({ profile: { ...base, category: "business_ecommerce", products: [{ name: "" }] }, plan: PAID });
+  assert.ok(!ids(shop.recommendations).includes("productPhotos"));
+  const music = H.computeProfileHealth({ profile: { ...base, category: "music_entertainment", tracks: [{ title: "" }] }, plan: PAID });
+  assert.ok(!ids(music.recommendations).includes("addRelease"));
+  const real = H.computeProfileHealth({ profile: { ...base, category: "restaurant_food", menu_items: [{ name: "Ndolé", image_url: null }] }, plan: PAID });
+  assert.ok(ids(real.recommendations).includes("menuPhotos"), "a real item without a photo still gets the suggestion");
+});
+test("scoring is read-only: the input rows are not modified", () => {
+  const profile = { ...base, category: "restaurant_food", menu_items: [{ name: "", image_url: null }], links: [{ url: "https://" }] };
+  const before = JSON.stringify(profile);
+  H.computeProfileHealth({ profile, plan: PAID });
+  H.countOffering(profile);
+  assert.equal(JSON.stringify(profile), before);
+});
+test("first-item milestone: blank rows do not trigger it; meaningful items do", () => {
+  const firstItem = (profile) => H.detectMilestones({ published: true, isComplete: false, totalPageViews: 5, offeringCount: H.countOffering(profile) }).find((m) => m.id === "firstOffering").achieved;
+  assert.equal(H.countOffering({ products: [{ name: "" }], menu_items: [{ name: " " }], tracks: [{ title: "" }], music_releases: [{ title: "" }] }), 0);
+  assert.equal(firstItem({ products: [{ name: "" }], menu_items: [{ name: "" }], tracks: [{ title: "" }], music_releases: [{ title: "" }] }), false);
+  assert.equal(firstItem({ products: [{ name: "Item" }] }), true);
+  assert.equal(firstItem({ menu_items: [{ name: "Dish" }] }), true);
+  assert.equal(firstItem({ tracks: [{ title: "Song" }] }), true);
+  assert.equal(firstItem({ music_releases: [{ title: "EP" }] }), true);
+  assert.equal(firstItem({ events: [{ id: 1 }] }), true);
+  assert.equal(H.countOffering({ products: [{ name: "" }, { name: "A" }, { name: "B" }] }), 2);
+});
+test("Home page counts items through countOffering, and selects the columns it needs to judge them", () => {
+  const src = read("src/app/dashboard/home/page.tsx");
+  assert.match(src, /countOffering\(profile\)/);
+  for (const col of ["links\\(id, url\\)", "products\\(id, name", "menu_items\\(id, name", "tracks\\(id, title\\)", "music_releases\\(id, title\\)"]) assert.match(src, new RegExp(col), col);
+});
+
 test("completion card and Home use the shared logic (no scoring in the UI)", () => {
   assert.match(read("src/components/editor/ProfileCompletionCard.tsx"), /computeProfileHealth/);
   assert.match(read("src/app/dashboard/home/page.tsx"), /computeProfileHealth/);

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { siteBase } from "@/lib/deepLinks";
 import RingoHome, { type HomeActivity } from "@/components/guidance/RingoHome";
-import { computeProfileHealth, detectMilestones } from "@/lib/profileHealth";
+import { computeProfileHealth, countOffering, detectMilestones } from "@/lib/profileHealth";
 
 // Ringo Home: "How is my Ringo doing, and what should I do next?"
 //
@@ -27,7 +27,7 @@ export default async function RingoHomePage() {
     supabase
       .from("profiles")
       .select(
-        "*, social_links(id), links(id), products(id, image_url), menu_items(id, image_url), tracks(id), music_releases(id), events(id)"
+        "*, social_links(id), links(id, url), products(id, name, image_url), menu_items(id, name, image_url), tracks(id, title), music_releases(id, title), events(id)"
       )
       .eq("user_id", user.id)
       .single(),
@@ -62,8 +62,8 @@ export default async function RingoHomePage() {
   const plan = (userRow?.plans as any) ?? null;
   const health = computeProfileHealth({ profile, plan, activity });
 
-  const len = (v: unknown) => (Array.isArray(v) ? v.length : 0);
-  const offeringCount = len(profile.products) + len(profile.menu_items) + len(profile.tracks) + len(profile.music_releases) + len(profile.events);
+  // Blank placeholder rows (an "Add" that was never filled in) are not items.
+  const offeringCount = countOffering(profile);
   const milestones = detectMilestones({
     published: profile.published !== false,
     isComplete: health.isComplete,

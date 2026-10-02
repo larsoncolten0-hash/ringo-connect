@@ -48,11 +48,12 @@ export interface HealthProfile {
   published?: boolean | null;
   bookings_enabled?: boolean | null;
   social_links?: unknown[] | null;
-  links?: unknown[] | null;
-  products?: { image_url?: string | null }[] | null;
-  menu_items?: { image_url?: string | null }[] | null;
-  tracks?: unknown[] | null;
-  music_releases?: unknown[] | null;
+  links?: { url?: string | null }[] | null;
+  products?: { name?: string | null; image_url?: string | null }[] | null;
+  menu_items?: { name?: string | null; image_url?: string | null }[] | null;
+  menu_categories?: { name?: string | null }[] | null;
+  tracks?: { title?: string | null }[] | null;
+  music_releases?: { title?: string | null }[] | null;
   events?: unknown[] | null;
 }
 

@@ -24,19 +24,19 @@ export function fromMissingItems(items: HealthItem[]): Recommendation[] {
     }));
 }
 
-const withoutImage = (rows: { image_url?: string | null }[] | null | undefined) =>
-  (rows || []).filter((r) => !(typeof r?.image_url === "string" && r.image_url.trim())).length;
+const withoutImage = (rows: Array<Record<string, unknown> | null | undefined>) =>
+  rows.filter((r) => !(typeof r?.image_url === "string" && r.image_url.trim())).length;
 
 export function growthRecommendations(c: Ctx, activity?: HealthActivity | null): Recommendation[] {
   const out: Recommendation[] = [];
   const { p } = c;
 
   // Restaurant: photos help people choose what to order.
-  if (c.isFood && count(p.menu_items) > 0 && withoutImage(p.menu_items) > 0) {
+  if (c.isFood && withoutImage(c.rows.menuItems) > 0) {
     out.push({ id: "menuPhotos", kind: "grow", journey: "offer", priority: 40, href: "/dashboard?section=menu", action: "link" });
   }
   // Catalogue (only where the plan unlocks it): products without a picture.
-  if (c.catalogAllowed && !c.isFood && count(p.products) > 0 && withoutImage(p.products) > 0) {
+  if (c.catalogAllowed && !c.isFood && withoutImage(c.rows.products) > 0) {
     out.push({
       id: "productPhotos",
       kind: "grow",
@@ -48,7 +48,7 @@ export function growthRecommendations(c: Ctx, activity?: HealthActivity | null):
     });
   }
   // Music: tracks exist but no release (EP / album) yet.
-  if (c.isMusic && count(p.tracks) > 0 && count(p.music_releases) === 0) {
+  if (c.isMusic && c.rows.tracks.length > 0 && c.rows.releases.length === 0) {
     out.push({ id: "addRelease", kind: "grow", journey: "offer", priority: 44, href: "/dashboard?section=releases", action: "link" });
   }
   // Bookings: a real feature for this category, allowed by the plan, and not switched on yet.

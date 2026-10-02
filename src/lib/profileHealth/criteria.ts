@@ -35,6 +35,42 @@ export function groupOf(category: string | null | undefined): CategoryGroup {
 export const count = (v: unknown): number => (Array.isArray(v) ? v.length : 0);
 export const filled = (v: unknown): boolean => typeof v === "string" && v.trim().length > 0;
 
+// "Add" in the editor inserts an EMPTY row straight away (links get url "https://", products/menu items
+// a blank name, tracks/releases a blank title) so the user can fill it in. An empty placeholder is not
+// content: only a row with something a visitor could actually see counts. Read-time only, nothing is
+// deleted or changed.
+
+/** A usable URL: more than just a scheme. "https://", "http://" and blanks are placeholders. */
+export function hasUsableUrl(v: unknown): boolean {
+  if (!filled(v)) return false;
+  return (v as string).trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/^\/+/, "").length > 0;
+}
+
+type Row = Record<string, unknown> | null | undefined;
+const rowsWith = (rows: unknown, test: (r: Row) => boolean): Row[] => (Array.isArray(rows) ? (rows as Row[]).filter(test) : []);
+const hasText = (key: string) => (r: Row) => filled(r?.[key]);
+
+/** The rows of each user-added list that carry real content. */
+export function meaningfulRows(p: HealthProfile) {
+  return {
+    links: rowsWith(p.links, (r) => hasUsableUrl(r?.url)),
+    products: rowsWith(p.products, hasText("name")),
+    menuItems: rowsWith(p.menu_items, hasText("name")),
+    menuCategories: rowsWith(p.menu_categories, hasText("name")),
+    tracks: rowsWith(p.tracks, hasText("title")),
+    releases: rowsWith(p.music_releases, hasText("title")),
+  };
+}
+
+/**
+ * Items the owner has really added (products + menu items + tracks + releases with content, plus
+ * events). Blank placeholder rows do not count. Feeds the "first item" milestone.
+ */
+export function countOffering(p: HealthProfile): number {
+  const m = meaningfulRows(p);
+  return m.products.length + m.menuItems.length + m.tracks.length + m.releases.length + count(p.events);
+}
+
 /** Restaurants store hours as { mon: { open, close, closed }, … } — "set" means at least one day was saved. */
 function hasOpeningHours(v: unknown): boolean {
   return !!v && typeof v === "object" && Object.keys(v as object).length > 0;
@@ -52,6 +88,8 @@ export interface Ctx {
   catalogAllowed: boolean;
   linksAllowed: boolean;
   catalogLabel?: Bilingual;
+  /** Rows that carry real content (see meaningfulRows). */
+  rows: ReturnType<typeof meaningfulRows>;
 }
 
 export function buildContext(input: HealthInput): Ctx {
@@ -69,6 +107,7 @@ export function buildContext(input: HealthInput): Ctx {
     catalogAllowed: plan?.max_products !== 0,
     linksAllowed: plan?.max_links !== 0,
     catalogLabel: getCategory(category)?.defaults.catalogLabel ?? undefined,
+    rows: meaningfulRows(p),
   };
 }
 
@@ -90,8 +129,8 @@ const CRITERIA: CriterionDef[] = [
   { id: "avatar", stage: "create", priority: 10, href: () => "/dashboard", applies: () => true, met: (c) => filled(c.p.avatar_url) },
   { id: "category", stage: "create", priority: 15, href: () => section("category"), applies: () => true, met: (c) => filled(c.p.category) },
   { id: "bio", stage: "create", priority: 20, href: () => "/dashboard", applies: () => true, met: (c) => filled(c.p.bio) },
-  { id: "menuItems", stage: "offer", priority: 24, href: () => section("menu"), applies: (c) => c.isFood, met: (c) => count(c.p.menu_items) > 0 },
-  { id: "tracks", stage: "offer", priority: 24, href: () => section("tracks"), applies: (c) => c.isMusic, met: (c) => count(c.p.tracks) > 0 || count(c.p.music_releases) > 0 },
+  { id: "menuItems", stage: "offer", priority: 24, href: () => section("menu"), applies: (c) => c.isFood, met: (c) => c.rows.menuItems.length > 0 },
+  { id: "tracks", stage: "offer", priority: 24, href: () => section("tracks"), applies: (c) => c.isMusic, met: (c) => c.rows.tracks.length > 0 || c.rows.releases.length > 0 },
   { id: "events", stage: "offer", priority: 24, href: () => "/dashboard/tickets", applies: (c) => c.isEventsCat, met: (c) => count(c.p.events) > 0 },
   {
     id: "catalog",
@@ -100,7 +139,7 @@ const CRITERIA: CriterionDef[] = [
     href: () => section("catalog"),
     // Only for businesses whose page is built around a catalogue, and only when the plan unlocks it.
     applies: (c) => c.catalogAllowed && !c.isFood && !c.isMusic && !c.isEventsCat && (c.group === "shop" || c.group === "service" || c.group === "creator"),
-    met: (c) => count(c.p.products) > 0,
+    met: (c) => c.rows.products.length > 0,
   },
   { id: "whatsapp", stage: "connect", priority: 30, href: () => section("whatsapp"), applies: () => true, met: (c) => filled(c.p.whatsapp_number) },
   {
@@ -120,7 +159,7 @@ const CRITERIA: CriterionDef[] = [
     met: (c) => (c.isFood ? hasOpeningHours(c.p.opening_hours) : filled(c.p.about_hours)),
   },
   { id: "socials", stage: "connect", priority: 40, href: () => section("social-links"), applies: () => true, met: (c) => count(c.p.social_links) > 0 },
-  { id: "links", stage: "connect", priority: 45, href: () => section("links"), applies: (c) => c.linksAllowed, met: (c) => count(c.p.links) > 0 },
+  { id: "links", stage: "connect", priority: 45, href: () => section("links"), applies: (c) => c.linksAllowed, met: (c) => c.rows.links.length > 0 },
 ];
 
 export function evaluateCriteria(c: Ctx): HealthItem[] {
