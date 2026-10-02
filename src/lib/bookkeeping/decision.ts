@@ -4,8 +4,36 @@ import { profileHasCategory, type CategoryId } from "@/lib/categories";
 // facts are gathered. Kept separate so it can be unit-tested without a server runtime.
 
 /** Categories the toolkit is enabled for. Adding a category later is a one-line change here — the same
- *  modules serve every category; nothing is duplicated. */
-export const BOOKKEEPING_CATEGORIES: readonly CategoryId[] = ["business_ecommerce"];
+ *  modules serve every category; nothing is duplicated.
+ *
+ *  The Toolkit is a FINANCIAL layer (bookkeeping, invoices, payments, receivables, expenses, customers, reports). It is deliberately NOT offered yet for the
+ *  categories whose revenue is owned by another Ringo system, because the Toolkit's totals would leave that revenue out: restaurant_food (restaurant orders),
+ *  music_entertainment (music commerce) and events_experiences (ticketing). Those stay on their own sales tools until their semantics are reviewed.
+ *  The model-facing meaning of each category lives in src/lib/ai/business/categories.ts (a test keeps the two in step). */
+export const BOOKKEEPING_CATEGORIES: readonly CategoryId[] = [
+  "business_ecommerce",
+  "professional_services",
+  "freelancers_creators",
+  "beauty_wellness",
+  "construction_home_services",
+  "real_estate",
+  "agriculture_agribusiness",
+  "education_training",
+  "travel_hospitality",
+  "creative_media",
+  "transport_logistics",
+  "health_medical",
+];
+
+/** Stock tracking (Phase 4) is enforced for Business & E-commerce profiles by the database functions themselves (inv_start_tracking raises category_not_enabled
+ *  for any other category), so the Inventory screens and the Ringo AI stock tools/drafts are offered only here until a migration widens that SQL check. */
+export const INVENTORY_CATEGORIES: readonly CategoryId[] = ["business_ecommerce"];
+
+/** Pure: whether a profile's categories include one with stock tracking. */
+export function categoryHasInventory(profile: { category?: string | null; categories?: string[] | null } | null | undefined): boolean {
+  if (!profile) return false;
+  return INVENTORY_CATEGORIES.some((c) => profileHasCategory(profile as any, c));
+}
 
 export type BookkeepingDenial = "not_signed_in" | "no_profile" | "not_owner" | "demo_profile" | "category_not_enabled" | "plan_not_enabled";
 

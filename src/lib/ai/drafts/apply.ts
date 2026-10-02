@@ -105,7 +105,7 @@ export async function applyDraft(workspace: AiWorkspace, draftId: string, revisi
     const gate = def.availability(facts, payload);
     if (!gate.ok) return await fail(gate.reason);
 
-    const result = await def.apply(db, workspace, { payload, base: claim.base, targetId: claim.target_id as string }, facts);
+    const result = await def.apply(db, workspace, { payload, base: claim.base, targetId: claim.target_id as string }, facts, { conversationId: owned.conversation_id });
     if (!result.ok) return await fail(result.code);
 
     const row = await finishDraft(workspace, draftId, { status: "applied", resultId: result.resultId });

@@ -27,6 +27,12 @@ const STATUS: Record<string, number> = {
   facts_unavailable: 503,
   claim_failed: 503,
   write_failed: 500,
+  // Business Toolkit drafts
+  business_unavailable: 403,
+  target_not_found: 409,
+  amount_exceeds_balance: 409,
+  duplicate_customer: 409,
+  rejected_by_rules: 422,
 };
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {

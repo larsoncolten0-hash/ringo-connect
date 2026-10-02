@@ -20,6 +20,12 @@ export const DRAFT_TYPES = [
   "track.update",
   "menu_item.update",
   "menu_item.create",
+  // Business Toolkit drafts (Ringo AI x Business Toolkit, Phase B/C): applied through the Toolkit's own server functions after the owner's click.
+  "bk.entry.create",
+  "bk.invoice.create",
+  "bk.invoice.payment",
+  "bk.customer.create",
+  "bk.stock.adjust",
 ] as const;
 export type DraftType = (typeof DRAFT_TYPES)[number];
 
@@ -35,7 +41,12 @@ export type DraftRejection =
   | "feature_unavailable"
   | "plan_limit_reached"
   | "date_in_past"
-  | "facts_unavailable";
+  | "facts_unavailable"
+  // Business Toolkit drafts
+  | "target_not_found"
+  | "ambiguous_target"
+  | "amount_exceeds_balance"
+  | "not_tracked";
 
 /** Why a confirmed draft couldn't be applied — shown to the owner (translated). */
 export type ApplyFailure =
@@ -44,7 +55,13 @@ export type ApplyFailure =
   | "plan_limit_reached"
   | "invalid_payload"
   | "facts_unavailable"
-  | "write_failed";
+  | "write_failed"
+  // Business Toolkit drafts
+  | "business_unavailable"
+  | "target_not_found"
+  | "amount_exceeds_balance"
+  | "duplicate_customer"
+  | "rejected_by_rules";
 
 export type SessionDb = ReturnType<typeof createClient>;
 
@@ -61,6 +78,8 @@ export interface DraftFacts {
   maxProducts: number | null;
   productCount: number;
   eventCount: number;
+  /** Business Toolkit category + a plan with ai_enabled AND business_toolkit_enabled; false when unreadable. Business drafts need it (re-checked again at apply). */
+  businessToolkitAi?: boolean;
 }
 
 export interface DraftValidationContext {
@@ -76,7 +95,7 @@ export type ValidationResult<P> = { ok: true; payload: P } | { ok: false; reason
 /** One row of the review card. Values are raw; the UI formats them per `kind` in the owner's language. */
 export interface DraftChange {
   field: string;
-  kind: "text" | "longtext" | "category" | "categories" | "music_role" | "restaurant_subcategory" | "phone" | "email" | "price" | "date" | "image";
+  kind: "enum" | "text" | "longtext" | "category" | "categories" | "music_role" | "restaurant_subcategory" | "phone" | "email" | "price" | "date" | "image";
   before: unknown;
   after: unknown;
   /** Text Ringo AI wrote (bio, descriptions) — labelled as AI-written on the card. */
@@ -89,6 +108,11 @@ export interface StoredDraftForApply<P> {
   payload: P;
   base: Record<string, unknown> | null;
   targetId: string;
+}
+
+/** Server-only services handed to apply() in addition to the owner's session client. Business Toolkit drafts use the toolkit's own gate and server functions; they never get raw access. */
+export interface DraftServices {
+  conversationId: string;
 }
 
 export interface DraftDefinition<P> {
@@ -109,7 +133,7 @@ export interface DraftDefinition<P> {
   /** Names of the fields the draft touches — the only draft detail written to the audit trail. */
   fieldNames: (payload: P) => string[];
   /** Performs the write through the owner's session client (RLS applies). */
-  apply: (db: SessionDb, workspace: AiWorkspace, draft: StoredDraftForApply<P>, facts: DraftFacts) => Promise<ApplyResult>;
+  apply: (db: SessionDb, workspace: AiWorkspace, draft: StoredDraftForApply<P>, facts: DraftFacts, services?: DraftServices) => Promise<ApplyResult>;
   /** Where the owner continues in the existing Dashboard after applying. */
   reviewPath: (resultId: string | null) => string;
 }

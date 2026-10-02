@@ -8,10 +8,12 @@ import { getMyRestaurantSummary } from "./definitions/restaurantSummary";
 import { getMyEventsSummary } from "./definitions/eventsSummary";
 import { getMyBookingsSummary } from "./definitions/bookingsSummary";
 import { getMyConnectSummary } from "./definitions/connectSummary";
+import { getMyRestaurantPayments } from "./definitions/restaurantPayments";
 import { getMyRestaurantSales } from "./definitions/restaurantSales";
 import { getMyMusicSales } from "./definitions/musicSales";
 import { getMyEventSales } from "./definitions/eventSales";
 import { BUSINESS_AI_TOOLS } from "./definitions/business";
+import { BUSINESS_DRAFT_TOOLS } from "./definitions/businessDrafts";
 import { lookupRingoHelp } from "./definitions/lookupHelp";
 import { getSetupOptions } from "./definitions/setupOptions";
 import {
@@ -45,10 +47,13 @@ export const AI_TOOLS: readonly AiTool<any>[] = [
   getMyBookingsSummary,
   getMyConnectSummary,
   getMyRestaurantSales,
+  getMyRestaurantPayments,
   getMyMusicSales,
   getMyEventSales,
   // Business Toolkit read tools (Phase A): offered only to Business Toolkit workspaces and re-gated on the server when they run.
   ...BUSINESS_AI_TOOLS,
+  // Business Toolkit DRAFT tools (Phase B/C): they only prepare a review card; the owner's Confirm & Apply click applies it through the Toolkit's own functions.
+  ...BUSINESS_DRAFT_TOOLS,
   lookupRingoHelp,
   getSetupOptions,
   createProfileDraft,

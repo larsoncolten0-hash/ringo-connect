@@ -2,7 +2,9 @@ import { currencyMinorDigits } from "@/lib/bookkeeping/money";
 import { listCustomers } from "@/lib/customers/handlers";
 import { deriveTotals, statementTruncation } from "@/lib/customers/profile";
 import { inventoryOverview } from "@/lib/inventory/handlers";
+import { categoryNotes, initials, minimizeNames } from "@/lib/ai/business/categories";
 import { requireBusinessAi } from "@/lib/ai/business/gate";
+import { categoryHasInventory } from "@/lib/bookkeeping/decision";
 import { BUSINESS_PERIODS, isBusinessPeriodKind, resolveBusinessPeriod, type BusinessPeriodKind } from "@/lib/ai/business/period";
 import { overviewSummary } from "@/lib/overview/handlers";
 import { LIGHT_SECTIONS, buildTrends, buildYtd, TREND_METRICS, type Comparison } from "@/lib/overview/trends";
@@ -27,6 +29,11 @@ const SOURCE_NOTE = "Figures come from the owner's Business Toolkit records (boo
 
 type Owner = Parameters<typeof overviewSummary>[0];
 const ownerOf = (o: unknown) => o as Owner;
+
+/** The categories of the page this request runs for (from the server-built snapshot). */
+const shapeOf = (ctx: AiToolContext) => ({ category: ctx.snapshot.profile.category, categories: ctx.snapshot.profile.categories });
+/** Category registry flag: customer names are reduced to initials for this page (health: financial layer only). */
+const shownName = (ctx: AiToolContext, name: string | null | undefined): string | null => (minimizeNames(shapeOf(ctx)) ? initials(name) : clipText(name, 80));
 
 async function gate(ctx: AiToolContext) {
   return requireBusinessAi(ctx);
@@ -117,6 +124,7 @@ export const getBusinessSummary: AiTool<Record<string, never>> = {
         orders_currently_marked_refunded: o.refundedOrders.count,
       },
       definitions: DEFINITIONS,
+      category_notes: categoryNotes(shapeOf(ctx)),
     };
   },
 };
@@ -173,6 +181,7 @@ export const getSales: AiTool<{ period: BusinessPeriodKind; from: string | null;
       online_sales: { gross: major(r.online.grossMinor, c), ringo_commission: major(r.online.commissionMinor, c), net_seller_earnings: major(r.online.netMinor, c), net_not_yet_paid_out: major(r.online.netNotYetPaidOutMinor, c) },
       left_out_of_the_figures: { voided_entries: r.exclusions.voidedEntries, records_in_other_currencies: r.exclusions.otherCurrency, orders_currently_marked_refunded: r.refundedOrders.count },
       definitions: DEFINITIONS,
+      category_notes: categoryNotes(shapeOf(ctx)),
     };
   },
 };
@@ -316,7 +325,7 @@ export const getOutstandingInvoices: AiTool<{ only_overdue: boolean; limit: numb
         not_linked_to_a_customer: { open_invoices: c.unassigned.invoice_count, outstanding: major(c.unassigned.outstanding_minor, c.currency) },
       })),
       invoices: (list.body.items as any[]).map((i) => ({
-        customer: clipText(i.customer_name, 80) ?? "(not linked to a customer)",
+        customer: shownName(ctx, i.customer_name) ?? "(not linked to a customer)",
         invoice: i.number,
         status: i.status,
         issued: i.issue_date,
@@ -371,7 +380,7 @@ export const getCustomerStatement: AiTool<{ person_name: string }> = {
     if (!chosen) {
       return {
         status: "ambiguous",
-        matches: items.map((i) => ({ name: clipText(i.name, 80), archived: i.archived })),
+        matches: items.map((i) => ({ name: shownName(ctx, i.name), archived: i.archived })),
         total_matches: found.body.total ?? items.length,
         identical_names: exact.length > 1,
         note: exact.length > 1 ? "Several customers have exactly this name. Ask the user to tell them apart, or to open the customer in Customers." : "Several customers match. Ask the user which one they mean; do not guess.",
@@ -390,7 +399,7 @@ export const getCustomerStatement: AiTool<{ person_name: string }> = {
       status: "ok",
       source: "business_toolkit_customer_statement",
       note: "Payments received are what the business recorded on this customer's invoices; they are not revenue figures. Amounts are per currency.",
-      customer: { name: clipText(s.customer.name, 80), archived: s.customer.archived === true },
+      customer: { name: shownName(ctx, s.customer.name), archived: s.customer.archived === true },
       totals_per_currency: totals.map((t) => ({
         currency: t.currency,
         invoiced: major(t.invoiced_minor, t.currency),
@@ -433,7 +442,7 @@ export const getInventory: AiTool<{ name: string | null; limit: number }> = {
     "Stock from the Business Toolkit inventory: counts of tracked products by state (out of stock, low, in stock), and either the products matching a name ('how many T-shirts do I have') or the first tracked products. Only products whose stock the owner chose to track have a reliable count. Use get_low_stock for 'what is running low'.",
   kind: "read",
   permission: "reports.view",
-  available: (s) => s.businessToolkitAi,
+  available: (s) => s.businessToolkitAi && categoryHasInventory({ category: s.profile.category, categories: s.profile.categories }),
   inputSchema: {
     type: "object",
     properties: {
@@ -502,7 +511,7 @@ export const getLowStock: AiTool<{ limit: number }> = {
     "Products that are out of stock or at/below their own low-stock threshold (each product's threshold is set by the owner; the default is 5). Out-of-stock products come first. Use it for 'what is low in stock' and 'what do I need to restock'.",
   kind: "read",
   permission: "reports.view",
-  available: (s) => s.businessToolkitAi,
+  available: (s) => s.businessToolkitAi && categoryHasInventory({ category: s.profile.category, categories: s.profile.categories }),
   inputSchema: {
     type: "object",
     properties: { limit: { type: "number", description: "How many products per list (1-15). The server clamps this." } },

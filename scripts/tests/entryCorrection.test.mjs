@@ -150,7 +150,7 @@ const monthReport = async (o, y, m) => B.buildMonthlyReport({ ...o, supabase: ma
   const cat = ctx();
   const rc = await run(cat, E.sale, { amount: "5003", category: "Invoice_Payment", client_request_id: RID(34) });
   check("a correction cannot MOVE an entry into the reserved invoice_payment category (400 category_reserved)", rc.status === 400 && rc.body.details[0] === "category_reserved" && cat.rpcLog.length === 0);
-  check("the Phase 7A guard on the generic POST /api/bookkeeping/entries is still in place", /entryIsInvoicePayment\(owner\.admin, body\.replaces_entry_id\)/.test(read("src/app/api/bookkeeping/entries/route.ts")) && /entry_linked_to_invoice_payment/.test(read("src/app/api/bookkeeping/entries/route.ts")));
+  check("the Phase 7A guard on the generic POST /api/bookkeeping/entries is still in place", /entryIsInvoicePayment\(owner\.admin, body\.replaces_entry_id\)/.test(read("src/lib/bookkeeping/recordEntry.ts")) && /entry_linked_to_invoice_payment/.test(read("src/lib/bookkeeping/recordEntry.ts")) && /recordEntry\(owner, body\)/.test(read("src/app/api/bookkeeping/entries/route.ts")));
 }
 
 // ------------------------------------------------------------------------ voided entries, other businesses, ids

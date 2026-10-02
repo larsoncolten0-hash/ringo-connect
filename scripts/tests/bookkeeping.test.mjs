@@ -177,7 +177,7 @@ const S = (id, amount, paidAt, currency = "XAF") => ({ id, source: "product_orde
   eq("other category denied", d({ profile: prof({ category: "restaurant_food" }) }).reason, "category_not_enabled");
   check("secondary category counts", d({ profile: prof({ category: "restaurant_food", categories: ["business_ecommerce"] }) }).ok);
   for (const p of [false, null, undefined]) eq(`plan flag ${p} denied (fail closed)`, d({ planEnabled: p }).reason, "plan_not_enabled");
-  eq("enabled for Business & E-commerce only (initially)", [...BOOKKEEPING_CATEGORIES], ["business_ecommerce"]);
+  eq("enabled for Business & E-commerce plus the finance-layer categories; never restaurant, music or events (they own their revenue)", [...BOOKKEEPING_CATEGORIES], ["business_ecommerce","professional_services","freelancers_creators","beauty_wellness","construction_home_services","real_estate","agriculture_agribusiness","education_training","travel_hospitality","creative_media","transport_logistics","health_medical"]);
 }
 
 // =============================================================== loader: scoping + pagination
@@ -305,7 +305,7 @@ const S = (id, amount, paidAt, currency = "XAF") => ({ id, source: "product_orde
     check(`${f}: authorises through resolveBookkeepingOwner before doing anything`, s.includes("resolveBookkeepingOwner()") && s.indexOf("resolveBookkeepingOwner()") < firstUse);
     check(`${f}: never reads a profile/organization id from the client`, !/body\??\.(profile_id|organization_id|org_id)|searchParams\.get\(["'](profile|org)/i.test(s));
   }
-  check("entries route uses the caller's own profile and user id for the RPC", /p_profile_id: owner\.profile\.id/.test(routes[0][1]) && /p_actor_user_id: owner\.userId/.test(routes[0][1]));
+  { const rec = read("src/lib/bookkeeping/recordEntry.ts"); check("entries route hands the caller's own owner to the shared recordEntry, which uses the caller's own profile and user id for the RPC", /recordEntry\(owner, body\)/.test(routes[0][1]) && /p_profile_id: owner\.profile\.id/.test(rec) && /p_actor_user_id: owner\.userId/.test(rec) && !/body\??\.(profile_id|organization_id)/.test(rec)); }
   check("void route uses the caller's own profile and user id for the RPC", /p_profile_id: owner\.profile\.id/.test(routes[1][1]) && /p_actor_user_id: owner\.userId/.test(routes[1][1]));
   check("summary route uses the owner-scoped (RLS) client, not the service role", /loadBookkeepingSummary\(owner\.supabase/.test(routes[2][1]));
   const acc = strip(read("src/lib/bookkeeping/access.ts"));
@@ -422,7 +422,8 @@ const S = (id, amount, paidAt, currency = "XAF") => ({ id, source: "product_orde
     delete globalThis.__bkOwner;
   }
   const src = strip(read("src/app/api/bookkeeping/entries/route.ts"));
-  check("POST: the guard runs after authorization and validation and before the RPC", src.indexOf("resolveBookkeepingOwner()") < src.indexOf("entryIsInvoicePayment(") && src.indexOf("validateEntryInput(") < src.indexOf("entryIsInvoicePayment(") && src.indexOf("entryIsInvoicePayment(") < src.indexOf('rpc("bk_record_entry"'));
+  const rec2 = strip(read("src/lib/bookkeeping/recordEntry.ts"));
+  check("POST: authorization comes first in the route; in the shared recordEntry the guard runs after validation and before the RPC", src.indexOf("resolveBookkeepingOwner()") < src.indexOf("recordEntry(") && rec2.indexOf("validateEntryInput(") < rec2.indexOf("entryIsInvoicePayment(") && rec2.indexOf("entryIsInvoicePayment(") < rec2.indexOf('rpc("bk_record_entry"'));
 }
 
 console.log(`${pass} passed, ${fail} failed`);

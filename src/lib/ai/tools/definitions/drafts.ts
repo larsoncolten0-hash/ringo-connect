@@ -37,11 +37,15 @@ const HINTS: Record<string, string> = {
   too_many_drafts: "Too many drafts in this conversation. Ask the user to review or discard existing ones first.",
   draft_not_found: "That draft doesn't exist in this conversation.",
   draft_not_editable: "That draft was already applied, discarded or expired — prepare a new one instead.",
+  target_not_found: "No such customer, invoice or product was found in the user's own records. Ask the user to check the name or number; never guess.",
+  ambiguous_target: "Several records match. Ask the user which one they mean (see the names returned); never guess.",
+  amount_exceeds_balance: "The amount is more than what is still owed on that invoice. Tell the user the amount due and ask what to record.",
+  not_tracked: "Stock is not tracked for that product. Tell the user to start tracking it in Inventory first.",
 };
 
-const refuse = (reason: string, fields?: string[]) => ({ ok: false, reason, ...(fields ? { fields } : {}), hint: HINTS[reason] ?? "" });
+export const refuse = (reason: string, fields?: string[], extra?: Record<string, unknown>) => ({ ok: false, reason, ...(fields ? { fields } : {}), ...(extra ?? {}), hint: HINTS[reason] ?? "" });
 
-async function prepareDraft(ctx: AiToolContext, type: DraftType, input: Record<string, unknown>) {
+export async function prepareDraft(ctx: AiToolContext, type: DraftType, input: Record<string, unknown>) {
   if (!ctx.conversationId) return refuse("facts_unavailable");
   const def = DRAFT_DEFINITIONS[type];
   const db = createClient();

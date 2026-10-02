@@ -4,7 +4,7 @@
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import { resolveBookkeepingOwner } from "@/lib/bookkeeping/access";
-import { decideBookkeepingAccess } from "@/lib/bookkeeping/decision";
+import { categoryHasInventory, decideBookkeepingAccess } from "@/lib/bookkeeping/decision";
 
 export async function requireInventoryOwner() {
   const access = await resolveBookkeepingOwner();
@@ -14,6 +14,10 @@ export async function requireInventoryOwner() {
 
 export async function inventoryAvailable(owner: { admin: any; profile: { id: string } }): Promise<boolean> {
   try {
+    // Stock tracking is enforced for Business & E-commerce profiles by the database functions themselves (inv_start_tracking raises category_not_enabled for any
+    // other category), so the Inventory area is not offered to the other Business Toolkit categories (it would be a half-working section).
+    const { data: prof } = await owner.admin.from("profiles").select("category, categories").eq("id", owner.profile.id).maybeSingle();
+    if (!categoryHasInventory(prof as any)) return false;
     const { error } = await owner.admin.from("bk_stock_settings").select("product_id", { head: true, count: "exact" }).eq("profile_id", owner.profile.id).limit(1);
     return !error;
   } catch {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, ArrowRight, CalendarDays, Check, Eye, Loader2, Music, ShoppingBag, Sparkles, UserRound, UtensilsCrossed } from "lucide-react";
+import { AlertCircle, ArrowRight, Boxes, CalendarDays, Check, Eye, Loader2, Music, Receipt, ShoppingBag, Sparkles, UserPlus, UserRound, UtensilsCrossed, Wallet } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, getRestaurantSubcategory } from "@/lib/categories";
 import type { DraftView } from "@/lib/ai/drafts/view";
@@ -22,6 +22,11 @@ const TYPE_ICON = {
   "track.update": Music,
   "menu_item.update": UtensilsCrossed,
   "menu_item.create": UtensilsCrossed,
+  "bk.entry.create": Wallet,
+  "bk.invoice.create": Receipt,
+  "bk.invoice.payment": Receipt,
+  "bk.customer.create": UserPlus,
+  "bk.stock.adjust": Boxes,
 } as const;
 
 export default function DraftCard({ draft, onChange }: { draft: DraftView; onChange: (next: DraftView) => void }) {
@@ -31,9 +36,12 @@ export default function DraftCard({ draft, onChange }: { draft: DraftView; onCha
   const [error, setError] = useState<string | null>(null);
   const Icon = TYPE_ICON[draft.type] ?? Sparkles;
 
-  const format = (kind: DraftChange["kind"], value: unknown): string => {
+  const format = (kind: DraftChange["kind"], value: unknown, field?: string): string => {
     if (value === null || value === undefined || value === "") return kind === "price" ? d.noPrice : d.empty;
     switch (kind) {
+      case "enum":
+        // Business Toolkit drafts: a fixed vocabulary (entry type, payment method, ...) shown in the owner's language
+        return d.enums[field ?? ""]?.[String(value)] ?? String(value);
       case "category":
         return getCategory(String(value))?.label[locale] ?? String(value);
       case "categories":
@@ -144,11 +152,11 @@ export default function DraftCard({ draft, onChange }: { draft: DraftView; onCha
                   ) : (
                     <>
                       {hasBefore && (
-                        <p className="text-xs text-ringo-muted line-through decoration-ringo-muted/50 break-words whitespace-pre-wrap mt-0.5">{format(c.kind, c.before)}</p>
+                        <p className="text-xs text-ringo-muted line-through decoration-ringo-muted/50 break-words whitespace-pre-wrap mt-0.5">{format(c.kind, c.before, c.field)}</p>
                       )}
                       <p className="text-sm text-ringo-text break-words whitespace-pre-wrap mt-0.5 flex gap-1.5">
                         {hasBefore && <ArrowRight size={13} className="shrink-0 mt-1 text-ringo-indigo" />}
-                        <span className="font-medium">{format(c.kind, c.after)}</span>
+                        <span className="font-medium">{format(c.kind, c.after, c.field)}</span>
                       </p>
                     </>
                   )}

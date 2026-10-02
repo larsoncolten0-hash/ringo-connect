@@ -1,7 +1,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getLoyaltyOptions, type LoyaltyAvailability } from "@/lib/loyalty/categories";
 import { profileHasCategory, profileHasTicketing } from "@/lib/categories";
-import { BOOKKEEPING_CATEGORIES } from "@/lib/bookkeeping/decision";
+import { categoryHasToolkit, loadToolkitPlanFlags } from "@/lib/ai/business/eligibility";
 import type { AiWorkspace } from "@/lib/ai/types";
 import { countActiveConnections, countActiveLoyaltyPrograms } from "./scopedCounts";
 
@@ -113,16 +113,6 @@ async function countRows(db: Db, table: string, profileId: string, extra?: (q: a
   return count || 0;
 }
 
-/** The owner's plan flag for the Business Toolkit; false (never throws) when it cannot be read. Separate from the main plan query so that query is unchanged. */
-async function businessToolkitPlanEnabled(userId: string): Promise<boolean> {
-  try {
-    const { data, error } = await createAdminClient().from("users").select("plans(business_toolkit_enabled)").eq("id", userId).maybeSingle();
-    return !error && (data as any)?.plans?.business_toolkit_enabled === true;
-  } catch {
-    return false;
-  }
-}
-
 const clip = (v: unknown, max: number): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
 export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<WorkspaceSnapshot> {
@@ -159,8 +149,7 @@ export async function loadWorkspaceSnapshot(workspace: AiWorkspace): Promise<Wor
   const isMusic = profileHasCategory(categoryShape, "music_entertainment");
   const isRestaurant = profileHasCategory(categoryShape, "restaurant_food");
   const hasTicketing = profileHasTicketing(categoryShape);
-  const businessToolkitAi =
-    BOOKKEEPING_CATEGORIES.some((c) => profileHasCategory(categoryShape, c)) && planRow.ai_enabled === true && (await businessToolkitPlanEnabled(workspace.userId));
+  const businessToolkitAi = categoryHasToolkit(categoryShape) && planRow.ai_enabled === true && (await loadToolkitPlanFlags(workspace.userId)).toolkit;
 
   const [
     links,

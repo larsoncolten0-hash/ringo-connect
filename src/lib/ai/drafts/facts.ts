@@ -1,4 +1,5 @@
 import type { AiWorkspace } from "@/lib/ai/types";
+import { isBusinessToolkitAiEligible } from "@/lib/ai/business/eligibility";
 import type { DraftFacts, SessionDb } from "./types";
 
 // Fresh facts for draft validation, read with the owner's OWN session client
@@ -27,6 +28,8 @@ export async function loadDraftFacts(db: SessionDb, workspace: AiWorkspace): Pro
     maxProducts: typeof plan.max_products === "number" ? plan.max_products : null,
     productCount: productsRes.count ?? 0,
     eventCount: eventsRes.count ?? 0,
+    // a separate fail-closed read so the existing drafts never depend on it
+    businessToolkitAi: await isBusinessToolkitAiEligible(workspace.userId, { category: p.category ?? null, categories: Array.isArray(p.categories) ? p.categories : [] }),
   };
 }
 
