@@ -3,7 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { loadAccountAccess } from "@/lib/auth/accountAccess";
 import { removeStrayOAuthUser } from "@/lib/auth/removeStrayOAuthUser";
-import { hasEmailIdentity, oauthErrorFromParams, resolveDestination, safeInviteToken, type OAuthErrorKey } from "@/lib/auth/oauthLogin";
+import { hasEmailIdentity, oauthErrorFromParams, resolveDestination, safeInviteToken, sameOriginRedirect, type OAuthErrorKey } from "@/lib/auth/oauthLogin";
 
 // Where "Continue with Google / Apple" returns to (Supabase's /auth/v1/callback sends the browser here with a
 // PKCE `code`). OAuth only AUTHENTICATES: this route lets in a person who already has a Ringo account and turns
@@ -74,5 +74,5 @@ export async function GET(request: Request) {
     return toLogin("suspended");
   }
 
-  return NextResponse.redirect(new URL(resolveDestination({ role: access.role, invite, next: params.get("next") }), url.origin));
+  return NextResponse.redirect(sameOriginRedirect(resolveDestination({ role: access.role, invite, next: params.get("next") }), url.origin));
 }

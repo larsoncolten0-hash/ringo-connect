@@ -309,6 +309,109 @@ await test("env: the Apple flag is documented and off by default", () => {
   assert.ok(!/BEGIN (EC |RSA )?PRIVATE KEY|GOCSPX-|eyJhbGciOi/.test(env), "no secret, key or client-secret JWT is committed in the example file");
 });
 
+// ------------------------------------------------------------------ dot-segment / normalization regression (open redirect)
+// The URL parser resolves "." and ".." segments (also as %2e / %2E). A value such as "/.//evil.com" therefore NORMALIZES to
+// "//evil.com", which `new URL(path, origin)` turns into https://evil.com/. These tests assert the property on the real
+// normalized URL, not on the raw string.
+const SITE = "https://ringoconnectltd.com";
+const staysOnSite = (path) => {
+  const u = new URL(path, SITE);
+  return u.origin === SITE && path.startsWith("/") && !path.startsWith("//");
+};
+
+await test("next: dot-segment forms that normalize to a protocol-relative URL are refused (every one of them)", () => {
+  for (const bad of [
+    "/.//evil.com",
+    "/%2e//evil.com",
+    "/%2E%2E//evil.com",
+    "/%2e%2e//evil.com",
+    "/a/..//evil.com",
+    "/a/b/../..//evil.com",
+    "/dashboard/..//evil.com",
+    "/././/evil.com",
+    "/%2e/%2e//evil.com",
+    "/.//",
+    "/..//",
+    "/.//\\evil.com",
+    "/..;/..//evil.com",
+  ])
+    assert.equal(O.safeNextPath(bad), null, bad);
+});
+await test("next: other normalizing forms that stay on the site are accepted ONLY as the safe normalized path", () => {
+  assert.equal(O.safeNextPath("/./"), "/");
+  assert.equal(O.safeNextPath("/./evil.com"), "/evil.com");
+  assert.equal(O.safeNextPath("/dashboard/../admin"), "/admin");
+  assert.equal(O.safeNextPath("/a/b/../c"), "/a/c");
+  assert.equal(O.safeNextPath("/dashboard/../../evil.com"), "/evil.com", "stays a path on this site, never another host");
+  assert.equal(O.safeNextPath("//"), null);
+  assert.equal(O.safeNextPath("///"), null);
+});
+await test("next: percent-encoded slashes and backslashes in the path are refused", () => {
+  for (const bad of ["/%2F%2Fevil.com", "/%2f%2fevil.com", "/%5cevil.com", "/%5Cevil.com", "/a%2F%2Fevil.com", "/a/%5c%5cevil.com"]) assert.equal(O.safeNextPath(bad), null, bad);
+});
+await test("next: ordinary internal paths are accepted unchanged", () => {
+  for (const ok of ["/", "/dashboard", "/dashboard?x=1", "/admin", "/some/internal/path", "/some/internal/path?foo=bar", "/dashboard/shop?group=to_fulfill#x"]) assert.equal(O.safeNextPath(ok), ok, ok);
+});
+await test("next: PROPERTY — for ~10,000 generated paths made of dot-segments, slashes, encodings and hosts, an accepted value never leaves the site", () => {
+  const parts = ["/", "/.", "/..", "/%2e", "/%2E%2E", "/%2e%2e", "//", "/evil.com", "/a", "/dashboard", "?x=1", "#f", "%2F", "%5c", ";", "/..;"];
+  let accepted = 0;
+  let total = 0;
+  const walk = (prefix, depth) => {
+    total++;
+    const r = O.safeNextPath(prefix);
+    if (r !== null) {
+      accepted++;
+      assert.ok(staysOnSite(r), `${JSON.stringify(prefix)} -> ${JSON.stringify(r)} escapes the origin`);
+    }
+    if (depth === 0) return;
+    for (const p of parts) walk(prefix + p, depth - 1);
+  };
+  for (const start of parts) walk(start, 3);
+  assert.ok(total > 10000 && accepted > 100, `total ${total}, accepted ${accepted}`);
+});
+await test("destination: resolveDestination never returns anything that can leave the site, whatever next is", () => {
+  for (const next of ["/.//evil.com", "/%2e//evil.com", "/a/..//evil.com", "//evil.com", "https://evil.com", "/.//"]) {
+    const d = O.resolveDestination({ role: "creator", next });
+    assert.equal(d, "/dashboard", next);
+  }
+  assert.equal(O.resolveDestination({ role: "admin", next: "/./" }), "/");
+});
+await test("redirect guard: sameOriginRedirect keeps same-site targets and replaces anything else with the safe fallback", () => {
+  assert.equal(O.sameOriginRedirect("/dashboard?x=1", SITE).href, `${SITE}/dashboard?x=1`);
+  assert.equal(O.sameOriginRedirect("//evil.com", SITE).href, `${SITE}/dashboard`);
+  assert.equal(O.sameOriginRedirect("https://evil.com/x", SITE).href, `${SITE}/dashboard`);
+  assert.equal(O.sameOriginRedirect("http://[bad", SITE).href, `${SITE}/dashboard`);
+  assert.equal(O.sameOriginRedirect("//evil.com", SITE, "/admin").href, `${SITE}/admin`);
+  assert.equal(O.sameOriginRedirect("https://ringoconnectltd.com.evil.com/", SITE).href, `${SITE}/dashboard`);
+  assert.equal(O.sameOriginRedirect("/team/invite/x", "https://preview-abc.vercel.app").href, "https://preview-abc.vercel.app/team/invite/x");
+});
+await test("callback: for EVERY next value the final redirect stays on the request's origin (and never errors), accepted or not", async () => {
+  fake({ user: EXISTING, row: { role: "creator", status: "active" } });
+  const accepted = { "/": "/", "/dashboard": "/dashboard", "/dashboard?x=1": "/dashboard?x=1", "/admin": "/admin", "/some/internal/path": "/some/internal/path", "/some/internal/path?foo=bar": "/some/internal/path?foo=bar", "/./": "/" };
+  for (const [next, path] of Object.entries(accepted)) {
+    const r = await get(`?code=abc&next=${encodeURIComponent(next)}`);
+    assert.equal(r.location, `https://ringoconnectltd.com${path}`, next);
+  }
+  const hostile = ["/.//evil.com", "/%2e//evil.com", "/%2E%2E//evil.com", "/a/..//evil.com", "/.//", "//", "///", "//evil.com", "https://evil.com", "http://evil.com", "/%2F%2Fevil.com", "/%5cevil.com", "/\\evil.com", "/a\r\nb", "/auth/callback", "/auth/callback?x=1", "javascript:alert(1)", "/" + "a".repeat(700)];
+  for (const next of hostile) {
+    const r = await get(`?code=abc&next=${encodeURIComponent(next)}`);
+    assert.equal(r.status, 307, next);
+    assert.equal(new URL(r.location).origin, "https://ringoconnectltd.com", next);
+    assert.equal(new URL(r.location).pathname, "/dashboard", `${next}: refused values fall back to the role's home`);
+  }
+});
+await test("callback: a preview or proxy origin is respected (the redirect always stays on whatever origin the request came from)", async () => {
+  fake({ user: EXISTING, row: { role: "creator", status: "active" } });
+  const res = await callback.GET(new Request("https://preview-abc.vercel.app/auth/callback?code=abc&next=%2F.%2F%2Fevil.com"));
+  assert.equal(new URL(res.headers.get("location")).origin, "https://preview-abc.vercel.app");
+  assert.equal(new URL(res.headers.get("location")).pathname, "/dashboard");
+});
+await test("callback source: the final redirect goes through the same-origin guard, not a bare new URL(...)", () => {
+  const s = src("src/app/auth/callback/route.ts");
+  assert.match(s, /NextResponse\.redirect\(sameOriginRedirect\(resolveDestination\(/);
+  assert.ok(!/NextResponse\.redirect\(new URL\(resolveDestination/.test(s));
+});
+
 console.log(`\noauthLogin: ${passed} passed, ${failures.length} failed`);
 if (failures.length) {
   console.log("\nFAILURES:\n" + failures.map((f) => " - " + f).join("\n"));

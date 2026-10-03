@@ -46,7 +46,36 @@ export function safeNextPath(value: unknown): string | null {
   }
   if (parsed.origin !== "http://ringo.invalid") return null;
   if (parsed.pathname.startsWith("/auth/callback")) return null;
-  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  // The URL parser has ALREADY resolved dot-segments ("/.", "/..", "/%2e") by now, so "/.//evil.com" has the
+  // pathname "//evil.com". Returning that would hand back a protocol-relative URL that `new URL(path, origin)`
+  // turns into https://evil.com/. A normalized path must therefore never start with a second slash.
+  if (parsed.pathname.startsWith("//")) return null;
+  // A percent-encoded slash or backslash in the path is never a legitimate internal path here, and a proxy or server that
+  // decodes it would turn "/%2F%2Fevil.com" into "//evil.com". Refuse it rather than rely on every hop leaving it encoded.
+  if (/%2f|%5c/i.test(parsed.pathname)) return null;
+  const result = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  // Belt and braces: the exact value we hand back must itself resolve to the same origin.
+  try {
+    if (new URL(result, "http://ringo.invalid").origin !== "http://ringo.invalid") return null;
+  } catch {
+    return null;
+  }
+  return result;
+}
+
+/**
+ * The URL to redirect to: `destination` resolved against `origin`, but only if it really stays on that origin;
+ * otherwise (a different origin, or a value that does not parse) the fallback path on `origin`. The last line of
+ * defence in front of NextResponse.redirect, so nothing upstream can send the browser to another site.
+ */
+export function sameOriginRedirect(destination: string, origin: string, fallback = "/dashboard"): URL {
+  try {
+    const target = new URL(destination, origin);
+    if (target.origin === new URL(origin).origin) return target;
+  } catch {
+    // fall through to the fallback
+  }
+  return new URL(fallback, origin);
 }
 
 /**
