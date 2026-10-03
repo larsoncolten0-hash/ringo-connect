@@ -131,6 +131,8 @@ export default function FanRecognitionHeader({
         <span className="truncate max-w-[120px]">{t.communitySection.fanBadgeLabel(membership.name)}</span>
       </button>
 
+      {/* On a phone the badge sits left of the language and share buttons, so a 256px panel hung from its right edge ran off
+          the left of a 320-360px screen. Below the sm breakpoint the panel is a full-width card just under the header instead. */}
       <AnimatePresence>
         {open && (
           <>
@@ -146,7 +148,7 @@ export default function FanRecognitionHeader({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.97 }}
               transition={{ duration: reduceMotion ? 0 : 0.15 }}
-              className="absolute top-11 right-0 w-64 rounded-2xl overflow-hidden z-20 text-sm outline-none"
+              className="fixed left-4 right-4 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-11 sm:w-64 rounded-2xl overflow-hidden z-20 text-sm outline-none"
               style={{ backgroundColor: "#FFFFFF", boxShadow: "0 16px 40px -12px rgba(0,0,0,0.3)" }}
             >
               <div className="px-3.5 py-3 border-b" style={{ borderColor: "#F3F4F6" }}>

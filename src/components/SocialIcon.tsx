@@ -77,7 +77,7 @@ export default function SocialIcon({
         target="_blank"
         rel="noopener noreferrer"
         aria-label={platform}
-        className="w-10 h-10 flex items-center justify-center rounded-full transition hover:brightness-95 hover:-translate-y-0.5"
+        className="w-11 h-11 flex items-center justify-center rounded-full transition hover:brightness-95 hover:-translate-y-0.5"
         style={{ background: brand.background, color: brand.color }}
       >
         <Icon size={17} />

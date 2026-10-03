@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import Script from "next/script";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
@@ -29,6 +29,7 @@ import { isPublicLink, isPublicMenuItem, isPublicProduct, isPublicRelease, isPub
 import FanRecognitionHeader from "./FanRecognitionHeader";
 import GenericHeroActions from "./GenericHeroActions";
 import { resolveHeroAction } from "@/lib/heroAction";
+import { orderPublicSections, type PublicSection } from "@/lib/sectionOrder";
 import AddToHomeScreen from "./AddToHomeScreen";
 import PublicLanguageSelector from "./PublicLanguageSelector";
 import PoweredByRingo from "./PoweredByRingo";
@@ -253,6 +254,243 @@ export default function ProfileView({
   const firstName = nameParts[0] || "";
   const restName = nameParts.slice(1).join(" ");
 
+  // The content sections below the hero, each built once and placed by lib/sectionOrder.ts: the category decides
+  // which comes first (a shop's products, a clinic's services, a creator's links), Music and Restaurant keep their
+  // long-standing order, and a section with nothing to show is simply not in the list. The editor's live preview
+  // is this same component, so it shows exactly this order too.
+  let aboutHasContent = false;
+  const sections: Record<PublicSection, ReactNode> = {
+    about: (() => {
+            const hasRoleCard = profile.about_position || profile.about_company;
+
+            const extraPhoneRows = (profile.profile_phone_numbers || [])
+              .filter((p: any) => p.phone_number?.trim())
+              .sort((a: any, b: any) => a.sort_order - b.sort_order)
+              .map((p: any) => ({
+                icon: Phone,
+                label: t.profilePage.phone,
+                value: p.phone_number,
+                href: `tel:${p.phone_number.replace(/[^0-9+]/g, "")}`,
+              }));
+
+            const contactRows = [
+              profile.about_email && {
+                icon: Mail,
+                label: t.profilePage.email,
+                value: profile.about_email,
+                href: `mailto:${profile.about_email}`,
+              },
+              profile.about_phone && {
+                icon: Phone,
+                label: t.profilePage.phone,
+                value: profile.about_phone,
+                href: `tel:${profile.about_phone.replace(/[^0-9+]/g, "")}`,
+              },
+              ...extraPhoneRows,
+              profile.about_location && {
+                icon: MapPin,
+                label: t.profilePage.location,
+                value: profile.about_location,
+              },
+              profile.about_hours && {
+                icon: Clock,
+                label: t.profilePage.hours,
+                value: profile.about_hours,
+              },
+            ].filter(Boolean) as { icon: any; label: string; value: string; href?: string }[];
+
+            const isEmpty = !hasRoleCard && contactRows.length === 0;
+            aboutHasContent = !isEmpty;
+
+            if (isEmpty) {
+              return (
+                <p className="text-sm text-center py-8" style={{ opacity: 0.5 }}>
+                  {t.profilePage.noAboutInfo}
+                </p>
+              );
+            }
+
+            return (
+              <div
+                className={`relative overflow-hidden ${radiusClass}`}
+                style={{ border: `1px solid ${contentBorderTint}`, backgroundColor: hexToRgba(contentTextColor, 0.03) }}
+              >
+                {/* Top accent stripe — the "card edge" a real business card has */}
+                <div className="h-1.5 w-full" style={{ backgroundColor: accent }} />
+
+                {/* A quiet nod to the ring motif used as the brand's own
+                    signature elsewhere (the auth pages' pulsing rings) —
+                    subtle enough not to compete with the actual content,
+                    just enough to make this feel like a Ringo Connect
+                    card rather than a generic one. */}
+                <div
+                  className="absolute -top-7 -right-7 w-32 h-32 rounded-full pointer-events-none"
+                  style={{ border: `1.5px solid ${hexToRgba(accent, 0.2)}` }}
+                />
+                <div
+                  className="absolute -top-2 -right-2 w-16 h-16 rounded-full pointer-events-none"
+                  style={{ border: `1.5px solid ${hexToRgba(accent, 0.15)}` }}
+                />
+
+                <div className="relative p-5">
+                  {hasRoleCard && (
+                    <div className="mb-4">
+                      {profile.about_position && (
+                        <p className="text-base font-bold" style={{ color: accent }}>
+                          {profile.about_position}
+                        </p>
+                      )}
+                      {profile.about_company && (
+                        <p className="text-sm mt-0.5" style={{ opacity: 0.7 }}>
+                          {profile.about_company}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {hasRoleCard && contactRows.length > 0 && (
+                    <div className="h-px w-full mb-4" style={{ backgroundColor: contentBorderTint }} />
+                  )}
+
+                  {contactRows.length > 0 && (
+                    <div className="grid sm:grid-cols-2 gap-x-5 gap-y-3.5">
+                      {contactRows.map((item) => {
+                        const inner = (
+                          <>
+                            <item.icon size={15} style={{ color: accent }} className="shrink-0 mt-0.5" />
+                            <div className="min-w-0">
+                              <p className="text-[10px] uppercase tracking-wider" style={{ opacity: 0.5 }}>
+                                {item.label}
+                              </p>
+                              <p className="text-sm font-medium [overflow-wrap:anywhere]">{item.value}</p>
+                            </div>
+                          </>
+                        );
+                        return item.href ? (
+                          <a
+                            key={`${item.label}-${item.value}`}
+                            href={item.href}
+                            className="flex items-start gap-2.5 min-w-0 min-h-[44px] transition hover:opacity-75"
+                          >
+                            {inner}
+                          </a>
+                        ) : (
+                          <div key={`${item.label}-${item.value}`} className="flex items-start gap-2.5 min-w-0">
+                            {inner}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })(),
+    music: isMusic && (
+            <MusicSection
+              t={t}
+              title={musicSectionTitle}
+              tracks={musicTracks}
+              artistName={profile.name || ""}
+              accent={accent}
+              currency={profile.currency || "USD"}
+              whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
+              playingId={playingId}
+              progress={progress}
+              onTogglePlay={togglePlay}
+            />
+          ),
+    releases: isMusic && (
+            <ReleasesSection
+              t={t}
+              releases={releases}
+              username={profile.username}
+              accent={accent}
+              currency={profile.currency || "USD"}
+            />
+          ),
+    links: publicLinks.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h2
+                className={isMusic ? "text-base font-bold flex items-center gap-2" : "text-[11px] uppercase tracking-wider"}
+                style={isMusic ? undefined : { opacity: 0.5 }}
+              >
+                {isMusic && <ExternalLink size={16} style={{ color: accent }} />}
+                {t.profilePage.linksHeading}
+              </h2>
+              {publicLinks
+                .map((link: any) => (
+                  <a
+                    key={link.id}
+                    href={displayHref(link.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => logClick("link", link.id, { name: link.title })}
+                    className={`flex items-center gap-3 p-3 transition hover:brightness-95 hover:-translate-y-0.5 active:scale-[0.98] active:brightness-90 ${radiusClass}`}
+                    style={linkButtonStyle}
+                  >
+                    {link.image_url && (
+                      <img src={link.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold [overflow-wrap:anywhere]">{publicLinkTitle(link)}</p>
+                      {link.description && (
+                        <p className="text-xs line-clamp-2 mt-0.5" style={{ opacity: 0.7 }}>
+                          {link.description}
+                        </p>
+                      )}
+                    </div>
+                    <ChevronRight size={18} className="shrink-0" style={{ opacity: 0.6 }} />
+                  </a>
+                ))}
+            </div>
+          ),
+    catalog: catalogProducts.length > 0 && (
+            <CatalogSection
+              label={catalogLabel}
+              products={catalogProducts}
+              username={profile.username}
+              currency={profile.currency || "USD"}
+              isMusic={isMusic}
+              accent={accent}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              squareCorners={profile.button_radius === "square"}
+              buttonStyle={linkButtonStyle}
+              radiusClass={radiusClass}
+              category={profile.category}
+              bookingEnabled={!!profile.bookings_enabled}
+              restaurantOrdering={isRestaurant && profile.ordering_enabled !== false}
+              checkoutAvailable={!!(profile as any).commerceCheckoutAvailable}
+              isDemo={profile.is_demo === true}
+              preview={preview}
+              onOpen={(product) =>
+                logClick("product", product.id, {
+                  name: product.name,
+                  price: product.price ? Number(product.price) : null,
+                  currency: profile.currency,
+                })
+              }
+            />
+          ),
+    events: hasTicketing && (
+            <EventsSection
+              t={t}
+              events={musicEvents}
+              accent={accent}
+              buttonStyle={linkButtonStyle}
+              whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
+              currency={profile.currency || "USD"}
+            />
+          ),
+  };
+  const sectionOrder = orderPublicSections(
+    { category: profile.category, subcategory: profile.subcategory, isMusic, isRestaurant },
+    { about: aboutHasContent, links: publicLinks.length > 0, catalog: catalogProducts.length > 0, events: hasTicketing && musicEvents.length > 0 }
+  );
+
   return (
     // Framer-motion animations on the public page (menus, sheets, catalogue) follow the visitor's
     // "reduce motion" setting; the CSS entrance animations are covered in globals.css.
@@ -410,10 +648,12 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         </div>
 
         <h1
-          className="font-display text-2xl sm:text-3xl font-bold tracking-tight uppercase mt-3 text-center animate-fade-up flex items-center gap-1.5"
+          className="font-display text-2xl sm:text-3xl font-bold tracking-tight uppercase mt-3 text-center animate-fade-up flex items-center justify-center gap-1.5 max-w-full"
           style={{ animationDelay: "80ms" }}
         >
-          {firstName} {restName && <span style={{ color: accent }}>{restName}</span>}
+          <span className="min-w-0 [overflow-wrap:anywhere]">
+            {firstName} {restName && <span style={{ color: accent }}>{restName}</span>}
+          </span>
           {isMusic && <span className="text-lg" aria-hidden="true">🎵</span>}
           {isVerified && (
             <BadgeCheck
@@ -612,236 +852,9 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             />
           )}
 
-          {(() => {
-            const hasRoleCard = profile.about_position || profile.about_company;
-
-            const extraPhoneRows = (profile.profile_phone_numbers || [])
-              .filter((p: any) => p.phone_number?.trim())
-              .sort((a: any, b: any) => a.sort_order - b.sort_order)
-              .map((p: any) => ({
-                icon: Phone,
-                label: t.profilePage.phone,
-                value: p.phone_number,
-                href: `tel:${p.phone_number.replace(/[^0-9+]/g, "")}`,
-              }));
-
-            const contactRows = [
-              profile.about_email && {
-                icon: Mail,
-                label: t.profilePage.email,
-                value: profile.about_email,
-                href: `mailto:${profile.about_email}`,
-              },
-              profile.about_phone && {
-                icon: Phone,
-                label: t.profilePage.phone,
-                value: profile.about_phone,
-                href: `tel:${profile.about_phone.replace(/[^0-9+]/g, "")}`,
-              },
-              ...extraPhoneRows,
-              profile.about_location && {
-                icon: MapPin,
-                label: t.profilePage.location,
-                value: profile.about_location,
-              },
-              profile.about_hours && {
-                icon: Clock,
-                label: t.profilePage.hours,
-                value: profile.about_hours,
-              },
-            ].filter(Boolean) as { icon: any; label: string; value: string; href?: string }[];
-
-            const isEmpty = !hasRoleCard && contactRows.length === 0;
-
-            if (isEmpty) {
-              return (
-                <p className="text-sm text-center py-8" style={{ opacity: 0.5 }}>
-                  {t.profilePage.noAboutInfo}
-                </p>
-              );
-            }
-
-            return (
-              <div
-                className={`relative overflow-hidden ${radiusClass}`}
-                style={{ border: `1px solid ${contentBorderTint}`, backgroundColor: hexToRgba(contentTextColor, 0.03) }}
-              >
-                {/* Top accent stripe — the "card edge" a real business card has */}
-                <div className="h-1.5 w-full" style={{ backgroundColor: accent }} />
-
-                {/* A quiet nod to the ring motif used as the brand's own
-                    signature elsewhere (the auth pages' pulsing rings) —
-                    subtle enough not to compete with the actual content,
-                    just enough to make this feel like a Ringo Connect
-                    card rather than a generic one. */}
-                <div
-                  className="absolute -top-7 -right-7 w-32 h-32 rounded-full pointer-events-none"
-                  style={{ border: `1.5px solid ${hexToRgba(accent, 0.2)}` }}
-                />
-                <div
-                  className="absolute -top-2 -right-2 w-16 h-16 rounded-full pointer-events-none"
-                  style={{ border: `1.5px solid ${hexToRgba(accent, 0.15)}` }}
-                />
-
-                <div className="relative p-5">
-                  {hasRoleCard && (
-                    <div className="mb-4">
-                      {profile.about_position && (
-                        <p className="text-base font-bold" style={{ color: accent }}>
-                          {profile.about_position}
-                        </p>
-                      )}
-                      {profile.about_company && (
-                        <p className="text-sm mt-0.5" style={{ opacity: 0.7 }}>
-                          {profile.about_company}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {hasRoleCard && contactRows.length > 0 && (
-                    <div className="h-px w-full mb-4" style={{ backgroundColor: contentBorderTint }} />
-                  )}
-
-                  {contactRows.length > 0 && (
-                    <div className="grid sm:grid-cols-2 gap-x-5 gap-y-3.5">
-                      {contactRows.map((item) => {
-                        const inner = (
-                          <>
-                            <item.icon size={15} style={{ color: accent }} className="shrink-0 mt-0.5" />
-                            <div className="min-w-0">
-                              <p className="text-[10px] uppercase tracking-wider" style={{ opacity: 0.5 }}>
-                                {item.label}
-                              </p>
-                              <p className="text-sm font-medium truncate">{item.value}</p>
-                            </div>
-                          </>
-                        );
-                        return item.href ? (
-                          <a
-                            key={`${item.label}-${item.value}`}
-                            href={item.href}
-                            className="flex items-start gap-2.5 transition hover:opacity-75"
-                          >
-                            {inner}
-                          </a>
-                        ) : (
-                          <div key={`${item.label}-${item.value}`} className="flex items-start gap-2.5">
-                            {inner}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
-          {isMusic && (
-            <MusicSection
-              t={t}
-              title={musicSectionTitle}
-              tracks={musicTracks}
-              artistName={profile.name || ""}
-              accent={accent}
-              currency={profile.currency || "USD"}
-              whatsappNumber={profile.whatsapp_number}
-              username={profile.username}
-              playingId={playingId}
-              progress={progress}
-              onTogglePlay={togglePlay}
-            />
-          )}
-
-          {isMusic && (
-            <ReleasesSection
-              t={t}
-              releases={releases}
-              username={profile.username}
-              accent={accent}
-              currency={profile.currency || "USD"}
-            />
-          )}
-
-          {publicLinks.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <h2
-                className={isMusic ? "text-base font-bold flex items-center gap-2" : "text-[11px] uppercase tracking-wider"}
-                style={isMusic ? undefined : { opacity: 0.5 }}
-              >
-                {isMusic && <ExternalLink size={16} style={{ color: accent }} />}
-                {t.profilePage.linksHeading}
-              </h2>
-              {publicLinks
-                .map((link: any) => (
-                  <a
-                    key={link.id}
-                    href={displayHref(link.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => logClick("link", link.id, { name: link.title })}
-                    className={`flex items-center gap-3 p-3 transition hover:brightness-95 hover:-translate-y-0.5 active:scale-[0.98] active:brightness-90 ${radiusClass}`}
-                    style={linkButtonStyle}
-                  >
-                    {link.image_url && (
-                      <img src={link.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{publicLinkTitle(link)}</p>
-                      {link.description && (
-                        <p className="text-xs line-clamp-2 mt-0.5" style={{ opacity: 0.7 }}>
-                          {link.description}
-                        </p>
-                      )}
-                    </div>
-                    <ChevronRight size={18} className="shrink-0" style={{ opacity: 0.6 }} />
-                  </a>
-                ))}
-            </div>
-          )}
-
-          {catalogProducts.length > 0 && (
-            <CatalogSection
-              label={catalogLabel}
-              products={catalogProducts}
-              username={profile.username}
-              currency={profile.currency || "USD"}
-              isMusic={isMusic}
-              accent={accent}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              squareCorners={profile.button_radius === "square"}
-              buttonStyle={linkButtonStyle}
-              radiusClass={radiusClass}
-              category={profile.category}
-              bookingEnabled={!!profile.bookings_enabled}
-              restaurantOrdering={isRestaurant && profile.ordering_enabled !== false}
-              checkoutAvailable={!!(profile as any).commerceCheckoutAvailable}
-              isDemo={profile.is_demo === true}
-              preview={preview}
-              onOpen={(product) =>
-                logClick("product", product.id, {
-                  name: product.name,
-                  price: product.price ? Number(product.price) : null,
-                  currency: profile.currency,
-                })
-              }
-            />
-          )}
-
-          {hasTicketing && (
-            <EventsSection
-              t={t}
-              events={musicEvents}
-              accent={accent}
-              buttonStyle={linkButtonStyle}
-              whatsappNumber={profile.whatsapp_number}
-              username={profile.username}
-              currency={profile.currency || "USD"}
-            />
-          )}
-
+          {sectionOrder.map((key) => (
+            <Fragment key={key}>{sections[key]}</Fragment>
+          ))}
           {supportEnabled && (
             <SupportArtistSection
               t={t}

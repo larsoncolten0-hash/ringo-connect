@@ -70,7 +70,7 @@ export default function EventsSection({
             return (
               <div
                 key={event.id}
-                className="relative overflow-hidden rounded-2xl p-3 flex items-center gap-3"
+                className="relative overflow-hidden rounded-2xl p-3 flex flex-wrap items-center gap-3"
                 style={{ backgroundColor: CARD_BG, color: CARD_TEXT }}
               >
                 {/* Every event gets a detail page (see EventDetail's
@@ -102,8 +102,8 @@ export default function EventsSection({
                   )}
                 </a>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{event.title}</p>
+                <div className="flex-1 min-w-[9rem]">
+                  <p className="text-sm font-semibold line-clamp-2 [overflow-wrap:anywhere]">{event.title}</p>
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5 text-xs" style={{ opacity: 0.65 }}>
                     {event.location && (
                       <span className="flex items-center gap-1">
@@ -132,7 +132,7 @@ export default function EventsSection({
                 {href && (
                   <a
                     href={href}
-                    className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full transition hover:brightness-95 active:scale-95"
+                    className="shrink-0 ml-auto inline-flex items-center min-h-[44px] text-xs font-semibold px-3.5 py-2 rounded-full transition hover:brightness-95 active:scale-95"
                     style={{ backgroundColor: accent, color: "#171009" }}
                   >
                     {primary ? t.music.viewTicketsButton : t.music.getTicket}

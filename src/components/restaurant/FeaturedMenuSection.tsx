@@ -36,7 +36,7 @@ export default function FeaturedMenuSection({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold">{t.restaurant.featuredMenuTitle}</h2>
-        <a href={`/r/${username}`} className="text-sm font-medium flex items-center gap-1" style={{ color: accent }}>
+        <a href={`/r/${username}`} className="text-sm font-medium flex items-center gap-1 min-h-[44px]" style={{ color: accent }}>
           {t.restaurant.viewAllMenu}
           <ArrowRight size={13} />
         </a>
@@ -60,7 +60,7 @@ export default function FeaturedMenuSection({
               <div className="w-full aspect-square" style={{ backgroundColor: borderTint }} />
             )}
             <div className="p-2">
-              <p className="text-xs font-semibold truncate">{item.name}</p>
+              <p className="text-xs font-semibold line-clamp-2 [overflow-wrap:anywhere]">{item.name}</p>
               <p className="text-xs font-bold mt-0.5" style={{ color: accent }} suppressHydrationWarning>
                 {formatPrice(item.price, currency)}
               </p>

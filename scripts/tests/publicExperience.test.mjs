@@ -109,7 +109,8 @@ await test("3A ProfileView renders only the filtered lists (no raw row lists lef
   assert.match(v, /publicRows<any>\(profile\.menu_items, isPublicMenuItem\)/);
   assert.match(v, /publicRows<any>\(profile\.tracks, isPublicTrack\)/);
   assert.match(v, /publicRows<any>\(profile\.music_releases, isPublicRelease\)/);
-  assert.match(v, /\{publicLinks\.length > 0 && \(/);
+  // Phase 3C moved the link / catalogue / events blocks into the keyed \`sections\` object (placed by lib/sectionOrder.ts)
+  assert.match(v, /links: publicLinks\.length > 0 && \(/);
   assert.match(v, /\{socialLinks\.length > 0 && \(/);
   assert.match(v, /releases=\{releases\}/);
   assert.match(v, /publicLinkTitle\(link\)/);

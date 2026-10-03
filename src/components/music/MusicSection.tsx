@@ -85,7 +85,7 @@ export default function MusicSection({
             return (
               <div
                 key={track.id}
-                className="relative overflow-hidden rounded-2xl p-3 flex items-center gap-3"
+                className="relative overflow-hidden rounded-2xl p-3 flex flex-wrap items-center gap-3"
                 style={{ backgroundColor: CARD_BG, color: CARD_TEXT }}
               >
                 <a href={trackDetailHref} className="shrink-0" aria-label={track.title}>
@@ -101,8 +101,8 @@ export default function MusicSection({
                   )}
                 </a>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate flex items-center gap-1.5">
+                <div className="flex-1 min-w-[8rem]">
+                  <p className="text-sm font-semibold flex flex-wrap items-center gap-x-1.5 [overflow-wrap:anywhere]">
                     {track.title}
                     {isPlaying && <EqualizerBars color={accent} />}
                   </p>
@@ -145,7 +145,7 @@ export default function MusicSection({
                   (detailHref ? (
                     <a
                       href={detailHref}
-                      className="shrink-0 text-xs font-semibold px-3 py-2 rounded-full"
+                      className="shrink-0 inline-flex items-center min-h-[44px] text-xs font-semibold px-3 py-2 rounded-full"
                       style={{ backgroundColor: accent, color: "#171009" }}
                     >
                       {formatPrice(track.price, currency)}
@@ -157,7 +157,7 @@ export default function MusicSection({
                       href={track.buy_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="shrink-0 text-xs font-semibold px-3 py-2 rounded-full"
+                      className="shrink-0 inline-flex items-center min-h-[44px] text-xs font-semibold px-3 py-2 rounded-full"
                       style={{ backgroundColor: accent, color: "#171009" }}
                     >
                       {t.music.buyLabel}
