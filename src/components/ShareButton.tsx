@@ -5,6 +5,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Share, Link2, Check, Share2, QrCode, X, Download, Loader2 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaXTwitter } from "react-icons/fa6";
 import { drawQrCodeWithLogo, downloadCanvas } from "@/lib/qrCode";
+import { cleanShareUrl } from "@/lib/shareUrl";
+import { useLanguage } from "@/components/LanguageProvider";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
 import { useModalA11y } from "@/components/ui/useModalA11y";
 import { nextMenuIndex, TAP_AREA_36 } from "@/components/ui/menuNav";
@@ -72,6 +74,8 @@ export default function ShareButton({
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const { t } = useLanguage();
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [qrStatus, setQrStatus] = useState<"idle" | "generating" | "ready" | "error">("idle");
@@ -131,17 +135,42 @@ export default function ShareButton({
     }
   };
 
-  const getUrl = () => (typeof window !== "undefined" ? window.location.href : "");
+  // The page's address without the visit's own advertising / analytics identifiers (see lib/shareUrl.ts).
+  const getUrl = () => (typeof window !== "undefined" ? cleanShareUrl(window.location.href) : "");
+
+  // The Clipboard API can be missing or refused (older browsers, non-HTTPS, a blocked permission): try the
+  // long-standing select-and-copy route, and only if that fails too say so, instead of doing nothing.
+  const legacyCopy = (text: string) => {
+    try {
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(area);
+      return ok;
+    } catch {
+      return false;
+    }
+  };
 
   const copyLink = async () => {
+    let ok = false;
     try {
       await navigator.clipboard.writeText(getUrl());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      ok = true;
     } catch {
-      // Clipboard API can fail (older browsers, non-HTTPS) — fail silently
-      // rather than showing an error for a non-critical convenience feature.
+      ok = legacyCopy(getUrl());
     }
+    setCopied(ok);
+    setCopyFailed(!ok);
+    setTimeout(() => {
+      setCopied(false);
+      setCopyFailed(false);
+    }, ok ? 2000 : 3500);
   };
 
   const nativeShare = async () => {
@@ -225,8 +254,8 @@ export default function ShareButton({
               onClick={copyLink}
               className="w-full min-h-[44px] flex items-center gap-2.5 px-3.5 py-2.5 text-[#1F2937] hover:bg-black/[0.04] focus-visible:bg-black/[0.06] focus-visible:outline-none transition text-left"
             >
-              {copied ? <Check size={15} className="text-emerald-500" /> : <Link2 size={15} className="text-[#6B7280]" />}
-              {copied ? strings.linkCopied : strings.copyLink}
+              {copied ? <Check size={15} className="text-emerald-500" /> : <Link2 size={15} className={copyFailed ? "text-[#991B1B]" : "text-[#6B7280]"} />}
+              {copied ? strings.linkCopied : copyFailed ? t.profilePage.copyFailed : strings.copyLink}
             </button>
             <button
               role="menuitem"
@@ -284,6 +313,11 @@ export default function ShareButton({
         )}
       </AnimatePresence>
 
+      {/* Announces the copy result to screen readers (the menu item's own text changes silently). */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {copied ? strings.linkCopied : copyFailed ? t.profilePage.copyFailed : ""}
+      </span>
+
       {showQr && (
         <QrDialogShell label={strings.qrCodeTitle(title)} onClose={closeQr}>
             <button
@@ -314,10 +348,14 @@ export default function ShareButton({
               )}
             </div>
 
+            <p className="mt-3 w-full break-all text-xs font-medium select-all" style={{ opacity: 0.7 }} dir="ltr">
+              {getUrl().replace(/^https?:\/\//, "")}
+            </p>
+
             <button
               onClick={downloadQr}
               disabled={qrStatus !== "ready"}
-              className="w-full mt-5 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white disabled:opacity-60"
+              className="w-full mt-4 flex items-center justify-center gap-2 py-3 min-h-[44px] rounded-full text-sm font-semibold text-white disabled:opacity-60"
               style={{ backgroundColor: accent }}
             >
               <Download size={15} />

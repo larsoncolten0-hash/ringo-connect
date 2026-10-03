@@ -17,6 +17,22 @@ const DISMISS_KEY = "ringo-push-prompt-dismissed";
 // AvatarMenu's account menu and /admin/settings, see
 // PushNotificationBell.tsx) was too easy to miss entirely. Mounted once
 // each in DashboardShell and AdminShell.
+// Storage can be blocked (private mode, site data off): the prompt then simply is not remembered, it never breaks.
+function readDismissed(): boolean {
+  try {
+    return !!localStorage.getItem(DISMISS_KEY);
+  } catch {
+    return false;
+  }
+}
+function rememberDismissed() {
+  try {
+    localStorage.setItem(DISMISS_KEY, "1");
+  } catch {
+    // not remembered
+  }
+}
+
 export default function PushPermissionPrompt({ subscribeUrl, body }: { subscribeUrl: string; body: string }) {
   const { t } = useLanguage();
   const [visible, setVisible] = useState(false);
@@ -27,7 +43,7 @@ export default function PushPermissionPrompt({ subscribeUrl, body }: { subscribe
     let timer: ReturnType<typeof setTimeout>;
 
     (async () => {
-      if (typeof window === "undefined" || localStorage.getItem(DISMISS_KEY)) return;
+      if (typeof window === "undefined" || readDismissed()) return;
       const status = await getPushStatus();
       if (cancelled) return;
       // Only when the browser genuinely hasn't decided yet — already
@@ -49,7 +65,7 @@ export default function PushPermissionPrompt({ subscribeUrl, body }: { subscribe
   }, []);
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, "1");
+    rememberDismissed();
     setVisible(false);
   };
 
@@ -65,7 +81,7 @@ export default function PushPermissionPrompt({ subscribeUrl, body }: { subscribe
       // visit instead of silently going dark forever with nothing
       // actually turned on.
       if (result.ok || result.error === "permission_denied") {
-        localStorage.setItem(DISMISS_KEY, "1");
+        rememberDismissed();
       }
     } finally {
       setBusy(false);
