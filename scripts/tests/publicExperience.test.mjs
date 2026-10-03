@@ -271,6 +271,25 @@ await test("3D public section headings are real <h2> elements with the same clas
   assert.equal(count(src("components/ProfileView.tsx"), /<h1\b/g), 1, "still exactly one h1");
 });
 
+await test("3D focus return: the opener is captured BEFORE the dialog mounts, so an autoFocus field cannot become the 'previous' element", () => {
+  const h = src("components/ui/useModalA11y.ts");
+  const hook = h.slice(h.indexOf("export function useModalA11y"));
+  const capture = hook.indexOf("openerRef.current = document.activeElement");
+  const firstEffect = hook.indexOf("useEffect(");
+  assert.ok(capture > 0, "the opener is read from document.activeElement into a ref");
+  assert.ok(firstEffect > 0 && capture < firstEffect, "...during render, before any effect (autoFocus has already run by the time an effect does)");
+  assert.match(hook, /if \(openerRef\.current === null && typeof document !== "undefined"\) openerRef\.current = /, "captured once, SSR-safe");
+  const effect = hook.slice(firstEffect);
+  assert.doesNotMatch(effect, /const previous = document\.activeElement/, "no late capture inside the effect");
+  assert.match(effect, /const opener = openerRef\.current;\s*if \(opener && opener !== document\.body && opener\.isConnected\) opener\.focus\?\.\(\);/, "restored on close only if the opener is still on the page");
+  // the dialogs that rely on it are unchanged in how they use it
+  assert.match(src("components/connect/StayConnectedModal.tsx"), /autoFocus/, "the modal keeps its autoFocus fields");
+  assert.match(src("components/connect/StayConnectedModal.tsx"), /useModalA11y<HTMLDivElement>\(onClose\)/);
+  assert.match(src("components/ShareButton.tsx"), /const closeQr = \(\) => \{\s*setShowQr\(false\);\s*triggerRef\.current\?\.focus\(\);/, "the QR sheet still returns focus to its Share button itself");
+  assert.match(h, /document\.addEventListener\("keydown", onKey, true\)/, "Escape / Tab trap unchanged");
+  assert.match(h, /nextTrapIndex\(idx, list\.length, e\.shiftKey\)/);
+});
+
 // ------------------------------------------------------------------ shared-component safety (ProfileView is also the editor preview)
 await test("preview safety: public-only behaviour is still gated on `preview`, and the Connect / owner logic is as before", () => {
   const v = src("components/ProfileView.tsx");

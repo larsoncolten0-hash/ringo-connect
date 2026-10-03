@@ -17,16 +17,22 @@ const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), in
  * Modal behaviour the editor's dialogs and sheets were missing: focus moves into the dialog, Tab
  * stays inside it, Escape closes it, and focus returns to what had it before. Attach the returned ref
  * to the dialog element (which should also carry role="dialog" aria-modal and tabIndex={-1}).
+ *
+ * "What had it before" (the opener) is read DURING THE FIRST RENDER, i.e. before React commits the dialog.
+ * Reading it in the effect below would be too late: a dialog with an `autoFocus` field has already moved
+ * focus into itself by then, so the field - which is removed with the dialog - would be remembered and focus
+ * would be lost to <body> on close. The opener is only restored if it is still on the page.
  */
 export function useModalA11y<T extends HTMLElement = HTMLDivElement>(onClose: () => void) {
   const ref = useRef<T>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const openerRef = useRef<HTMLElement | null>(null);
+  if (openerRef.current === null && typeof document !== "undefined") openerRef.current = document.activeElement as HTMLElement | null;
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-    const previous = document.activeElement as HTMLElement | null;
     const items = () => Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE));
     (items()[0] ?? node).focus();
 
@@ -52,7 +58,8 @@ export function useModalA11y<T extends HTMLElement = HTMLDivElement>(onClose: ()
     document.addEventListener("keydown", onKey, true);
     return () => {
       document.removeEventListener("keydown", onKey, true);
-      previous?.focus?.();
+      const opener = openerRef.current;
+      if (opener && opener !== document.body && opener.isConnected) opener.focus?.();
     };
   }, []);
 

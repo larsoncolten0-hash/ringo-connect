@@ -11,9 +11,6 @@ import { hexToRgba } from "@/lib/color";
 import { getButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
 import { ensureVisitorId, captureTtclid, newEventId } from "@/lib/pixelClient";
 import { metaEventName, tiktokEventName, isValidFacebookPixelId, isValidTiktokPixelId } from "@/lib/pixelEvents";
-import WhatsAppButton from "./WhatsAppButton";
-import CallButton from "./CallButton";
-import SaveContactButton from "./SaveContactButton";
 import SocialIcon from "./SocialIcon";
 import MusicSection from "./music/MusicSection";
 import EventsSection from "./music/EventsSection";
@@ -30,7 +27,8 @@ import ShareButton from "./ShareButton";
 import { displayHref } from "@/lib/linkUrl";
 import { isPublicLink, isPublicMenuItem, isPublicProduct, isPublicRelease, isPublicSocialLink, isPublicTrack, publicLinkTitle, publicRows } from "@/lib/publicContent";
 import FanRecognitionHeader from "./FanRecognitionHeader";
-import BookingButton from "./BookingButton";
+import GenericHeroActions from "./GenericHeroActions";
+import { resolveHeroAction } from "@/lib/heroAction";
 import AddToHomeScreen from "./AddToHomeScreen";
 import PublicLanguageSelector from "./PublicLanguageSelector";
 import PoweredByRingo from "./PoweredByRingo";
@@ -123,6 +121,9 @@ export default function ProfileView({
   // track/product/event depend on the item still existing.
   const showPinnedSupport = isMusic && profile.pinned_type === "support" && supportEnabled;
   const isVerified = !!profile.verified;
+  // Restaurant and Music keep their own hero buttons (branch order below is unchanged); only a generic
+  // profile gets the single-primary-action hero. Pure and synchronous: see lib/heroAction.ts.
+  const genericHero = !isRestaurant && !isMusic ? resolveHeroAction(profile, locale) : null;
 
   // Populated client-side only (cookies aren't readable during SSR) —
   // the Meta/TikTok Pixel scripts below stay unrendered until this is
@@ -513,38 +514,18 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           // stretched three-button row unchanged below.
           <MusicHeroButtons t={t} profile={profile} accent={accent} textColor={textColor} locale={locale} />
         ) : (
-          (profile.whatsapp_number || profile.bookings_enabled) && (
-          <div className="flex flex-wrap gap-3 mt-5 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
-            {profile.whatsapp_number && (
-              <>
-                <div className="flex-1 min-w-[100px]">
-                  <WhatsAppButton
-                    number={profile.whatsapp_number}
-                    message={profile.default_whatsapp_message}
-                    radiusClass={radiusClass}
-                    buttonStyle={linkButtonStyle}
-                    onClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
-                  />
-                </div>
-                <div className="flex-1 min-w-[100px]">
-                  <CallButton number={profile.whatsapp_number} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
-                </div>
-                <div className="flex-1 min-w-[100px]">
-                  <SaveContactButton profile={profile} radiusClass={radiusClass} buttonStyle={linkButtonStyle} />
-                </div>
-              </>
-            )}
-            {profile.bookings_enabled && (
-              <div className="flex-1 min-w-[100px]">
-                <BookingButton
-                  profile={profile}
-                  accent={accent}
-                  className={`flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium w-full ${radiusClass}`}
-                  style={linkButtonStyle}
-                />
-              </div>
-            )}
-          </div>
+          genericHero && (
+            <GenericHeroActions
+              t={t}
+              hero={genericHero}
+              profile={profile}
+              accent={accent}
+              textColor={textColor}
+              radiusClass={radiusClass}
+              buttonStyle={linkButtonStyle}
+              onWhatsappClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
+              onLinkClick={(id, title) => logClick("link", id, { name: title })}
+            />
           )
         )}
 
@@ -570,6 +551,26 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             ...(isMusic ? { backgroundColor: MUSIC_CREAM, color: MUSIC_CREAM_TEXT } : {}),
           }}
         >
+          {/* "＋ Connect" — the universal customer ↔ profile action (see src/components/connect/). It sits at the
+              TOP of the page content, just under the hero, inside #profile-content so the skip link still reaches
+              it. Always shown, independent of profiles.community_enabled; the legacy Community join page
+              (/[username]/community) still exists for old shared links but is no longer linked from here.
+              Rendered ONCE: as a quiet pill under the hero's own buttons, or — for a generic profile with no other
+              action to offer — as its full-width primary button. Hidden for the owner viewing their own live page
+              (the hero above adds no gap for it); inert inside the dashboard preview. */}
+          {!isOwner && (
+            <ConnectButton
+              profile={{ id: profile.id, name: profile.name || profile.username }}
+              accent={accent}
+              radiusClass={radiusClass}
+              buttonStyle={linkButtonStyle}
+              borderTint={contentBorderTint}
+              textColor={contentTextColor}
+              preview={preview}
+              variant={genericHero?.primary.kind === "connect" ? "primary" : "compact"}
+            />
+          )}
+
           {(pinnedItem || showPinnedSupport) && (
             <PinnedSpotlight
               t={t}
@@ -851,24 +852,6 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               supportMessage={profile.support_message}
               radiusClass={radiusClass}
               borderTint={contentBorderTint}
-            />
-          )}
-
-          {/* "＋ Connect" — the universal customer ↔ profile action (see
-              src/components/connect/). Always shown, independent of
-              profiles.community_enabled; the legacy Community join page
-              (/[username]/community) still exists for old shared links but
-              is no longer linked from here. Hidden for the owner viewing
-              their own live page; inert inside the dashboard preview. */}
-          {!isOwner && (
-            <ConnectButton
-              profile={{ id: profile.id, name: profile.name || profile.username }}
-              accent={accent}
-              radiusClass={radiusClass}
-              buttonStyle={linkButtonStyle}
-              borderTint={contentBorderTint}
-              textColor={contentTextColor}
-              preview={preview}
             />
           )}
 

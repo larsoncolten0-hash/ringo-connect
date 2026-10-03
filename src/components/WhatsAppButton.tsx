@@ -24,6 +24,7 @@ export default function WhatsAppButton({
   // on a green fill disappears, so that call site overrides this to white.
   iconColor = "#25D366",
   onClick,
+  className,
 }: {
   number: string;
   message?: string;
@@ -32,6 +33,8 @@ export default function WhatsAppButton({
   buttonStyle?: CSSProperties;
   iconColor?: string;
   onClick?: () => void;
+  // Extra classes from the caller (e.g. a minimum height); nothing is set by default.
+  className?: string;
 }) {
   if (!number) return null;
 
@@ -54,7 +57,7 @@ export default function WhatsAppButton({
       onClick={onClick}
       className={`flex items-center justify-center gap-2 transition hover:brightness-95 ${
         compact ? "flex-1 py-1.5" : "px-4 py-2.5 text-sm font-medium"
-      } ${radius}`}
+      } ${radius} ${className ?? ""}`}
       style={style}
     >
       <FaWhatsapp size={compact ? 15 : 17} style={{ color: iconColor }} className="shrink-0" />
