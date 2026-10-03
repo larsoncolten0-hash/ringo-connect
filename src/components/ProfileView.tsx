@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Script from "next/script";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, profileHasCategory, profileHasTicketing } from "@/lib/categories";
@@ -28,6 +28,7 @@ import OpeningHoursRow from "./restaurant/OpeningHoursRow";
 import ImageGallery from "./ImageGallery";
 import ShareButton from "./ShareButton";
 import { displayHref } from "@/lib/linkUrl";
+import { isPublicLink, isPublicMenuItem, isPublicProduct, isPublicRelease, isPublicSocialLink, isPublicTrack, publicLinkTitle, publicRows } from "@/lib/publicContent";
 import FanRecognitionHeader from "./FanRecognitionHeader";
 import BookingButton from "./BookingButton";
 import AddToHomeScreen from "./AddToHomeScreen";
@@ -82,8 +83,16 @@ export default function ProfileView({
   // any of Music's other category-specific UI (tracks, releases, the cream
   // theme, Support the Artist), which all stay isMusic-only.
   const hasTicketing = profileHasTicketing(profile);
-  const menuItems: any[] = profile.menu_items || [];
-  const musicTracks: any[] = (profile.tracks || []).filter((tr: any) => tr.available !== false);
+  // Only rows a visitor could actually use are shown (see lib/publicContent.ts): a link with no real address,
+  // a product or dish with no name, a track or release with no title are skipped. Rendering only: the editor
+  // still lists every row, and nothing is deleted or changed. The editor's live preview goes through this
+  // same component, so it shows exactly what the public page shows.
+  const menuItems: any[] = publicRows<any>(profile.menu_items, isPublicMenuItem);
+  const publicLinks: any[] = publicRows<any>(profile.links, isPublicLink).sort((a: any, b: any) => a.sort_order - b.sort_order);
+  const socialLinks: any[] = publicRows<any>(profile.social_links, isPublicSocialLink);
+  const releases: any[] = publicRows<any>(profile.music_releases, isPublicRelease);
+  const shownProducts: any[] = publicRows<any>(profile.products, isPublicProduct);
+  const musicTracks: any[] = publicRows<any>(profile.tracks, isPublicTrack).filter((tr: any) => tr.available !== false);
   // A draft event is hidden entirely, same as any other unpublished item
   // — cancelled/completed still show (see EventsSection/ItemDetailPage's
   // own comments on why) but aren't purchasable.
@@ -94,7 +103,7 @@ export default function ProfileView({
   // hides here when a creator has explicitly marked it unavailable
   // (`=== false`); older products with no such field keep showing, same
   // as before this field existed.
-  const catalogProducts: any[] = (profile.products || []).filter((p: any) => p.available !== false);
+  const catalogProducts: any[] = shownProducts.filter((p: any) => p.available !== false);
   const supportEnabled = isMusic && profile.hub_support_enabled !== false && !!profile.whatsapp_number;
   const { playingId, progress, togglePlay } = useTrackPlayback();
 
@@ -103,7 +112,7 @@ export default function ProfileView({
   // this feature and has stale/mismatched data) just quietly means no
   // spotlight renders, instead of a crash.
   const pinnedSource =
-    profile.pinned_type === "track" ? musicTracks : profile.pinned_type === "product" ? profile.products || [] : profile.pinned_type === "event" ? musicEvents : [];
+    profile.pinned_type === "track" ? musicTracks : profile.pinned_type === "product" ? shownProducts : profile.pinned_type === "event" ? musicEvents : [];
   // Pinning intentionally still looks at the full, unfiltered product list
   // above — a creator who explicitly pinned an item should keep seeing
   // that choice reflected even if they later mark it unavailable, rather
@@ -244,10 +253,23 @@ export default function ProfileView({
   const restName = nameParts.slice(1).join(" ");
 
   return (
+    // Framer-motion animations on the public page (menus, sheets, catalogue) follow the visitor's
+    // "reduce motion" setting; the CSS entrance animations are covered in globals.css.
+    <MotionConfig reducedMotion="user">
     <main
       className={`relative flex flex-col items-center pb-10 ${preview ? "min-h-full" : "min-h-screen"}`}
       style={pageStyle}
     >
+      {/* Keyboard / screen-reader shortcut past the header controls; invisible until it is focused. Not
+          rendered in the editor's preview, where there is no page to skip within. */}
+      {!preview && (
+        <a
+          href="#profile-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-full focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-[#14202B] focus:shadow-lg"
+        >
+          {t.profilePage.skipToContent}
+        </a>
+      )}
       {!preview && <RegisterServiceWorker />}
       {!preview && <AppBadgeReset />}
 
@@ -371,11 +393,11 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               the auth pages, scaled down and tinted to the creator's own
               accent color rather than the fixed brand palette. */}
           <span
-            className="absolute inset-0 rounded-full animate-ring-pulse-1 pointer-events-none"
+            className="absolute inset-0 rounded-full animate-ring-pulse-1 motion-reduce:animate-none pointer-events-none"
             style={{ border: `2px solid ${accent}` }}
           />
           <span
-            className="absolute inset-0 rounded-full animate-ring-pulse-2 pointer-events-none"
+            className="absolute inset-0 rounded-full animate-ring-pulse-2 motion-reduce:animate-none pointer-events-none"
             style={{ border: `2px solid ${accent}` }}
           />
           <img
@@ -391,7 +413,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           style={{ animationDelay: "80ms" }}
         >
           {firstName} {restName && <span style={{ color: accent }}>{restName}</span>}
-          {isMusic && <span className="text-lg">🎵</span>}
+          {isMusic && <span className="text-lg" aria-hidden="true">🎵</span>}
           {isVerified && (
             <BadgeCheck
               size={20}
@@ -526,19 +548,21 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           )
         )}
 
-        {profile.social_links?.length > 0 && (
+        {socialLinks.length > 0 && (
           <div
             className="flex flex-wrap justify-center gap-2.5 mt-5 animate-fade-up"
             style={{ animationDelay: "300ms" }}
           >
-            {profile.social_links.map((s: any) => (
+            {socialLinks.map((s: any) => (
               <SocialIcon key={s.id} platform={s.platform} url={s.url} themed />
             ))}
           </div>
         )}
 
         <div
-          className={`w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up ${
+          id={preview ? undefined : "profile-content"}
+          tabIndex={preview ? undefined : -1}
+          className={`w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up focus:outline-none ${
             isMusic ? "rounded-[28px] p-4 sm:p-5 shadow-[0_10px_36px_rgba(0,0,0,0.3)]" : ""
           }`}
           style={{
@@ -732,24 +756,23 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           {isMusic && (
             <ReleasesSection
               t={t}
-              releases={profile.music_releases || []}
+              releases={releases}
               username={profile.username}
               accent={accent}
               currency={profile.currency || "USD"}
             />
           )}
 
-          {profile.links?.length > 0 && (
+          {publicLinks.length > 0 && (
             <div className="flex flex-col gap-3">
-              <p
+              <h2
                 className={isMusic ? "text-base font-bold flex items-center gap-2" : "text-[11px] uppercase tracking-wider"}
                 style={isMusic ? undefined : { opacity: 0.5 }}
               >
                 {isMusic && <ExternalLink size={16} style={{ color: accent }} />}
                 {t.profilePage.linksHeading}
-              </p>
-              {profile.links
-                .sort((a: any, b: any) => a.sort_order - b.sort_order)
+              </h2>
+              {publicLinks
                 .map((link: any) => (
                   <a
                     key={link.id}
@@ -764,7 +787,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
                       <img src={link.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{link.title}</p>
+                      <p className="text-sm font-semibold truncate">{publicLinkTitle(link)}</p>
                       {link.description && (
                         <p className="text-xs line-clamp-2 mt-0.5" style={{ opacity: 0.7 }}>
                           {link.description}
@@ -867,7 +890,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           )}
         </div>
 
-        <footer className="mt-10 text-center">
+        <footer role="contentinfo" className="mt-10 text-center">
           <p className="text-xs" style={{ opacity: 0.5 }}>
             © {new Date().getFullYear()} {profile.name}. {t.profilePage.rights}
           </p>
@@ -875,5 +898,6 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         </footer>
       </div>
     </main>
+    </MotionConfig>
   );
 }

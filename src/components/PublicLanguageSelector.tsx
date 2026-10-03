@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { LOCALE_META, SUPPORTED_LOCALES, listboxNextIndex } from "@/lib/i18n/locales";
+import { TAP_AREA_36 } from "@/components/ui/menuNav";
 
 // A compact language picker for PUBLIC pages: "[ EN ▾ ]" that opens a small list
 // of every supported language (English, Français, …). It only ever calls the
@@ -19,7 +20,7 @@ import { LOCALE_META, SUPPORTED_LOCALES, listboxNextIndex } from "@/lib/i18n/loc
 // and aria-activedescendant. Keyboard: Enter/Space/ArrowDown/ArrowUp open it;
 // Arrow keys, Home and End move; Enter or Space chooses; Escape closes and
 // returns focus to the button; Tab or clicking outside closes it. Touch targets
-// are at least 40px tall.
+// are 44px (the visible button stays 36px; the tappable area is extended invisibly).
 //
 // `variant` only changes colours so it sits naturally on each kind of surface:
 //   "glass"   — over a profile's cover photo, matching the frosted share button;
@@ -110,7 +111,7 @@ export default function PublicLanguageSelector({ variant = "bar", accent, classN
         onClick={() => (open ? closeMenu(false) : openMenu())}
         onKeyDown={onButtonKeyDown}
         style={buttonStyle}
-        className={`inline-flex h-9 min-w-[3rem] items-center justify-center gap-1 rounded-full px-2.5 text-xs font-semibold tracking-wide transition active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${
+        className={`inline-flex h-9 min-w-[3rem] items-center justify-center gap-1 rounded-full px-2.5 text-xs font-semibold tracking-wide transition active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${TAP_AREA_36} ${
           variant === "bar" ? "border bg-transparent hover:bg-black/5" : "backdrop-blur-md"
         }`}
       >
@@ -139,7 +140,7 @@ export default function PublicLanguageSelector({ variant = "bar", accent, classN
               aria-selected={code === locale}
               onClick={() => choose(i)}
               onMouseEnter={() => setActive(i)}
-              className={`flex min-h-[40px] cursor-pointer items-center justify-between gap-3 rounded-lg px-3 text-sm ${i === active ? "bg-black/5" : ""}`}
+              className={`flex min-h-[44px] cursor-pointer items-center justify-between gap-3 rounded-lg px-3 text-sm ${i === active ? "bg-black/5" : ""}`}
             >
               <span>{LOCALE_META[code].label}</span>
               {code === locale && <Check size={14} aria-hidden="true" />}

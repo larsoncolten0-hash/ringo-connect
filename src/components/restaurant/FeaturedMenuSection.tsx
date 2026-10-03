@@ -35,7 +35,7 @@ export default function FeaturedMenuSection({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-base font-bold">{t.restaurant.featuredMenuTitle}</p>
+        <h2 className="text-base font-bold">{t.restaurant.featuredMenuTitle}</h2>
         <a href={`/r/${username}`} className="text-sm font-medium flex items-center gap-1" style={{ color: accent }}>
           {t.restaurant.viewAllMenu}
           <ArrowRight size={13} />

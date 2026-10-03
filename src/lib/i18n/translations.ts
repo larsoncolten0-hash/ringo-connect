@@ -1824,6 +1824,12 @@ export const translations = {
     profilePage: {
       // Public-page language picker and platform attribution (PublicLanguageSelector / PoweredByRingo).
       languageLabel: "Language",
+      // Public states and navigation help (loading screen, missing-page screen, skip link).
+      loading: "Loading your Ringo…",
+      notFoundTitle: "This page isn't available",
+      notFoundBody: "The link may be mistyped, or the page may no longer be public.",
+      notFoundCta: "Go to Ringo Connect",
+      skipToContent: "Skip to content",
       poweredBy: "Powered by Ringo Connect",
       poweredByPrefix: "Powered by",
       poweredByName: "Ringo Connect",
@@ -7692,6 +7698,12 @@ export const translations = {
     },
     profilePage: {
       languageLabel: "Langue",
+      // États publics et aide à la navigation (chargement, page introuvable, lien d'accès rapide).
+      loading: "Chargement de votre Ringo…",
+      notFoundTitle: "Cette page n'est pas disponible",
+      notFoundBody: "Le lien est peut-être mal saisi, ou la page n'est plus publique.",
+      notFoundCta: "Aller sur Ringo Connect",
+      skipToContent: "Aller au contenu",
       poweredBy: "Propulsé par Ringo Connect",
       poweredByPrefix: "Propulsé par",
       poweredByName: "Ringo Connect",

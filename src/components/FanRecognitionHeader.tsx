@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useId, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { User, Check, BellRing, Loader2, Settings } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getPushStatus, subscribeToPush } from "@/lib/push/subscribeClient";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
 import ShareButton from "@/components/ShareButton";
+import { TAP_AREA_36 } from "@/components/ui/menuNav";
 
 // Purely client-side recognition of a returning community member — no
 // server round trip just to decide whether to render this at all. Backed
@@ -59,6 +60,10 @@ export default function FanRecognitionHeader({
   const [pushStatus, setPushStatus] = useState<"loading" | "unsupported" | "denied" | "off" | "on">("loading");
   const [pushBusy, setPushBusy] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (isOwner) return;
@@ -81,6 +86,20 @@ export default function FanRecognitionHeader({
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
+  // Keyboard users land inside the panel when it opens; Escape closes it and gives focus back to the badge.
+  useEffect(() => {
+    if (open) panelRef.current?.focus();
+  }, [open]);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (open && e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+  };
+
   const enablePush = async () => {
     if (pushBusy || !membership || pushStatus !== "off") return;
     setPushBusy(true);
@@ -95,11 +114,15 @@ export default function FanRecognitionHeader({
   if (isOwner || !membership) return null;
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} onKeyDown={onKeyDown}>
       <button
+        ref={triggerRef}
+        type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
         aria-expanded={open}
-        className="h-9 flex items-center gap-1.5 pl-1.5 pr-3 rounded-full transition text-xs font-medium"
+        aria-controls={open ? panelId : undefined}
+        className={`h-9 flex items-center gap-1.5 pl-1.5 pr-3 rounded-full transition text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${TAP_AREA_36}`}
         style={{ backgroundColor: "rgba(255,255,255,0.7)", color: accent }}
       >
         <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${accent}1a` }}>
@@ -114,11 +137,16 @@ export default function FanRecognitionHeader({
             <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-10" />
             <motion.div
               key="panel"
+              ref={panelRef}
+              id={panelId}
+              role="dialog"
+              aria-label={t.communitySection.fanBadgeLabel(membership.name)}
+              tabIndex={-1}
               initial={{ opacity: 0, y: -6, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.97 }}
-              transition={{ duration: 0.15 }}
-              className="absolute top-11 right-0 w-64 rounded-2xl overflow-hidden z-20 text-sm"
+              transition={{ duration: reduceMotion ? 0 : 0.15 }}
+              className="absolute top-11 right-0 w-64 rounded-2xl overflow-hidden z-20 text-sm outline-none"
               style={{ backgroundColor: "#FFFFFF", boxShadow: "0 16px 40px -12px rgba(0,0,0,0.3)" }}
             >
               <div className="px-3.5 py-3 border-b" style={{ borderColor: "#F3F4F6" }}>
@@ -139,7 +167,7 @@ export default function FanRecognitionHeader({
                   <button
                     onClick={enablePush}
                     disabled={pushBusy || pushStatus !== "off"}
-                    className="shrink-0 flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full disabled:opacity-70"
+                    className="shrink-0 flex items-center gap-1 text-xs font-semibold px-3 py-1.5 min-h-[44px] rounded-full disabled:opacity-70"
                     style={pushStatus === "on" ? { backgroundColor: "#F0FDFA", color: "#0D9488" } : { backgroundColor: accent, color: "#fff" }}
                   >
                     {pushBusy ? (
@@ -185,7 +213,7 @@ export default function FanRecognitionHeader({
 
               <a
                 href={`/community/manage/${membership.token}`}
-                className="flex items-center gap-2 px-3.5 py-2.5 border-t transition hover:bg-black/[0.04]"
+                className="flex items-center gap-2 px-3.5 py-2.5 min-h-[44px] border-t transition hover:bg-black/[0.04]"
                 style={{ borderColor: "#F3F4F6", color: "#1F2937" }}
               >
                 <Settings size={15} style={{ color: "#6B7280" }} />

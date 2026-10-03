@@ -2,10 +2,13 @@
 // limits links and products to what the owner's plan allows and swaps in a fixed theme when custom themes
 // are not allowed. This does the same for the preview, using the same entitlement helpers, so the
 // preview never promises something the public page will not display. Pure; nothing is saved or changed.
+// Same ORDER as the public page: rows with nothing to show are dropped first, then the plan limit applies
+// (limitPublicRows), so an empty placeholder never uses up a visible slot.
 //
 // FALLBACK_THEME must equal the literals in the public page; scripts/tests/editorReliability.test.mjs
 // reads the page and fails if the two ever differ.
-import { countHidden, isCustomThemeAllowed, splitByPlanLimit } from "@/lib/planEntitlements";
+import { countHidden, isCustomThemeAllowed } from "@/lib/planEntitlements";
+import { isPublicLink, isPublicProduct, limitPublicRows, publicRows } from "@/lib/publicContent";
 
 export const FALLBACK_THEME = {
   theme_color: "#D4A954",
@@ -41,14 +44,14 @@ export function applyPlanToPreview<T extends Record<string, any>>(draft: T, plan
   const themeLocked = !isCustomThemeAllowed(plan);
   const profile: Record<string, any> = {
     ...draft,
-    links: splitByPlanLimit(links, maxLinks).visible,
-    products: splitByPlanLimit(products, maxProducts).visible,
+    links: limitPublicRows<any>(links, isPublicLink, maxLinks).visible,
+    products: limitPublicRows<any>(products, isPublicProduct, maxProducts).visible,
     ...(themeLocked ? FALLBACK_THEME : {}),
   };
   return {
     profile: profile as T,
-    hiddenLinks: countHidden(links.length, maxLinks),
-    hiddenProducts: countHidden(products.length, maxProducts),
+    hiddenLinks: countHidden(publicRows(links, isPublicLink).length, maxLinks),
+    hiddenProducts: countHidden(publicRows(products, isPublicProduct).length, maxProducts),
     themeLocked,
     maxLinks,
     maxProducts,

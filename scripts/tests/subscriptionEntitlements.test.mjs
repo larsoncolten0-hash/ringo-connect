@@ -78,7 +78,7 @@ const check = (name, cond, detail = "") => {
 // ---------------------------------------------------------------- 3. public profile pages apply the entitlement server-side (never leak hidden content)
 {
   const mainPageSrc = read("src/app/[username]/page.tsx");
-  check("the main profile page imports the shared entitlement helpers (not a one-off reimplementation)", /import \{ splitByPlanLimit, isCustomThemeAllowed \} from ["']@\/lib\/planEntitlements["']/.test(mainPageSrc));
+  check("the main profile page imports the shared entitlement helpers (not a one-off reimplementation)", /import \{ isCustomThemeAllowed \} from ["']@\/lib\/planEntitlements["']/.test(mainPageSrc) && /import \{ limitPublicRows, isPublicLink, isPublicProduct \} from ["']@\/lib\/publicContent["']/.test(mainPageSrc) && /import \{ splitByPlanLimit \} from ["']\.\/planEntitlements["']/.test(read("src/lib/publicContent.ts")));
   // The owner's plan is fetched via createAdminClient(), never embedded in the plain anon-key
   // profiles query — an anonymous visitor has no RLS access to `users` at all, so an embed there
   // would silently resolve to null for every real visitor (confirmed live — see

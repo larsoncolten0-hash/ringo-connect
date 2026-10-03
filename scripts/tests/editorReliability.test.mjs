@@ -569,7 +569,7 @@ await test("preview on a paid plan changes nothing", () => {
   assert.equal(out.hiddenLinks + out.hiddenProducts, 0);
 });
 await test("preview keeps the owner's own order and never mutates or deletes the draft (nothing saved is touched)", () => {
-  const links = [{ id: "b", sort_order: 1 }, { id: "a", sort_order: 0 }, { id: "c", sort_order: 2 }];
+  const links = [{ id: "b", url: "https://b.co", sort_order: 1 }, { id: "a", url: "https://a.co", sort_order: 0 }, { id: "c", url: "https://c.co", sort_order: 2 }];
   const draft = { links, products: [] };
   const snapshot = JSON.stringify(draft);
   const out = PV.applyPlanToPreview(draft, { max_links: 2, max_products: null, custom_theme_enabled: true });
@@ -594,7 +594,10 @@ await test("the preview's fallback theme equals the literals in the public page 
 });
 await test("the preview uses the SAME entitlement helpers as the public page, not a copy of the rules", () => {
   const src = fs.readFileSync(path.join(SRC, "lib/previewPlan.ts"), "utf8");
-  assert.match(src, /import \{[^}]*splitByPlanLimit[^}]*\} from "@\/lib\/planEntitlements"/);
+  // the limit itself is splitByPlanLimit (planEntitlements), reached through limitPublicRows so the order is
+  // "drop empty rows, then apply the plan limit" exactly as on the public page
+  assert.match(src, /import \{[^}]*limitPublicRows[^}]*\} from "@\/lib\/publicContent"/);
+  assert.match(fs.readFileSync(path.join(SRC, "lib/publicContent.ts"), "utf8"), /import \{ splitByPlanLimit \} from "\.\/planEntitlements"/);
   assert.match(src, /isCustomThemeAllowed/);
   assert.doesNotMatch(src.replace(/\/\/.*$/gm, ""), /max_links\s*[<>=]|\.slice\(/, "no hand-written limit logic");
   const panel = fs.readFileSync(path.join(SRC, "components/editor/LivePreviewPanel.tsx"), "utf8");
@@ -906,6 +909,77 @@ await test("accordion: a section's status line renders INSIDE its row, so the la
   const afterItem = sec.slice(sec.indexOf("</AccordionItem>"));
   assert.doesNotMatch(afterItem.slice(0, afterItem.indexOf("showUnsavedDialog")), /<SectionFeedback/, "SectionFeedback must not be a sibling after the row");
   assert.match(sec, /footer=\{\s*<SectionFeedback/);
+});
+// ------------------------------------------------------------------ audit: placeholders must not use up plan slots
+await test("plan limit: empty placeholder links do NOT use a visible slot; real links do; a real link after placeholders is shown", () => {
+  const links = [
+    { id: "h1", url: "https://", title: "", sort_order: 0 },
+    { id: "h2", url: "", title: "x", sort_order: 1 },
+    { id: "r1", url: "https://one.co", title: "One", sort_order: 2 },
+    { id: "h3", url: "javascript:alert(1)", title: "bad", sort_order: 3 },
+    { id: "r2", url: "two.co", title: "Two", sort_order: 4 },
+    { id: "r3", url: "https://three.co", title: "Three", sort_order: 5 },
+  ];
+  const out = PV.applyPlanToPreview({ links, products: [] }, { max_links: 2, max_products: null, custom_theme_enabled: true });
+  assert.deepEqual(out.profile.links.map((l) => l.id), ["r1", "r2"], "the first TWO real links are visible, whatever sits before them");
+  assert.equal(out.hiddenLinks, 1, "only the real link over the limit is reported hidden");
+  assert.equal(links.length, 6, "the draft still has every row");
+  const none = PV.applyPlanToPreview({ links, products: [] }, { max_links: 3, max_products: null, custom_theme_enabled: true });
+  assert.deepEqual(none.profile.links.map((l) => l.id), ["r1", "r2", "r3"]);
+  assert.equal(none.hiddenLinks, 0);
+});
+await test("plan limit: nameless products do NOT use a visible slot; named ones do", () => {
+  const products = [
+    { id: "p0", name: "", price: 500, sort_order: 0 },
+    { id: "p1", name: "Shirt", sort_order: 1 },
+    { id: "p2", name: "  ", sort_order: 2 },
+    { id: "p3", name: "Cap", sort_order: 3 },
+    { id: "p4", name: "Bag", sort_order: 4 },
+  ];
+  const out = PV.applyPlanToPreview({ links: [], products }, { max_links: null, max_products: 2, custom_theme_enabled: true });
+  assert.deepEqual(out.profile.products.map((p) => p.id), ["p1", "p3"]);
+  assert.equal(out.hiddenProducts, 1);
+});
+await test("plan limit: unlimited plans and exactly-at-limit lists behave as before (hollow rows are simply not shown)", () => {
+  const links = [{ id: "a", url: "https://a.co", sort_order: 0 }, { id: "h", url: "https://", sort_order: 1 }, { id: "b", url: "https://b.co", sort_order: 2 }];
+  const unlimited = PV.applyPlanToPreview({ links, products: [] }, { max_links: null, max_products: null, custom_theme_enabled: true });
+  assert.deepEqual(unlimited.profile.links.map((l) => l.id), ["a", "b"]);
+  assert.equal(unlimited.hiddenLinks, 0);
+  const exact = PV.applyPlanToPreview({ links, products: [] }, { max_links: 2, max_products: null, custom_theme_enabled: true });
+  assert.deepEqual(exact.profile.links.map((l) => l.id), ["a", "b"]);
+  assert.equal(exact.hiddenLinks, 0, "two real links on a two-link plan: nothing hidden (the placeholder is not counted)");
+  const zero = PV.applyPlanToPreview({ links, products: [] }, { max_links: 0, max_products: null, custom_theme_enabled: true });
+  assert.deepEqual(zero.profile.links, [], "a plan with no links shows none");
+});
+await test("plan limit: the public profile and the preview both use the SAME helper, in the same order", () => {
+  const strip = (x) => x.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  const rd = (r) => strip(fs.readFileSync(path.join(SRC, r), "utf8").replace(/\r\n/g, "\n"));
+  const page = rd("app/[username]/page.tsx");
+  assert.match(page, /limitPublicRows<any>\(profile\.links, isPublicLink, ownerPlan\?\.max_links \?\? null\)/);
+  assert.match(page, /limitPublicRows<any>\(profile\.products, isPublicProduct, ownerPlan\?\.max_products \?\? null\)/);
+  assert.doesNotMatch(page, /splitByPlanLimit\(/, "no limit applied to raw rows");
+  // the music storefront (/m) is a protected music-commerce file and is deliberately not touched
+  const prev = rd("lib/previewPlan.ts");
+  assert.match(prev, /limitPublicRows<any>\(links, isPublicLink, maxLinks\)\.visible/);
+  assert.match(prev, /limitPublicRows<any>\(products, isPublicProduct, maxProducts\)\.visible/);
+  assert.doesNotMatch(prev, /splitByPlanLimit\(/);
+  const helper = rd("lib/publicContent.ts");
+  assert.match(helper, /return splitByPlanLimit\(publicRows<T>\(rows, test\), maxCount\);/, "filter first, then the existing limit helper");
+});
+await test("plan limit: the page and the preview give the same visible rows for the same data", () => {
+  const PC = jiti(path.join(SRC, "lib/publicContent.ts"));
+  const rows = [
+    { id: "x", url: "", sort_order: 0 },
+    { id: "a", url: "https://a.co", sort_order: 2 },
+    { id: "y", url: "https://", sort_order: 3 },
+    { id: "b", url: "https://b.co", sort_order: 1 },
+    { id: "c", url: "https://c.co", sort_order: 4 },
+  ];
+  for (const max of [null, 0, 1, 2, 3, 10]) {
+    const page = PC.limitPublicRows(rows, PC.isPublicLink, max).visible.map((r) => r.id);
+    const preview = PV.applyPlanToPreview({ links: rows, products: [] }, { max_links: max, max_products: null, custom_theme_enabled: true }).profile.links.map((r) => r.id);
+    assert.deepEqual(preview, page, "max " + max);
+  }
 });
 await test("an advanced group opens by default only ONCE: later changes of the parent value never collapse it while the user is editing", () => {
   const d = src("components/ui/Disclosure.tsx");

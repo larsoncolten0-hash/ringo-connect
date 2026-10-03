@@ -30,10 +30,10 @@ export default function ReleasesSection({
 
   return (
     <div id="releases" className="flex flex-col gap-3 scroll-mt-6">
-      <p className="text-base font-bold flex items-center gap-2">
+      <h2 className="text-base font-bold flex items-center gap-2">
         <Disc3 size={17} style={{ color: accent }} />
         {t.music.releasesTitle}
-      </p>
+      </h2>
 
       <div className="grid grid-cols-2 gap-3">
         {available.map((release) => (

@@ -6,11 +6,36 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ConnectedNotificationsPrompt from "./ConnectedNotificationsPrompt";
+import { useModalA11y } from "@/components/ui/useModalA11y";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^\+?[0-9][0-9\s().-]{5,39}$/;
 
 type Step = "form" | "code" | "done";
+
+// The dialog frame, as a component of its own so the shared modal behaviour mounts exactly when the
+// dialog does: focus moves into it, Tab stays inside it, Escape closes it, and focus returns to what had
+// it before (the Connect button). Nothing about the form or the customer flow lives here.
+function DialogPanel({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const ref = useModalA11y<HTMLDivElement>(onClose);
+  return (
+    <motion.div
+      ref={ref}
+      tabIndex={-1}
+      initial={{ y: 40, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 40, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 380, damping: 36 }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={label}
+      className="relative w-full max-h-[92vh] overflow-y-auto rounded-t-3xl bg-ringo-surface p-6 text-ringo-text shadow-2xl outline-none sm:max-w-md sm:rounded-3xl"
+      style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 // "Stay Connected" — the lightweight onboarding shown when a visitor with
 // no Ringo customer session taps ＋ Connect. Deliberately not called (or
@@ -207,21 +232,11 @@ export default function StayConnectedModal({
           className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
           onMouseDown={(e) => e.target === e.currentTarget && onClose()}
         >
-          <motion.div
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 40, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 380, damping: 36 }}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t.connect.modalTitle}
-            className="relative w-full max-h-[92vh] overflow-y-auto rounded-t-3xl bg-ringo-surface p-6 text-ringo-text shadow-2xl sm:max-w-md sm:rounded-3xl"
-            style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
-          >
+          <DialogPanel label={t.connect.modalTitle} onClose={onClose}>
             <button
               onClick={onClose}
               aria-label={t.connect.close}
-              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-muted/10 transition"
+              className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-muted/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
             >
               <X size={16} />
             </button>
@@ -234,7 +249,7 @@ export default function StayConnectedModal({
                   if (!busy) submitForm();
                 }}
               >
-                <div className="pr-8">
+                <div className="pr-10">
                   <h2 className="text-xl font-semibold">{t.connect.modalTitle}</h2>
                   <p className="mt-1.5 text-sm text-ringo-muted">{t.connect.modalBody(profile.name)}</p>
                 </div>
@@ -328,7 +343,7 @@ export default function StayConnectedModal({
                   if (!busy) confirmCode();
                 }}
               >
-                <div className="pr-8">
+                <div className="pr-10">
                   <h2 className="text-xl font-semibold">{t.connect.codeTitle}</h2>
                   {existingAccount && <p className="mt-1.5 text-sm font-medium text-ringo-text">{t.myRingo.account.existingAccountNote}</p>}
                   <p className="mt-1.5 text-sm text-ringo-muted">{t.connect.codeBody(email.trim())}</p>
@@ -403,7 +418,7 @@ export default function StayConnectedModal({
                 </a>
               </div>
             )}
-          </motion.div>
+          </DialogPanel>
         </motion.div>
       )}
     </AnimatePresence>,

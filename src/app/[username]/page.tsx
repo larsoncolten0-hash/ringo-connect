@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import { extractRequestContext } from "@/lib/requestContext";
 import { buildPixelConfigFromRow, isPixelsEnabledForUser, sendMetaPageView, extractClientIp } from "@/lib/pixelTracking";
-import { splitByPlanLimit, isCustomThemeAllowed } from "@/lib/planEntitlements";
+import { isCustomThemeAllowed } from "@/lib/planEntitlements";
+import { limitPublicRows, isPublicLink, isPublicProduct } from "@/lib/publicContent";
 import { computeProfileCheckoutAvailability } from "@/lib/productCheckout/availability";
 import ProfileView from "@/components/ProfileView";
 
@@ -58,8 +59,10 @@ export default async function PublicProfilePage({
     .eq("id", profile.user_id)
     .maybeSingle();
   const ownerPlan = (ownerPlanRow as any)?.plans ?? null;
-  const { visible: visibleLinks } = splitByPlanLimit(profile.links || [], ownerPlan?.max_links ?? null);
-  const { visible: visibleProducts } = splitByPlanLimit(profile.products || [], ownerPlan?.max_products ?? null);
+  // Rows with nothing to show (an empty link, a nameless product) are dropped BEFORE the plan limit, so they
+  // never use up one of the owner's visible slots (see lib/publicContent.ts). Display only; nothing is changed.
+  const { visible: visibleLinks } = limitPublicRows<any>(profile.links, isPublicLink, ownerPlan?.max_links ?? null);
+  const { visible: visibleProducts } = limitPublicRows<any>(profile.products, isPublicProduct, ownerPlan?.max_products ?? null);
   profile.links = visibleLinks;
   profile.products = visibleProducts;
   if (!isCustomThemeAllowed(ownerPlan)) {

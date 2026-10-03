@@ -46,10 +46,10 @@ export default function EventsSection({
 
   return (
     <div id="events" className="flex flex-col gap-3 scroll-mt-6">
-      <p className="text-base font-bold flex items-center gap-2">
+      <h2 className="text-base font-bold flex items-center gap-2">
         <Ticket size={17} style={{ color: accent }} />
         {t.music.upcomingTitle}
-      </p>
+      </h2>
 
       <div className="flex flex-col gap-3">
         {events

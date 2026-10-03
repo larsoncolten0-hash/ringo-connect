@@ -48,7 +48,7 @@ export default function SupportArtistSection({
     >
       <div className="flex items-center gap-2">
         <Heart size={17} style={{ color: accent }} fill={accent} />
-        <p className="text-base font-bold">{t.music.supportTitle}</p>
+        <h2 className="text-base font-bold">{t.music.supportTitle}</h2>
       </div>
       <p className="text-xs" style={{ opacity: 0.65 }}>
         {supportMessage || t.music.supportHint}
