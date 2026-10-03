@@ -2,6 +2,7 @@ import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata, ResolvingMetadata } from "next";
 import type { Viewport } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { buildProfileSeo, NOINDEX, profileDisplayName, safePublicImageUrl } from "@/lib/seo";
 
 // Shared by every public profile route ([username], r/[username],
 // m/[username] — all three use "username" as their dynamic segment name)
@@ -18,7 +19,7 @@ async function getProfileForMetadata(username: string) {
   const supabase = createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("name, username, avatar_url, bio, theme_color, category, is_demo")
+    .select("name, username, avatar_url, cover_image_url, bio, about_position, about_company, theme_color, category, is_demo")
     .eq("username", username)
     .eq("published", true)
     .single();
@@ -28,23 +29,21 @@ async function getProfileForMetadata(username: string) {
   return data;
 }
 
-export async function generateMetadata(
-  { params }: { params: { username: string } },
-  _parent: ResolvingMetadata
-): Promise<Metadata> {
-  const profile = await getProfileForMetadata(params.username);
-  if (!profile) return {};
-
-  const displayName = profile.name || profile.username;
+// The head tags every public profile route shares. `seo` adds the search / social layer (description,
+// canonical, Open Graph, Twitter, see lib/seo.ts); it is off for transactional pages (receipts, ticket passes)
+// that must not advertise anything.
+function buildMetadata(profile: NonNullable<Awaited<ReturnType<typeof getProfileForMetadata>>>, seo: boolean): Metadata {
+  const displayName = profileDisplayName(profile);
 
   return {
-    title: `${displayName} | Ringo Connect`,
-    description: profile.bio || `${displayName}'s Ringo Connect profile.`,
+    ...(seo
+      ? buildProfileSeo(profile)
+      : { title: `${displayName} | Ringo Connect` }),
     // Demo accounts (see supabase/migrations/2026-10-13_demo_accounts.sql)
     // render a real-looking live preview so the "try it" experience feels
     // real, but must never actually be discoverable — shared by every
     // public profile route ([username], r/[username], m/[username]).
-    ...(profile.is_demo ? { robots: { index: false, follow: false } } : {}),
+    ...(profile.is_demo ? { robots: NOINDEX } : {}),
     // Powers the browser's "Add to Home Screen"/install prompt on
     // Android/Chrome — see the route handler at
     // src/app/[username]/manifest.webmanifest/route.ts (same pattern
@@ -59,9 +58,32 @@ export async function generateMetadata(
       statusBarStyle: "default",
     },
     icons: {
-      apple: profile.avatar_url || "/apple-touch-icon.png",
+      // Same public-image rule as Open Graph / Twitter / JSON-LD (lib/seo.safePublicImageUrl): an unsafe or
+      // foreign avatar value never reaches <head>; the stock Apple icon is used instead.
+      apple: safePublicImageUrl(profile.avatar_url) || "/apple-touch-icon.png",
     },
   };
+}
+
+// Canonical is always the profile's own page (/{username}, no query), including for the secondary
+// representations that share this helper (/r/{username} ordering, /m/{username} store).
+export async function generateMetadata(
+  { params }: { params: { username: string } },
+  _parent: ResolvingMetadata
+): Promise<Metadata> {
+  const profile = await getProfileForMetadata(params.username);
+  if (!profile) return {};
+  return buildMetadata(profile, true);
+}
+
+// Receipts and ticket passes: reachable only by their unguessable link, so they keep the profile's
+// title / manifest / icon but advertise nothing (no description, canonical, Open Graph) and ask not to be indexed.
+export async function generateNoIndexMetadata(
+  { params }: { params: { username: string } },
+  _parent: ResolvingMetadata
+): Promise<Metadata> {
+  const profile = await getProfileForMetadata(params.username);
+  return { ...(profile ? buildMetadata(profile, false) : {}), robots: NOINDEX };
 }
 
 export async function generateViewport({ params }: { params: { username: string } }): Promise<Viewport> {

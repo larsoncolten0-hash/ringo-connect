@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { profileHasCategory } from "@/lib/categories";
 import { generateMetadata as generateProfileMetadata, generateViewport } from "@/lib/profileMetadata";
+import { NOINDEX, withItemSeo } from "@/lib/seo";
 import ProductDetailView from "@/components/catalog/ProductDetailView";
 import { productImages } from "@/components/catalog/productHref";
 import { computeCheckoutAvailability } from "@/lib/productCheckout/availability";
@@ -42,17 +43,16 @@ export async function generateMetadata(
   { params }: { params: { username: string; id: string } },
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const base = await generateProfileMetadata({ params }, parent);
   const found = await getItem(params.username, params.id);
-  if (!found) return base;
-  const title = `${found.product.name} — ${found.profile.name || found.profile.username}`;
-  const image = productImages(found.product)[0];
-  return {
-    ...base,
-    title,
-    description: found.product.description || base.description,
-    openGraph: { ...base.openGraph, title, ...(image ? { images: [image] } : {}) },
-  };
+  // An item the page itself would 404 (unavailable, unpublished, suspended) advertises nothing.
+  if (!found) return { robots: NOINDEX };
+  const base = await generateProfileMetadata({ params }, parent);
+  return withItemSeo(base, {
+    path: `/${encodeURIComponent(params.username)}/item/${encodeURIComponent(params.id)}`,
+    title: `${found.product.name} — ${found.profile.name || found.profile.username}`,
+    description: found.product.description,
+    image: productImages(found.product)[0],
+  });
 }
 
 export default async function ProductDetailRoute({ params }: { params: { username: string; id: string } }) {

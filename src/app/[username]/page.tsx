@@ -9,6 +9,7 @@ import { isCustomThemeAllowed } from "@/lib/planEntitlements";
 import { limitPublicRows, isPublicLink, isPublicProduct } from "@/lib/publicContent";
 import { computeProfileCheckoutAvailability } from "@/lib/productCheckout/availability";
 import ProfileView from "@/components/ProfileView";
+import { buildProfileJsonLd, serializeJsonLd } from "@/lib/seo";
 
 // Per-profile PWA installability (manifest link, iOS home-screen name/
 // icon, theme color) + page title/description — see
@@ -188,13 +189,19 @@ export default async function PublicProfilePage({
       .map(({ orgUsername, orgName, orgAvatarUrl, roleName }) => ({ orgUsername, orgName: orgName!, orgAvatarUrl, roleName }));
   }
 
+  // Structured data for search engines: only public, displayed fields (see lib/seo.ts); null for a demo profile.
+  const jsonLd = buildProfileJsonLd(publicProfile as any);
+
   return (
-    <ProfileView
-      profile={publicProfile}
-      pixelsEnabled={pixelsEnabled}
-      pageViewEventId={pageViewEventId}
-      staffBadges={staffBadges}
-      isOwner={isOwner}
-    />
+    <>
+      {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />}
+      <ProfileView
+        profile={publicProfile}
+        pixelsEnabled={pixelsEnabled}
+        pageViewEventId={pageViewEventId}
+        staffBadges={staffBadges}
+        isOwner={isOwner}
+      />
+    </>
   );
 }

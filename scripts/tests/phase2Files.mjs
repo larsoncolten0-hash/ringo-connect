@@ -3,6 +3,7 @@
 // anything outside its own area; they allow these files and nothing else, so any other change still fails them.
 // An explicit list (no wildcards, no directories) is deliberate: adding a file here is a conscious, reviewable act.
 import { PHASE3_FILES } from "./phase3Files.mjs";
+import { PHASE4_FILES } from "./phase4Files.mjs";
 
 export const PHASE2_FILES = new Set([
   "scripts/tests/aiBusinessTools.test.mjs",
@@ -72,7 +73,7 @@ export const PHASE2_FILES = new Set([
 ]);
 
 /** True for a file the Phase 2 editor work is allowed to change. */
-export const isPhase2File = (f) => PHASE2_FILES.has(f) || PHASE3_FILES.has(f); // Phase 3's list is in phase3Files.mjs
+export const isPhase2File = (f) => PHASE2_FILES.has(f) || PHASE3_FILES.has(f) || PHASE4_FILES.has(f); // Phase 3 / 4 lists are in phase3Files.mjs / phase4Files.mjs
 
 /** The subset under the editor components, for the guards that protect that folder. */
 export const isPhase2EditorFile = (f) => isPhase2File(f) && f.startsWith("src/components/editor/");

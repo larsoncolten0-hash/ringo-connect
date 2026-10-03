@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { profileHasCategory } from "@/lib/categories";
 import { generateMetadata as generateProfileMetadata, generateViewport } from "@/lib/profileMetadata";
+import { NOINDEX, withItemSeo } from "@/lib/seo";
 import MenuItemDetailView from "@/components/restaurant/MenuItemDetailView";
 
 export { generateViewport };
@@ -29,17 +30,16 @@ async function getItem(username: string, id: string) {
 }
 
 export async function generateMetadata({ params }: { params: { username: string; id: string } }, parent: ResolvingMetadata): Promise<Metadata> {
-  const base = await generateProfileMetadata({ params }, parent);
   const found = await getItem(params.username, params.id);
-  if (!found?.item) return base;
-  const title = `${found.item.name} — ${found.profile.name || found.profile.username}`;
-  const image = found.item.image_urls?.[0] || found.item.image_url;
-  return {
-    ...base,
-    title,
-    description: found.item.description || base.description,
-    openGraph: { ...base.openGraph, title, ...(image ? { images: [image] } : {}) },
-  };
+  // A missing dish redirects to the menu and an unknown profile 404s: neither advertises an item.
+  if (!found?.item) return { robots: NOINDEX };
+  const base = await generateProfileMetadata({ params }, parent);
+  return withItemSeo(base, {
+    path: `/r/${encodeURIComponent(params.username)}/item/${encodeURIComponent(params.id)}`,
+    title: `${found.item.name} — ${found.profile.name || found.profile.username}`,
+    description: found.item.description,
+    image: found.item.image_urls?.[0] || found.item.image_url,
+  });
 }
 
 export default async function MenuItemRoute({ params }: { params: { username: string; id: string } }) {

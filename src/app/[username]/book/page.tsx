@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Metadata, ResolvingMetadata } from "next";
 import BookingPage from "@/components/BookingPage";
 import { generateMetadata as generateProfileMetadata } from "@/lib/profileMetadata";
+import { withTitle } from "@/lib/seo";
 
 // The dedicated booking surface — reached from the public profile's "Book
 // Now"/"Reserve Table" button (see BookingButton.tsx, RestaurantHeroButtons
@@ -32,7 +33,8 @@ export async function generateMetadata(
   const service = (profile as any)?.booking_services?.find((s: any) => s.id === searchParams.service);
   if (!service) return base;
   const title = `${service.name} — ${(profile as any).name || (profile as any).username}`;
-  return { ...base, title, openGraph: { ...base.openGraph, title } };
+  // Canonical stays the profile page (no ?service query); only the shared preview title changes.
+  return withTitle(base, title);
 }
 
 export default async function BookingRoute({ params, searchParams }: { params: { username: string }; searchParams: { service?: string } }) {

@@ -4,7 +4,8 @@ import { checkAndConfirmFapshiOrder } from "@/lib/musicOrderPayment";
 import TicketPassView from "@/components/music/TicketPassView";
 
 // See src/app/[username]/page.tsx's own comment.
-export { generateMetadata, generateViewport } from "@/lib/profileMetadata";
+// A ticket pass is reachable only by its own link: not indexable (see profileMetadata.generateNoIndexMetadata).
+export { generateNoIndexMetadata as generateMetadata, generateViewport } from "@/lib/profileMetadata";
 
 // The actual digital ticket a fan lands on after a ticket purchase (see
 // MusicStorePage's confirmation screen, which links each purchased
