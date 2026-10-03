@@ -160,7 +160,7 @@ const USERS = [
 
   // Scope: what deliberately is NOT hidden.
   check("scope: buyers' own documents (receipt, ticket pass) are not touched by this change", !/isPublicProfileSuspended/.test(read("src/app/m/[username]/receipt/[id]/page.tsx")) && !/isPublicProfileSuspended/.test(read("src/app/m/[username]/ticket-pass/[code]/page.tsx")));
-  check("scope: login behaviour is unchanged (suspended accounts are still refused at login)", /userRow\?\.status === "suspended"/.test(read("src/app/api/auth/login/route.ts")));
+  check("scope: login behaviour is unchanged (suspended accounts are still refused at login)", /if \(access\.suspended\) \{\s*await supabase\.auth\.signOut\(\);\s*return NextResponse\.json\(\{ error: "suspended" \}, \{ status: 403 \}\);/.test(read("src/app/api/auth/login/route.ts")) && /userRow\?\.status === "suspended"/.test(read("src/lib/auth/accountAccess.ts")) && /loadAccountAccess\(supabase, data\.user\.id\)/.test(read("src/app/api/auth/login/route.ts")));
   check("scope: no schema change and no migration for this feature", !fs.readdirSync(path.join(REPO, "supabase/migrations")).some((f) => /suspend.*profile|profile.*suspend/i.test(f)));
 }
 

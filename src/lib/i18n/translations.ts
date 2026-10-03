@@ -1933,6 +1933,19 @@ export const translations = {
     // The public "Add to Home Screen" card + iOS instructions modal (see
     // AddToHomeScreen.tsx) — entirely separate feature from Community
     // above: installing a profile never subscribes anyone to anything.
+    // "Continue with Google / Apple" on the Log in page (components/auth/OAuthButtons.tsx).
+    oauthLogin: {
+      continueGoogle: "Continue with Google",
+      continueApple: "Continue with Apple",
+      divider: "or",
+      redirecting: "Redirecting…",
+      groupLabel: "Log in with another account",
+      cancelled: "Sign-in was cancelled. You can try again, or log in with your email.",
+      failed: "We couldn't sign you in with that account. Please try again, or use your email and password.",
+      noAccount: "No Ringo account is linked to that sign-in. Log in with your email and password, or create your page first. If you hid your email with Apple, use your email and password instead.",
+      suspended: "This account has been suspended. Contact support for help.",
+      providerUnavailable: "This sign-in option isn't available yet. Please use your email and password.",
+    },
     addToHomeScreen: {
       title: (name: string) => `Keep ${name} With You`,
       subtitle: "Add this profile to your home screen for quick access.",
@@ -7802,6 +7815,18 @@ export const translations = {
       fanBadgeLabel: (name: string) => `Invité · ${name}`,
       fanDropdownSubtitle: (creatorName: string) => `Vous faites partie de la communauté de ${creatorName}.`,
       fanShareLabel: "Partager cette page",
+    },
+    oauthLogin: {
+      continueGoogle: "Continuer avec Google",
+      continueApple: "Continuer avec Apple",
+      divider: "ou",
+      redirecting: "Redirection…",
+      groupLabel: "Se connecter avec un autre compte",
+      cancelled: "La connexion a été annulée. Vous pouvez réessayer, ou vous connecter avec votre e-mail.",
+      failed: "Nous n'avons pas pu vous connecter avec ce compte. Veuillez réessayer, ou utiliser votre e-mail et votre mot de passe.",
+      noAccount: "Aucun compte Ringo n'est lié à cette connexion. Connectez-vous avec votre e-mail et votre mot de passe, ou créez d'abord votre page. Si vous avez masqué votre e-mail avec Apple, utilisez votre e-mail et votre mot de passe.",
+      suspended: "Ce compte a été suspendu. Contactez le support pour obtenir de l'aide.",
+      providerUnavailable: "Cette option de connexion n'est pas encore disponible. Veuillez utiliser votre e-mail et votre mot de passe.",
     },
     addToHomeScreen: {
       title: (name: string) => `Gardez ${name} avec vous`,

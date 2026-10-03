@@ -9,6 +9,7 @@ import path from "path";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { isPhase2File } from "./phase2Files.mjs";
+import { isPhase8AuthFile } from "./phase8Files.mjs"; // Phase 8: the exact auth / env files of "Continue with Google / Apple"
 import { SRC, REPO, PROFILE, OTHER, USER, ID, makeDb, makeAdmin, mkOwner, earn, entry, order, counters } from "./phase7Harness.mjs";
 
 const require = createRequire(import.meta.url);
@@ -494,7 +495,7 @@ const sales = async (period, o = {}, extra = {}) => (await call("get_sales", { p
   const GUIDANCE_FILES = /^(src\/(app\/\[username\]\/page\.tsx$|app\/dashboard\/(home\/|analytics\/page\.tsx$)|components\/(guidance\/|AnalyticsView\.tsx$|Editor\.tsx$|editor\/ProfileCompletionCard\.tsx$|dashboard\/(DashboardShell\.tsx|EditorSection\.tsx|sectionSaveState\.ts)$)|lib\/(profileHealth\/|i18n\/translations\.ts$|ai\/knowledge\/(index|navigation)\.ts$|ai\/knowledge\/modules\/guidance\.ts$))|scripts\/tests\/(profileHealth|saveTrust)\.test\.mjs$)/;
   const outside = changed.filter((f) => !ALLOWED.some((re) => re.test(f)) && !RECORD_SALE.test(f) && !GUIDANCE_FILES.test(f) && !isPhase2File(f)); // Phase 2: an explicit file list, see phase2Files.mjs
   check("only the intended Ringo AI business files changed (AI tools and drafts, gate, registry, snapshot, prompt, knowledge, labels, the shared recordEntry/category gate, the un-applied migration, tests)", outside.length === 0, outside.join(", "));
-  check("no package file, no Toolkit/documents/receivables/reports/customers library and no other API route changed; the only migration is the un-applied AI drafts one", !changed.filter((f) => !RECORD_SALE.test(f)).some((f) => /^(package(-lock)?\.json$|src\/lib\/(documents|receivables|reports|customers|overview|corrections)\/|src\/app\/api\/(?!ai\/drafts\/|bookkeeping\/entries\/route\.ts))/.test(f) || (/^supabase\//.test(f) && !/2026-12-05_ringo_ai_business_drafts/.test(f))), changed.join());
+  check("no package file, no Toolkit/documents/receivables/reports/customers library and no other API route changed; the only migration is the un-applied AI drafts one", !changed.filter((f) => !RECORD_SALE.test(f) && !isPhase8AuthFile(f)).some((f) => /^(package(-lock)?\.json$|src\/lib\/(documents|receivables|reports|customers|overview|corrections)\/|src\/app\/api\/(?!ai\/drafts\/|bookkeeping\/entries\/route\.ts))/.test(f) || (/^supabase\//.test(f) && !/2026-12-05_ringo_ai_business_drafts/.test(f))), changed.join());
 }
 
 for (const f of tmp) try { fs.unlinkSync(f); } catch {}
