@@ -44,15 +44,14 @@ export default function ShopOrdersView({ data }: { data: SellerOrderPage }) {
         <p className="text-sm text-ringo-muted max-w-lg">{s.subtitle}</p>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist">
+      <nav className="flex flex-wrap gap-2" aria-label={s.filtersLabel}>
         {ORDER_GROUPS.map((g) => {
           const active = g === data.group;
           return (
             <Link
               key={g}
               href={shopHref(g, 1)}
-              role="tab"
-              aria-selected={active}
+              aria-current={active ? "page" : undefined}
               className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
                 active ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo" : "border-ringo-border/70 text-ringo-muted hover:text-ringo-text"
               }`}
@@ -64,7 +63,7 @@ export default function ShopOrdersView({ data }: { data: SellerOrderPage }) {
             </Link>
           );
         })}
-      </div>
+      </nav>
 
       {data.items.length === 0 ? (
         <EmptyState icon={ClipboardList} title={empty[data.group].title} hint={empty[data.group].hint} />
@@ -113,7 +112,7 @@ export default function ShopOrdersView({ data }: { data: SellerOrderPage }) {
       )}
 
       {data.total > 0 && (
-        <nav className="flex items-center justify-between gap-3 text-sm" aria-label="pagination">
+        <nav className="flex items-center justify-between gap-3 text-sm" aria-label={s.ordersPaginationLabel}>
           {data.page > 1 ? (
             <Link href={shopHref(data.group, data.page - 1)} className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-ringo-border/70 px-4 py-1.5 font-medium text-ringo-text">
               <ChevronLeft size={14} />

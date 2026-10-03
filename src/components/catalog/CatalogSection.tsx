@@ -249,6 +249,13 @@ function ProductCard({
     </>
   );
 
+  // The card link's accessible name keeps what a sighted visitor reads on it: the name, the price, whether it is
+  // sold out, and the action the button shows. (The visible button is aria-hidden, so it is named here.)
+  const hasPrice = product.price != null && product.price !== "";
+  const accessibleName = [product.name, hasPrice ? formatPrice(product.price, currency) : "", soldOut ? t.music.soldOut : "", buttonLabel]
+    .filter((part) => typeof part === "string" && part.trim() !== "")
+    .join(", ");
+
   const motionProps = reduceMotion
     ? {}
     : {
@@ -265,7 +272,7 @@ function ProductCard({
       {body}
     </motion.div>
   ) : (
-    <motion.a href={href} onClick={onOpen} className={`${cls} active:scale-[0.985] transition-transform`} aria-label={product.name} {...motionProps}>
+    <motion.a href={href} onClick={onOpen} className={`${cls} active:scale-[0.985] transition-transform`} aria-label={accessibleName} {...motionProps}>
       {body}
     </motion.a>
   );

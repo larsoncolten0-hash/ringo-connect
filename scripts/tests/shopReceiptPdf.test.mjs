@@ -198,7 +198,10 @@ const receipt = (o = {}) => ({
   const git = (args) => execFileSync("git", args, { cwd: REPO, encoding: "utf8" }).split("\n").filter(Boolean);
   const PROTECTED = ["src/lib/productCheckout/", "src/lib/protection/", "src/lib/fapshi.ts", "src/lib/fapshiSafety.ts", "src/lib/applyPayment.ts", "src/lib/musicReceipt.ts", "src/lib/musicOrderPayment.ts", "src/lib/shopAuth.ts", "src/lib/email/", "src/app/api/products/", "src/app/api/protection/", "src/app/api/shop/", "src/app/api/billing/", "src/app/api/music/", "src/app/api/orders/", "src/app/order/", "src/app/m/"];
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
-  const hit = changed.filter((f) => PROTECTED.some((p) => f.replace(/\\/g, "/").startsWith(p)));
+  // Phase 5 approved exactly one page-level change under src/app/order/: a metadata-only noindex on the tracking page.
+  // The exemption names that single file; the rest of src/app/order/ (and every other protected path) stays protected.
+  const APPROVED_METADATA_ONLY = new Set(["src/app/order/[id]/page.tsx"]);
+  const hit = changed.filter((f) => !APPROVED_METADATA_ONLY.has(f.replace(/\\/g, "/")) && PROTECTED.some((p) => f.replace(/\\/g, "/").startsWith(p)));
   check("NO protected checkout / settlement / payment / protection / receipt-reader / email / music file is modified or added", hit.length === 0, hit.join(","));
   const migrations = changed.filter((f) => /^supabase\/migrations\//.test(f));
   eq("the only migration in the working tree is the Phase 3 one (Phase 1, Phase 2 and every earlier migration are untouched)", migrations, ["supabase/migrations/2026-12-03_debtors_reminders.sql"]);

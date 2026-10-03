@@ -191,7 +191,7 @@ export default function ShopEarningsView({ data, payoutOverview }: { data: Selle
       )}
 
       {data.total > 0 && (
-        <nav className="flex items-center justify-between gap-3 text-sm" aria-label="pagination">
+        <nav className="flex items-center justify-between gap-3 text-sm" aria-label={s.earningsPaginationLabel}>
           {data.page > 1 ? (
             <Link href={earningsHref(data.page - 1)} className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-ringo-border/70 px-4 py-1.5 font-medium text-ringo-text">
               <ChevronLeft size={14} />

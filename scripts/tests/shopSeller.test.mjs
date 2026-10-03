@@ -465,7 +465,7 @@ function fulfilStore(w, viewer, profileId) { return createFulfillStore(w.client(
   check("list EN: title, tabs, chips, reference, product, quantity, amount, customer, link to detail", h.includes("Shop orders") && h.includes("Sales") && h.includes("To fulfill") && h.includes("Unpaid") && /PO-\d{6}/.test(h) && h.includes("Blue Widget") && h.includes("Qty 2") && /12,000|12 000|XAF/.test(h) && h.includes("Amina Bello") && h.includes("677123456") && h.includes(`/dashboard/shop/${oPaid}`));
   h = html(Orders, { data: list }, "fr");
   check("list FR: French title, tabs and statuses, no English UI text", h.includes("Commandes boutique") && h.includes("Ventes") && h.includes("À traiter") && h.includes("Non payées") && h.includes("Payée") && h.includes("Qté 2") && !/Shop orders|Awaiting payment|Qty /.test(h));
-  check("list: filter links point at the right groups, active one is marked", h.includes('href="/dashboard/shop?group=to_fulfill"') && h.includes('href="/dashboard/shop?group=unpaid"') && h.includes('aria-selected="true"'));
+  check("list: filter links point at the right groups, active one is marked", h.includes('href="/dashboard/shop?group=to_fulfill"') && h.includes('href="/dashboard/shop?group=unpaid"') && h.includes('aria-current="page"'));
   check("list: the to-fulfill badge shows the count", new RegExp(`>${list.toFulfillCount}<`).test(h));
   check("list: payment_review / refunded are shown as such, not as paid", /En vérification/.test(h) && /Remboursée/.test(h));
   const bigW = makeWorld(); for (let i = 0; i < 45; i++) bigW.addOrder(P_A, "paid");
