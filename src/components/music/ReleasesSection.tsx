@@ -1,7 +1,7 @@
 "use client";
 
 import { Disc3, ShoppingBag } from "lucide-react";
-import { hexToRgba } from "@/lib/color";
+import { hexToRgba, readableOn } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
 
@@ -27,6 +27,10 @@ export default function ReleasesSection({
 }) {
   const available = releases.filter((r) => r.available !== false);
   if (available.length === 0) return null;
+  const onAccent = readableOn(accent);
+  // Editorial: with an odd number of releases the first one leads, full width, so the grid below it always fills evenly. The cards,
+  // links, prices and order are exactly the creator's; only the first card's width changes.
+  const leadFirst = available.length % 2 === 1;
 
   return (
     <div id="releases" className="flex flex-col gap-3 scroll-mt-6">
@@ -36,18 +40,18 @@ export default function ReleasesSection({
       </h2>
 
       <div className="grid grid-cols-2 gap-3">
-        {available.map((release) => (
+        {available.map((release, index) => (
           <a
             key={release.id}
             href={`/m/${username}/release/${release.id}`}
-            className="overflow-hidden rounded-2xl transition hover:-translate-y-0.5"
+            className={`overflow-hidden rounded-ringo-lg transition hover:-translate-y-0.5 ${leadFirst && index === 0 ? "col-span-2" : ""}`}
             style={{ border: `1px solid ${hexToRgba(accent, 0.15)}` }}
           >
             {release.cover_image_url ? (
-              <img src={release.cover_image_url} alt="" className="w-full aspect-square object-cover" />
+              <img src={release.cover_image_url} alt="" className={`w-full object-cover ${leadFirst && index === 0 ? "aspect-[16/10]" : "aspect-square"}`} />
             ) : (
               <div
-                className="w-full aspect-square flex items-center justify-center"
+                className={`w-full flex items-center justify-center ${leadFirst && index === 0 ? "aspect-[16/10]" : "aspect-square"}`}
                 style={{ backgroundColor: hexToRgba(accent, 0.12) }}
               >
                 <Disc3 size={28} style={{ color: accent }} />
@@ -61,7 +65,7 @@ export default function ReleasesSection({
               {release.price && (
                 <span
                   className="inline-flex items-center gap-1.5 text-xs font-semibold mt-2 px-3 py-1.5 rounded-full"
-                  style={{ backgroundColor: accent, color: "#fff" }}
+                  style={{ backgroundColor: accent, color: onAccent }}
                 >
                   <ShoppingBag size={12} />
                   {formatPrice(release.price, currency)}

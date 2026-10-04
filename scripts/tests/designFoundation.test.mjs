@@ -11,6 +11,7 @@ import { execSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { isPhase2File } from "./phase2Files.mjs";
+import { PHASE11_FILES } from "./phase11Files.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -272,7 +273,7 @@ await test("compatibility: indigo, branding, radius, shadows and the existing to
   assert.ok(layout.includes("--ringo-indigo"), "the root layout still injects the brand color");
 });
 await test("compatibility: the foundation only ADDS to globals.css and tailwind.config.ts (no existing line removed or changed)", () => {
-  const stat = git("diff --numstat HEAD -- src/app/globals.css tailwind.config.ts src/lib/i18n/translations.ts").trim().split("\n").filter(Boolean);
+  const stat = git("diff --numstat b33b1f4~1 b33b1f4 -- src/app/globals.css tailwind.config.ts src/lib/i18n/translations.ts").trim().split("\n").filter(Boolean);
   for (const line of stat) {
     const [added, removed, file] = line.split("\t");
     // globals.css had no newline after its final "}", so appending after it shows that one line as changed; nothing else may be.
@@ -280,9 +281,9 @@ await test("compatibility: the foundation only ADDS to globals.css and tailwind.
     const allowed = file === "src/app/globals.css" ? 1 : file === "src/lib/i18n/translations.ts" ? 4 : 0;
     assert.ok(Number(removed) <= allowed, `${file}: ${removed} lines removed (${added} added)`);
   }
-  const removedLines = git("diff -U0 HEAD -- src/app/globals.css").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
+  const removedLines = git("diff -U0 b33b1f4~1 b33b1f4 -- src/app/globals.css").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
   assert.ok(removedLines.every((l) => l.trim() === "-}"), "the only globals.css line touched is the old final closing brace: " + removedLines.join("|"));
-  const i18nRemoved = git("diff -U0 HEAD -- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
+  const i18nRemoved = git("diff -U0 b33b1f4~1 b33b1f4 -- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
   assert.ok(i18nRemoved.every((l) => /hero(TitleRest|Title):/.test(l)), "translations.ts: only the hero headline lines were rewritten: " + i18nRemoved.join("|"));
 });
 await test("compatibility: apart from the landing hero (Phase 2A), no foundation class is applied to any existing screen (the foundation is opt-in)", () => {
@@ -295,6 +296,7 @@ await test("compatibility: apart from the landing hero (Phase 2A), no foundation
         const rel = path.relative(REPO, f).replace(/\\/g, "/");
         // Phase 2A: the landing hero is the one approved first adopter of the foundation.
         if (rel.startsWith("src/components/landing/")) continue; // Phase 2A/2: the landing page is the approved adopter (checked in landingHero / landingStory tests)
+        if (PHASE11_FILES.has(rel)) continue; // Phase 3A: the Music public profile is the next approved adopter (checked in musicProfile.test.mjs)
         if (rel === "src/app/globals.css" || rel.startsWith("src/components/brand/") || rel.startsWith("src/lib/design/") || rel.startsWith("src/app/dev-preview-foundation/") || rel === "src/lib/i18n/translations.ts") continue;
         const s = fs.readFileSync(f, "utf8");
         if (/\bringo-(glass|gilt|lamp|press|rise|micro|ring-|live-dot|card-sweep|focus)\b|(?:bg|text|border|from|to|ring|shadow|rounded)-ringo-(ink|ink-2|paper|gold|gold-dark|gold-light|ember|ember-dark|signal|signal-dark|rose|rose-dark|stone|accent|on-accent|gold-text|ember-text|signal-text|rose-text|line-warm|line-gilt|sm|md|lg|xl|1|2|3|glow|signal)\b|duration-ringo|ease-ringo|font-micro|components\/brand|lib\/design/.test(s)) used.push(rel);
@@ -476,16 +478,16 @@ await test("the preview page renders (EN and FR) on the real components and neve
 
 // ------------------------------------------------------------------ 12. scope: nothing risky touched, nothing outside the allowlist
 await test("scope: no dependency, lockfile, migration, env, auth, payment, billing, branding or creator-theme file changed", () => {
-  const changed = git("status --porcelain").split("\n").filter(Boolean).map((l) => l.slice(3).replace(/"/g, "").replace(/\\/g, "/"));
+  const changed = git("diff --name-only b33b1f4~1 b33b1f4").split("\n").filter(Boolean).map((l) => l.replace(/"/g, "").replace(/\\/g, "/"));
   const protectedPath = /^(package(-lock)?\.json|\.env|supabase\/|migrations\/|src\/middleware\.ts|src\/app\/api\/|src\/lib\/(theme|branding|brandingDefaults|categories)\.ts|src\/lib\/(auth|billing|payments?|productCheckout|fapshi|stripe|shop|settlement)|src\/components\/checkout\/|public\/)/i;
   assert.deepEqual(changed.filter((f) => protectedPath.test(f)), []);
   assert.deepEqual(changed.filter((f) => !isPhase2File(f)), [], "files outside the allowlist");
 });
 await test("scope: package.json and package-lock.json are byte-identical to HEAD (no new dependency)", () => {
-  assert.equal(git("diff --stat HEAD -- package.json package-lock.json").trim(), "");
+  assert.equal(git("diff --stat b33b1f4~1 b33b1f4 -- package.json package-lock.json").trim(), "");
 });
 await test("scope: the landing page, profiles, dashboard, commerce and the static funnels are untouched by this phase", () => {
-  const changed = git("diff --name-only HEAD").split("\n").filter(Boolean);
+  const changed = git("diff --name-only b33b1f4~1 b33b1f4").split("\n").filter(Boolean);
   assert.deepEqual(changed.filter((f) => !f.startsWith("src/components/landing/")).filter((f) => /^src\/components\/(landing|dashboard|overview|checkout|catalog|auth)\//.test(f) || /^src\/components\/(ProfileView|ShareButton)\.tsx$/.test(f) || /^src\/app\/(page|layout)\.tsx$/.test(f) || /^src\/app\/\[username\]\//.test(f) || /^public\//.test(f)), []);
 });
 

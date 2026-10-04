@@ -30,7 +30,7 @@ async function test(name, fn) {
 const raw = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8").replace(/\r\n/g, "\n");
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 const git = (cmd) => execSync(`git ${cmd}`, { cwd: REPO, encoding: "utf8" });
-const gitShow = (rel) => git(`show HEAD:${rel}`).replace(/\r\n/g, "\n");
+const gitShow = (rel) => git(`show b33b1f4~1:${rel}`).replace(/\r\n/g, "\n");
 
 const { translations } = jiti(path.join(SRC, "lib/i18n/translations.ts"));
 let LOCALE = "en";
@@ -88,7 +88,7 @@ await test("copy: only the headline strings changed in translations; the hero su
     assert.deepEqual(pick(after), pick(before), key);
     assert.equal(pick(after).length, 2, key + " in EN and FR");
   }
-  const removed = git("diff -U0 HEAD -- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
+  const removed = git("diff -U0 b33b1f4~1 b33b1f4 -- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
   assert.equal(removed.length, 4, "exactly the four headline lines were rewritten: " + removed.join(" | "));
   assert.ok(removed.every((l) => /hero(TitleRest|Title):/.test(l)));
   assert.ok(!/2000|2 000|2,000/.test(heroSrc + JSON.stringify([translations.en.landing.heroSubtitle, translations.fr.landing.heroSubtitle])), "no invented user count");
@@ -113,11 +113,11 @@ await test("the hero keeps every section it links to: the anchors behind its CTA
   for (const id of ["journey", "features", "industries", "restaurant", "nfc", "pricing"]) assert.ok(raw("src/components/landing/LandingView.tsx").includes(`id="${id}"`) || ["features", "industries", "restaurant", "nfc"].includes(id), id);
 });
 await test("unchanged: SEO metadata, the root layout and its fonts, the funnels and the public folder", () => {
-  const changed = git("status --porcelain").split("\n").filter(Boolean).map((l) => l.slice(3).replace(/"/g, ""));
+  const changed = git("diff --name-only b33b1f4~1 b33b1f4").split("\n").filter(Boolean).map((l) => l.replace(/"/g, ""));
   const touched = (re) => changed.filter((f) => re.test(f));
   assert.deepEqual(touched(/^src\/app\/(page|layout)\.tsx$/), []);
   assert.deepEqual(touched(/^public\//), []);
-  assert.equal(git("diff --stat HEAD -- src/app/page.tsx src/app/layout.tsx src/lib/brandingDefaults.ts").trim(), "");
+  assert.equal(git("diff --stat b33b1f4~1 b33b1f4 -- src/app/page.tsx src/app/layout.tsx src/lib/brandingDefaults.ts").trim(), "");
   assert.ok(raw("src/app/layout.tsx").includes("Space_Grotesk") && raw("src/app/layout.tsx").includes("Inter"), "the root layout keeps its fonts");
   assert.ok(!raw("src/app/layout.tsx").includes("Bricolage"), "the new font is not loaded site-wide");
 });

@@ -7,8 +7,10 @@ import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingC
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, profileHasCategory, profileHasTicketing } from "@/lib/categories";
 import { formatPrice } from "@/lib/currency";
-import { hexToRgba } from "@/lib/color";
-import { getButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
+import { accentTextOn, hexToRgba } from "@/lib/color";
+import { getButtonStyle, getPanelButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
+import { getProfileStage } from "@/lib/profileStage";
+import Ring from "@/components/brand/Ring";
 import { ensureVisitorId, captureTtclid, newEventId } from "@/lib/pixelClient";
 import { metaEventName, tiktokEventName, isValidFacebookPixelId, isValidTiktokPixelId } from "@/lib/pixelEvents";
 import SocialIcon from "./SocialIcon";
@@ -225,18 +227,17 @@ export default function ProfileView({
   const linkButtonStyle = getButtonStyle(profile.button_style || "outline", accent);
   const borderTint = hexToRgba(textColor, 0.12);
 
-  // Music & Entertainment's specific look (see the reference design this
-  // was built from): a warm, light content area below the dark photo
-  // hero, rather than the same dark theme continuing all the way down.
-  // Fixed, not theme-driven — ThemeCard's background/text color fields
-  // still fully control the hero zone above; this is a structural choice
-  // that's part of what makes this "the Music & Entertainment theme"
-  // specifically, the same way the about-card's accent stripe is a fixed
-  // structural choice for every category.
-  const MUSIC_CREAM = "#FBF3E7";
-  const MUSIC_CREAM_TEXT = "#1C140C";
-  const contentTextColor = isMusic ? MUSIC_CREAM_TEXT : textColor;
-  const contentBorderTint = isMusic ? "rgba(28,20,12,0.12)" : borderTint;
+  // The category's "stage" (lib/profileStage.ts): Music & Entertainment's light content panel below the dark photo hero, rather than
+  // the same dark theme continuing all the way down. Fixed structure made of Ringo foundation tokens, not theme-driven: ThemeCard's
+  // background/text color fields still fully control the hero zone above, and the creator's accent is used as it is. A category with
+  // no stage (every other category today) has no panel and renders exactly as before.
+  const stage = getProfileStage(isMusic ? "music_entertainment" : profile.category);
+  const panel = stage.panel;
+  const contentTextColor = panel ? panel.textHex : textColor;
+  const contentBorderTint = panel ? panel.border : borderTint;
+  // Buttons and accent-coloured text that sit ON the fixed panel keep the creator's accent as border / fill, with a legible text colour.
+  const panelButtonStyle = panel ? getPanelButtonStyle(profile.button_style || "outline", accent, panel.backgroundHex) : linkButtonStyle;
+  const panelAccentText = panel ? accentTextOn(panel.backgroundHex, accent) : accent;
 
   // The public page is the creator's brand, not app chrome — it renders
   // with exactly the colors they chose, independent of the visitor's own
@@ -336,7 +337,7 @@ export default function ProfileView({
                   {hasRoleCard && (
                     <div className="mb-4">
                       {profile.about_position && (
-                        <p className="text-base font-bold" style={{ color: accent }}>
+                        <p className="text-base font-bold" style={{ color: panelAccentText }}>
                           {profile.about_position}
                         </p>
                       )}
@@ -359,7 +360,7 @@ export default function ProfileView({
                           <>
                             <item.icon size={15} style={{ color: accent }} className="shrink-0 mt-0.5" />
                             <div className="min-w-0">
-                              <p className="text-[10px] uppercase tracking-wider" style={{ opacity: 0.5 }}>
+                              <p className="text-xs uppercase tracking-wider" style={{ opacity: 0.55 }}>
                                 {item.label}
                               </p>
                               <p className="text-sm font-medium [overflow-wrap:anywhere]">{item.value}</p>
@@ -428,7 +429,7 @@ export default function ProfileView({
                     rel="noopener noreferrer"
                     onClick={() => logClick("link", link.id, { name: link.title })}
                     className={`flex items-center gap-3 p-3 transition hover:brightness-95 hover:-translate-y-0.5 active:scale-[0.98] active:brightness-90 ${radiusClass}`}
-                    style={linkButtonStyle}
+                    style={panelButtonStyle}
                   >
                     {link.image_url && (
                       <img src={link.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
@@ -627,22 +628,36 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
       </div>
 
       <div className="relative z-10 flex flex-col items-center px-4 -mt-16 w-full">
-        <div className="relative animate-fade-up">
+        <div className={`relative animate-fade-up ${stage.avatarRing ? "mb-4" : ""}`}>
           {/* Subtle pulsing glow — the same ring-pulse signature used on
               the auth pages, scaled down and tinted to the creator's own
               accent color rather than the fixed brand palette. */}
-          <span
-            className="absolute inset-0 rounded-full animate-ring-pulse-1 motion-reduce:animate-none pointer-events-none"
-            style={{ border: `2px solid ${accent}` }}
-          />
-          <span
-            className="absolute inset-0 rounded-full animate-ring-pulse-2 motion-reduce:animate-none pointer-events-none"
-            style={{ border: `2px solid ${accent}` }}
-          />
+          {stage.avatarRing ? (
+            // The Ringo ring, open with its node, in the creator's own accent: a still signature of connection around who they are,
+            // in place of the looping pulse (decorative, hidden from assistive technology).
+            <Ring
+              size={188}
+              state="idle"
+              weight="fine"
+              color={accent}
+              className="pointer-events-none absolute -inset-9 h-[calc(100%+4.5rem)] w-[calc(100%+4.5rem)] opacity-90"
+            />
+          ) : (
+            <>
+              <span
+                className="absolute inset-0 rounded-full animate-ring-pulse-1 motion-reduce:animate-none pointer-events-none"
+                style={{ border: `2px solid ${accent}` }}
+              />
+              <span
+                className="absolute inset-0 rounded-full animate-ring-pulse-2 motion-reduce:animate-none pointer-events-none"
+                style={{ border: `2px solid ${accent}` }}
+              />
+            </>
+          )}
           <img
             src={profile.avatar_url || "/default-avatar.png"}
             alt={profile.name}
-            className="relative w-36 h-36 sm:w-40 sm:h-40 rounded-full object-cover ring-4"
+            className={`relative w-36 h-36 sm:w-40 sm:h-40 rounded-full object-cover ${stage.avatarRing ? "" : "ring-4"}`}
             style={{ ["--tw-ring-color" as any]: hexToRgba(accent, 0.85), backgroundColor: bgColor }}
           />
         </div>
@@ -783,12 +798,10 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         <div
           id={preview ? undefined : "profile-content"}
           tabIndex={preview ? undefined : -1}
-          className={`w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up focus:outline-none ${
-            isMusic ? "rounded-[28px] p-4 sm:p-5 shadow-[0_10px_36px_rgba(0,0,0,0.3)]" : ""
-          }`}
+          className={`w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up focus:outline-none ${panel ? panel.className : ""}`}
           style={{
             animationDelay: "340ms",
-            ...(isMusic ? { backgroundColor: MUSIC_CREAM, color: MUSIC_CREAM_TEXT } : {}),
+            ...(panel ? { backgroundColor: panel.background, color: panel.text } : {}),
           }}
         >
           {/* "＋ Connect" — the universal customer ↔ profile action (see src/components/connect/). It sits at the
@@ -803,7 +816,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               profile={{ id: profile.id, name: profile.name || profile.username }}
               accent={accent}
               radiusClass={radiusClass}
-              buttonStyle={linkButtonStyle}
+              buttonStyle={panelButtonStyle}
               borderTint={contentBorderTint}
               textColor={contentTextColor}
               preview={preview}
@@ -879,7 +892,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               username={profile.username}
               accent={accent}
               radiusClass={radiusClass}
-              buttonStyle={linkButtonStyle}
+              buttonStyle={panelButtonStyle}
               borderTint={contentBorderTint}
               textColor={contentTextColor}
             />
@@ -887,6 +900,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         </div>
 
         <footer role="contentinfo" className="mt-10 text-center">
+          {stage.closingRing && <Ring size={40} state="idle" color={accent} className="mx-auto mb-4" />}
           <p className="text-xs" style={{ opacity: 0.5 }}>
             © {new Date().getFullYear()} {profile.name}. {t.profilePage.rights}
           </p>

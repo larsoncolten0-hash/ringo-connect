@@ -57,7 +57,7 @@ await test("social icons are 44px", () => {
 });
 await test("event cards: the title gets room (the ticket button wraps below on a narrow card) and the button is 44px", () => {
   const e = src("components/music/EventsSection.tsx");
-  assert.match(e, /rounded-2xl p-3 flex flex-wrap items-center gap-3/);
+  assert.match(e, /rounded-(?:2xl|ringo-lg) p-3 flex flex-wrap items-center gap-3/);
   assert.match(e, /<div className="flex-1 min-w-\[9rem\]">/);
   assert.match(e, /text-sm font-semibold line-clamp-2 \[overflow-wrap:anywhere\]">\{event\.title\}/);
   assert.match(e, /shrink-0 ml-auto inline-flex items-center min-h-\[44px\]/);
@@ -65,7 +65,7 @@ await test("event cards: the title gets room (the ticket button wraps below on a
 });
 await test("music track rows: the title wraps instead of being squeezed, and the buy links are 44px (presentation only)", () => {
   const m = src("components/music/MusicSection.tsx");
-  assert.match(m, /rounded-2xl p-3 flex flex-wrap items-center gap-3/);
+  assert.match(m, /rounded-(?:2xl|ringo-lg) p-3 flex flex-wrap items-center gap-3/);
   assert.match(m, /<div className="flex-1 min-w-\[8rem\]">/);
   assert.match(m, /text-sm font-semibold flex flex-wrap items-center gap-x-1\.5 \[overflow-wrap:anywhere\]/);
   assert.equal(count(m, /shrink-0 inline-flex items-center min-h-\[44px\] text-xs font-semibold px-3 py-2 rounded-full/g), 2);

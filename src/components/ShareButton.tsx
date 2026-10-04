@@ -225,7 +225,7 @@ export default function ShareButton({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        className={`w-9 h-9 rounded-full flex items-center justify-center transition z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${TAP_AREA_36}`}
+        className={`w-11 h-11 rounded-full flex items-center justify-center transition z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${TAP_AREA_36}`}
         style={{ backgroundColor: "rgba(255,255,255,0.7)", color: accent }}
       >
         <Share size={15} />

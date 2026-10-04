@@ -34,6 +34,7 @@ export default function Ring({
   state = "idle",
   label,
   weight = "regular",
+  color: colorOverride,
   className = "",
 }: {
   size?: number;
@@ -42,11 +43,14 @@ export default function Ring({
   /** "regular" is the Ring's signature weight and the default everywhere. "fine" is a thinner stroke for very large uses (an emblem
    *  hundreds of pixels wide), where the regular weight reads as heavy. Same shape, same states, same colors. */
   weight?: RingWeight;
+  /** Any CSS color, for a surface that wears a creator's own accent (a public profile). Overrides gold / signal for every state; omit it
+   *  and the Ring is exactly what it always was. */
+  color?: string;
   className?: string;
 }) {
   const w = WEIGHTS[weight];
-  const color = connectTone(state) === "signal" ? "rgb(var(--rc-signal))" : "rgb(var(--rc-gold))";
-  const track = connectTone(state) === "signal" ? "rgb(var(--rc-signal) / 0.2)" : "rgb(var(--rc-gold) / 0.2)";
+  const color = colorOverride ?? (connectTone(state) === "signal" ? "rgb(var(--rc-signal))" : "rgb(var(--rc-gold))");
+  const track = colorOverride ? `color-mix(in srgb, ${colorOverride} 20%, transparent)` : connectTone(state) === "signal" ? "rgb(var(--rc-signal) / 0.2)" : "rgb(var(--rc-gold) / 0.2)";
   const a11y = label ? ({ role: "img", "aria-label": label } as const) : ({ "aria-hidden": true } as const);
 
   return (

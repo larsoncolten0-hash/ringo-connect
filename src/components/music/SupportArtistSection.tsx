@@ -4,6 +4,7 @@ import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { readableOn } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
 
 const PRESET_AMOUNTS = [500, 1000, 2500, 5000];
@@ -37,6 +38,8 @@ export default function SupportArtistSection({
   const [amount, setAmount] = useState<number | "custom">(1000);
   const [customAmount, setCustomAmount] = useState("");
 
+  // Text on the accent-filled amount chips and the send button: ink or white, whichever reads on the creator's accent.
+  const onAccent = readableOn(accent);
   const finalAmount = amount === "custom" ? Number(customAmount) || 0 : amount;
   const canSend = finalAmount > 0;
 
@@ -62,7 +65,7 @@ export default function SupportArtistSection({
             className="text-xs font-medium px-3 py-1.5 min-h-[44px] rounded-full transition"
             style={
               amount === preset
-                ? { backgroundColor: accent, color: "#fff" }
+                ? { backgroundColor: accent, color: onAccent }
                 : { border: `1.5px solid ${borderTint}`, color: textColor }
             }
           >
@@ -74,7 +77,7 @@ export default function SupportArtistSection({
           className="text-xs font-medium px-3 py-1.5 min-h-[44px] rounded-full transition"
           style={
             amount === "custom"
-              ? { backgroundColor: accent, color: "#fff" }
+              ? { backgroundColor: accent, color: onAccent }
               : { border: `1.5px solid ${borderTint}`, color: textColor }
           }
         >
@@ -102,7 +105,7 @@ export default function SupportArtistSection({
         className={`text-center text-sm font-medium py-2.5 min-h-[44px] rounded-full transition hover:brightness-95 active:scale-[0.98] ${
           !canSend ? "opacity-40 pointer-events-none" : ""
         }`}
-        style={{ backgroundColor: accent, color: "#fff" }}
+        style={{ backgroundColor: accent, color: onAccent }}
       >
         {t.music.sendSupportButton}
       </Link>

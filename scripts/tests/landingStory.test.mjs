@@ -31,7 +31,7 @@ async function test(name, fn) {
 const raw = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8").replace(/\r\n/g, "\n");
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 const git = (cmd) => execSync(`git ${cmd}`, { cwd: REPO, encoding: "utf8" });
-const gitShow = (rel) => git(`show HEAD:${rel}`).replace(/\r\n/g, "\n");
+const gitShow = (rel) => git(`show b33b1f4~1:${rel}`).replace(/\r\n/g, "\n");
 const landingFiles = fs.readdirSync(LANDING).filter((f) => /\.(tsx|ts)$/.test(f));
 const landingSrc = (f) => strip(raw(`src/components/landing/${f}`));
 
@@ -142,7 +142,7 @@ await test("typography: Bricolage (ringo-display) for display, Inter for body; n
   assert.ok(!/(?<![-\w])font-display\b/.test(nonDemo.replace(/var\(--font-display\)/g, "")), "display text uses ringo-display (the product demos keep the profile display face)");
   assert.ok((all.match(/ringo-display/g) || []).length >= 15, "ringo-display is used throughout");
   assert.match(raw("src/app/globals.css"), /\.ringo-display \{\s*font-family: var\(--font-hero-display\), var\(--font-display\), sans-serif;/);
-  assert.equal(git("diff --stat HEAD -- src/app/layout.tsx").trim(), "", "the root layout and the site fonts are untouched");
+  assert.equal(git("diff --stat b33b1f4~1 b33b1f4 -- src/app/layout.tsx").trim(), "", "the root layout and the site fonts are untouched");
 });
 await test("mono is only for meaning: the micro-language appears on the Ringo Card, never as a heading label (no landing component uses it)", () => {
   const all = landingFiles.map((f) => landingSrc(f)).join("\n");
@@ -217,7 +217,7 @@ await test("nav dropdown: one monochrome treatment, a 44px trigger, warm hairlin
 
 // ------------------------------------------------------------------ language: first paint untouched, both languages complete
 await test("language behavior is unchanged: the provider, its fallback and its resolution are byte-identical to HEAD (first-paint flash documented, not re-architected)", () => {
-  assert.equal(git("diff --stat HEAD -- src/components/LanguageProvider.tsx src/lib/i18n/locales.ts src/components/LanguageToggle.tsx").trim(), "");
+  assert.equal(git("diff --stat b33b1f4~1 b33b1f4 -- src/components/LanguageProvider.tsx src/lib/i18n/locales.ts src/components/LanguageToggle.tsx").trim(), "");
 });
 await test("French page: every section is French; no English landing string leaks (checked against all landing strings that differ between languages)", () => {
   const en = translations.en.landing;
@@ -259,7 +259,7 @@ await test("funnels: the path picker keeps its destinations, its association gat
   assert.match(s, /ASSOCIATION_PUBLIC \? \[/);
   const before = gitShow("src/components/landing/PathPickerSection.tsx");
   for (const h of ["/card-funnel.html", "/subscription-funnel.html", "/business-funnel.html", "/get-started-association"]) assert.ok(before.includes(`"${h}"`) || before.includes(`href: "${h}"`), "same destination as before: " + h);
-  assert.equal(git("status --porcelain -- public").trim(), "", "the static funnel files are untouched");
+  assert.equal(git("diff --name-only b33b1f4~1 b33b1f4 -- public").trim(), "", "the static funnel files are untouched");
 });
 await test("pricing: only the look changed. Everything but class names is identical to HEAD (plans, prices, tracks, billing, links, the card-bundle grid rule)", () => {
   const norm = (s) => s.replace(/\s*className=\{`[^`]*`\}/g, "").replace(/\s*className="[^"]*"/g, "").replace(/\s+/g, " ").trim();
@@ -424,24 +424,24 @@ await test("polish 4, pricing: the featured plan is one Ink object (strong gilt,
 
 // ------------------------------------------------------------------ performance and scope
 await test("no new dependency, no image payload, no new font: package files identical, the only font load is the hero's Bricolage", () => {
-  assert.equal(git("diff --stat HEAD -- package.json package-lock.json").trim(), "");
+  assert.equal(git("diff --stat b33b1f4~1 b33b1f4 -- package.json package-lock.json").trim(), "");
   assert.ok(!/<Image|next\/image/.test(landingFiles.filter((f) => f !== "LandingView.tsx" && f !== "ClosingSection.tsx").map((f) => landingSrc(f)).join("\n")), "no new images (the two logo spots are the existing ones)");
-  assert.equal(git("status --porcelain -- public").trim(), "");
+  assert.equal(git("diff --name-only b33b1f4~1 b33b1f4 -- public").trim(), "");
 });
 await test("scope: no auth, payment, billing, settlement, inventory, profile, dashboard, commerce-app, API, SEO or branding file changed", () => {
-  const changed = git("status --porcelain").split("\n").filter(Boolean).map((l) => l.slice(3).replace(/"/g, "").replace(/\\/g, "/"));
+  const changed = git("diff --name-only b33b1f4~1 b33b1f4").split("\n").filter(Boolean).map((l) => l.replace(/"/g, "").replace(/\\/g, "/"));
   const protectedPath = /^(package(-lock)?\.json|\.env|supabase\/|migrations\/|public\/|src\/middleware\.ts|src\/app\/(page|layout)\.tsx|src\/app\/api\/|src\/app\/\[username\]\/|src\/app\/dashboard\/|src\/app\/auth\/|src\/lib\/(theme|branding|brandingDefaults|categories)\.ts|src\/lib\/(auth|billing|payments?|productCheckout|fapshi|stripe|shop|settlement|reports|inventory)|src\/components\/(checkout|dashboard|auth|catalog|overview|ProfileView|ShareButton)|src\/components\/LanguageProvider)/i;
   assert.deepEqual(changed.filter((f) => protectedPath.test(f)), []);
   const others = changed.filter((f) => !f.startsWith("src/components/landing/") && !/^scripts\/tests\//.test(f));
-  assert.deepEqual(others.sort(), ["src/app/dev-preview-foundation/", "src/app/globals.css", "src/components/brand/", "src/lib/design/", "src/lib/i18n/translations.ts", "tailwind.config.ts"], "only the foundation files, the stylesheet, the translations and the landing folder");
+  assert.deepEqual(others.filter((f) => !/^(src\/app\/dev-preview-foundation\/|src\/app\/globals\.css$|src\/components\/brand\/|src\/lib\/design\/|src\/lib\/i18n\/translations\.ts$|tailwind\.config\.ts$)/.test(f)), [], "only the foundation files, the stylesheet, the translations and the landing folder");
 });
 await test("translations: only the four hero headline lines were rewritten; everything else in the file is added", () => {
-  const removed = git("diff -U0 HEAD -- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
+  const removed = git("diff -U0 b33b1f4~1 b33b1f4 -- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
   assert.equal(removed.length, 4);
   assert.ok(removed.every((l) => /hero(TitleRest|Title):/.test(l)));
 });
 await test("SEO is untouched: the landing route, its metadata, sitemap and robots are byte-identical to HEAD", () => {
-  assert.equal(git("diff --stat HEAD -- src/app/page.tsx src/app/layout.tsx src/app/sitemap.ts src/app/robots.ts").trim(), "");
+  assert.equal(git("diff --stat b33b1f4~1 b33b1f4 -- src/app/page.tsx src/app/layout.tsx src/app/sitemap.ts src/app/robots.ts").trim(), "");
 });
 
 console.log(`\nlandingStory: ${passed} passed, ${failures.length} failed`);

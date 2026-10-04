@@ -102,7 +102,7 @@ const render = (locale, node) => renderToStaticMarkup(React.createElement(Langua
   check("footer: it links to https://ringoconnectltd.com exactly", RINGO_CONNECT_URL === "https://ringoconnectltd.com" && /<a [^>]*href="https:\/\/ringoconnectltd\.com"/.test(enHtml) && /<a [^>]*href="https:\/\/ringoconnectltd\.com"/.test(frHtml));
   check("footer: it opens in the SAME tab (no target attribute), is a single real link, and the link text is its accessible name", !/target=/.test(enHtml) && (enHtml.match(/<a /g) || []).length === 1);
   check("footer: it is a bordered, rounded, button-like label with a decorative arrow, and the whole label is the single link", /border border-current/.test(enHtml) && /rounded-full/.test(enHtml) && /<a [^>]*>.*<svg[^>]*aria-hidden="true".*<\/svg>.*<\/a>/.test(enHtml));
-  check("footer: it has a hover state, a visible focus ring and a 40px touch target, with no heavy animation", /hover:opacity-100/.test(enHtml) && /hover:\[background-color/.test(enHtml) && /focus-visible:outline/.test(enHtml) && /min-h-\[40px\]/.test(enHtml) && !/animate-|translate|scale-/.test(enHtml));
+  check("footer: it has a hover state, a visible focus ring and a 44px touch target, with no heavy animation", /hover:opacity-100/.test(enHtml) && /hover:\[background-color/.test(enHtml) && /focus-visible:outline/.test(enHtml) && /min-h-\[44px\]/.test(enHtml) && !/animate-|translate|scale-/.test(enHtml));
   check("footer: it takes its colour from the page (owner's branding stays the focus) — no hard-coded text colour", !/style="[^"]*color:/.test(enHtml) && !/text-(white|black|gray|slate)/.test(enHtml));
 }
 
@@ -114,7 +114,7 @@ const render = (locale, node) => renderToStaticMarkup(React.createElement(Langua
   check("selector: it is a listbox popup button with a proper accessible name naming the current language, closed by default", /aria-haspopup="listbox"/.test(en) && /aria-expanded="false"/.test(en) && /aria-label="Language: English"/.test(en) && /aria-label="Langue: Français"/.test(fr) && /type="button"/.test(en));
   check("selector: the code and chevron are decorative (hidden from screen readers) so the name is announced once", /<span aria-hidden="true">EN<\/span>/.test(en) && /<svg[^>]*aria-hidden="true"/.test(en));
   check("selector: the menu is not in the page until opened (no clutter)", !/role="listbox"/.test(en) && !/role="option"/.test(en));
-  check("selector: touch target and keyboard focus — 36px+ tall pill with a visible focus ring", /h-9/.test(en) && /focus-visible:outline/.test(en));
+  check("selector: touch target and keyboard focus — 44px tall pill with a visible focus ring", /h-11/.test(en) && /focus-visible:outline/.test(en));
   const glass = render("en", React.createElement(PublicLanguageSelector, { variant: "glass", accent: "#ff5500" }));
   const overlay = render("en", React.createElement(PublicLanguageSelector, { variant: "overlay" }));
   const bar = render("en", React.createElement(PublicLanguageSelector, { variant: "bar" }));

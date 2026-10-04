@@ -111,7 +111,7 @@ export default function PublicLanguageSelector({ variant = "bar", accent, classN
         onClick={() => (open ? closeMenu(false) : openMenu())}
         onKeyDown={onButtonKeyDown}
         style={buttonStyle}
-        className={`inline-flex h-9 min-w-[3rem] items-center justify-center gap-1 rounded-full px-2.5 text-xs font-semibold tracking-wide transition active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${TAP_AREA_36} ${
+        className={`inline-flex h-11 min-w-[3rem] items-center justify-center gap-1 rounded-full px-2.5 text-xs font-semibold tracking-wide transition active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current ${TAP_AREA_36} ${
           variant === "bar" ? "border bg-transparent hover:bg-black/5" : "backdrop-blur-md"
         }`}
       >

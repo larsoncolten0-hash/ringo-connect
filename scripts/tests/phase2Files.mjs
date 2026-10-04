@@ -9,6 +9,7 @@ import { PHASE6_FILES } from "./phase6Files.mjs";
 import { PHASE8_FILES } from "./phase8Files.mjs";
 import { PHASE9_FILES } from "./phase9Files.mjs";
 import { PHASE10_FILES } from "./phase10Files.mjs";
+import { PHASE11_FILES } from "./phase11Files.mjs";
 
 export const PHASE2_FILES = new Set([
   "scripts/tests/aiBusinessTools.test.mjs",
@@ -78,7 +79,7 @@ export const PHASE2_FILES = new Set([
 ]);
 
 /** True for a file the Phase 2 editor work is allowed to change. */
-export const isPhase2File = (f) => PHASE2_FILES.has(f) || PHASE3_FILES.has(f) || PHASE4_FILES.has(f) || PHASE5_FILES.has(f) || PHASE6_FILES.has(f) || PHASE8_FILES.has(f) || PHASE9_FILES.has(f) || PHASE10_FILES.has(f); // Phase 3 - 10 lists are in phase3Files.mjs ... phase10Files.mjs
+export const isPhase2File = (f) => PHASE2_FILES.has(f) || PHASE3_FILES.has(f) || PHASE4_FILES.has(f) || PHASE5_FILES.has(f) || PHASE6_FILES.has(f) || PHASE8_FILES.has(f) || PHASE9_FILES.has(f) || PHASE10_FILES.has(f) || PHASE11_FILES.has(f); // Phase 3 - 11 lists are in phase3Files.mjs ... phase11Files.mjs
 
 /** The subset under the editor components, for the guards that protect that folder. */
 export const isPhase2EditorFile = (f) => isPhase2File(f) && f.startsWith("src/components/editor/");

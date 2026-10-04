@@ -1,19 +1,18 @@
 "use client";
 
 import { Music, Play, Pause, ExternalLink, Lock } from "lucide-react";
-import { hexToRgba } from "@/lib/color";
+import { hexToRgba, readableOn } from "@/lib/color";
+import { MUSIC } from "@/lib/profileStage";
 import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import EqualizerBars from "./EqualizerBars";
 
-// Fixed near-black "player card" — deliberately not theme-driven (unlike
-// the rest of the page, which respects the creator's own colors): this is
-// what gives Latest Music its own visual identity sitting inside the
-// lighter content area, matching the reference design's dark
-// "now playing" treatment regardless of which accent color is chosen.
-const CARD_BG = "#171009";
-const CARD_TEXT = "#F5EFE4";
+// Fixed Ink "player card" — deliberately not theme-driven (unlike the rest of the page, which respects the creator's own colors): this is
+// what gives Latest Music its own visual identity sitting inside the lighter content area, regardless of which accent color is chosen.
+// The colors are the Music stage's foundation tokens (lib/profileStage.ts), not private hex values.
+const CARD_BG = MUSIC.player!.background;
+const CARD_TEXT = MUSIC.player!.text;
 
 // "Latest Music" / "Latest Beats" — a handful of featured tracks, not a
 // streaming player. Play either toggles the creator's own uploaded audio
@@ -49,6 +48,8 @@ export default function MusicSection({
   onTogglePlay: (track: any) => void;
 }) {
   if (tracks.length === 0) return null;
+  // Text on the accent-filled play button and price pills: ink or white, whichever reads on the creator's accent.
+  const onAccent = readableOn(accent);
 
   return (
     <div id="music" className="flex flex-col gap-3 scroll-mt-6">
@@ -85,15 +86,15 @@ export default function MusicSection({
             return (
               <div
                 key={track.id}
-                className="relative overflow-hidden rounded-2xl p-3 flex flex-wrap items-center gap-3"
+                className="relative overflow-hidden rounded-ringo-lg p-3 flex flex-wrap items-center gap-3"
                 style={{ backgroundColor: CARD_BG, color: CARD_TEXT }}
               >
                 <a href={trackDetailHref} className="shrink-0" aria-label={track.title}>
                   {track.cover_image_url ? (
-                    <img src={track.cover_image_url} alt="" className="w-16 h-16 rounded-xl object-cover" />
+                    <img src={track.cover_image_url} alt="" className="w-16 h-16 rounded-ringo-md object-cover" />
                   ) : (
                     <div
-                      className="w-16 h-16 rounded-xl flex items-center justify-center"
+                      className="w-16 h-16 rounded-ringo-md flex items-center justify-center"
                       style={{ backgroundColor: hexToRgba(accent, 0.18) }}
                     >
                       <Music size={20} style={{ color: accent }} />
@@ -129,9 +130,9 @@ export default function MusicSection({
                 {(isProtected ? track.preview_audio_url : track.audio_url || track.external_url) && (
                   <button
                     onClick={() => onTogglePlay(track)}
-                    aria-label={isPlaying ? "Pause" : "Play"}
+                    aria-label={isPlaying ? t.music.pauseLabel : t.music.playLabel}
                     className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition active:scale-90 shadow-md"
-                    style={{ backgroundColor: accent, color: "#171009" }}
+                    style={{ backgroundColor: accent, color: onAccent }}
                   >
                     {(isProtected ? track.preview_audio_url : track.audio_url) ? (
                       isPlaying ? <Pause size={17} /> : <Play size={17} className="ml-0.5" />
@@ -146,7 +147,7 @@ export default function MusicSection({
                     <a
                       href={detailHref}
                       className="shrink-0 inline-flex items-center min-h-[44px] text-xs font-semibold px-3 py-2 rounded-full"
-                      style={{ backgroundColor: accent, color: "#171009" }}
+                      style={{ backgroundColor: accent, color: onAccent }}
                     >
                       {formatPrice(track.price, currency)}
                     </a>
@@ -158,7 +159,7 @@ export default function MusicSection({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="shrink-0 inline-flex items-center min-h-[44px] text-xs font-semibold px-3 py-2 rounded-full"
-                      style={{ backgroundColor: accent, color: "#171009" }}
+                      style={{ backgroundColor: accent, color: onAccent }}
                     >
                       {t.music.buyLabel}
                     </a>

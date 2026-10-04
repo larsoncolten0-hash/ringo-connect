@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { CalendarCheck, ShoppingBag } from "lucide-react";
-import { hexToRgba } from "@/lib/color";
+import { hexToRgba, readableOn } from "@/lib/color";
 import { getBookingConfig } from "@/lib/categories";
 import type { Translations } from "@/lib/i18n/translations";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -47,7 +47,7 @@ export default function MusicHeroButtons({
           (bookingsEnabled ? (
             <Link
               href={bookHref}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition hover:brightness-95 active:scale-[0.98]"
+              className="ringo-press flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold hover:brightness-95"
               style={{ border: `2px solid ${accent}`, color: accent }}
             >
               <CalendarCheck size={16} />
@@ -58,7 +58,7 @@ export default function MusicHeroButtons({
               href={bookHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition hover:brightness-95 active:scale-[0.98]"
+              className="ringo-press flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold hover:brightness-95"
               style={{ border: `2px solid ${accent}`, color: accent }}
             >
               <CalendarCheck size={16} />
@@ -67,8 +67,8 @@ export default function MusicHeroButtons({
           ))}
         <a
           href={`/m/${profile.username}`}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white transition hover:brightness-95 active:scale-[0.98]"
-          style={{ backgroundColor: accent }}
+          className="ringo-press flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold hover:brightness-95"
+          style={{ backgroundColor: accent, color: readableOn(accent) }}
         >
           <ShoppingBag size={16} />
           {t.music.buyNowButton}
@@ -87,6 +87,7 @@ export default function MusicHeroButtons({
               message={profile.default_whatsapp_message}
               radiusClass="rounded-full"
               compact
+              className="min-h-[44px]"
               iconColor="#fff"
               buttonStyle={{ backgroundColor: "#25D366", color: "#fff", border: "2px solid transparent" }}
             />
@@ -96,6 +97,7 @@ export default function MusicHeroButtons({
               number={profile.whatsapp_number}
               radiusClass="rounded-full"
               compact
+              className="min-h-[44px]"
               buttonStyle={{ backgroundColor: "transparent", color: textColor, border: `2px solid ${hexToRgba(textColor, 0.35)}` }}
             />
           </div>
@@ -104,6 +106,7 @@ export default function MusicHeroButtons({
               profile={profile}
               radiusClass="rounded-full"
               compact
+              className="min-h-[44px]"
               buttonStyle={{ backgroundColor: "transparent", color: textColor, border: `2px solid ${hexToRgba(textColor, 0.35)}` }}
             />
           </div>
