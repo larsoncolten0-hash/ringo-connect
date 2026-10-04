@@ -11,6 +11,7 @@ import { documentsNavVisible } from "@/lib/documents/access";
 import { inventoryNavVisible } from "@/lib/inventory/access";
 import { reportsNavVisible } from "@/lib/reports/access";
 import { customersNavVisible } from "@/lib/customers/access";
+import { inboxNavVisible } from "@/lib/inbox/access";
 import { salesNavVisible } from "@/lib/sales/access";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
@@ -160,6 +161,9 @@ export default async function DashboardLayout({
   // Business Toolkit customers nav entry: same owner-only gate, shown once the Phase 3 contact table exists. UX only; /api/customers/** and the database enforce access.
   const hasCustomers = !isActingAsStaff && ownProfile ? await customersNavVisible({ userId: user.id, profile: ownProfile }) : false;
 
+  // Inbox nav entry (WhatsApp, read-only): the owner's OWN profile, and only when it has a WhatsApp account. UX only; /dashboard/inbox/** and the database enforce access.
+  const hasInbox = !isActingAsStaff && ownProfile ? await inboxNavVisible({ supabase, profileId: ownProfile.id }) : false;
+
   // Business Toolkit Record Sale nav entry: same owner-only gate as Invoices, and only once the database function sale_record exists. UX only; /api/sales and the database enforce access.
   const hasSales = !isActingAsStaff && ownProfile ? await salesNavVisible({ userId: user.id, profile: ownProfile }) : false;
 
@@ -209,6 +213,7 @@ export default async function DashboardLayout({
       hasReports={hasReports}
       hasSales={hasSales}
       hasCustomers={hasCustomers}
+      hasInbox={hasInbox}
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
       canUseLoyalty={canUseLoyalty}

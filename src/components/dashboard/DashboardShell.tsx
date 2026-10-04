@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { FileText, Boxes, FileBarChart, Contact, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound, ReceiptText, BookOpen, House } from "lucide-react";
+import { Inbox, FileText, Boxes, FileBarChart, Contact, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound, ReceiptText, BookOpen, House } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import ReferralPromoBanner from "@/components/dashboard/ReferralPromoBanner";
 import { referralPromoShowsOn } from "@/lib/referralPromo";
@@ -83,6 +83,7 @@ export default function DashboardShell({
   hasReports = false,
   hasSales = false,
   hasCustomers = false,
+  hasInbox = false,
   canManageTeam = false,
   canManageAssociation = false,
   canUseLoyalty = false,
@@ -150,6 +151,7 @@ export default function DashboardShell({
   hasSales?: boolean;
   // Business Toolkit customers (/dashboard/customers): same owner-only entitlement and table-existence rule as hasDocuments.
   hasCustomers?: boolean;
+  hasInbox?: boolean;
   // Team & Organization Management — whether this account can see/manage
   // the Team section: the owner always can, a staff member only with the
   // staff.view permission (see dashboard/layout.tsx). Never trusted as the
@@ -319,6 +321,8 @@ export default function DashboardShell({
           },
         ]
       : []),
+    // Inbox (WhatsApp, read-only): owners whose profile has a WhatsApp account only (see src/lib/inbox/access.ts). Hidden for staff.
+    ...(hasInbox && !organization?.isStaff ? [{ href: "/dashboard/inbox", label: t.nav.inbox, icon: Inbox, core: false }] : []),
     // Same "always visible" reasoning as Bookings above — every category
     // can build a community, so this isn't gated either.
     { href: "/dashboard/community", label: t.nav.community, icon: Users, core: true },
