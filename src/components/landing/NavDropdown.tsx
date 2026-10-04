@@ -11,7 +11,6 @@ export type NavDropdownItem = {
   title: string;
   description: string;
   href: string;
-  color: string;
 };
 
 // Click-to-open (not hover-only — hover-only menus are a common
@@ -41,7 +40,7 @@ export default function NavDropdown({ label, items, columns = 2 }: { label: stri
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1 text-sm text-ringo-muted hover:text-ringo-text transition-colors"
+        className="flex items-center gap-1 min-h-[44px] text-sm text-ringo-muted hover:text-ringo-text transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text"
       >
         {label}
         <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
@@ -57,7 +56,7 @@ export default function NavDropdown({ label, items, columns = 2 }: { label: stri
               animate={{ opacity: 1, y: 0 }}
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
               transition={{ duration: 0.16 }}
-              className="absolute left-1/2 -translate-x-1/2 top-full mt-3 z-50 w-[380px] sm:w-[440px] rounded-2xl border border-ringo-border bg-ringo-surface shadow-[0_20px_50px_-16px_rgba(15,23,42,0.25)] p-2.5"
+              className="absolute left-1/2 -translate-x-1/2 top-full mt-3 z-50 w-[380px] sm:w-[440px] rounded-ringo-md border border-ringo-line-warm bg-ringo-surface shadow-ringo-3 p-2.5"
             >
             <div className={`grid gap-1 ${columns === 2 ? "sm:grid-cols-2" : "grid-cols-1"}`}>
               {items.map((item) => (
@@ -65,12 +64,9 @@ export default function NavDropdown({ label, items, columns = 2 }: { label: stri
                   key={item.title}
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className="flex items-start gap-3 rounded-xl p-3 transition-colors hover:bg-ringo-bg"
+                  className="flex items-start gap-3 rounded-ringo-sm p-3 transition-colors hover:bg-ringo-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-ringo-text"
                 >
-                  <span
-                    className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: `${item.color}16`, color: item.color }}
-                  >
+                  <span className="w-9 h-9 rounded-ringo-sm flex items-center justify-center shrink-0 bg-ringo-gold/15 text-ringo-gold-text">
                     <item.icon size={16} />
                   </span>
                   <span className="min-w-0">

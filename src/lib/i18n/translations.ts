@@ -2,6 +2,19 @@ export type Locale = "en" | "fr";
 
 export const translations = {
   en: {
+    // Design foundation (src/components/brand/*): the Ring's accessible names and the technical micro-language shown on the
+    // Ringo Card. The micro-labels are short on purpose and are set in capitals by the .ringo-micro style.
+    brand: {
+      ring: { idle: "Ready to connect", waiting: "Waiting for a tap", connected: "Connected" },
+      card: {
+        ariaLabel: (name: string) => `Ringo Card for ${name}`,
+        ringoId: "RINGO ID",
+        nfcReady: "NFC · READY",
+        tapToConnect: "TAP TO CONNECT",
+        connected: "CONNECTED",
+      },
+      micro: { scanToOpen: "SCAN TO OPEN" },
+    },
     // Customer product checkout (src/components/checkout/ProductCheckout.tsx). `errors` has one entry per
     // backend error code (src/lib/productCheckout/errors.ts) plus network_error and generic.
     productCheckout: {
@@ -3415,8 +3428,8 @@ export const translations = {
       // the rest — kept as separate keys rather than splitting heroTitle
       // with a regex, which would only ever work for English.
       heroTitleLead: "One Ringo.",
-      heroTitleRest: "Everything connected.",
-      heroTitle: "One Ringo. Everything connected.",
+      heroTitleRest: "Everything you do.",
+      heroTitle: "One Ringo. Everything you do.",
       heroSubtitle:
         "Create your digital identity, share your links, showcase your products and services, connect with customers, and grow your presence — all from one Ringo.",
       heroCtaPrimary: "Create your Ringo",
@@ -3605,6 +3618,27 @@ export const translations = {
       footerPrivacy: "Privacy",
       footerAffiliate: "Become an affiliate",
       footerRights: "All rights reserved.",
+
+      // Phase 2 landing: the commerce story (components/landing/CommerceStory.tsx). Four short beats, then a sample product
+      // and receipt. The sample is an illustration (like the profile mockups), so it is hidden from assistive technology.
+      commerceStepPresenceTitle: "Presence",
+      commerceStepPresenceBody: "Your Ringo, one scan or tap away.",
+      commerceStepProductTitle: "Product",
+      commerceStepProductBody: "Photos and prices, ready to browse.",
+      commerceStepCustomerTitle: "Customer",
+      commerceStepCustomerBody: "They message you, or place an order.",
+      commerceStepSaleTitle: "Sale",
+      commerceStepSaleBody: "Paid with Mobile Money, where enabled.",
+      commerceDemoProduct: "Tailored Ankara dress",
+      commerceDemoPrice: "18,000 FCFA",
+      commerceDemoOrder: "Order",
+      commerceDemoPaid: "Paid",
+      commerceDemoMethod: "Mobile Money",
+
+      // The Africa-first thread (components/landing/ConnectionSection.tsx): a product on a profile, the WhatsApp message a visitor sends
+      // from it (the product page's own "Hi, I'm interested in ..." message), and the customer made. An illustration, not a live chat.
+      connectionDemoAsk: "Hi, I'm interested in the Tailored Ankara dress.",
+      connectionDemoReply: "Yes, it's available.",
     },
     nav: {
       menu: "Menu",
@@ -5917,6 +5951,17 @@ export const translations = {
     },
   },
   fr: {
+    brand: {
+      ring: { idle: "Prêt à se connecter", waiting: "En attente d'un contact", connected: "Connecté" },
+      card: {
+        ariaLabel: (name: string) => `Carte Ringo de ${name}`,
+        ringoId: "ID RINGO",
+        nfcReady: "NFC · PRÊT",
+        tapToConnect: "APPROCHEZ POUR CONNECTER",
+        connected: "CONNECTÉ",
+      },
+      micro: { scanToOpen: "SCANNER POUR OUVRIR" },
+    },
     productCheckout: {
       pageTitle: "Paiement",
       back: "Retour",
@@ -9208,8 +9253,8 @@ export const translations = {
 
       heroEyebrow: "Votre identité numérique, au même endroit",
       heroTitleLead: "Un seul Ringo.",
-      heroTitleRest: "Tout est connecté.",
-      heroTitle: "Un seul Ringo. Tout est connecté.",
+      heroTitleRest: "Tout ce que vous faites.",
+      heroTitle: "Un seul Ringo. Tout ce que vous faites.",
       heroSubtitle:
         "Créez votre identité numérique, partagez vos liens, présentez vos produits et services, connectez-vous à vos clients, et développez votre présence — le tout depuis un seul Ringo.",
       heroCtaPrimary: "Créez votre Ringo",
@@ -9387,6 +9432,23 @@ export const translations = {
       footerPrivacy: "Confidentialité",
       footerAffiliate: "Devenir affilié",
       footerRights: "Tous droits réservés.",
+
+      commerceStepPresenceTitle: "Présence",
+      commerceStepPresenceBody: "Votre Ringo, à un scan ou un tap.",
+      commerceStepProductTitle: "Produit",
+      commerceStepProductBody: "Photos et prix, prêts à parcourir.",
+      commerceStepCustomerTitle: "Client",
+      commerceStepCustomerBody: "Il vous écrit, ou passe commande.",
+      commerceStepSaleTitle: "Vente",
+      commerceStepSaleBody: "Payée par Mobile Money, là où c'est activé.",
+      commerceDemoProduct: "Robe Ankara sur mesure",
+      commerceDemoPrice: "18 000 FCFA",
+      commerceDemoOrder: "Commander",
+      commerceDemoPaid: "Payé",
+      commerceDemoMethod: "Mobile Money",
+
+      connectionDemoAsk: "Bonjour, la robe Ankara sur mesure m'intéresse.",
+      connectionDemoReply: "Oui, elle est disponible.",
     },
     nav: {
       menu: "Menu",

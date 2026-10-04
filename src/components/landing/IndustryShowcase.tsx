@@ -27,8 +27,11 @@ export default function IndustryShowcase() {
 
   return (
     <div className="flex flex-col items-center gap-4">
+      {/* a sample profile (made-up name and content): hidden from assistive technology; the buttons below stay usable */}
+      <div aria-hidden="true">
       <PhoneMockup>
-        <AnimatePresence mode="wait">
+        {/* initial={false}: the first profile is rendered visible by the server and the browser alike (no entrance on load, which also hid it from reduced-motion visitors); only switching tabs animates */}
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={tab}
             initial={reduceMotion ? { opacity: 1 } : { opacity: 0, x: 12 }}
@@ -43,13 +46,15 @@ export default function IndustryShowcase() {
           </motion.div>
         </AnimatePresence>
       </PhoneMockup>
+      </div>
 
       <div className="flex items-center gap-1 bg-ringo-muted/10 rounded-full p-1">
         {tabs.map((tb) => (
           <button
             key={tb.id}
             onClick={() => setTab(tb.id)}
-            className={`text-xs font-medium px-4 py-1.5 rounded-full transition ${
+            aria-pressed={tab === tb.id}
+            className={`min-h-[44px] text-sm font-medium px-4 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-ringo-text ${
               tab === tb.id ? "bg-ringo-surface text-ringo-text shadow-sm" : "text-ringo-muted"
             }`}
           >
@@ -71,10 +76,10 @@ function ArtistMockup() {
         JK
       </span>
       <p className="font-display font-bold text-sm mt-2.5 flex items-center gap-1">
-        JAY KAY <span className="text-xs">🎵</span>
+        JAY KAY
       </p>
       <p className="text-[11px] mt-0.5" style={{ opacity: 0.65 }}>
-        Artist • Cameroon 🇨🇲
+        Artist • Cameroon
       </p>
       <div className="flex gap-1.5 mt-2.5">
         <span className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: "#25D36622" }}>
