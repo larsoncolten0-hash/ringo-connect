@@ -12,7 +12,14 @@ const SRC = path.join(REPO, "src");
 const results = [];
 const check = (name, cond, detail = "") => { results.push({ name, pass: !!cond }); if (!cond) console.log("  FAIL:", name, "|", detail); };
 
-const jiti = require("jiti")(import.meta.url, { alias: { "@": SRC }, interopDefault: true, cache: false, requireCache: false });
+// Phase 4: accepted events are now persisted through the admin client. This suite stays database-free, so the server module is
+// replaced by an in-memory client whose RPCs always answer "created" (real persistence behaviour: scripts/tests/whatsappIngest.test.mjs).
+import fs from "fs";
+import os from "os";
+const serverStub = path.join(os.tmpdir(), `wa_webhook_server_${process.pid}.cjs`);
+fs.writeFileSync(serverStub, "module.exports = { createAdminClient: () => ({ rpc: async () => ({ data: 'created', error: null }) }) };");
+process.on("exit", () => { try { fs.unlinkSync(serverStub); } catch {} });
+const jiti = require("jiti")(import.meta.url, { alias: { "@/lib/supabase/server": serverStub, "@": SRC }, interopDefault: true, cache: false, requireCache: false });
 const route = jiti(path.join(SRC, "app/api/integrations/whatsapp/webhook/route.ts"));
 const { verifyWhatsAppSignature, getWhatsAppAppSecret } = jiti(path.join(SRC, "lib/whatsapp/signature.ts"));
 const { parseWhatsAppWebhook } = jiti(path.join(SRC, "lib/whatsapp/parseWebhook.ts"));
