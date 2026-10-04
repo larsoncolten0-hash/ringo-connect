@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, FileText, Image as ImageIcon, MessageCircle, MessagesSquare, Mic, Search, Smile, TriangleAlert, Video, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ConversationStatusButton from "@/components/inbox/ConversationStatusButton";
+import InboxAiPanel from "@/components/inbox/InboxAiPanel";
 import ReplyComposer, { RetryButton } from "@/components/inbox/ReplyComposer";
 import type { ConversationItem, SavedReply, ThreadData, ThreadMessage } from "@/lib/inbox/data";
+import type { AutomationView } from "@/lib/inbox/automationData";
+import type { LeadSignal } from "@/lib/inbox/leads";
 import { formatBubbleTime, formatListTime, formatWaId, previewText, type InboxStatusFilter, type MediaKind } from "@/lib/inbox/format";
 
 // The Inbox screen. All data arrives as props from the server pages (already scoped to the owner's profile); this component only renders it.
@@ -27,6 +30,8 @@ export type InboxViewProps = {
   unreadOpen?: number;
   /** The owner's saved replies; null when they are not available (the picker is then hidden). */
   savedReplies?: SavedReply[] | null;
+  /** Derived lead signals and automatic-message labels (read-only); null when unavailable (the inbox then simply shows none). */
+  automation?: AutomationView | null;
 };
 
 export const INBOX_PATH = "/dashboard/inbox";
@@ -42,7 +47,7 @@ export function filterQuery(filter: InboxFilter, override: Partial<InboxFilter> 
   return s ? `?${s}` : "";
 }
 
-export default function InboxView({ list, selectedId, thread, filter = DEFAULT_FILTER, unreadOpen = 0, savedReplies = null }: InboxViewProps) {
+export default function InboxView({ list, selectedId, thread, filter = DEFAULT_FILTER, unreadOpen = 0, savedReplies = null, automation = null }: InboxViewProps) {
   const { t } = useLanguage();
   const u = t.inbox;
   const hasSelection = selectedId !== null;
@@ -50,7 +55,10 @@ export default function InboxView({ list, selectedId, thread, filter = DEFAULT_F
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="font-display text-xl font-medium text-ringo-text">{u.title}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="font-display text-xl font-medium text-ringo-text">{u.title}</h1>
+          <Link href={`${INBOX_PATH}/settings`} className="inline-flex min-h-[36px] items-center rounded-full border border-ringo-border px-3 text-xs text-ringo-text hover:bg-ringo-surface">{u.automationLink}</Link>
+        </div>
         <p className="mt-1 text-sm text-ringo-muted">{u.intro}</p>
       </div>
 
@@ -61,14 +69,14 @@ export default function InboxView({ list, selectedId, thread, filter = DEFAULT_F
           <section aria-label={u.conversations} className={`${hasSelection ? "hidden lg:flex" : "flex"} min-h-0 flex-col overflow-hidden rounded-card border border-ringo-border`}>
             <h2 className="border-b border-ringo-border px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ringo-muted">{u.conversations}</h2>
             <ListControls filter={filter} unreadOpen={unreadOpen} />
-            {list.items.length === 0 ? <EmptyList filter={filter} /> : <ConversationList items={list.items} selectedId={selectedId} truncated={list.truncated === true} filter={filter} />}
+            {list.items.length === 0 ? <EmptyList filter={filter} /> : <ConversationList items={list.items} selectedId={selectedId} truncated={list.truncated === true} filter={filter} signals={automation?.signals ?? null} />}
           </section>
 
           <section className={`${hasSelection ? "flex" : "hidden lg:flex"} min-h-0 flex-col overflow-hidden rounded-card border border-ringo-border`}>
             {thread === null ? (
               <NoSelection />
             ) : thread.ok ? (
-              <Thread data={thread.thread} filter={filter} savedReplies={savedReplies} />
+              <Thread data={thread.thread} filter={filter} savedReplies={savedReplies} automation={automation} />
             ) : thread.reason === "not_found" ? (
               <NotFound filter={filter} />
             ) : (
@@ -195,7 +203,7 @@ function ChannelBadge({ channel }: { channel: string }) {
   );
 }
 
-function ConversationList({ items, selectedId, truncated, filter }: { items: ConversationItem[]; selectedId: string | null; truncated: boolean; filter: InboxFilter }) {
+function ConversationList({ items, selectedId, truncated, filter, signals }: { items: ConversationItem[]; selectedId: string | null; truncated: boolean; filter: InboxFilter; signals: Record<string, LeadSignal> | null }) {
   const { t, locale } = useLanguage();
   const u = t.inbox;
   const qs = filterQuery(filter);
@@ -230,6 +238,7 @@ function ConversationList({ items, selectedId, truncated, filter }: { items: Con
                 <div className="mt-1 flex items-center gap-2">
                   <ChannelBadge channel={c.channel} />
                   {c.status === "closed" && <span className="rounded-full bg-ringo-muted/15 px-2 py-0.5 text-[10px] text-ringo-muted">{u.closed}</span>}
+                  {signals?.[c.id] && c.status !== "closed" && <LeadBadge signal={signals[c.id]} />}
                 </div>
               </div>
             </Link>
@@ -241,10 +250,12 @@ function ConversationList({ items, selectedId, truncated, filter }: { items: Con
   );
 }
 
-function Thread({ data, filter, savedReplies }: { data: ThreadData; filter: InboxFilter; savedReplies: SavedReply[] | null }) {
+function Thread({ data, filter, savedReplies, automation }: { data: ThreadData; filter: InboxFilter; savedReplies: SavedReply[] | null; automation: AutomationView | null }) {
   const { t } = useLanguage();
   const u = t.inbox;
   const endRef = useRef<HTMLDivElement | null>(null);
+  // text the owner chose to insert from an AI draft; the composer puts it in the box (it is never sent for them)
+  const [insert, setInsert] = useState<{ id: number; text: string } | null>(null);
   // open on the newest message
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: "end" });
@@ -262,7 +273,13 @@ function Thread({ data, filter, savedReplies }: { data: ThreadData; filter: Inbo
           <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-ringo-muted">
             <ChannelBadge channel={data.conversation.channel} />
             {data.contact.waId && <span>{formatWaId(data.contact.waId)}</span>}
+            {automation?.signals[data.conversation.id] && <LeadBadge signal={automation.signals[data.conversation.id]} />}
           </p>
+          {automation?.signals[data.conversation.id] === "needs_follow_up" && (
+            <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400" data-testid="follow-up-window">
+              {automation.windowOpen[data.conversation.id] ? u.lead.windowOpen : u.lead.windowClosed}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:items-center">
           <span className={`rounded-full px-2 py-0.5 text-[11px] ${data.conversation.status === "open" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-ringo-muted/15 text-ringo-muted"}`}>
@@ -279,21 +296,38 @@ function Thread({ data, filter, savedReplies }: { data: ThreadData; filter: Inbo
         ) : (
           <ol className="flex flex-col gap-2">
             {data.messages.map((m) => (
-              <Bubble key={m.id} m={m} conversationId={data.conversation.id} />
+              <Bubble key={m.id} m={m} conversationId={data.conversation.id} automatic={automation?.automaticMessageIds.includes(m.id) === true} />
             ))}
           </ol>
         )}
         <div ref={endRef} />
       </div>
 
-      {data.conversation.channel === "whatsapp" && <ReplyComposer conversationId={data.conversation.id} open={data.conversation.replyWindowOpen} savedReplies={savedReplies} />}
+      {data.conversation.channel === "whatsapp" && (
+        <InboxAiPanel conversationId={data.conversation.id} canSuggest={data.conversation.replyWindowOpen} onInsert={(text) => setInsert((p) => ({ id: (p?.id ?? 0) + 1, text }))} />
+      )}
+      {data.conversation.channel === "whatsapp" && <ReplyComposer conversationId={data.conversation.id} open={data.conversation.replyWindowOpen} savedReplies={savedReplies} insert={insert} />}
     </>
   );
 }
 
 const MEDIA_ICONS: Record<MediaKind, typeof FileText> = { image: ImageIcon, audio: Mic, video: Video, document: FileText, sticker: Smile };
 
-function Bubble({ m, conversationId }: { m: ThreadMessage; conversationId: string }) {
+const LEAD_STYLE: Record<LeadSignal, string> = {
+  new_lead: "bg-sky-500/10 text-sky-700 dark:text-sky-400",
+  active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  needs_follow_up: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  customer: "bg-ringo-indigo/10 text-ringo-indigo",
+  closed: "bg-ringo-muted/15 text-ringo-muted",
+};
+
+/** A derived, read-only label: where this conversation stands. It changes nothing. */
+function LeadBadge({ signal }: { signal: LeadSignal }) {
+  const { t } = useLanguage();
+  return <span data-lead={signal} className={`rounded-full px-2 py-0.5 text-[10px] ${LEAD_STYLE[signal]}`}>{t.inbox.lead[signal]}</span>;
+}
+
+function Bubble({ m, conversationId, automatic = false }: { m: ThreadMessage; conversationId: string; automatic?: boolean }) {
   const { t, locale } = useLanguage();
   const u = t.inbox;
   const out = m.direction === "outbound";
@@ -319,12 +353,13 @@ function Bubble({ m, conversationId }: { m: ThreadMessage; conversationId: strin
               </div>
             </div>
             {d.caption && <p className="whitespace-pre-wrap break-words">{d.caption}</p>}
-            <p className="text-[11px] italic text-ringo-muted">{u.mediaNotDownloaded}</p>
+            <p className="text-[11px] italic text-ringo-muted">{out ? (m.status === "failed" ? u.mediaOutboundFailed : u.mediaOutboundNote) : u.mediaNotDownloaded}</p>
           </div>
         )}
         {d.kind === "unsupported" && <p className="text-xs italic text-ringo-muted">{u.unsupported}</p>}
         <p className={`mt-1 flex items-center gap-1.5 text-[10px] text-ringo-muted ${out ? "justify-end" : ""}`}>
           <time dateTime={m.at} suppressHydrationWarning>{formatBubbleTime(m.at, locale)}</time>
+          {out && automatic && <span data-automatic="true">· {u.autoReplyLabel}</span>}
           {out && statusLabel && <span className={m.status === "failed" ? "font-medium text-rose-700 dark:text-rose-400" : undefined}>· {statusLabel}</span>}
           {out && m.status === "failed" && d.kind === "text" && <RetryButton conversationId={conversationId} text={d.text} />}
         </p>

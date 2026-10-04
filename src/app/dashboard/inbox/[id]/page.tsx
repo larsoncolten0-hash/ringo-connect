@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import InboxView from "@/components/inbox/InboxView";
 import { resolveInboxOwner } from "@/lib/inbox/access";
 import { LIST_LIMIT, countUnreadOpen, loadConversationList, loadSavedReplies, loadThread } from "@/lib/inbox/data";
+import { loadAutomationView } from "@/lib/inbox/automationData";
 import { cleanQueryParam, isStatusFilter, isUuid } from "@/lib/inbox/format";
 
 export const dynamic = "force-dynamic";
@@ -25,5 +26,6 @@ export default async function InboxThreadPage({ params, searchParams }: { params
     loadConversationList(owner.supabase, owner.profileId, LIST_LIMIT, { status, query: q }),
     countUnreadOpen(owner.supabase, owner.profileId),
   ]);
-  return <InboxView list={list} selectedId={id} thread={thread} filter={{ status, q }} unreadOpen={unreadOpen} savedReplies={savedReplies.ok ? savedReplies.items : null} />;
+  const automation = await loadAutomationView(owner.supabase, owner.profileId, [id, ...(list.ok ? list.items.map((i) => i.id) : [])]);
+  return <InboxView list={list} selectedId={id} thread={thread} filter={{ status, q }} unreadOpen={unreadOpen} savedReplies={savedReplies.ok ? savedReplies.items : null} automation={automation} />;
 }

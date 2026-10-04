@@ -5,6 +5,8 @@ import { dedupeEvents } from "@/lib/whatsapp/idempotency";
 import { parseWhatsAppWebhook } from "@/lib/whatsapp/parseWebhook";
 import { IngestFailure, ingestEvent } from "@/lib/whatsapp/ingest";
 import { getWhatsAppAppSecret, verifyWhatsAppSignature } from "@/lib/whatsapp/signature";
+import { runWebhookAutomation } from "@/lib/inbox/automation";
+import { notifyUser } from "@/lib/notifications";
 
 // Meta WhatsApp Cloud API webhook: signature verification, event normalization and (Phase 4) persistence.
 // Public callback URL: https://www.ringoconnectltd.com/api/integrations/whatsapp/webhook
@@ -13,7 +15,8 @@ import { getWhatsAppAppSecret, verifyWhatsAppSignature } from "@/lib/whatsapp/si
 // Persistence hands each accepted, normalized event to the Phase 4 database functions (see lib/whatsapp/ingest.ts). The owner
 // profile is derived by the database from the phone_number_id; nothing from the request is trusted as an owner.
 // Answers: 200 for stored, duplicate or deliberately ignored events; 5xx ONLY when the database fails, so Meta retries (safe: the
-// unique indexes make redelivery idempotent). Still no outbound messages, AI, media download or other external call.
+// unique indexes make redelivery idempotent). After storing, events that were NEW are handed to the Phase 10 automation (lib/inbox/automation.ts):
+// OFF unless the owner enabled it, never able to fail this request, and the only thing it can ever send is the owner's own acknowledgement text.
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -87,6 +90,7 @@ export async function POST(request: Request) {
     // Every event is attempted even if an earlier one fails, so one bad event cannot block the rest; any failure then
     // fails the whole delivery (5xx) and Meta redelivers it. Already-stored events come back as "duplicate".
     let failed = 0;
+    const created: { kind: "message" | "status"; phoneNumberId: string; messageId: string; status?: string }[] = [];
     let client: ReturnType<typeof createAdminClient> | null = null;
     try {
       client = createAdminClient();
@@ -99,6 +103,7 @@ export async function POST(request: Request) {
         const outcome = await ingestEvent(client, e);
         // Metadata only. A non-created/duplicate outcome is deliberate and acknowledged: retrying cannot change it.
         log({ result: "ingest", ingest: outcome, event: e.kind, phone_number_id: e.phoneNumberId, id: e.messageId });
+        if (outcome === "created") created.push({ kind: e.kind, phoneNumberId: e.phoneNumberId, messageId: e.messageId, ...(e.kind === "status" ? { status: e.status } : {}) });
       } catch (err) {
         failed++;
         // Code only: database error text can echo row data (message bodies, numbers), so it is never logged.
@@ -106,6 +111,14 @@ export async function POST(request: Request) {
       }
     }
     if (failed > 0) return NextResponse.json({ error: "ingest_failed" }, { status: 500 });
+    // Best effort, after everything is stored: an automation problem is logged inside and never changes the answer to Meta.
+    if (client && created.length > 0) {
+      try {
+        await runWebhookAutomation({ admin: client, notify: notifyUser }, created);
+      } catch {
+        log({ result: "automation_failed" });
+      }
+    }
   }
 
   return NextResponse.json({ received: true }, { status: 200 });

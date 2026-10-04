@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import InboxView from "@/components/inbox/InboxView";
 import { resolveInboxOwner } from "@/lib/inbox/access";
 import { LIST_LIMIT, countUnreadOpen, loadConversationList } from "@/lib/inbox/data";
+import { loadAutomationView } from "@/lib/inbox/automationData";
 import { cleanQueryParam, isStatusFilter } from "@/lib/inbox/format";
 
 export const dynamic = "force-dynamic";
@@ -19,5 +20,6 @@ export default async function InboxPage({ searchParams }: { searchParams?: { sta
     loadConversationList(owner.supabase, owner.profileId, LIST_LIMIT, { status, query: q }),
     countUnreadOpen(owner.supabase, owner.profileId),
   ]);
-  return <InboxView list={list} selectedId={null} thread={null} filter={{ status, q }} unreadOpen={unreadOpen} />;
+  const automation = list.ok ? await loadAutomationView(owner.supabase, owner.profileId, list.items.map((i) => i.id)) : null;
+  return <InboxView list={list} selectedId={null} thread={null} filter={{ status, q }} unreadOpen={unreadOpen} automation={automation} />;
 }

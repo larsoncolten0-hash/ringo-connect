@@ -26,7 +26,7 @@ export type SendOutcome =
   | { kind: "unknown"; reason: "timeout" | "network" | "server_error" | "bad_response" };
 
 // 131047: re-engagement message (outside the 24h customer-service window). 130429 / 80007 / 131056: throughput or pair rate limits.
-function classify(httpStatus: number, code: number | null): SendErrorKind {
+export function classify(httpStatus: number, code: number | null): SendErrorKind {
   if (code === 131047) return "window_closed";
   if (httpStatus === 429 || code === 130429 || code === 80007 || code === 131056) return "rate_limited";
   return "rejected";

@@ -29,7 +29,9 @@ export function messageDisplay(msg: MessageLike, media?: MediaLike | null): Mess
     return msg.body && msg.body.trim() ? { kind: "text", text: msg.body } : { kind: "unsupported" };
   }
   if (isMediaKind(msg.type)) {
-    return { kind: "media", media: msg.type, caption: media?.caption ?? null, filename: media?.filename ?? null, mimeType: media?.mimeType ?? null };
+    // an OUTBOUND media message keeps its caption in body until Meta accepts it (then the metadata row carries it too)
+    const caption = media?.caption ?? (msg.body && msg.body.trim() ? msg.body : null);
+    return { kind: "media", media: msg.type, caption, filename: media?.filename ?? null, mimeType: media?.mimeType ?? null };
   }
   return { kind: "unsupported" };
 }

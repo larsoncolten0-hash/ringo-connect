@@ -90,7 +90,7 @@ try {
   const m = (await q1(`select m.profile_id, m.body, m.type, m.direction, m.status, m.provider_message_id, c.external_id, c.display_name, cv.unread_count from public.inbox_messages m join public.inbox_conversations cv on cv.id = m.conversation_id join public.inbox_contacts c on c.id = cv.contact_id`))[0];
   check("stored under the profile the DATABASE derived from phone_number_id", m && m.profile_id === OWNER, JSON.stringify(m));
   check("text, type, direction, wamid, contact and unread persisted", m.body === "SECRET BODY TEXT" && m.type === "text" && m.direction === "inbound" && m.status === "received" && m.provider_message_id === "wamid.IN1" && m.external_id === "237600000001" && m.display_name === "Test Customer" && m.unread_count === 1);
-  check("exactly one RPC call, to the message function", calls.length === 1 && calls[0].fn === "inbox_ingest_whatsapp_message");
+  check("exactly one INGEST call, to the message function (the only other call is the Phase 10 automation lookup, after storing)", calls.filter((c) => c.fn.startsWith("inbox_ingest_")).length === 1 && calls[0].fn === "inbox_ingest_whatsapp_message" && calls.slice(1).every((c) => c.fn === "inbox_automation_inbound"));
   const keys = Object.keys(calls[0].args).sort();
   check("RPC args are exactly the 15 normalized fields: no profile_id, no raw payload", keys.length === 15 && keys.every((k) => k.startsWith("p_")) && !keys.some((k) => /profile|owner|user|payload|raw/i.test(k)), keys.join());
   check("no argument carries the raw webhook body", !JSON.stringify(calls[0].args).includes("messaging_product"));
@@ -174,7 +174,7 @@ try {
   }
   reset();
   r = await post(payload({ ...text("wamid.RETRY_A"), ...status("wamid.RETRY_O", "sent") }));
-  check("sanity: message + status in one delivery -> 200", r.status === 200 && calls.length === 2);
+  check("sanity: message + status in one delivery -> 200", r.status === 200 && calls.filter((c) => c.fn.startsWith("inbox_ingest_")).length === 2);
   reset(); mode = "fail_status";
   const both = payload({ ...text("wamid.PART"), ...status("wamid.PART_O", "delivered") });
   r = await post(both);

@@ -18,6 +18,10 @@ const CATEGORY_BY_TYPE: Record<string, NotificationCategory> = {
   // src/app/api/admin/support/[id]/messages/route.ts.
   support_message: "messages",
   support_reply: "messages",
+  // WhatsApp Inbox automation — src/lib/inbox/automation.ts.
+  inbox_new_conversation: "messages",
+  inbox_failed_message: "messages",
+  inbox_follow_up: "messages",
   // Subscription/signup money events — src/lib/applyPayment.ts,
   // src/app/api/signup-requests/[id]/pay-status/route.ts.
   subscription_payment: "payments",

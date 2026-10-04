@@ -377,7 +377,7 @@ try {
 } finally { console.error = origErr; console.info = origInfo; }
 
 // ============================================================ logging / secrets / static scope
-check("logs: nothing sensitive was logged (no titles, bodies, names, numbers or database error text)", !/SECRET TITLE|Boom|Welcome|Hello!|Maria|Customer One|237600000001|237677000111|row contains/.test(logs.join("\n")) && logs.every((l) => { try { return ["inbox_tools", "inbox"].includes(JSON.parse(l).scope); } catch { return false; } }), logs.join("|").slice(0, 300));
+check("logs: nothing sensitive was logged (no titles, bodies, names, numbers or database error text)", !/SECRET TITLE|Boom|Welcome|Hello!|Maria|Customer One|237600000001|237677000111|row contains/.test(logs.join("\n")) && logs.every((l) => { try { return ["inbox_tools", "inbox", "inbox_automation_data"].includes(JSON.parse(l).scope); } catch { return false; } }), logs.join("|").slice(0, 300));
 {
   const code = (f) => read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
   const phase8Server = ["src/lib/inbox/tools.ts", "src/lib/inbox/route.ts", "src/app/api/inbox/saved-replies/route.ts", "src/app/api/inbox/saved-replies/[id]/route.ts", "src/app/api/inbox/conversations/[id]/status/route.ts"];

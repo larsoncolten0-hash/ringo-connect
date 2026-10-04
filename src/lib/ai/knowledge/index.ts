@@ -36,6 +36,7 @@ import { constructionHomeServicesModule } from "./modules/constructionHomeServic
 import { agricultureAgribusinessModule } from "./modules/agricultureAgribusiness";
 import { guidanceModule } from "./modules/guidance";
 import { editorSavingModule } from "./modules/editorSaving";
+import { whatsappInboxModule } from "./modules/whatsappInbox";
 
 // The knowledge registry. To teach Ringo AI about a new feature, add one
 // module file and list it here — nothing else in Ringo AI changes. Order is
@@ -77,6 +78,7 @@ export const KNOWLEDGE_MODULES: readonly KnowledgeModule[] = [
   agricultureAgribusinessModule,
   guidanceModule,
   editorSavingModule,
+  whatsappInboxModule,
 ];
 
 export const KNOWLEDGE_TOPIC_IDS: string[] = KNOWLEDGE_MODULES.map((m) => m.id);
