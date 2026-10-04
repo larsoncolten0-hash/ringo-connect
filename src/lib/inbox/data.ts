@@ -1,4 +1,4 @@
-import { isUuid, messageDisplay, sortThread, type MessageDisplay } from "./format";
+import { SAVED_REPLY_LIMIT, isUuid, messageDisplay, normalizeSearch, sortThread, type InboxStatusFilter, type MessageDisplay } from "./format";
 
 // Read-only Inbox queries (Phase 4 tables: inbox_conversations, inbox_contacts, inbox_messages, inbox_message_media).
 //
@@ -49,19 +49,49 @@ function fail(code: unknown) {
   console.error(JSON.stringify({ scope: "inbox", result: "query_failed", code: typeof code === "string" ? code.slice(0, 20) : "unknown" }));
 }
 
-export async function loadConversationList(client: Client, profileId: string, limit = LIST_LIMIT): Promise<{ ok: true; items: ConversationItem[]; truncated: boolean } | { ok: false }> {
+export interface ListOptions {
+  /** Which conversations to list. Default "all" (the Phase 6 behaviour). */
+  status?: InboxStatusFilter;
+  /** What the person typed in the search box. Sanitised here; a term that is too short is ignored. */
+  query?: string;
+}
+/** At most this many matching contacts (most recently active first) are searched per request. */
+export const SEARCH_CONTACT_CAP = 100;
+
+export async function loadConversationList(client: Client, profileId: string, limit = LIST_LIMIT, options: ListOptions = {}): Promise<{ ok: true; items: ConversationItem[]; truncated: boolean } | { ok: false }> {
   try {
-    const convs = await client
+    let q = client
       .from("inbox_conversations")
       .select("id, channel, status, unread_count, last_message_at, contact_id")
-      .eq("profile_id", profileId)
+      .eq("profile_id", profileId);
+    if (options.status === "open" || options.status === "closed") q = q.eq("status", options.status);
+
+    // Search by customer name or number: first the matching CONTACTS of this profile, then their conversations. The term can only
+    // be letters, digits, spaces, apostrophes and hyphens (see normalizeSearch), so it cannot change the shape of the filter.
+    const term = normalizeSearch(options.query);
+    let searchCapped = false;
+    if (term) {
+      const clauses = [`display_name.ilike.%${term.text}%`];
+      if (term.digits) clauses.push(`external_id.ilike.%${term.digits}%`);
+      // The matching contacts are taken MOST RECENTLY ACTIVE FIRST and capped (it bounds the size of the next query). One extra row is fetched
+      // only to know whether the cap was hit, so a very broad search is reported as limited instead of silently missing recent matches.
+      const found = await client.from("inbox_contacts").select("id").eq("profile_id", profileId).or(clauses.join(",")).order("last_seen_at", { ascending: false }).order("id", { ascending: false }).limit(SEARCH_CONTACT_CAP + 1);
+      if (found.error) return fail(found.error.code), { ok: false };
+      const matched: string[] = (found.data ?? []).map((c: any) => c.id);
+      searchCapped = matched.length > SEARCH_CONTACT_CAP;
+      const ids = matched.slice(0, SEARCH_CONTACT_CAP);
+      if (ids.length === 0) return { ok: true, items: [], truncated: false };
+      q = q.in("contact_id", ids);
+    }
+
+    const convs = await q
       .order("last_message_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(limit + 1);
     if (convs.error) return fail(convs.error.code), { ok: false };
     const fetched: any[] = convs.data ?? [];
     // One extra row is fetched only to know whether the list is complete; it is never shown.
-    const truncated = fetched.length > limit;
+    const truncated = fetched.length > limit || searchCapped;
     const rows = fetched.slice(0, limit);
     if (rows.length === 0) return { ok: true, items: [], truncated: false };
 
@@ -132,12 +162,12 @@ export async function loadThread(client: Client, profileId: string, conversation
     const truncated = all.length > limit;
     const rows = sortThread(all.slice(0, limit));
 
-    const media = new Map<string, { kind: string; caption: string | null; filename: string | null }>();
+    const media = new Map<string, { kind: string; caption: string | null; filename: string | null; mimeType: string | null }>();
     const ids = rows.map((r) => r.id);
     if (ids.length > 0) {
-      const md = await client.from("inbox_message_media").select("message_id, kind, caption, filename").eq("profile_id", profileId).in("message_id", ids);
+      const md = await client.from("inbox_message_media").select("message_id, kind, caption, filename, mime_type").eq("profile_id", profileId).in("message_id", ids);
       if (md.error) return fail(md.error.code), { ok: false, reason: "error" };
-      for (const m of md.data ?? []) media.set(m.message_id, { kind: m.kind, caption: m.caption ?? null, filename: m.filename ?? null });
+      for (const m of md.data ?? []) media.set(m.message_id, { kind: m.kind, caption: m.caption ?? null, filename: m.filename ?? null, mimeType: m.mime_type ?? null });
     }
 
     return {
@@ -159,5 +189,35 @@ export async function loadThread(client: Client, profileId: string, conversation
   } catch {
     fail("exception");
     return { ok: false, reason: "error" };
+  }
+}
+
+/** How many OPEN conversations have unread messages (for the "Open" tab). Counts only; reads no message and changes nothing. */
+export async function countUnreadOpen(client: Client, profileId: string): Promise<number> {
+  try {
+    const res = await client.from("inbox_conversations").select("id", { count: "exact", head: true }).eq("profile_id", profileId).eq("status", "open").gt("unread_count", 0);
+    if (res.error) return fail(res.error.code), 0;
+    return typeof res.count === "number" ? res.count : 0;
+  } catch {
+    fail("exception");
+    return 0;
+  }
+}
+
+export interface SavedReply {
+  id: string;
+  title: string;
+  body: string;
+}
+
+/** The owner's saved replies (read through her own session, RLS owner-read, and filtered on her profile id). */
+export async function loadSavedReplies(client: Client, profileId: string): Promise<{ ok: true; items: SavedReply[] } | { ok: false }> {
+  try {
+    const res = await client.from("inbox_saved_replies").select("id, title, body").eq("profile_id", profileId).order("title", { ascending: true }).limit(SAVED_REPLY_LIMIT);
+    if (res.error) return fail(res.error.code), { ok: false };
+    return { ok: true, items: (res.data ?? []).map((r: any) => ({ id: r.id, title: r.title, body: r.body })) };
+  } catch {
+    fail("exception");
+    return { ok: false };
   }
 }

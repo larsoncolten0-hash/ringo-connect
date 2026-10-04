@@ -13,11 +13,12 @@ export interface MediaLike {
   kind: string;
   caption: string | null;
   filename: string | null;
+  mimeType?: string | null;
 }
 
 export type MessageDisplay =
   | { kind: "text"; text: string }
-  | { kind: "media"; media: MediaKind; caption: string | null; filename: string | null }
+  | { kind: "media"; media: MediaKind; caption: string | null; filename: string | null; mimeType: string | null }
   | { kind: "unsupported" };
 
 const isMediaKind = (v: string): v is MediaKind => (MEDIA_KINDS as readonly string[]).includes(v);
@@ -28,7 +29,7 @@ export function messageDisplay(msg: MessageLike, media?: MediaLike | null): Mess
     return msg.body && msg.body.trim() ? { kind: "text", text: msg.body } : { kind: "unsupported" };
   }
   if (isMediaKind(msg.type)) {
-    return { kind: "media", media: msg.type, caption: media?.caption ?? null, filename: media?.filename ?? null };
+    return { kind: "media", media: msg.type, caption: media?.caption ?? null, filename: media?.filename ?? null, mimeType: media?.mimeType ?? null };
   }
   return { kind: "unsupported" };
 }
@@ -89,4 +90,41 @@ export function formatBubbleTime(iso: string | null | undefined, locale: "en" | 
 /** "+237683163546" from the stored WhatsApp id (digits only). Anything unexpected is shown as stored. */
 export function formatWaId(id: string): string {
   return /^[0-9]{6,20}$/.test(id) ? `+${id}` : id;
+}
+
+export const SEARCH_MIN = 2;
+export const SEARCH_MAX = 80;
+export type InboxStatusFilter = "open" | "closed" | "all";
+export const isStatusFilter = (v: unknown): v is InboxStatusFilter => v === "open" || v === "closed" || v === "all";
+
+/**
+ * Turns what a person typed into a SAFE conversation search term, or null when it is too short to search.
+ * The term is later placed in a PostgREST or() filter and an ilike pattern, so it is reduced to letters, digits, spaces, apostrophes and hyphens:
+ * no comma, parenthesis, dot, colon, quote, backslash or wildcard (% _ *) can survive. `digits` is the digits-only form (for matching a number such
+ * as "+237 6 83 ..."), only when at least 3 digits were typed.
+ */
+export function normalizeSearch(raw: unknown): { text: string; digits: string | null } | null {
+  if (typeof raw !== "string") return null;
+  const text = raw
+    .normalize("NFKC")
+    .replace(/[^\p{L}\p{N} '-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, SEARCH_MAX)
+    .trim();
+  if (Array.from(text).length < SEARCH_MIN) return null;
+  const digits = raw.replace(/\D/g, "");
+  return { text, digits: digits.length >= 3 && digits.length <= 20 ? digits : null };
+}
+
+// Saved replies: shared limits (the database enforces the same numbers).
+export const SAVED_REPLY_LIMIT = 50;
+export const TITLE_MAX = 60;
+export const BODY_MAX = 4096;
+
+/** The `q` URL parameter as typed: first value only, control characters removed, trimmed, capped. (normalizeSearch makes it safe for a query.) */
+export function cleanQueryParam(v: unknown): string {
+  const raw = Array.isArray(v) ? v[0] : v;
+  if (typeof raw !== "string") return "";
+  return raw.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, SEARCH_MAX);
 }

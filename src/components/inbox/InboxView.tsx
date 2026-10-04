@@ -2,27 +2,47 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, MessageCircle, MessagesSquare, TriangleAlert } from "lucide-react";
+import { ArrowLeft, FileText, Image as ImageIcon, MessageCircle, MessagesSquare, Mic, Search, Smile, TriangleAlert, Video, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import ConversationStatusButton from "@/components/inbox/ConversationStatusButton";
 import ReplyComposer, { RetryButton } from "@/components/inbox/ReplyComposer";
-import type { ConversationItem, ThreadData, ThreadMessage } from "@/lib/inbox/data";
-import { formatBubbleTime, formatListTime, formatWaId, previewText } from "@/lib/inbox/format";
+import type { ConversationItem, SavedReply, ThreadData, ThreadMessage } from "@/lib/inbox/data";
+import { formatBubbleTime, formatListTime, formatWaId, previewText, type InboxStatusFilter, type MediaKind } from "@/lib/inbox/format";
 
-// The Inbox screen (read-only). All data arrives as props from the server pages (already scoped to the owner's profile); this component
-// only renders it. Customer text is rendered as plain React text children (escaped), never as HTML.
+// The Inbox screen. All data arrives as props from the server pages (already scoped to the owner's profile); this component only renders it.
+// Customer text is rendered as plain React text children (escaped), never as HTML. Media is shown as a metadata card: nothing is downloaded and
+// no Meta URL or credential ever reaches the browser.
 //
 // Responsive: below `lg` it is a single pane. The conversation list is shown on /dashboard/inbox and the thread on
 // /dashboard/inbox/<id> with a back link. From `lg` up both panes show side by side.
 
+export type InboxFilter = { status: InboxStatusFilter; q: string };
 export type InboxViewProps = {
   list: { ok: true; items: ConversationItem[]; truncated?: boolean } | { ok: false };
   selectedId: string | null;
   thread: { ok: true; thread: ThreadData } | { ok: false; reason: "not_found" | "error" } | null;
+  /** Current list filter (default: open conversations, no search). */
+  filter?: InboxFilter;
+  /** Open conversations that have unread messages (for the Open tab). */
+  unreadOpen?: number;
+  /** The owner's saved replies; null when they are not available (the picker is then hidden). */
+  savedReplies?: SavedReply[] | null;
 };
 
 export const INBOX_PATH = "/dashboard/inbox";
+const DEFAULT_FILTER: InboxFilter = { status: "open", q: "" };
 
-export default function InboxView({ list, selectedId, thread }: InboxViewProps) {
+/** Query string that keeps the current filter while moving around: "" for the defaults, otherwise ?status=...&q=... */
+export function filterQuery(filter: InboxFilter, override: Partial<InboxFilter> = {}): string {
+  const f = { ...filter, ...override };
+  const p = new URLSearchParams();
+  if (f.status !== "open") p.set("status", f.status);
+  if (f.q) p.set("q", f.q);
+  const s = p.toString();
+  return s ? `?${s}` : "";
+}
+
+export default function InboxView({ list, selectedId, thread, filter = DEFAULT_FILTER, unreadOpen = 0, savedReplies = null }: InboxViewProps) {
   const { t } = useLanguage();
   const u = t.inbox;
   const hasSelection = selectedId !== null;
@@ -40,11 +60,20 @@ export default function InboxView({ list, selectedId, thread }: InboxViewProps) 
         <div className="grid gap-4 lg:h-[calc(100dvh-13rem)] lg:min-h-[480px] lg:grid-cols-[340px_minmax(0,1fr)]">
           <section aria-label={u.conversations} className={`${hasSelection ? "hidden lg:flex" : "flex"} min-h-0 flex-col overflow-hidden rounded-card border border-ringo-border`}>
             <h2 className="border-b border-ringo-border px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ringo-muted">{u.conversations}</h2>
-            {list.items.length === 0 ? <EmptyList /> : <ConversationList items={list.items} selectedId={selectedId} truncated={list.truncated === true} />}
+            <ListControls filter={filter} unreadOpen={unreadOpen} />
+            {list.items.length === 0 ? <EmptyList filter={filter} /> : <ConversationList items={list.items} selectedId={selectedId} truncated={list.truncated === true} filter={filter} />}
           </section>
 
           <section className={`${hasSelection ? "flex" : "hidden lg:flex"} min-h-0 flex-col overflow-hidden rounded-card border border-ringo-border`}>
-            {thread === null ? <NoSelection /> : thread.ok ? <Thread data={thread.thread} /> : thread.reason === "not_found" ? <NotFound /> : <ErrorPanel inPane retryHref={`${INBOX_PATH}/${selectedId}`} />}
+            {thread === null ? (
+              <NoSelection />
+            ) : thread.ok ? (
+              <Thread data={thread.thread} filter={filter} savedReplies={savedReplies} />
+            ) : thread.reason === "not_found" ? (
+              <NotFound filter={filter} />
+            ) : (
+              <ErrorPanel inPane retryHref={`${INBOX_PATH}/${selectedId}${filterQuery(filter)}`} />
+            )}
           </section>
         </div>
       )}
@@ -52,13 +81,70 @@ export default function InboxView({ list, selectedId, thread }: InboxViewProps) 
   );
 }
 
-function EmptyList() {
+/** Open / Closed / All tabs and a search box. Plain links and a GET form: they work without JavaScript and keep the filter in the URL. */
+function ListControls({ filter, unreadOpen }: { filter: InboxFilter; unreadOpen: number }) {
   const { t } = useLanguage();
+  const u = t.inbox;
+  const tabs: { id: InboxStatusFilter; label: string }[] = [
+    { id: "open", label: u.filterOpen },
+    { id: "closed", label: u.filterClosed },
+    { id: "all", label: u.filterAll },
+  ];
+  return (
+    <div className="flex flex-col gap-2 border-b border-ringo-border px-3 py-3">
+      <form method="get" action={INBOX_PATH} role="search" className="relative">
+        {filter.status !== "open" && <input type="hidden" name="status" value={filter.status} />}
+        <label htmlFor="inbox-search" className="sr-only">{u.searchLabel}</label>
+        <Search size={14} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ringo-muted" />
+        <input
+          id="inbox-search"
+          type="search"
+          name="q"
+          defaultValue={filter.q}
+          maxLength={80}
+          autoComplete="off"
+          placeholder={u.searchPlaceholder}
+          className="block w-full rounded-full border border-ringo-border bg-transparent py-2 pl-9 pr-9 text-sm text-ringo-text placeholder:text-ringo-muted focus:border-ringo-indigo focus:outline-none"
+        />
+        {filter.q ? (
+          <Link href={`${INBOX_PATH}${filterQuery(filter, { q: "" })}`} aria-label={u.clearSearch} className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-surface hover:text-ringo-text">
+            <X size={14} aria-hidden="true" />
+          </Link>
+        ) : null}
+        <button type="submit" className="sr-only">{u.searchButton}</button>
+      </form>
+      <nav aria-label={u.conversations} className="flex items-center gap-1.5">
+        {tabs.map((tab) => {
+          const active = filter.status === tab.id;
+          return (
+            <Link
+              key={tab.id}
+              href={`${INBOX_PATH}${filterQuery(filter, { status: tab.id })}`}
+              aria-current={active ? "true" : undefined}
+              className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors ${active ? "bg-ringo-indigo text-white" : "border border-ringo-border text-ringo-text hover:bg-ringo-surface"}`}
+            >
+              {tab.label}
+              {tab.id === "open" && unreadOpen > 0 && (
+                <span aria-label={u.unreadOpenLabel(unreadOpen)} className={`inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${active ? "bg-white/25 text-white" : "bg-ringo-indigo text-white"}`}>
+                  {unreadOpen > 99 ? "99+" : unreadOpen}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+function EmptyList({ filter }: { filter: InboxFilter }) {
+  const { t } = useLanguage();
+  const filtered = filter.q !== "" || filter.status === "closed";
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-1 p-8 text-center">
       <MessagesSquare size={22} className="mb-2 text-ringo-muted" aria-hidden="true" />
-      <p className="text-sm font-medium text-ringo-text">{t.inbox.emptyTitle}</p>
-      <p className="text-xs text-ringo-muted">{t.inbox.emptyBody}</p>
+      <p className="text-sm font-medium text-ringo-text">{filtered ? t.inbox.noMatchesTitle : t.inbox.emptyTitle}</p>
+      <p className="text-xs text-ringo-muted">{filtered ? t.inbox.noMatchesBody : t.inbox.emptyBody}</p>
     </div>
   );
 }
@@ -74,13 +160,13 @@ function NoSelection() {
   );
 }
 
-function NotFound() {
+function NotFound({ filter }: { filter: InboxFilter }) {
   const { t } = useLanguage();
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
       <p className="text-sm font-medium text-ringo-text">{t.inbox.threadNotFoundTitle}</p>
       <p className="text-xs text-ringo-muted">{t.inbox.threadNotFoundBody}</p>
-      <Link href={INBOX_PATH} className="text-xs font-medium text-ringo-indigo hover:underline lg:hidden">{t.inbox.back}</Link>
+      <Link href={`${INBOX_PATH}${filterQuery(filter)}`} className="text-xs font-medium text-ringo-indigo hover:underline lg:hidden">{t.inbox.back}</Link>
     </div>
   );
 }
@@ -109,9 +195,10 @@ function ChannelBadge({ channel }: { channel: string }) {
   );
 }
 
-function ConversationList({ items, selectedId, truncated }: { items: ConversationItem[]; selectedId: string | null; truncated: boolean }) {
+function ConversationList({ items, selectedId, truncated, filter }: { items: ConversationItem[]; selectedId: string | null; truncated: boolean; filter: InboxFilter }) {
   const { t, locale } = useLanguage();
   const u = t.inbox;
+  const qs = filterQuery(filter);
   return (
     <ul className="min-h-0 flex-1 divide-y divide-ringo-border/60 overflow-y-auto">
       {items.map((c) => {
@@ -123,7 +210,7 @@ function ConversationList({ items, selectedId, truncated }: { items: Conversatio
         return (
           <li key={c.id}>
             <Link
-              href={`${INBOX_PATH}/${c.id}`}
+              href={`${INBOX_PATH}/${c.id}${qs}`}
               aria-current={selected ? "page" : undefined}
               className={`flex gap-3 px-4 py-3 transition-colors hover:bg-ringo-surface ${selected ? "bg-ringo-surface" : ""}`}
             >
@@ -154,7 +241,7 @@ function ConversationList({ items, selectedId, truncated }: { items: Conversatio
   );
 }
 
-function Thread({ data }: { data: ThreadData }) {
+function Thread({ data, filter, savedReplies }: { data: ThreadData; filter: InboxFilter; savedReplies: SavedReply[] | null }) {
   const { t } = useLanguage();
   const u = t.inbox;
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -167,7 +254,7 @@ function Thread({ data }: { data: ThreadData }) {
   return (
     <>
       <header className="flex items-center gap-3 border-b border-ringo-border px-4 py-3">
-        <Link href={INBOX_PATH} aria-label={u.back} className="-ml-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-surface hover:text-ringo-text lg:hidden">
+        <Link href={`${INBOX_PATH}${filterQuery(filter)}`} aria-label={u.back} className="-ml-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-surface hover:text-ringo-text lg:hidden">
           <ArrowLeft size={18} aria-hidden="true" />
         </Link>
         <div className="min-w-0 flex-1">
@@ -177,9 +264,12 @@ function Thread({ data }: { data: ThreadData }) {
             {data.contact.waId && <span>{formatWaId(data.contact.waId)}</span>}
           </p>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${data.conversation.status === "open" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-ringo-muted/15 text-ringo-muted"}`}>
-          {data.conversation.status === "open" ? u.open : u.closed}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1.5 sm:flex-row sm:items-center">
+          <span className={`rounded-full px-2 py-0.5 text-[11px] ${data.conversation.status === "open" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-ringo-muted/15 text-ringo-muted"}`}>
+            {data.conversation.status === "open" ? u.open : u.closed}
+          </span>
+          <ConversationStatusButton conversationId={data.conversation.id} status={data.conversation.status} />
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-testid="thread-scroll">
@@ -196,10 +286,12 @@ function Thread({ data }: { data: ThreadData }) {
         <div ref={endRef} />
       </div>
 
-      {data.conversation.channel === "whatsapp" && <ReplyComposer conversationId={data.conversation.id} open={data.conversation.replyWindowOpen} />}
+      {data.conversation.channel === "whatsapp" && <ReplyComposer conversationId={data.conversation.id} open={data.conversation.replyWindowOpen} savedReplies={savedReplies} />}
     </>
   );
 }
+
+const MEDIA_ICONS: Record<MediaKind, typeof FileText> = { image: ImageIcon, audio: Mic, video: Video, document: FileText, sticker: Smile };
 
 function Bubble({ m, conversationId }: { m: ThreadMessage; conversationId: string }) {
   const { t, locale } = useLanguage();
@@ -208,15 +300,24 @@ function Bubble({ m, conversationId }: { m: ThreadMessage; conversationId: strin
   const d = m.display;
   // A message stuck in 'queued' for minutes is "not confirmed", never shown as sent or delivered.
   const statusLabel = m.unconfirmed ? u.unconfirmed : (u.statuses as Record<string, string>)[m.status];
+  const Icon = d.kind === "media" ? MEDIA_ICONS[d.media] : null;
   return (
     <li className={`flex ${out ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm sm:max-w-[75%] ${out ? "rounded-br-md bg-ringo-indigo/10 text-ringo-text" : "rounded-bl-md border border-ringo-border bg-ringo-surface text-ringo-text"}`}>
         <span className="sr-only">{out ? u.direction.outbound : u.direction.inbound}: </span>
         {d.kind === "text" && <p className="whitespace-pre-wrap break-words">{d.text}</p>}
-        {d.kind === "media" && (
-          <div className="flex flex-col gap-0.5">
-            <p className="text-xs font-medium">{u.mediaKinds[d.media]}</p>
-            {d.filename && <p className="break-all text-xs text-ringo-muted">{d.filename}</p>}
+        {d.kind === "media" && Icon && (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2.5 rounded-xl border border-ringo-border/70 bg-ringo-muted/10 p-2.5" data-media-kind={d.media}>
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ringo-indigo/10 text-ringo-indigo">
+                <Icon size={18} aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-medium">{u.mediaKinds[d.media]}</p>
+                {d.filename && <p className="break-all text-[11px] text-ringo-muted">{d.filename}</p>}
+                {d.mimeType && <p className="break-all text-[10px] uppercase tracking-wide text-ringo-muted">{d.mimeType}</p>}
+              </div>
+            </div>
             {d.caption && <p className="whitespace-pre-wrap break-words">{d.caption}</p>}
             <p className="text-[11px] italic text-ringo-muted">{u.mediaNotDownloaded}</p>
           </div>

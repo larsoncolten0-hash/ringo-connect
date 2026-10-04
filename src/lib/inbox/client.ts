@@ -54,3 +54,37 @@ export function interpretReply(r: PostResult): ReplyEffect {
 }
 
 export const newRequestId = (): string => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : "");
+
+// ---- owner actions (saved replies, close / reopen): same rule as replies, the browser only calls OUR routes with the few fields below ----
+export type ToolResponse = { ok: true; id?: string; state?: string } | { ok: false; error: string };
+export type ToolCall = { kind: "response"; status: number; body: ToolResponse } | { kind: "network" };
+
+export async function callInboxTool(method: "POST" | "PATCH" | "DELETE", url: string, body: Record<string, unknown> = {}, fetchImpl: typeof fetch = fetch): Promise<ToolCall> {
+  try {
+    const res = await fetchImpl(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "same-origin" });
+    const data = (await res.json().catch(() => null)) as ToolResponse | null;
+    if (!data || typeof data !== "object" || typeof (data as any).ok !== "boolean") return { kind: "network" };
+    return { kind: "response", status: res.status, body: data };
+  } catch {
+    return { kind: "network" };
+  }
+}
+
+export const savedRepliesUrl = (id?: string) => (id ? `/api/inbox/saved-replies/${encodeURIComponent(id)}` : "/api/inbox/saved-replies");
+export const statusUrl = (conversationId: string) => `/api/inbox/conversations/${encodeURIComponent(conversationId)}/status`;
+
+export type ToolErrorKey = "replyTitleTaken" | "replyLimit" | "replyInvalid" | "savedReplyFailed" | "savedReplyGone" | "statusUpdateFailed";
+/** Maps the server's answer to the message the person should see. */
+export function toolErrorKey(c: ToolCall, kind: "saved" | "status"): ToolErrorKey | null {
+  if (c.kind === "response" && c.body.ok) return null;
+  const fallback: ToolErrorKey = kind === "status" ? "statusUpdateFailed" : "savedReplyFailed";
+  if (c.kind === "network") return fallback;
+  const e = (c.body as { error?: string }).error;
+  if (kind === "saved") {
+    if (e === "duplicate_title") return "replyTitleTaken";
+    if (e === "limit_reached") return "replyLimit";
+    if (e === "invalid") return "replyInvalid";
+    if (e === "not_found") return "savedReplyGone";
+  }
+  return fallback;
+}

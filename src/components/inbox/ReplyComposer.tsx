@@ -1,9 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Bookmark } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { MAX_REPLY_LENGTH, interpretReply, newRequestId, postReply, type ErrorKey } from "@/lib/inbox/client";
+import type { SavedReply } from "@/lib/inbox/data";
 
 // Human text reply (WhatsApp). Text only, intentionally plain:
 //   * Enter inserts a new line (what people expect on a phone); Ctrl/Cmd + Enter, or the Send button, sends. Nothing is sent by an accidental keypress.
@@ -12,7 +15,7 @@ import { MAX_REPLY_LENGTH, interpretReply, newRequestId, postReply, type ErrorKe
 //   * the box and the button are locked while a send is in flight, so a double click cannot send twice.
 //   * the browser only calls Ringo's own route; the recipient is decided by the conversation, never typed here.
 
-export default function ReplyComposer({ conversationId, open }: { conversationId: string; open: boolean }) {
+export default function ReplyComposer({ conversationId, open, savedReplies = null }: { conversationId: string; open: boolean; savedReplies?: SavedReply[] | null }) {
   const { t } = useLanguage();
   const u = t.inbox;
   const router = useRouter();
@@ -22,6 +25,19 @@ export default function ReplyComposer({ conversationId, open }: { conversationId
   const requestId = useRef<string | null>(null);
   const requestText = useRef("");
   const inFlight = useRef(false);
+  const box = useRef<HTMLTextAreaElement | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Inserting a saved reply only puts text in the box (the person reads and edits it, then sends it like any other reply). If an earlier
+  // attempt had an unknown outcome, the changed text must not reuse its request id (same rule as typing).
+  function insertSaved(body: string) {
+    const next = (text.trim() === "" ? body : text.replace(/\s+$/, "") + "\n" + body).slice(0, MAX_REPLY_LENGTH);
+    setText(next);
+    if (requestId.current && next.trim() !== requestText.current) requestId.current = null;
+    if (error === "emptyMessage" || error === "messageTooLong") setError(null);
+    setPickerOpen(false);
+    box.current?.focus();
+  }
 
   async function submit() {
     if (inFlight.current) return;
@@ -57,7 +73,47 @@ export default function ReplyComposer({ conversationId, open }: { conversationId
       className="border-t border-ringo-border p-3"
     >
       <label htmlFor={id} className="sr-only">{u.reply}</label>
+      {savedReplies !== null && (
+        <div className="mb-2">
+          <button
+            type="button"
+            aria-expanded={pickerOpen}
+            aria-controls={`${id}-saved`}
+            disabled={sending}
+            onClick={() => setPickerOpen((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-ringo-border px-3 py-1 text-[11px] font-medium text-ringo-text transition-colors hover:bg-ringo-surface disabled:opacity-60"
+          >
+            <Bookmark size={12} aria-hidden="true" />
+            {u.savedReplies}
+          </button>
+          {pickerOpen && (
+            <div id={`${id}-saved`} className="mt-2 rounded-card border border-ringo-border">
+              {savedReplies.length === 0 ? (
+                <p className="px-3 py-3 text-xs text-ringo-muted">{u.savedRepliesNone}</p>
+              ) : (
+                <>
+                  <p className="border-b border-ringo-border px-3 py-2 text-[11px] text-ringo-muted">{u.savedRepliesHint}</p>
+                  <ul className="max-h-48 divide-y divide-ringo-border/60 overflow-y-auto">
+                    {savedReplies.map((r) => (
+                      <li key={r.id}>
+                        <button type="button" onClick={() => insertSaved(r.body)} className="block w-full px-3 py-2 text-left transition-colors hover:bg-ringo-surface">
+                          <span className="block text-xs font-medium text-ringo-text">{r.title}</span>
+                          <span className="mt-0.5 line-clamp-2 block whitespace-pre-wrap break-words text-[11px] text-ringo-muted">{r.body}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              <div className="border-t border-ringo-border px-3 py-2">
+                <Link href="/dashboard/inbox/replies" className="text-[11px] font-medium text-ringo-indigo hover:underline">{u.manageSavedReplies}</Link>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <textarea
+        ref={box}
         id={id}
         value={text}
         rows={2}
