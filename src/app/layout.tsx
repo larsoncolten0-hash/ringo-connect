@@ -13,10 +13,14 @@ const display = Space_Grotesk({
   weight: ["500", "700"],
 });
 
+// No explicit `weight`: Inter is a variable font, so omitting it covers
+// every weight the app uses (400/500/600). Listing static weights makes
+// Google return extensionless gstatic URLs that Next 14.2.5's font loader
+// can't parse ("Cannot read properties of null (reading '1')"), which broke
+// the production build. The variable-font request returns normal .woff2 URLs.
 const body = Inter({
   subsets: ["latin"],
   variable: "--font-body",
-  weight: ["400", "500", "600"],
 });
 
 // generateMetadata (not a static `metadata` export) so the title/favicon
