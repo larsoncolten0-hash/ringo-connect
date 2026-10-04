@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { getMusicReceiptData } from "@/lib/musicReceipt";
 import ReceiptPageView from "@/components/music/ReceiptPageView";
 
-export { generateMetadata, generateViewport } from "@/lib/profileMetadata";
+// A receipt is reachable only by its own link: not indexable (see profileMetadata.generateNoIndexMetadata).
+export { generateNoIndexMetadata as generateMetadata, generateViewport } from "@/lib/profileMetadata";
 
 // The premium fan-facing receipt for a music/ticket/merch order — the
 // "View Receipt" destination linked from MusicStorePage's confirmation

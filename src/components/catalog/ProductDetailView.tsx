@@ -161,7 +161,7 @@ export default function ProductDetailView({
             <Link
               href={`/${username}`}
               aria-label={t.music.backToProfile}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-white backdrop-blur-md transition active:scale-90"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-white backdrop-blur-md transition active:scale-90"
               style={{ backgroundColor: "rgba(15,15,20,0.42)" }}
             >
               <ArrowLeft size={18} />

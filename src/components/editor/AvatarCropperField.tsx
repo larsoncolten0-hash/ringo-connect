@@ -156,7 +156,7 @@ export default function AvatarCropperField({
                 onClick={closeCropper}
                 disabled={uploading}
                 aria-label={c.cancel}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10 disabled:opacity-40"
+                className="w-11 h-11 -mr-2 rounded-lg flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10 disabled:opacity-40"
               >
                 <X size={15} />
               </button>

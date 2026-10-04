@@ -5,9 +5,11 @@ import { notFound } from "next/navigation";
 import { headers, cookies } from "next/headers";
 import { extractRequestContext } from "@/lib/requestContext";
 import { buildPixelConfigFromRow, isPixelsEnabledForUser, sendMetaPageView, extractClientIp } from "@/lib/pixelTracking";
-import { splitByPlanLimit, isCustomThemeAllowed } from "@/lib/planEntitlements";
+import { isCustomThemeAllowed } from "@/lib/planEntitlements";
+import { limitPublicRows, isPublicLink, isPublicProduct } from "@/lib/publicContent";
 import { computeProfileCheckoutAvailability } from "@/lib/productCheckout/availability";
 import ProfileView from "@/components/ProfileView";
+import { buildProfileJsonLd, serializeJsonLd } from "@/lib/seo";
 
 // Per-profile PWA installability (manifest link, iOS home-screen name/
 // icon, theme color) + page title/description — see
@@ -58,8 +60,10 @@ export default async function PublicProfilePage({
     .eq("id", profile.user_id)
     .maybeSingle();
   const ownerPlan = (ownerPlanRow as any)?.plans ?? null;
-  const { visible: visibleLinks } = splitByPlanLimit(profile.links || [], ownerPlan?.max_links ?? null);
-  const { visible: visibleProducts } = splitByPlanLimit(profile.products || [], ownerPlan?.max_products ?? null);
+  // Rows with nothing to show (an empty link, a nameless product) are dropped BEFORE the plan limit, so they
+  // never use up one of the owner's visible slots (see lib/publicContent.ts). Display only; nothing is changed.
+  const { visible: visibleLinks } = limitPublicRows<any>(profile.links, isPublicLink, ownerPlan?.max_links ?? null);
+  const { visible: visibleProducts } = limitPublicRows<any>(profile.products, isPublicProduct, ownerPlan?.max_products ?? null);
   profile.links = visibleLinks;
   profile.products = visibleProducts;
   if (!isCustomThemeAllowed(ownerPlan)) {
@@ -105,14 +109,19 @@ export default async function PublicProfilePage({
   // the Meta Conversions API PageView, run together so the CAPI call
   // (a network hop to graph.facebook.com) doesn't add its latency on
   // top of the DB insert's.
+  // The owner previewing their own page is not a visit: skip OUR page-view row for them (isOwner comes
+  // from the signed-in session above). Anonymous and other signed-in visitors are still recorded, and
+  // the click tracking in /api/track is untouched.
   const [trackResult] = await Promise.allSettled([
-    supabase.from("click_events").insert({
-      profile_id: profile.id,
-      target_type: "page",
-      referrer,
-      country,
-      city,
-    }),
+    isOwner
+      ? Promise.resolve({ error: null })
+      : supabase.from("click_events").insert({
+          profile_id: profile.id,
+          target_type: "page",
+          referrer,
+          country,
+          city,
+        }),
     pixelsEnabled
       ? sendMetaPageView(pixelConfig, {
           eventId: pageViewEventId,
@@ -180,13 +189,19 @@ export default async function PublicProfilePage({
       .map(({ orgUsername, orgName, orgAvatarUrl, roleName }) => ({ orgUsername, orgName: orgName!, orgAvatarUrl, roleName }));
   }
 
+  // Structured data for search engines: only public, displayed fields (see lib/seo.ts); null for a demo profile.
+  const jsonLd = buildProfileJsonLd(publicProfile as any);
+
   return (
-    <ProfileView
-      profile={publicProfile}
-      pixelsEnabled={pixelsEnabled}
-      pageViewEventId={pageViewEventId}
-      staffBadges={staffBadges}
-      isOwner={isOwner}
-    />
+    <>
+      {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />}
+      <ProfileView
+        profile={publicProfile}
+        pixelsEnabled={pixelsEnabled}
+        pageViewEventId={pageViewEventId}
+        staffBadges={staffBadges}
+        isOwner={isOwner}
+      />
+    </>
   );
 }

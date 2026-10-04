@@ -93,7 +93,7 @@ export default function CategoryCard({
               <button
                 key={s.id}
                 onClick={() => selectSubcategory(s.id)}
-                className={`text-xs px-2.5 py-1.5 rounded-full border transition ${
+                className={`text-xs px-3 py-2 min-h-[44px] rounded-full border transition ${
                   subcategory === s.id
                     ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo font-medium"
                     : "border-ringo-border text-ringo-muted"

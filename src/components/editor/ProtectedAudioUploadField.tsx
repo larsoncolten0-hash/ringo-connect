@@ -180,7 +180,7 @@ export default function ProtectedAudioUploadField({
               type="button"
               onClick={remove}
               aria-label={label.remove}
-              className="ml-auto shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-ringo-muted hover:text-red-500 hover:bg-red-500/10 transition"
+              className="ml-auto shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-ringo-muted hover:text-red-500 hover:bg-red-500/10 transition"
             >
               <X size={14} />
             </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, type LucideIcon } from "lucide-react";
 
 // A generic, reusable single-open-at-a-time dropdown/accordion — click a
@@ -98,6 +98,7 @@ export function AccordionItem({
   subtitle,
   badge,
   guard,
+  footer,
   children,
 }: {
   id: string;
@@ -106,11 +107,15 @@ export function AccordionItem({
   subtitle?: string;
   badge?: React.ReactNode;
   guard?: () => boolean | Promise<boolean>;
+  /** Always shown under the row, inside it (e.g. a section's status line). Rendered here, not as a sibling,
+   *  so this row stays the container's last child and keeps its `last:` border / rounding. */
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const { openId, requestOpen, requestClose, registerGuard } = useAccordion();
   const isOpen = openId === id;
   const panelId = useId();
+  const reduceMotion = useReducedMotion();
 
   // Registered once via a stable wrapper that always reads the latest
   // `guard` through this ref — so a guard closing over fresh "dirty"
@@ -164,7 +169,7 @@ export function AccordionItem({
         </span>
         <span className="flex items-center gap-2 shrink-0">
           {badge}
-          <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ type: "spring", stiffness: 380, damping: 28 }}>
+          <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 28 }}>
             <ChevronDown size={17} className={isOpen ? "text-ringo-indigo" : "text-ringo-muted"} />
           </motion.span>
         </span>
@@ -177,13 +182,13 @@ export function AccordionItem({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
             <motion.div
               initial={{ y: -6, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.2, delay: 0.05 }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 0.2, delay: 0.05 }}
               className="px-1 pb-5 pt-1"
             >
               {children}
@@ -191,6 +196,7 @@ export function AccordionItem({
           </motion.div>
         )}
       </AnimatePresence>
+      {footer}
     </div>
   );
 }

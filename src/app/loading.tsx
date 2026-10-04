@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { LoadingLabel } from "@/components/public/PublicStates";
 
 // The site-wide Suspense fallback — covers any top-level navigation that
 // doesn't have a more specific loading.tsx of its own (landing, auth,
@@ -20,7 +21,7 @@ export default function RootLoading() {
       {/* Short and quiet on purpose — this screen only shows for a real
           app-level boot (see the file comment above), so it should read
           as a brief, elegant pause, never a splash screen. */}
-      <p className="text-xs font-medium text-ringo-muted animate-fade-in">Loading your Ringo…</p>
+      <LoadingLabel />
     </div>
   );
 }

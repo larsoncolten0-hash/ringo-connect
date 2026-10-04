@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { QrCode as QrCodeIcon, Download, Printer, RefreshCw, X, Trash2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import { drawQrCodeWithLogo, downloadCanvas } from "@/lib/qrCode";
 import EditorCard from "./EditorCard";
+import { useAutosavedRows } from "./useAutosavedRows";
 
 // Only ever rendered for a profile tagged Restaurant & Food. Reuses the
 // same QR drawing/download logic as the admin QR builder (src/lib/qrCode.ts)
@@ -22,36 +22,34 @@ export default function TablesCard({
   siteUrl: string;
   initialTables: any[];
 }) {
-  const supabase = createClient();
   const { t } = useLanguage();
-  const [tables, setTables] = useState([...initialTables].sort((a, b) => a.sort_order - b.sort_order));
+  // add / rename / switch / delete / new QR code all go through the section's auto-save engine (see
+  // useAutosavedRows), so a failure is reported and the list never shows what is not really saved.
+  const { rows: tables, update: updateTable, persist, add, remove } = useAutosavedRows<any>("restaurant_tables", "restaurant_tables", initialTables);
   const [openQrId, setOpenQrId] = useState<string | null>(null);
 
   const tableUrl = (code: string) => `${siteUrl.replace(/\/$/, "")}/r/${username}?table=${code}`;
 
   const addTable = async () => {
-    const { data } = await supabase
-      .from("restaurant_tables")
-      .insert({ profile_id: profileId, label: `Table ${String(tables.length + 1).padStart(2, "0")}`, sort_order: tables.length })
-      .select()
-      .single();
-    if (data) setTables((prev) => [...prev, data]);
+    await add({ profile_id: profileId, label: `Table ${String(tables.length + 1).padStart(2, "0")}`, sort_order: tables.length });
   };
 
+  // the new name stays on screen while it saves; a failure is kept for a retry
   const renameTable = async (id: string, label: string) => {
-    setTables((prev) => prev.map((tb) => (tb.id === id ? { ...tb, label } : tb)));
-    await supabase.from("restaurant_tables").update({ label }).eq("id", id);
+    updateTable(id, { label });
+    await persist(id, { label });
   };
 
   const toggleEnabled = async (id: string, enabled: boolean) => {
-    setTables((prev) => prev.map((tb) => (tb.id === id ? { ...tb, enabled } : tb)));
-    await supabase.from("restaurant_tables").update({ enabled }).eq("id", id);
+    const previous = tables.find((tb) => tb.id === id)?.enabled;
+    updateTable(id, { enabled });
+    // a switch must not show a state the database does not have: go back if the save fails
+    await persist(id, { enabled }, { rollback: () => updateTable(id, { enabled: previous }) });
   };
 
   const deleteTable = async (id: string) => {
-    if (!window.confirm("Delete this table? Its QR code will stop working.")) return;
-    setTables((prev) => prev.filter((tb) => tb.id !== id));
-    await supabase.from("restaurant_tables").delete().eq("id", id);
+    if (!window.confirm(t.restaurant.deleteTableConfirm)) return;
+    await remove(id);
   };
 
   const regenerateCode = async (id: string) => {
@@ -65,8 +63,10 @@ export default function TablesCard({
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("")
       .toUpperCase();
-    setTables((prev) => prev.map((tb) => (tb.id === id ? { ...tb, public_code: fresh } : tb)));
-    await supabase.from("restaurant_tables").update({ public_code: fresh }).eq("id", id);
+    const previous = tables.find((tb) => tb.id === id)?.public_code;
+    updateTable(id, { public_code: fresh });
+    // a QR code that is not really saved would be printed and then not work: restore the old one on failure
+    await persist(id, { public_code: fresh }, { rollback: () => updateTable(id, { public_code: previous }) });
   };
 
   return (
@@ -74,7 +74,7 @@ export default function TablesCard({
       icon={QrCodeIcon}
       title={t.restaurant.tablesTitle}
       action={
-        <button onClick={addTable} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
+        <button type="button" onClick={addTable} className="text-xs px-3 py-2.5 min-h-[44px] rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
           {t.restaurant.addTable}
         </button>
       }
@@ -89,7 +89,7 @@ export default function TablesCard({
             <div className="flex items-center gap-2">
               <input
                 value={table.label}
-                onChange={(e) => setTables((prev) => prev.map((tb) => (tb.id === table.id ? { ...tb, label: e.target.value } : tb)))}
+                onChange={(e) => updateTable(table.id, { label: e.target.value })}
                 onBlur={(e) => renameTable(table.id, e.target.value)}
                 placeholder={t.restaurant.tableLabelPlaceholder}
                 className="flex-1 min-w-0 text-sm font-medium bg-transparent text-ringo-text px-1 py-1"
@@ -104,13 +104,14 @@ export default function TablesCard({
                 {table.enabled !== false ? t.restaurant.tableEnabled : t.restaurant.tableDisabled}
               </label>
               <button
+                type="button"
                 onClick={() => setOpenQrId(openQrId === table.id ? null : table.id)}
-                className="shrink-0 text-xs font-medium text-ringo-indigo px-2 py-1"
+                className="shrink-0 min-h-[44px] text-xs font-medium text-ringo-indigo px-2 py-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
               >
                 {t.restaurant.viewQr}
               </button>
-              <button onClick={() => deleteTable(table.id)} className="shrink-0 text-ringo-muted hover:text-red-500 p-1">
-                <Trash2 size={14} />
+              <button type="button" onClick={() => deleteTable(table.id)} aria-label={t.editor.delete} className="shrink-0 w-11 h-11 flex items-center justify-center rounded-lg text-ringo-muted hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50">
+                <Trash2 size={14} aria-hidden="true" />
               </button>
             </div>
 
@@ -184,20 +185,20 @@ function TableQrPanel({
         <button
           onClick={() => canvasRef.current && downloadCanvas(canvasRef.current, `table-${label}`, "png")}
           disabled={!ready}
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-card bg-ringo-indigo text-white disabled:opacity-50"
+          className="flex items-center gap-1.5 text-xs px-3 py-2.5 min-h-[44px] rounded-card bg-ringo-indigo text-white disabled:opacity-50"
         >
           <Download size={12} /> {t.restaurant.downloadQr}
         </button>
         <button
           onClick={printQr}
           disabled={!ready}
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-card border border-ringo-border text-ringo-text disabled:opacity-50"
+          className="flex items-center gap-1.5 text-xs px-3 py-2.5 min-h-[44px] rounded-card border border-ringo-border text-ringo-text disabled:opacity-50"
         >
           <Printer size={12} /> {t.restaurant.printQr}
         </button>
         <button
           onClick={onRegenerate}
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-card border border-ringo-border text-ringo-text"
+          className="flex items-center gap-1.5 text-xs px-3 py-2.5 min-h-[44px] rounded-card border border-ringo-border text-ringo-text"
         >
           <RefreshCw size={12} /> {t.restaurant.regenerateQr}
         </button>

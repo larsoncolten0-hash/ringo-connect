@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { Play, Pause, ExternalLink, ShoppingBag, Ticket, Sparkles, MapPin, Heart } from "lucide-react";
-import { hexToRgba } from "@/lib/color";
+import { hexToRgba, readableOn } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import { primaryTicketType } from "@/lib/ticketTypes";
 import type { Translations } from "@/lib/i18n/translations";
@@ -45,9 +45,16 @@ export default function PinnedSpotlight({
   playingId: string | null;
   onTogglePlay: (track: any) => void;
 }) {
+  // Text on a button / badge filled with the creator's accent: ink or white, whichever reads (a white label on a gold accent does not).
+  const onAccent = readableOn(accent);
+  const playLabel = t.music.playLabel;
+  const pauseLabel = t.music.pauseLabel;
+  // A 1px inner edge in the creator's own accent over the artwork: the card is an object with an edge, not a flat crop.
+  const edge = <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-ringo-xl" style={{ boxShadow: `inset 0 0 0 1px ${hexToRgba(accent, 0.4)}` }} />;
+
   if (type === "support") {
     return (
-      <div className="relative w-full overflow-hidden rounded-[28px] animate-fade-up" style={{ animationDelay: "320ms" }}>
+      <div className="relative w-full overflow-hidden rounded-ringo-xl animate-fade-up" style={{ animationDelay: "320ms" }}>
         <div className="relative aspect-[4/3] sm:aspect-[16/10] w-full">
           {avatarUrl ? (
             <img src={avatarUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -55,17 +62,18 @@ export default function PinnedSpotlight({
             <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${hexToRgba(accent, 0.5)}, rgba(0,0,0,0.6))` }} />
           )}
           <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 5%, rgba(0,0,0,0.15) 55%, transparent 75%)" }} />
+          {edge}
           <a href="#support" className="absolute inset-0" aria-label={t.music.supportTitle} />
           <span
-            className="absolute top-3.5 left-3.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-full"
-            style={{ backgroundColor: hexToRgba(accent, 0.9), color: "#fff" }}
+            className="absolute top-3.5 left-3.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-full"
+            style={{ backgroundColor: hexToRgba(accent, 0.9), color: onAccent }}
           >
             <Sparkles size={11} />
             {t.music.spotlightBadge}
           </span>
           <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5 flex items-end gap-3">
             <div className="flex-1 min-w-0 text-white">
-              <p className="text-lg sm:text-xl font-display font-bold truncate drop-shadow-sm">{t.music.supportTitle}</p>
+              <p className="text-xl sm:text-2xl font-display font-bold truncate drop-shadow-sm">{t.music.supportTitle}</p>
               <p className="text-sm truncate" style={{ opacity: 0.85 }}>
                 {supportMessage || t.music.supportHint}
               </p>
@@ -133,7 +141,7 @@ export default function PinnedSpotlight({
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-[28px] animate-fade-up"
+      className="relative w-full overflow-hidden rounded-ringo-xl animate-fade-up"
       style={{ animationDelay: "320ms" }}
     >
       <div className="relative aspect-[4/3] sm:aspect-[16/10] w-full">
@@ -158,11 +166,12 @@ export default function PinnedSpotlight({
             sits underneath the badge and the bottom content bar below (both
             painted later, so they stay independently clickable), covering
             only the open artwork area a tap would otherwise do nothing on. */}
+        {edge}
         <a href={detailPageHref} className="absolute inset-0" aria-label={title} />
 
         <span
-          className="absolute top-3.5 left-3.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-full"
-          style={{ backgroundColor: hexToRgba(accent, 0.9), color: "#fff" }}
+          className="absolute top-3.5 left-3.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-2.5 py-1.5 rounded-full"
+          style={{ backgroundColor: hexToRgba(accent, 0.9), color: onAccent }}
         >
           <Sparkles size={11} />
           {t.music.spotlightBadge}
@@ -170,7 +179,7 @@ export default function PinnedSpotlight({
 
         <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5 flex items-end gap-3">
           <div className="flex-1 min-w-0 text-white">
-            <p className="text-lg sm:text-xl font-display font-bold truncate drop-shadow-sm">{title}</p>
+            <p className="text-xl sm:text-2xl font-display font-bold truncate drop-shadow-sm">{title}</p>
             {subtitle && (
               <p className="text-sm truncate flex items-center gap-1.5" style={{ opacity: 0.85 }}>
                 {type === "event" && item.location && <MapPin size={12} className="shrink-0" />}
@@ -184,7 +193,7 @@ export default function PinnedSpotlight({
               {isProtectedTrack && item.price && (
                 <a
                   href={`/m/${username}/track/${item.id}`}
-                  className="flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2.5 rounded-full shadow-lg transition hover:brightness-95 active:scale-95"
+                  className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold px-3.5 py-2.5 rounded-full shadow-lg transition hover:brightness-95 active:scale-95"
                   style={buttonStyle}
                 >
                   <ShoppingBag size={13} />
@@ -194,9 +203,9 @@ export default function PinnedSpotlight({
               {(isProtectedTrack ? item.preview_audio_url : item.audio_url || item.external_url) && (
                 <button
                   onClick={() => onTogglePlay(item)}
-                  aria-label={isPlaying ? "Pause" : "Play"}
+                  aria-label={isPlaying ? pauseLabel : playLabel}
                   className="w-12 h-12 rounded-full flex items-center justify-center transition active:scale-90 shadow-lg"
-                  style={{ backgroundColor: accent, color: "#fff" }}
+                  style={{ backgroundColor: accent, color: onAccent }}
                 >
                   {(isProtectedTrack ? item.preview_audio_url : item.audio_url) ? (
                     isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />

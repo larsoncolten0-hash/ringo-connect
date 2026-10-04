@@ -4,6 +4,7 @@ import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { readableOn } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
 
 const PRESET_AMOUNTS = [500, 1000, 2500, 5000];
@@ -37,6 +38,8 @@ export default function SupportArtistSection({
   const [amount, setAmount] = useState<number | "custom">(1000);
   const [customAmount, setCustomAmount] = useState("");
 
+  // Text on the accent-filled amount chips and the send button: ink or white, whichever reads on the creator's accent.
+  const onAccent = readableOn(accent);
   const finalAmount = amount === "custom" ? Number(customAmount) || 0 : amount;
   const canSend = finalAmount > 0;
 
@@ -48,7 +51,7 @@ export default function SupportArtistSection({
     >
       <div className="flex items-center gap-2">
         <Heart size={17} style={{ color: accent }} fill={accent} />
-        <p className="text-base font-bold">{t.music.supportTitle}</p>
+        <h2 className="text-base font-bold">{t.music.supportTitle}</h2>
       </div>
       <p className="text-xs" style={{ opacity: 0.65 }}>
         {supportMessage || t.music.supportHint}
@@ -59,10 +62,10 @@ export default function SupportArtistSection({
           <button
             key={preset}
             onClick={() => setAmount(preset)}
-            className="text-xs font-medium px-3 py-1.5 rounded-full transition"
+            className="text-xs font-medium px-3 py-1.5 min-h-[44px] rounded-full transition"
             style={
               amount === preset
-                ? { backgroundColor: accent, color: "#fff" }
+                ? { backgroundColor: accent, color: onAccent }
                 : { border: `1.5px solid ${borderTint}`, color: textColor }
             }
           >
@@ -71,10 +74,10 @@ export default function SupportArtistSection({
         ))}
         <button
           onClick={() => setAmount("custom")}
-          className="text-xs font-medium px-3 py-1.5 rounded-full transition"
+          className="text-xs font-medium px-3 py-1.5 min-h-[44px] rounded-full transition"
           style={
             amount === "custom"
-              ? { backgroundColor: accent, color: "#fff" }
+              ? { backgroundColor: accent, color: onAccent }
               : { border: `1.5px solid ${borderTint}`, color: textColor }
           }
         >
@@ -88,7 +91,7 @@ export default function SupportArtistSection({
           onChange={(e) => setCustomAmount(e.target.value.replace(/[^0-9]/g, ""))}
           placeholder={t.music.customAmountPlaceholder}
           inputMode="numeric"
-          className="text-sm px-3.5 py-2.5 rounded-card bg-transparent"
+          className="text-sm px-3.5 py-2.5 min-h-[44px] rounded-card bg-transparent"
           style={{ border: `1.5px solid ${borderTint}`, color: textColor }}
         />
       )}
@@ -99,10 +102,10 @@ export default function SupportArtistSection({
         onClick={(e) => {
           if (!canSend) e.preventDefault();
         }}
-        className={`text-center text-sm font-medium py-2.5 rounded-full transition hover:brightness-95 active:scale-[0.98] ${
+        className={`text-center text-sm font-medium py-2.5 min-h-[44px] rounded-full transition hover:brightness-95 active:scale-[0.98] ${
           !canSend ? "opacity-40 pointer-events-none" : ""
         }`}
-        style={{ backgroundColor: accent, color: "#fff" }}
+        style={{ backgroundColor: accent, color: onAccent }}
       >
         {t.music.sendSupportButton}
       </Link>

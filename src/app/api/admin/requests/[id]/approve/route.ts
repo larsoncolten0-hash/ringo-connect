@@ -13,6 +13,7 @@ import { emailShell } from "@/lib/email/emailShell";
 import { sendEmail } from "@/lib/email/provider";
 import { applyCardBundleGrant } from "@/lib/cardBundle";
 import { defaultCurrencyForWhatsapp } from "@/lib/currency";
+import { EMAIL_EXISTS_MESSAGE, isEmailExistsError } from "@/lib/auth/createUserError";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const admin = await assertCanApproveRequests();
@@ -108,6 +109,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
       ...(signupRequest.referral_code ? { ref: signupRequest.referral_code } : {}),
     },
   });
+
+  // An auth user with this email already exists (an earlier sign-in attempt, a self-serve signup...): nothing was
+  // created and the request stays pending, so say exactly that instead of a generic failure. No user is deleted here.
+  if (isEmailExistsError(createError)) {
+    return NextResponse.json({ error: EMAIL_EXISTS_MESSAGE, code: "email_exists" }, { status: 409 });
+  }
 
   if (createError || !created.user) {
     return NextResponse.json({ error: createError?.message || "Could not create the account." }, { status: 500 });

@@ -9,6 +9,7 @@ import { translations } from "@/lib/i18n/translations";
 type Pick = (t: typeof translations.en) => string;
 
 const PLACES: { path: string; label: Pick; note: string }[] = [
+  { path: "/dashboard/home", label: (t) => t.nav.home, note: "Ringo Home: next step, profile completion, last 7 days, milestones" },
   { path: "/dashboard", label: (t) => t.nav.editor, note: "Profile editor: all profile sections below" },
   { path: "/dashboard?section=category", label: (t) => t.editor.category.title, note: "Primary + extra categories" },
   { path: "/dashboard?section=music-settings", label: (t) => t.music.settingsTitle, note: "Music & Entertainment only" },

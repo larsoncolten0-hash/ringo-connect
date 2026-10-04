@@ -2,7 +2,8 @@
 
 import type { CSSProperties } from "react";
 import { Ticket, MapPin, Clock } from "lucide-react";
-import { hexToRgba } from "@/lib/color";
+import { hexToRgba, readableOn } from "@/lib/color";
+import { MUSIC } from "@/lib/profileStage";
 import { formatPrice } from "@/lib/currency";
 import { primaryTicketType } from "@/lib/ticketTypes";
 import type { Translations } from "@/lib/i18n/translations";
@@ -15,8 +16,8 @@ import type { Translations } from "@/lib/i18n/translations";
 // resolves the same CTA priority (ticket_url, in-house checkout, or
 // WhatsApp) this card used to apply directly. Only rendered when there's
 // genuinely a way to get a ticket at all.
-const CARD_BG = "#171009";
-const CARD_TEXT = "#F5EFE4";
+const CARD_BG = MUSIC.player!.background;
+const CARD_TEXT = MUSIC.player!.text;
 
 export default function EventsSection({
   t,
@@ -36,6 +37,7 @@ export default function EventsSection({
   currency: string;
 }) {
   if (events.length === 0) return null;
+  const onAccent = readableOn(accent);
 
   const dateParts = (iso?: string | null) => {
     if (!iso) return null;
@@ -46,10 +48,10 @@ export default function EventsSection({
 
   return (
     <div id="events" className="flex flex-col gap-3 scroll-mt-6">
-      <p className="text-base font-bold flex items-center gap-2">
+      <h2 className="text-base font-bold flex items-center gap-2">
         <Ticket size={17} style={{ color: accent }} />
         {t.music.upcomingTitle}
-      </p>
+      </h2>
 
       <div className="flex flex-col gap-3">
         {events
@@ -70,7 +72,7 @@ export default function EventsSection({
             return (
               <div
                 key={event.id}
-                className="relative overflow-hidden rounded-2xl p-3 flex items-center gap-3"
+                className="relative overflow-hidden rounded-ringo-lg p-3 flex flex-wrap items-center gap-3"
                 style={{ backgroundColor: CARD_BG, color: CARD_TEXT }}
               >
                 {/* Every event gets a detail page (see EventDetail's
@@ -80,7 +82,7 @@ export default function EventsSection({
                 <a
                   href={`/m/${username}/ticket/${event.id}`}
                   aria-label={event.title}
-                  className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden block"
+                  className="relative w-16 h-16 shrink-0 rounded-ringo-md overflow-hidden block"
                 >
                   {event.cover_image_url ? (
                     <img src={event.cover_image_url} alt="" className="w-full h-full object-cover" />
@@ -94,16 +96,16 @@ export default function EventsSection({
                       className="absolute top-0.5 left-0.5 rounded-md px-1 py-0.5 flex flex-col items-center leading-none"
                       style={{ backgroundColor: "rgba(0,0,0,0.75)" }}
                     >
-                      <span className="text-[8px] font-semibold" style={{ color: accent }}>
+                      <span className="text-[10px] font-semibold" style={{ color: accent }}>
                         {parts.month}
                       </span>
-                      <span className="text-[11px] font-bold text-white">{parts.day}</span>
+                      <span className="text-xs font-bold text-white">{parts.day}</span>
                     </div>
                   )}
                 </a>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{event.title}</p>
+                <div className="flex-1 min-w-[9rem]">
+                  <p className="text-sm font-semibold line-clamp-2 [overflow-wrap:anywhere]">{event.title}</p>
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5 text-xs" style={{ opacity: 0.65 }}>
                     {event.location && (
                       <span className="flex items-center gap-1">
@@ -132,8 +134,8 @@ export default function EventsSection({
                 {href && (
                   <a
                     href={href}
-                    className="shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full transition hover:brightness-95 active:scale-95"
-                    style={{ backgroundColor: accent, color: "#171009" }}
+                    className="shrink-0 ml-auto inline-flex items-center min-h-[44px] text-xs font-semibold px-3.5 py-2 rounded-full transition hover:brightness-95 active:scale-95"
+                    style={{ backgroundColor: accent, color: onAccent }}
                   >
                     {primary ? t.music.viewTicketsButton : t.music.getTicket}
                   </a>

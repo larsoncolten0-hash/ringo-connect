@@ -2,6 +2,7 @@ import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata, ResolvingMetadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { generateMetadata as generateProfileMetadata } from "@/lib/profileMetadata";
+import { NOINDEX, withItemSeo } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { profileHasTicketing } from "@/lib/categories";
 import ItemDetailPage from "@/components/music/ItemDetailPage";
@@ -16,29 +17,28 @@ export async function generateMetadata(
   { params }: { params: { username: string; type: string; id: string } },
   parent: ResolvingMetadata
 ): Promise<Metadata> {
+  // The same viewability rules as the page below: anything it would 404 advertises nothing.
+  if (!VALID_TYPES.includes(params.type as ItemType)) return { robots: NOINDEX };
+  if (await isPublicProfileSuspended(params.username)) return { robots: NOINDEX };
   const base = await generateProfileMetadata({ params }, parent);
-  if (!VALID_TYPES.includes(params.type as ItemType)) return base;
-  if (await isPublicProfileSuspended(params.username)) return base;
   const supabase = createClient();
   const table = { track: "tracks", release: "music_releases", merch: "products", ticket: "events" }[params.type as ItemType];
   const { data: profile } = await supabase
     .from("profiles")
-    .select(`name, username, ${table}(*)`)
+    .select(`name, username, category, categories, ${table}(*)`)
     .eq("username", params.username)
     .eq("published", true)
     .single();
-  const item = ((profile as any)?.[table] || []).find((x: any) => x.id === params.id);
-  if (!item) return base;
-  const name = item.title || item.name;
-  if (!name) return base;
-  const title = `${name} — ${(profile as any).name || (profile as any).username}`;
-  const image = item.cover_image_url || item.image_urls?.[0] || item.image_url;
-  return {
-    ...base,
-    title,
-    description: item.description || base.description,
-    openGraph: { ...base.openGraph, title, ...(image ? { images: [image] } : {}) },
-  };
+  if (!profile || !profileHasTicketing(profile as any)) return { robots: NOINDEX };
+  const item = ((profile as any)?.[table] || []).find((x: any) => x.id === params.id && !(params.type === "ticket" && x.status === "draft"));
+  const name = item?.title || item?.name;
+  if (!item || !name) return { robots: NOINDEX };
+  return withItemSeo(base, {
+    path: `/m/${encodeURIComponent(params.username)}/${params.type}/${encodeURIComponent(params.id)}`,
+    title: `${name} — ${(profile as any).name || (profile as any).username}`,
+    description: item.description,
+    image: item.cover_image_url || item.image_urls?.[0] || item.image_url,
+  });
 }
 
 // One detail page shared by all four sellable item kinds — a song, an

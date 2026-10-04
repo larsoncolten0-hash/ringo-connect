@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { Phone } from "lucide-react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 // Deliberately reuses whatsapp_number rather than adding a separate phone
 // field — asking a creator to enter the same number twice is friction
@@ -13,6 +14,7 @@ export default function CallButton({
   buttonStyle,
   compact,
   onClick,
+  className,
 }: {
   number: string;
   radiusClass?: string;
@@ -22,7 +24,10 @@ export default function CallButton({
   // page's real primary buttons (e.g. Music's Book Now/Buy Now).
   compact?: boolean;
   onClick?: () => void;
+  // Extra classes from the caller (e.g. a minimum height); nothing is set by default.
+  className?: string;
 }) {
+  const { t } = useLanguage();
   if (!number) return null;
 
   const cleanNumber = number.replace(/[^0-9+]/g, "");
@@ -38,11 +43,11 @@ export default function CallButton({
       onClick={onClick}
       className={`flex items-center justify-center gap-2 transition hover:brightness-95 ${
         compact ? "flex-1 py-1.5" : "px-4 py-2.5 text-sm font-medium"
-      } ${radius}`}
+      } ${radius} ${className ?? ""}`}
       style={style}
     >
       <Phone size={compact ? 15 : 16} className="shrink-0" />
-      {!compact && "Call"}
+      {!compact && t.profilePage.callButton}
     </a>
   );
 }

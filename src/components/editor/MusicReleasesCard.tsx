@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { Disc3, ChevronDown, X } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import EditorCard from "./EditorCard";
 import ImageUploadField from "./ImageUploadField";
 import { useEditorPreview } from "./EditorPreviewContext";
+import { useAutosavedRows } from "./useAutosavedRows";
+import { isBlankRelease } from "./musicBlank";
 
 // Only ever rendered for a profile tagged Music & Entertainment. A
 // release (EP or Album) is a bundle sold as one unit — tracks assigned to
@@ -22,45 +23,25 @@ export default function MusicReleasesCard({
   userId: string;
   initialReleases: any[];
 }) {
-  const supabase = createClient();
   const { t } = useLanguage();
-  const [releases, setReleases] = useState([...initialReleases].sort((a, b) => a.sort_order - b.sort_order));
+  // add / remove / blur-saves go through the section's auto-save engine (see useAutosavedRows): failures
+  // are reported and rolled back or kept for a retry, never silent.
+  const { rows: releases, update: changeRelease, persist: persistRelease, add, remove: removeRelease } = useAutosavedRows<any>("music_releases", "music_releases", initialReleases, {
+    // a release added and never given ANY content (see musicBlank.ts) is removed when this section closes
+    isBlank: isBlankRelease,
+  });
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const { draft, updateDraft } = useEditorPreview();
-
-  const syncDraft = (next: any[]) => updateDraft({ music_releases: next });
+  const { draft } = useEditorPreview();
 
   const addRelease = async (releaseType: "ep" | "album") => {
-    const { data } = await supabase
-      .from("music_releases")
-      .insert({ profile_id: profileId, title: "", release_type: releaseType, price: 0, sort_order: releases.length })
-      .select()
-      .single();
-    if (data) {
-      const next = [...releases, data];
-      setReleases(next);
-      syncDraft(next);
-      setExpandedId(data.id);
-    }
-  };
-
-  const changeRelease = (id: string, patch: any) => {
-    const next = releases.map((r) => (r.id === id ? { ...r, ...patch } : r));
-    setReleases(next);
-    syncDraft(next);
-  };
-
-  const persistRelease = async (id: string, patch: any) => {
-    await supabase.from("music_releases").update(patch).eq("id", id);
+    const created = await add({ profile_id: profileId, title: "", release_type: releaseType, price: 0, sort_order: releases.length });
+    if (created) setExpandedId(created.id);
   };
 
   const deleteRelease = async (id: string) => {
     const trackCount = (draft.tracks || []).filter((tr: any) => tr.release_id === id).length;
-    if (trackCount > 0 && !window.confirm(`Delete this release? Its ${trackCount} track(s) will become standalone singles again.`)) return;
-    const next = releases.filter((r) => r.id !== id);
-    setReleases(next);
-    syncDraft(next);
-    await supabase.from("music_releases").delete().eq("id", id);
+    if (trackCount > 0 && !window.confirm(t.music.deleteReleaseConfirm(trackCount))) return;
+    await removeRelease(id);
   };
 
   const tracksInRelease = (releaseId: string) => (draft.tracks || []).filter((tr: any) => tr.release_id === releaseId);
@@ -71,10 +52,10 @@ export default function MusicReleasesCard({
       title={t.music.releasesTitle}
       action={
         <div className="flex gap-1.5">
-          <button onClick={() => addRelease("ep")} className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
+          <button type="button" onClick={() => addRelease("ep")} className="text-xs px-3 py-2.5 min-h-[44px] rounded-card bg-ringo-indigo text-white whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]">
             {t.music.addEp}
           </button>
-          <button onClick={() => addRelease("album")} className="text-xs px-3 py-1.5 rounded-card border border-ringo-border text-ringo-text whitespace-nowrap">
+          <button type="button" onClick={() => addRelease("album")} className="text-xs px-3 py-2.5 min-h-[44px] rounded-card border border-ringo-border text-ringo-text whitespace-nowrap">
             {t.music.addAlbum}
           </button>
         </div>
@@ -110,8 +91,8 @@ export default function MusicReleasesCard({
                 </button>
                 <ItemShareButton kind="release" id={release.id} title={release.title || ""} imageUrl={release.cover_image_url} />
                 <ChevronDown size={16} className={`shrink-0 text-ringo-muted transition-transform ${expanded ? "rotate-180" : ""}`} onClick={() => setExpandedId(expanded ? null : release.id)} />
-                <button onClick={() => deleteRelease(release.id)} className="shrink-0 text-ringo-muted hover:text-red-500 p-1">
-                  <X size={14} />
+                <button type="button" onClick={() => deleteRelease(release.id)} aria-label={t.editor.delete} className="shrink-0 w-11 h-11 -mr-1 flex items-center justify-center rounded-lg text-ringo-muted hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50">
+                  <X size={14} aria-hidden="true" />
                 </button>
               </div>
 

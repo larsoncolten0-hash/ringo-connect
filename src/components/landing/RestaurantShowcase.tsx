@@ -18,7 +18,7 @@ export default function RestaurantShowcase() {
   const green = "#1F9D55";
 
   return (
-    <div className="rounded-[28px] overflow-hidden border border-ringo-border/70 bg-white text-[#14202B] max-w-md mx-auto">
+    <div aria-hidden="true" className="rounded-ringo-lg overflow-hidden border border-ringo-line-warm shadow-ringo-3 bg-white text-[#14202B] max-w-md mx-auto">
       <div className="p-5">
         <div className="flex items-center justify-between mb-4">
           <p className="font-display font-bold">ABC RESTAURANT</p>

@@ -13,6 +13,7 @@ import RankedBarList from "@/components/analytics/RankedBarList";
 import AnalyticsCard from "@/components/analytics/AnalyticsCard";
 import WorldMap, { type CountryMetricCounts } from "@/components/analytics/WorldMap";
 import EventsTable from "@/components/analytics/EventsTable";
+import AnalyticsEmptyState from "@/components/guidance/AnalyticsEmptyState";
 
 type ClickEvent = {
   target_type: "page" | "link" | "product" | "whatsapp";
@@ -37,11 +38,16 @@ export default function AnalyticsView({
   links,
   products,
   fullAnalyticsEnabled,
+  profileUrl,
+  shareTitle,
 }: {
   events: ClickEvent[] | undefined | null;
   links: { id: string; title: string }[] | undefined | null;
   products: { id: string; name: string }[] | undefined | null;
   fullAnalyticsEnabled: boolean;
+  // Optional: when given, a profile with no recorded activity yet sees a helpful empty state.
+  profileUrl?: string;
+  shareTitle?: string;
 }) {
   const { t } = useLanguage();
   const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
@@ -179,6 +185,8 @@ export default function AnalyticsView({
         <h1 className="font-display text-xl font-medium text-ringo-text tracking-[-0.01em]">{t.analytics.overview}</h1>
         {fullAnalyticsEnabled && <DateRangePicker value={range} onChange={setRange} />}
       </div>
+
+      {profileUrl && safeEvents.length === 0 && <AnalyticsEmptyState profileUrl={profileUrl} shareTitle={shareTitle || ""} />}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label={t.analytics.pageViews} value={totals.page} icon={Eye} accent="indigo" />

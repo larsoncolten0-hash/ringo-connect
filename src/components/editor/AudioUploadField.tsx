@@ -109,7 +109,7 @@ export default function AudioUploadField({
               type="button"
               onClick={() => onChange("")}
               aria-label={label.remove}
-              className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-ringo-muted hover:text-red-500 hover:bg-red-500/10 transition"
+              className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-ringo-muted hover:text-red-500 hover:bg-red-500/10 transition"
             >
               <X size={14} />
             </button>

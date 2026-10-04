@@ -102,7 +102,7 @@ const render = (locale, node) => renderToStaticMarkup(React.createElement(Langua
   check("footer: it links to https://ringoconnectltd.com exactly", RINGO_CONNECT_URL === "https://ringoconnectltd.com" && /<a [^>]*href="https:\/\/ringoconnectltd\.com"/.test(enHtml) && /<a [^>]*href="https:\/\/ringoconnectltd\.com"/.test(frHtml));
   check("footer: it opens in the SAME tab (no target attribute), is a single real link, and the link text is its accessible name", !/target=/.test(enHtml) && (enHtml.match(/<a /g) || []).length === 1);
   check("footer: it is a bordered, rounded, button-like label with a decorative arrow, and the whole label is the single link", /border border-current/.test(enHtml) && /rounded-full/.test(enHtml) && /<a [^>]*>.*<svg[^>]*aria-hidden="true".*<\/svg>.*<\/a>/.test(enHtml));
-  check("footer: it has a hover state, a visible focus ring and a 40px touch target, with no heavy animation", /hover:opacity-100/.test(enHtml) && /hover:\[background-color/.test(enHtml) && /focus-visible:outline/.test(enHtml) && /min-h-\[40px\]/.test(enHtml) && !/animate-|translate|scale-/.test(enHtml));
+  check("footer: it has a hover state, a visible focus ring and a 44px touch target, with no heavy animation", /hover:opacity-100/.test(enHtml) && /hover:\[background-color/.test(enHtml) && /focus-visible:outline/.test(enHtml) && /min-h-\[44px\]/.test(enHtml) && !/animate-|translate|scale-/.test(enHtml));
   check("footer: it takes its colour from the page (owner's branding stays the focus) — no hard-coded text colour", !/style="[^"]*color:/.test(enHtml) && !/text-(white|black|gray|slate)/.test(enHtml));
 }
 
@@ -114,14 +114,14 @@ const render = (locale, node) => renderToStaticMarkup(React.createElement(Langua
   check("selector: it is a listbox popup button with a proper accessible name naming the current language, closed by default", /aria-haspopup="listbox"/.test(en) && /aria-expanded="false"/.test(en) && /aria-label="Language: English"/.test(en) && /aria-label="Langue: Français"/.test(fr) && /type="button"/.test(en));
   check("selector: the code and chevron are decorative (hidden from screen readers) so the name is announced once", /<span aria-hidden="true">EN<\/span>/.test(en) && /<svg[^>]*aria-hidden="true"/.test(en));
   check("selector: the menu is not in the page until opened (no clutter)", !/role="listbox"/.test(en) && !/role="option"/.test(en));
-  check("selector: touch target and keyboard focus — 36px+ tall pill with a visible focus ring", /h-9/.test(en) && /focus-visible:outline/.test(en));
+  check("selector: touch target and keyboard focus — 44px tall pill with a visible focus ring", /h-11/.test(en) && /focus-visible:outline/.test(en));
   const glass = render("en", React.createElement(PublicLanguageSelector, { variant: "glass", accent: "#ff5500" }));
   const overlay = render("en", React.createElement(PublicLanguageSelector, { variant: "overlay" }));
   const bar = render("en", React.createElement(PublicLanguageSelector, { variant: "bar" }));
   check("selector: three surface variants — frosted-white in the owner's accent over a cover photo, dark glass over a hero image, outlined in a white header bar", /rgba\(255,255,255,0\.7\)/.test(glass) && /color:#ff5500/.test(glass) && /rgba\(15,15,20,0\.42\)/.test(overlay) && /border/.test(bar) && /border-color:#E5E7EB/.test(bar));
   const cmp = read("src/components/PublicLanguageSelector.tsx");
   check("selector (open state, structural): a listbox of options with aria-selected, aria-activedescendant, and each option carries its own lang", /role="listbox"/.test(cmp) && /role="option"/.test(cmp) && /aria-selected=\{code === locale\}/.test(cmp) && /aria-activedescendant/.test(cmp) && /lang=\{code\}/.test(cmp));
-  check("selector (keyboard, structural): Enter / Space / arrows open and choose, Escape closes and returns focus, Tab and clicking outside close, options are 40px tall", /"ArrowDown" \|\| e\.key === "ArrowUp"/.test(cmp) && /e\.key === "Enter" \|\| e\.key === " "/.test(cmp) && /e\.key === "Escape"/.test(cmp) && /buttonRef\.current\?\.focus\(\)/.test(cmp) && /e\.key === "Tab"/.test(cmp) && /pointerdown/.test(cmp) && /min-h-\[40px\]/.test(cmp));
+  check("selector (keyboard, structural): Enter / Space / arrows open and choose, Escape closes and returns focus, Tab and clicking outside close, options are 44px tall", /"ArrowDown" \|\| e\.key === "ArrowUp"/.test(cmp) && /e\.key === "Enter" \|\| e\.key === " "/.test(cmp) && /e\.key === "Escape"/.test(cmp) && /buttonRef\.current\?\.focus\(\)/.test(cmp) && /e\.key === "Tab"/.test(cmp) && /pointerdown/.test(cmp) && /min-h-\[44px\]/.test(cmp));
   check("selector: it lists every supported language from the shared registry (so a third language appears automatically)", /SUPPORTED_LOCALES\.map/.test(cmp) && /LOCALE_META\[code\]\.label/.test(cmp) && !/"fr"|"en"|Français|English/.test(strip(cmp).replace(/\/\/.*$/gm, "")));
   check("selector: choosing a language ONLY calls the existing provider's setLocale — no route change, no request, no profile data", /setLocale\(SUPPORTED_LOCALES\[index\]\)/.test(cmp) && !/fetch\(|router\.|window\.location|localStorage|supabase/.test(strip(cmp)));
 }

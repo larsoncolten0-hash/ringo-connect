@@ -131,7 +131,9 @@ h1, h2, h3, .font-display {
   .animate-ring-pulse-2,
   .animate-ring-pulse-3,
   .animate-orbit,
-  .animate-dropdown-in {
+  .animate-dropdown-in,
+  .animate-fade-up,
+  .animate-fade-in {
     animation: none !important;
   }
   .skeleton::after {
@@ -143,5 +145,386 @@ h1, h2, h3, .font-display {
   }
   .ringo-arrival-highlight-wrap {
     transition: none;
+  }
+}
+
+/* ==========================================================================================================
+   RINGO DESIGN FOUNDATION (Phase 1). Purely additive: nothing above this line changed, nothing here is applied
+   to an existing screen. Every token is new (--rc-* primitives, --ringo-* semantics) or an opt-in utility class
+   (.ringo-*). Tailwind exposes them in tailwind.config.ts (ringo-ink, ringo-gold, shadow-ringo-2, ...).
+
+   Philosophy, "warm technology": Ink = material, Gold = identity and value, Ring = connection, Light = activity,
+   Signal = a live connection, Depth = physicality, Motion = a connection happening.
+
+   Colors are R G B channel triplets (like --ringo-indigo) so `bg-ringo-gold/20` style opacity utilities work.
+   ========================================================================================================== */
+:root {
+  /* ---- primitives ---- */
+  --rc-ink: 10 10 10;
+  --rc-ink-2: 20 17 10; /* raised ink: warm, not blue-black */
+  --rc-paper: 250 250 248;
+  --rc-gold: 212 169 84; /* #D4A954 identity, value, attention */
+  --rc-gold-dark: 138 106 31; /* #8A6A1F gold as TEXT on light (4.83:1 on paper) */
+  --rc-gold-light: 241 223 176; /* #F1DFB0 highlight / foil */
+  --rc-gold-display: 166 124 30; /* #A67C1E gold as LARGE display text (24px+ or bold 19px+) on light: 3.64:1 on paper. Never for body text. */
+  --rc-ember: 232 116 59; /* #E8743B heat, urgency (6.59:1 on ink) */
+  --rc-ember-dark: 180 83 29; /* #B4531D ember as TEXT on light (4.79:1 on paper) */
+  --rc-signal: 45 212 191; /* #2DD4BF live, connected, NFC, success (10.6:1 on ink) */
+  --rc-signal-dark: 15 118 110; /* #0F766E signal as TEXT on light (5.24:1 on paper) */
+  --rc-rose: 251 113 133; /* #FB7185 error, danger on dark surfaces (7.36:1 on ink) */
+  --rc-rose-dark: 190 18 60; /* #BE123C error as TEXT on light (6.01:1 on paper) */
+  --rc-stone-50: 250 250 248;
+  --rc-stone-100: 243 241 236;
+  --rc-stone-200: 231 228 220;
+  --rc-stone-300: 210 206 195;
+  --rc-stone-500: 140 133 118; /* borders and icons, not body text on light */
+  --rc-stone-600: 107 100 85; /* 5.61:1 on paper: the smallest body-safe warm neutral */
+  --rc-stone-700: 74 69 56;
+  --rc-stone-900: 20 17 10;
+
+  /* ---- semantic color (the compatibility layer) ----
+     --ringo-accent is what "the brand accent" means to new code. It points at --ringo-indigo today, so it also follows
+     the admin's branding_settings.primary_color override exactly like every existing ringo-indigo utility does.
+     Re-pointing the product to gold later is ONE line here (--ringo-accent: var(--rc-gold); --ringo-on-accent: var(--rc-ink)),
+     not a codemod. --ringo-on-accent is the text color that is legible on an accent fill. */
+  --ringo-accent: var(--ringo-indigo);
+  --ringo-on-accent: 255 255 255;
+  /* Accent hues that must stay readable AS TEXT flip with the theme: dark step on light, bright step on dark. */
+  --ringo-gold-text: var(--rc-gold-dark);
+  --ringo-gold-display: var(--rc-gold-display);
+  --ringo-ember-text: var(--rc-ember-dark);
+  --ringo-signal-text: var(--rc-signal-dark);
+  --ringo-rose-text: var(--rc-rose-dark);
+
+  /* ---- borders: neutral (existing --ringo-border), warm, gilt ---- */
+  --ringo-line-warm: rgb(var(--rc-stone-300) / 0.7);
+  --ringo-line-gilt: rgb(var(--rc-gold) / 0.45);
+
+  /* ---- radius: 8 / 14 / 22 / 32 / pill ---- */
+  --ringo-radius-sm: 8px;
+  --ringo-radius-md: 14px;
+  --ringo-radius-lg: 22px;
+  --ringo-radius-xl: 32px;
+  --ringo-radius-pill: 9999px;
+
+  /* ---- spacing: 4 8 12 16 24 32 48 72 112 ---- */
+  --ringo-space-1: 4px;
+  --ringo-space-2: 8px;
+  --ringo-space-3: 12px;
+  --ringo-space-4: 16px;
+  --ringo-space-5: 24px;
+  --ringo-space-6: 32px;
+  --ringo-space-7: 48px;
+  --ringo-space-8: 72px;
+  --ringo-space-9: 112px;
+
+  /* ---- elevation: warm-ink tinted, always an offset plus a soft blur (a zero-offset halo is decoration) ---- */
+  --ringo-shadow-1: 0 1px 2px rgb(20 14 4 / 0.06), 0 1px 3px rgb(20 14 4 / 0.08);
+  --ringo-shadow-2: 0 2px 4px rgb(20 14 4 / 0.05), 0 8px 20px -4px rgb(20 14 4 / 0.12);
+  --ringo-shadow-3: 0 4px 8px rgb(20 14 4 / 0.06), 0 24px 48px -12px rgb(20 14 4 / 0.28);
+  --ringo-glow-warm: 0 12px 40px -10px rgb(var(--rc-gold) / 0.45), 0 2px 6px rgb(var(--rc-gold) / 0.18);
+  --ringo-glow-signal: 0 10px 32px -8px rgb(var(--rc-signal) / 0.5), 0 2px 6px rgb(var(--rc-signal) / 0.2);
+
+  /* ---- motion: 120 / 220 / 420ms, the same ease as landing/Reveal.tsx ---- */
+  --ringo-dur-fast: 120ms;
+  --ringo-dur-base: 220ms;
+  --ringo-dur-slow: 420ms;
+  --ringo-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ringo-press-scale: 0.97;
+
+  /* ---- glass: ONE language (light surfaces; .dark and .ringo-glass--ink swap the three channels below) ---- */
+  --ringo-glass-fill: 255 255 255;
+  --ringo-glass-edge: 20 14 4;
+  --ringo-glass-highlight: 0.55;
+
+  /* ---- technical micro-language face. Falls back to the system mono until a mono face is loaded (see report). ---- */
+  --ringo-font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.dark {
+  --ringo-gold-text: var(--rc-gold);
+  --ringo-gold-display: var(--rc-gold);
+  --ringo-ember-text: var(--rc-ember);
+  --ringo-signal-text: var(--rc-signal);
+  --ringo-rose-text: var(--rc-rose);
+  --ringo-line-warm: rgb(var(--rc-stone-500) / 0.35);
+  --ringo-glass-fill: 20 17 10;
+  --ringo-glass-edge: 255 255 255;
+  --ringo-glass-highlight: 0.08;
+}
+
+/* The component classes below sit in Tailwind's `components` layer on purpose: utilities (`absolute`, `p-5`, `text-xs`) are emitted
+   AFTER this layer, so a utility on the same element always wins over these defaults (an unlayered `.ringo-gilt { position: relative }`
+   would otherwise beat `absolute`). They are only emitted when a file actually uses them. */
+@layer components {
+/* ---- Glass: one recipe. Blur + saturation, a 1px inner highlight, an edge, one elevation. Never decorative:
+   use it where a surface floats over moving or varied content (nav, sheets, sticky bars). ---- */
+.ringo-glass {
+  background: rgb(var(--ringo-glass-fill) / 0.72);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgb(var(--ringo-glass-edge) / 0.12);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / var(--ringo-glass-highlight)), var(--ringo-shadow-2);
+}
+/* For a glass surface that sits on an always-dark stage (a creator profile, the Ringo Card) regardless of the app theme. */
+.ringo-glass--ink {
+  --ringo-glass-fill: 20 17 10;
+  --ringo-glass-edge: 255 255 255;
+  --ringo-glass-highlight: 0.08;
+}
+/* No blur available, or the person asked for less transparency: a near-solid fill, same edge, same elevation. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ringo-glass {
+    background: rgb(var(--ringo-glass-fill) / 0.96);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ringo-glass {
+    background: rgb(var(--ringo-glass-fill) / 0.97);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ---- Gilt Edge: a 1px gold hairline that catches light along one diagonal. Restrained by default; --strong is for
+   the ONE featured thing on a surface (a featured plan, a featured product). Needs a border-radius on the element. ---- */
+.ringo-gilt {
+  position: relative;
+}
+.ringo-gilt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    140deg,
+    rgb(var(--rc-gold-light) / 0.75),
+    rgb(var(--rc-gold) / 0.4) 35%,
+    rgb(var(--rc-gold-dark) / 0.18) 70%,
+    rgb(var(--rc-gold) / 0.45)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.ringo-gilt--strong::before {
+  background: linear-gradient(
+    140deg,
+    rgb(var(--rc-gold-light) / 1),
+    rgb(var(--rc-gold) / 0.85) 40%,
+    rgb(var(--rc-gold-dark) / 0.5) 72%,
+    rgb(var(--rc-gold) / 0.9)
+  );
+}
+
+/* ---- Lamplight: one warm pool of light behind the thing that matters (drawn on ::after, so it can share an element with .ringo-gilt, which owns ::before). RULE: at most ONE major lamp per viewport.
+   Position with --lamp-x / --lamp-y (the lamp's center, relative to this element), size with --lamp-size, strength with
+   --lamp-strength. The host must clip it (overflow: hidden) or sit where the glow may bleed. No blur filter: a plain
+   radial gradient, so it costs almost nothing to paint. ---- */
+.ringo-lamp {
+  position: relative;
+  isolation: isolate;
+}
+.ringo-lamp::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  width: min(var(--lamp-size, 520px), 140vw);
+  aspect-ratio: 1;
+  left: var(--lamp-x, 50%);
+  top: var(--lamp-y, 0%);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgb(var(--rc-gold) / var(--lamp-strength, 0.22)), transparent);
+}
+.ringo-lamp--signal::after {
+  background: radial-gradient(closest-side, rgb(var(--rc-signal) / var(--lamp-strength, 0.2)), transparent);
+}
+
+/* ---- Press: the physical response of anything tappable ---- */
+.ringo-press {
+  transition: transform var(--ringo-dur-fast) var(--ringo-ease), opacity var(--ringo-dur-fast) var(--ringo-ease);
+}
+.ringo-press:active:not(:disabled) {
+  transform: scale(var(--ringo-press-scale));
+}
+
+/* ---- The display voice on the landing page: Bricolage Grotesque (loaded by landing/heroFont.ts, whose variable is set on the
+   landing root), falling back to the site's Space Grotesk. A class (not an element rule) so it only applies where it is asked for. ---- */
+.ringo-display {
+  font-family: var(--font-hero-display), var(--font-display), sans-serif;
+}
+
+/* ---- Rise: the one entrance. Fade plus a small rise over 420ms. Stagger by setting style={{ "--i": index }} on each
+   item; the index is capped at 4 so a list of any length never takes longer than five steps. ---- */
+.ringo-rise {
+  animation: ringo-rise var(--ringo-dur-slow) var(--ringo-ease) both;
+  animation-delay: calc(min(var(--i, 0), 4) * 60ms);
+}
+@keyframes ringo-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- Reveal (components/landing/Reveal.tsx): a block below the fold is armed by script, then eased in once. Content is visible by default
+   (server, no script, reduced motion): only an armed block is hidden. ---- */
+[data-reveal="armed"] {
+  opacity: 0;
+  transform: translateY(18px);
+}
+[data-reveal="in"] {
+  opacity: 1;
+  transform: none;
+  transition: opacity var(--ringo-dur-slow) var(--ringo-ease), transform var(--ringo-dur-slow) var(--ringo-ease);
+}
+
+/* ---- Touch toggles: wraps the shared 36px language / theme buttons where they must be a 44px target with a themed focus ring
+   (the landing header). A wrapper rule, so the shared components themselves are untouched. ---- */
+.ringo-touch-toggles > button {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+.ringo-touch-toggles > button:focus-visible {
+  outline: 2px solid var(--ringo-text);
+  outline-offset: 2px;
+}
+
+/* ---- Technical micro-language: status and data in the mono face (NFC READY, CONNECTED, RINGO ID 0042). For
+   measurement and state only, never as an eyebrow above a heading. ---- */
+.ringo-micro {
+  font-family: var(--ringo-font-mono);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- The Ring (components/brand/Ring.tsx) ---- */
+.ringo-ring-sweep {
+  transform-origin: 50% 50%;
+  animation: ringo-ring-sweep 1.4s linear infinite;
+}
+@keyframes ringo-ring-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* The closing of the Ring: the stroke draws round to meet itself. --ring-len is set inline to the circumference. */
+.ringo-ring-close {
+  stroke-dasharray: var(--ring-len);
+  stroke-dashoffset: 0;
+  animation: ringo-ring-close var(--ringo-dur-slow) var(--ringo-ease) both;
+}
+@keyframes ringo-ring-close {
+  from {
+    stroke-dashoffset: var(--ring-len);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---- A live status dot (signal): the dot plus one expanding ring ---- */
+.ringo-live-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: rgb(var(--rc-signal));
+  flex-shrink: 0;
+}
+.ringo-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(var(--rc-signal));
+  animation: ringo-live-pulse 1.8s var(--ringo-ease) infinite;
+}
+@keyframes ringo-live-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+/* ---- Ringo Card (components/brand/RingoCard3D.tsx): the one-time specular sweep across the face on arrival ---- */
+.ringo-card-sweep {
+  animation: ringo-card-sweep 1100ms var(--ringo-ease) 250ms both;
+}
+@keyframes ringo-card-sweep {
+  from {
+    transform: translateX(-120%);
+    opacity: 0.9;
+  }
+  to {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+/* ---- Browser surfaces the design system also owns ---- */
+.ringo-focus:focus-visible {
+  outline: 2px solid rgb(var(--ringo-accent));
+  outline-offset: 2px;
+}
+
+}
+
+/* ==========================================================================================================
+   REDUCED MOTION, as part of the system. The block near the top of this file (kept as is) covers the legacy
+   keyframes; it missed .animate-float and .animate-eq-bar, which are added here. Everything new is covered here.
+   Rule: reduced motion removes MOVEMENT, never information. The equalizer stops at a mid height (still reads as
+   "playing"); the Ring still shows open / closed; the status text still changes.
+   ========================================================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float {
+    animation: none !important;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .animate-eq-bar {
+    animation: none !important;
+    height: 8px;
+  }
+  .ringo-rise,
+  .ringo-ring-sweep,
+  .ringo-ring-close,
+  .ringo-live-dot::after {
+    animation: none !important;
+  }
+  .ringo-card-sweep {
+    display: none;
+  }
+  .ringo-rise {
+    opacity: 1;
+  }
+  .ringo-live-dot::after {
+    opacity: 0;
+  }
+  .ringo-press {
+    transition: none;
+  }
+  .ringo-press:active:not(:disabled) {
+    transform: none;
+    opacity: 0.85;
   }
 }

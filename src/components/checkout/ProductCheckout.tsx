@@ -52,6 +52,9 @@ export interface CheckoutProps {
   preview?: boolean;
 }
 
+// The fields in the order a customer meets them on screen: after a failed submit, focus goes to the first one with an error.
+const FOCUS_ORDER: FieldName[] = ["quantity", "name", "phone", "email", "note", "medium", "payPhone"];
+
 // Stable top-level components (defined outside the view so inputs keep focus while typing).
 function FieldShell({ label, hint, optional, error, children }: { label: string; hint?: string; optional?: string; error?: string | null; children: React.ReactNode }) {
   return (
@@ -90,6 +93,7 @@ export default function ProductCheckout(props: CheckoutProps) {
   const btnText = onAccent(accent);
   const accentFg = readableAccent(accent, bg, fg);
 
+  const fieldRefs = useRef<Partial<Record<FieldName, HTMLElement | null>>>({});
   const controllerRef = useRef<CheckoutController | undefined>(props.controller);
   if (!controllerRef.current) {
     controllerRef.current = new CheckoutController({
@@ -146,6 +150,14 @@ export default function ProductCheckout(props: CheckoutProps) {
   const inputCls = "w-full rounded-2xl border bg-transparent px-4 py-3 text-[15px] outline-none transition focus:ring-2 min-h-[48px]";
 
   const err = (name: FieldName) => (fieldErrors[name] ? errorText(fieldErrors[name]) : null);
+
+  // UI only: the controller validates and submits exactly as before; this just moves focus to the first invalid field.
+  const submitAndFocus = async () => {
+    await ctl.submit();
+    const errors = ctl.getState().fieldErrors;
+    const first = FOCUS_ORDER.find((f) => errors[f] && fieldRefs.current[f]);
+    if (first) fieldRefs.current[first]?.focus();
+  };
 
   const shellHeader = (
     <div className="flex items-center gap-3 pb-5">
@@ -262,6 +274,9 @@ export default function ProductCheckout(props: CheckoutProps) {
           </div>
         </div>
         <p className="text-[11px]" style={{ opacity: 0.55 }}>{c.keepReceipt}</p>
+        {order?.id && (
+          <Link href={`/shop/orders/${encodeURIComponent(order.id)}`} className={`${ghostBtn} max-w-xs`} style={{ border: `1px solid ${hairline}` }}>{c.viewReceipt}</Link>
+        )}
         <Link href={sellerHref} className={`${primaryBtn} max-w-xs`} style={{ backgroundColor: accent, color: btnText }}>{c.backToSeller(seller.name)}</Link>
       </div>
     );
@@ -308,9 +323,9 @@ export default function ProductCheckout(props: CheckoutProps) {
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">{c.quantity}</span>
             <div className="flex items-center gap-1 rounded-full p-1" style={{ border: `1px solid ${hairline}` }}>
-              <button type="button" aria-label="−" disabled={busy || form.quantity <= 1} onClick={() => ctl.edit({ quantity: ctl.getState().form.quantity - 1 })} className="flex h-10 w-10 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-40"><Minus size={16} /></button>
-              <span className="w-8 text-center text-sm font-semibold tabular-nums" aria-live="polite">{form.quantity}</span>
-              <button type="button" aria-label="+" disabled={busy || form.quantity >= product.maxQuantity} onClick={() => ctl.edit({ quantity: ctl.getState().form.quantity + 1 })} className="flex h-10 w-10 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-40"><Plus size={16} /></button>
+              <button type="button" aria-label={c.decreaseQuantity} disabled={busy || form.quantity <= 1} onClick={() => ctl.edit({ quantity: ctl.getState().form.quantity - 1 })} className="flex h-11 w-11 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-40"><Minus size={16} /></button>
+              <span ref={(el) => { fieldRefs.current.quantity = el; }} tabIndex={-1} className="w-8 text-center text-sm font-semibold tabular-nums outline-none" aria-live="polite">{form.quantity}</span>
+              <button type="button" aria-label={c.increaseQuantity} disabled={busy || form.quantity >= product.maxQuantity} onClick={() => ctl.edit({ quantity: ctl.getState().form.quantity + 1 })} className="flex h-11 w-11 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-40"><Plus size={16} /></button>
             </div>
           </div>
         ) : (
@@ -326,16 +341,16 @@ export default function ProductCheckout(props: CheckoutProps) {
           <section className="flex flex-col gap-4">
             <h2 className="text-[11px] font-medium uppercase tracking-[0.16em]" style={{ opacity: 0.55 }}>{c.detailsHeading}</h2>
             <FieldShell error={err("name")} label={c.nameLabel}>
-              <input value={form.name} onChange={(e) => ctl.edit({ name: e.target.value })} placeholder={c.namePlaceholder} autoComplete="name" disabled={busy} className={inputCls} style={inputStyle} />
+              <input ref={(el) => { fieldRefs.current.name = el; }} value={form.name} onChange={(e) => ctl.edit({ name: e.target.value })} placeholder={c.namePlaceholder} autoComplete="name" disabled={busy} className={inputCls} style={inputStyle} />
             </FieldShell>
             <FieldShell error={err("phone")} label={c.phoneLabel} hint={c.phoneHint}>
-              <input value={form.phone} onChange={(e) => ctl.edit({ phone: e.target.value })} placeholder={c.phonePlaceholder} inputMode="tel" autoComplete="tel" disabled={busy} className={inputCls} style={inputStyle} />
+              <input ref={(el) => { fieldRefs.current.phone = el; }} value={form.phone} onChange={(e) => ctl.edit({ phone: e.target.value })} placeholder={c.phonePlaceholder} inputMode="tel" autoComplete="tel" disabled={busy} className={inputCls} style={inputStyle} />
             </FieldShell>
             <FieldShell error={err("email")} label={c.emailLabel} optional={c.emailOptional}>
-              <input value={form.email} onChange={(e) => ctl.edit({ email: e.target.value })} placeholder={c.emailPlaceholder} inputMode="email" autoComplete="email" disabled={busy} className={inputCls} style={inputStyle} />
+              <input ref={(el) => { fieldRefs.current.email = el; }} value={form.email} onChange={(e) => ctl.edit({ email: e.target.value })} placeholder={c.emailPlaceholder} inputMode="email" autoComplete="email" disabled={busy} className={inputCls} style={inputStyle} />
             </FieldShell>
             <FieldShell error={err("note")} label={c.noteLabel} optional={c.emailOptional}>
-              <textarea value={form.note} onChange={(e) => ctl.edit({ note: e.target.value })} placeholder={c.notePlaceholder} rows={2} maxLength={500} disabled={busy} className={`${inputCls} resize-none`} style={inputStyle} />
+              <textarea ref={(el) => { fieldRefs.current.note = el; }} value={form.note} onChange={(e) => ctl.edit({ note: e.target.value })} placeholder={c.notePlaceholder} rows={2} maxLength={500} disabled={busy} className={`${inputCls} resize-none`} style={inputStyle} />
             </FieldShell>
           </section>
         )}
@@ -349,6 +364,7 @@ export default function ProductCheckout(props: CheckoutProps) {
               {([["mobile money", c.mtn], ["orange money", c.orange]] as const).map(([id, label]) => (
                 <button
                   key={id}
+                  ref={(el) => { if (form.medium === id) fieldRefs.current.medium = el; }}
                   type="button"
                   role="radio"
                   aria-checked={form.medium === id}
@@ -364,7 +380,7 @@ export default function ProductCheckout(props: CheckoutProps) {
             {fieldErrors.medium && <p role="alert" className="mt-1 text-xs" style={{ color: "#F87171" }}>{errorText(fieldErrors.medium)}</p>}
           </div>
           <FieldShell error={err("payPhone")} label={c.payNumberLabel} hint={c.payNumberHint}>
-            <input value={form.payPhone} onChange={(e) => ctl.edit({ payPhone: e.target.value })} placeholder="6XX XX XX XX" inputMode="tel" autoComplete="tel" disabled={busy} className={inputCls} style={inputStyle} />
+            <input ref={(el) => { fieldRefs.current.payPhone = el; }} value={form.payPhone} onChange={(e) => ctl.edit({ payPhone: e.target.value })} placeholder="6XX XX XX XX" inputMode="tel" autoComplete="tel" disabled={busy} className={inputCls} style={inputStyle} />
           </FieldShell>
           <p className="flex items-center gap-1.5 text-[11px]" style={{ opacity: 0.55 }}><Lock size={12} />{c.securePayNote}</p>
         </section>
@@ -390,7 +406,7 @@ export default function ProductCheckout(props: CheckoutProps) {
             </div>
             <button
               type="button"
-              onClick={() => void ctl.submit()}
+              onClick={() => void submitAndFocus()}
               disabled={busy || !canRetry}
               aria-busy={busy}
               className={primaryBtn}

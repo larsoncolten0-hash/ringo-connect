@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import LandingView from "@/components/landing/LandingView";
 import { publicPlans } from "@/lib/association/publicVisibility";
 import { getBrandingSettings } from "@/lib/branding";
+import { seoSiteUrl } from "@/lib/seo";
 import { extractRequestContext } from "@/lib/requestContext";
 
 // Reads the visiting user's own cookie-based session — must never be
@@ -15,14 +16,28 @@ export const dynamic = "force-dynamic";
 // fallback) — every other page keeps that fallback rather than inheriting
 // homepage-specific marketing copy.
 export const metadata: Metadata = {
+  // The absolute origin relative URLs below (the share image, the canonical) resolve against: the same
+  // configured site URL the rest of the app uses (lib/deepLinks siteBase), not a new constant.
+  metadataBase: new URL(seoSiteUrl()),
+  alternates: { canonical: "/" },
   title: "Ringo Connect — Your Digital Identity. Your Business. Your Ringo.",
   description:
     "Create your digital identity with Ringo. Share your links, showcase products and services, connect with customers, and grow your presence — all in one place.",
   openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "Ringo Connect",
     title: "Ringo Connect — Your Digital Identity. Your Business. Your Ringo.",
     description:
       "Create your digital identity with Ringo. Share your links, showcase products and services, connect with customers, and grow your presence — all in one place.",
     images: [{ url: "/brand/ringo-og.png", width: 1200, height: 630, alt: "Ringo Connect" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Ringo Connect — Your Digital Identity. Your Business. Your Ringo.",
+    description:
+      "Create your digital identity with Ringo. Share your links, showcase products and services, connect with customers, and grow your presence — all in one place.",
+    images: ["/brand/ringo-og.png"],
   },
 };
 

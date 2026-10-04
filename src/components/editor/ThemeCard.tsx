@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Palette, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useAutosave } from "@/components/dashboard/sectionAutosave";
+import Disclosure from "@/components/ui/Disclosure";
 import { getRadiusClass, type ButtonStyle, type ButtonRadius, type BackgroundStyle } from "@/lib/theme";
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
@@ -39,15 +41,30 @@ export default function ThemeCard({
   const [btnStyle, setBtnStyle] = useState<ButtonStyle>(initial.buttonStyle || "outline");
   const [btnRadius, setBtnRadius] = useState<ButtonRadius>(initial.buttonRadius || "rounded");
   const pulse = useSavedPulse();
-  const persistTimer = useRef<ReturnType<typeof setTimeout>>();
+  const autosave = useAutosave();
   const { updateDraft } = useEditorPreview();
+  // Changes that are waiting to be saved. Several controls changed within the pause are saved TOGETHER
+  // (the old debounce kept only the last control's change and silently dropped the others). If a save
+  // fails the changes stay here, so a retry (or the next change) sends them.
+  const pendingRef = useRef<Record<string, any>>({});
 
   const persist = (patch: Record<string, any>) => {
-    clearTimeout(persistTimer.current);
-    persistTimer.current = setTimeout(async () => {
-      await supabase.from("profiles").update(patch).eq("id", profileId);
-      pulse.show();
-    }, 300);
+    pendingRef.current = { ...pendingRef.current, ...patch };
+    autosave.schedule(
+      "theme",
+      async () => {
+        const sending = pendingRef.current;
+        if (Object.keys(sending).length === 0) return { error: null };
+        const res = await supabase.from("profiles").update(sending).eq("id", profileId);
+        if (!res.error) {
+          // forget only what was sent; a newer change made meanwhile is still pending
+          for (const key of Object.keys(sending)) if (pendingRef.current[key] === sending[key]) delete pendingRef.current[key];
+          pulse.show();
+        }
+        return res;
+      },
+      300
+    );
   };
 
   // Same values as the profiles table's column defaults (see
@@ -66,7 +83,7 @@ export default function ThemeCard({
   const resetToDefaults = async () => {
     if (!window.confirm(t.editor.theme.resetConfirm)) return;
 
-    clearTimeout(persistTimer.current);
+    pendingRef.current = {}; // the reset below replaces anything still waiting
 
     setAccent(DEFAULTS.themeColor);
     setBgStyle(DEFAULTS.backgroundStyle);
@@ -85,20 +102,23 @@ export default function ThemeCard({
       button_radius: DEFAULTS.buttonRadius,
     });
 
-    await supabase
-      .from("profiles")
-      .update({
-        theme_color: DEFAULTS.themeColor,
-        background_style: DEFAULTS.backgroundStyle,
-        background_color: DEFAULTS.backgroundColor,
-        background_gradient_end: null,
-        text_color: DEFAULTS.textColor,
-        button_style: DEFAULTS.buttonStyle,
-        button_radius: DEFAULTS.buttonRadius,
-      })
-      .eq("id", profileId);
-
-    pulse.show();
+    const ok = await autosave.run(
+      () =>
+        supabase
+          .from("profiles")
+          .update({
+            theme_color: DEFAULTS.themeColor,
+            background_style: DEFAULTS.backgroundStyle,
+            background_color: DEFAULTS.backgroundColor,
+            background_gradient_end: null,
+            text_color: DEFAULTS.textColor,
+            button_style: DEFAULTS.buttonStyle,
+            button_radius: DEFAULTS.buttonRadius,
+          })
+          .eq("id", profileId),
+      { key: "theme-reset" }
+    );
+    if (ok) pulse.show();
   };
 
   if (!themeEnabled) {
@@ -121,8 +141,9 @@ export default function ThemeCard({
       action={
         <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={resetToDefaults}
-            className="flex items-center gap-1.5 text-xs font-bold text-ringo-coral border border-ringo-coral/30 bg-ringo-coral/5 px-3 py-1.5 rounded-full transition hover:bg-ringo-coral/10 active:scale-95"
+            className="flex items-center gap-1.5 text-xs font-bold text-ringo-coral border border-ringo-coral/30 bg-ringo-coral/5 px-3 py-2.5 min-h-[44px] rounded-full transition hover:bg-ringo-coral/10 active:scale-95"
           >
             <RotateCcw size={12} strokeWidth={2.5} />
             {t.editor.theme.resetToDefault}
@@ -141,17 +162,23 @@ export default function ThemeCard({
             {ACCENT_PRESETS.map((preset) => (
               <button
                 key={preset}
+                type="button"
                 onClick={() => {
                   setAccent(preset);
                   updateDraft({ theme_color: preset });
                   persist({ theme_color: preset });
                 }}
                 aria-label={preset}
-                style={{ backgroundColor: preset }}
-                className={`w-7 h-7 rounded-full ring-offset-2 ring-offset-ringo-surface ${
-                  accent.toLowerCase() === preset.toLowerCase() ? "ring-2 ring-ringo-text" : ""
-                }`}
-              />
+                aria-pressed={accent.toLowerCase() === preset.toLowerCase()}
+                className="w-11 h-11 -m-1 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
+              >
+                <span
+                  style={{ backgroundColor: preset }}
+                  className={`block w-7 h-7 rounded-full ring-offset-2 ring-offset-ringo-surface ${
+                    accent.toLowerCase() === preset.toLowerCase() ? "ring-2 ring-ringo-text" : ""
+                  }`}
+                />
+              </button>
             ))}
             <label
               className="relative w-7 h-7 rounded-full overflow-hidden border border-ringo-border cursor-pointer shrink-0"
@@ -160,6 +187,7 @@ export default function ThemeCard({
             >
               <input
                 type="color"
+                aria-label={t.editor.theme.custom}
                 value={accent}
                 onChange={(e) => {
                   setAccent(e.target.value);
@@ -179,12 +207,14 @@ export default function ThemeCard({
             {(["solid", "gradient"] as BackgroundStyle[]).map((s) => (
               <button
                 key={s}
+                type="button"
+                aria-pressed={bgStyle === s}
                 onClick={() => {
                   setBgStyle(s);
                   updateDraft({ background_style: s });
                   persist({ background_style: s });
                 }}
-                className={`text-xs px-3 py-1.5 rounded-card border transition ${
+                className={`text-xs px-3 py-2.5 min-h-[44px] rounded-card border transition ${
                   bgStyle === s ? "border-ringo-indigo text-ringo-indigo bg-ringo-indigo/5" : "border-ringo-border text-ringo-muted"
                 }`}
               >
@@ -201,7 +231,8 @@ export default function ThemeCard({
                 updateDraft({ background_color: e.target.value });
                 persist({ background_color: e.target.value });
               }}
-              className="w-8 h-8 rounded-card border border-ringo-border cursor-pointer"
+              aria-label={t.editor.theme.background}
+              className="w-11 h-11 rounded-card border border-ringo-border cursor-pointer"
             />
             {bgStyle === "gradient" && (
               <input
@@ -212,12 +243,16 @@ export default function ThemeCard({
                   updateDraft({ background_gradient_end: e.target.value });
                   persist({ background_gradient_end: e.target.value });
                 }}
-                className="w-8 h-8 rounded-card border border-ringo-border cursor-pointer"
+                aria-label={t.editor.theme.gradient}
+                className="w-11 h-11 rounded-card border border-ringo-border cursor-pointer"
               />
             )}
           </div>
         </div>
 
+        {/* Text colour and button look are secondary, so they are grouped and closed by default. They still
+            save like every other control here; the accent colour and background stay in view. */}
+        <Disclosure title={t.editor.theme.moreOptions} hint={t.editor.theme.moreOptionsHint}>
         {/* Text color */}
         <div>
           <p className="text-xs font-medium text-ringo-text mb-2">{t.editor.theme.textColor}</p>
@@ -225,19 +260,27 @@ export default function ThemeCard({
             {["#0F172A", "#FFFFFF"].map((preset) => (
               <button
                 key={preset}
+                type="button"
+                aria-label={preset}
+                aria-pressed={textColor.toLowerCase() === preset.toLowerCase()}
                 onClick={() => {
                   setTextColor(preset);
                   updateDraft({ text_color: preset });
                   persist({ text_color: preset });
                 }}
-                style={{ backgroundColor: preset }}
-                className={`w-7 h-7 rounded-full border border-ringo-border ${
-                  textColor.toLowerCase() === preset.toLowerCase() ? "ring-2 ring-ringo-indigo ring-offset-2 ring-offset-ringo-surface" : ""
-                }`}
-              />
+                className="w-11 h-11 -m-1 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
+              >
+                <span
+                  style={{ backgroundColor: preset }}
+                  className={`block w-7 h-7 rounded-full border border-ringo-border ${
+                    textColor.toLowerCase() === preset.toLowerCase() ? "ring-2 ring-ringo-indigo ring-offset-2 ring-offset-ringo-surface" : ""
+                  }`}
+                />
+              </button>
             ))}
             <input
               type="color"
+              aria-label={t.editor.theme.textColor}
               value={textColor}
               onChange={(e) => {
                 setTextColor(e.target.value);
@@ -256,12 +299,14 @@ export default function ThemeCard({
             {(["fill", "outline", "soft"] as ButtonStyle[]).map((s) => (
               <button
                 key={s}
+                type="button"
+                aria-pressed={btnStyle === s}
                 onClick={() => {
                   setBtnStyle(s);
                   updateDraft({ button_style: s });
                   persist({ button_style: s });
                 }}
-                className={`text-xs px-3 py-1.5 rounded-card border transition ${
+                className={`text-xs px-3 py-2.5 min-h-[44px] rounded-card border transition ${
                   btnStyle === s ? "border-ringo-indigo text-ringo-indigo bg-ringo-indigo/5" : "border-ringo-border text-ringo-muted"
                 }`}
               >
@@ -278,12 +323,14 @@ export default function ThemeCard({
             {(["square", "rounded", "pill"] as ButtonRadius[]).map((r) => (
               <button
                 key={r}
+                type="button"
+                aria-pressed={btnRadius === r}
                 onClick={() => {
                   setBtnRadius(r);
                   updateDraft({ button_radius: r });
                   persist({ button_radius: r });
                 }}
-                className={`text-xs px-3 py-1.5 border transition ${getRadiusClass(r)} ${
+                className={`text-xs px-3 py-2.5 min-h-[44px] border transition ${getRadiusClass(r)} ${
                   btnRadius === r ? "border-ringo-indigo text-ringo-indigo bg-ringo-indigo/5" : "border-ringo-border text-ringo-muted"
                 }`}
               >
@@ -292,6 +339,7 @@ export default function ThemeCard({
             ))}
           </div>
         </div>
+        </Disclosure>
       </div>
     </EditorCard>
   );

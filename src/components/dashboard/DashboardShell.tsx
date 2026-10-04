@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { FileText, Boxes, FileBarChart, Contact, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound, ReceiptText, BookOpen } from "lucide-react";
+import { FileText, Boxes, FileBarChart, Contact, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound, ReceiptText, BookOpen, House } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import ReferralPromoBanner from "@/components/dashboard/ReferralPromoBanner";
 import { referralPromoShowsOn } from "@/lib/referralPromo";
@@ -249,6 +249,9 @@ export default function DashboardShell({
   // The desktop sidebar is unaffected by this split: it always renders
   // every item below, core or not, since it has the room for it.
   const NAV_ITEMS = [
+    // Ringo Home: the guidance overview (next best action, presence, this week). Owner-only like the
+    // Editor's own profile, and deliberately NOT a bottom-bar item, so the 5-item dock is unchanged.
+    ...(!organization?.isStaff ? [{ href: "/dashboard/home", label: t.nav.home, icon: House, core: false }] : []),
     { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true, core: true },
     // Restaurant is safe to show to staff regardless: requireRestaurantProfile
     // is org-aware (resolves the active organization, not just an owned

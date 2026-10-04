@@ -4,6 +4,29 @@ import { useEffect, useState } from "react";
 import { Smartphone, X, Share } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { hexToRgba } from "@/lib/color";
+import { useModalA11y } from "@/components/ui/useModalA11y";
+
+// The iOS instructions sheet as a real modal: named, focus moves in and is trapped, Escape closes, focus returns to the
+// button that opened it. A component of its own so the shared hook mounts exactly when the sheet does.
+function IosDialogShell({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const ref = useModalA11y<HTMLDivElement>(onClose);
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        tabIndex={-1}
+        className="relative w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl bg-white p-5 outline-none"
+        style={{ color: "#14202B" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 // Reusable "Add to Home Screen" card for a public profile — entirely
 // separate from the Community "Stay Connected" section (no shared state,
@@ -48,7 +71,12 @@ export default function AddToHomeScreen({
     // wide InstallPrompt, which reappeared every new tab and was removed
     // for exactly that reason. Here, dismissing Jay Kay's card never
     // hides a different profile's, and dismissing it once actually sticks.
-    if (localStorage.getItem(dismissKey)) return;
+    // Storage can be blocked (private mode, site data off): reading it must never break the page.
+    try {
+      if (localStorage.getItem(dismissKey)) return;
+    } catch {
+      // treated as "not dismissed before"
+    }
 
     setDismissed(false);
 
@@ -108,16 +136,11 @@ export default function AddToHomeScreen({
       </button>
 
       {showIOSInstructions && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowIOSInstructions(false)} />
-          <div
-            className="relative w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl bg-white p-5"
-            style={{ color: "#14202B" }}
-          >
+        <IosDialogShell label={t.addToHomeScreen.iosTitle(displayName)} onClose={() => setShowIOSInstructions(false)}>
             <button
               onClick={() => setShowIOSInstructions(false)}
               aria-label={t.addToHomeScreen.close}
-              className="absolute right-4 top-4 w-8 h-8 rounded-full flex items-center justify-center"
+              className="absolute right-2 top-2 w-11 h-11 rounded-full flex items-center justify-center"
               style={{ backgroundColor: "#F3F4F6", color: "#14202B" }}
             >
               <X size={15} />
@@ -163,8 +186,7 @@ export default function AddToHomeScreen({
             >
               {t.addToHomeScreen.gotIt}
             </button>
-          </div>
-        </div>
+        </IosDialogShell>
       )}
     </div>
   );

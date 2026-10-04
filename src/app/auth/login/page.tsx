@@ -7,6 +7,7 @@ import AuthShell from "@/components/auth/AuthShell";
 import FormField from "@/components/auth/FormField";
 import SubmitButton from "@/components/auth/SubmitButton";
 import FormBanner from "@/components/auth/FormBanner";
+import OAuthButtons from "@/components/auth/OAuthButtons";
 
 function LoginForm() {
   const [identifier, setIdentifier] = useState("");
@@ -124,6 +125,8 @@ function LoginForm() {
           Log in
         </SubmitButton>
       </form>
+
+      <OAuthButtons />
 
       <p className="text-sm text-ringo-muted text-center mt-6">
         Don't have a page yet?{" "}

@@ -103,11 +103,11 @@ export default function DigitalFileUploadField({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="shrink-0 text-xs font-medium text-ringo-indigo px-2 py-1"
+            className="shrink-0 min-h-[44px] text-xs font-medium text-ringo-indigo px-2 py-1"
           >
             {uploading ? <Loader2 size={13} className="animate-spin" /> : label.replace}
           </button>
-          <button type="button" onClick={remove} aria-label={label.remove} className="shrink-0 text-ringo-muted hover:text-red-500 p-1">
+          <button type="button" onClick={remove} aria-label={label.remove} className="shrink-0 w-11 h-11 flex items-center justify-center text-ringo-muted hover:text-red-500">
             <X size={14} />
           </button>
         </div>

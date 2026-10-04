@@ -21,6 +21,11 @@ type Status = "loading" | "out" | "connected";
 //
 // `preview` (dashboard live preview) renders an inert button: no fetch, no
 // click behaviour.
+//
+// `variant` only changes how it LOOKS - every state, request and the modal are the same in all three:
+//   "card"    - the original titled box (the default);
+//   "compact" - one quiet 44px outline pill, for sitting just under the hero without competing with it;
+//   "primary" - one full-width, theme-styled 48px button, for a profile that has no other action to offer.
 export default function ConnectButton({
   profile,
   accent,
@@ -29,6 +34,7 @@ export default function ConnectButton({
   borderTint,
   textColor,
   preview = false,
+  variant = "card",
 }: {
   profile: { id: string; name: string };
   accent: string;
@@ -37,6 +43,7 @@ export default function ConnectButton({
   borderTint: string;
   textColor: string;
   preview?: boolean;
+  variant?: "card" | "compact" | "primary";
 }) {
   const { t } = useLanguage();
   const [status, setStatus] = useState<Status>(preview ? "out" : "loading");
@@ -105,6 +112,65 @@ export default function ConnectButton({
     }
   };
 
+  const buttonClass =
+    variant === "compact"
+      ? "inline-flex items-center justify-center gap-2 min-h-[44px] px-5 text-sm font-medium rounded-full transition hover:brightness-95 active:scale-[0.98] disabled:opacity-70"
+      : variant === "primary"
+      ? `flex w-full items-center justify-center gap-2 min-h-[48px] px-5 py-3 text-sm font-medium transition hover:brightness-95 active:scale-[0.98] disabled:opacity-70 ${radiusClass}`
+      : `inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium transition hover:brightness-95 active:scale-[0.98] disabled:opacity-70 ${radiusClass}`;
+  const buttonLook: React.CSSProperties =
+    variant === "compact" ? { border: `1px solid ${borderTint}`, color: textColor, backgroundColor: hexToRgba(textColor, 0.03) } : buttonStyle;
+
+  const button = (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={status === "loading" || busy}
+      aria-live="polite"
+      className={buttonClass}
+      style={buttonLook}
+    >
+      {busy || status === "loading" ? (
+        <Loader2 size={15} className="animate-spin" />
+      ) : status === "connected" ? (
+        <Check size={15} />
+      ) : (
+        <Plus size={15} />
+      )}
+      {busy ? t.connect.connecting : status === "connected" ? t.connect.connectedButton : t.connect.connectButton}
+    </button>
+  );
+
+  const errorNote = error && (
+    <p role="alert" className="text-xs mt-2 text-red-600">
+      {error}
+    </p>
+  );
+
+  const modalNode = !preview && modal && (
+    <StayConnectedModal
+      open
+      onClose={() => setModal(null)}
+      profile={profile}
+      accent={accent}
+      initialStep={modal === "done" ? "done" : "form"}
+      onConnected={() => {
+        setAuthenticated(true);
+        setStatus("connected");
+      }}
+    />
+  );
+
+  if (variant !== "card") {
+    return (
+      <div className={variant === "compact" ? "flex flex-col items-center" : "w-full"}>
+        {button}
+        {errorNote}
+        {modalNode}
+      </div>
+    );
+  }
+
   return (
     <div
       className={`text-center p-5 ${radiusClass}`}
@@ -116,42 +182,9 @@ export default function ConnectButton({
       <p className="text-sm mt-1.5 mb-4" style={{ opacity: 0.75 }}>
         {t.connect.sectionSubtitle(profile.name)}
       </p>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={status === "loading" || busy}
-        aria-live="polite"
-        className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium transition hover:brightness-95 active:scale-[0.98] disabled:opacity-70 ${radiusClass}`}
-        style={buttonStyle}
-      >
-        {busy || status === "loading" ? (
-          <Loader2 size={15} className="animate-spin" />
-        ) : status === "connected" ? (
-          <Check size={15} />
-        ) : (
-          <Plus size={15} />
-        )}
-        {busy ? t.connect.connecting : status === "connected" ? t.connect.connectedButton : t.connect.connectButton}
-      </button>
-      {error && (
-        <p role="alert" className="text-xs mt-2 text-red-600">
-          {error}
-        </p>
-      )}
-
-      {!preview && modal && (
-        <StayConnectedModal
-          open
-          onClose={() => setModal(null)}
-          profile={profile}
-          accent={accent}
-          initialStep={modal === "done" ? "done" : "form"}
-          onConnected={() => {
-            setAuthenticated(true);
-            setStatus("connected");
-          }}
-        />
-      )}
+      {button}
+      {errorNote}
+      {modalNode}
     </div>
   );
 }

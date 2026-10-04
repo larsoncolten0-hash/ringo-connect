@@ -1,7 +1,10 @@
 "use client";
 
 import { useLanguage } from "@/components/LanguageProvider";
+import Ring from "@/components/brand/Ring";
 
+// How it works: Create, Share, Connect, Engage, Grow. One line with five nodes; the last node is the Ring, closed, because
+// that is where the journey ends: connected. Horizontal from sm up, a vertical rail on phones. The numerals carry the order.
 export default function JourneySteps() {
   const { t } = useLanguage();
 
@@ -14,19 +17,31 @@ export default function JourneySteps() {
   ];
 
   return (
-    <div className="grid sm:grid-cols-5 gap-4">
-      {steps.map((step, i) => (
-        <div key={step.n} className="relative flex flex-col gap-2">
-          {i < steps.length - 1 && (
-            <div className="hidden sm:block absolute top-4 left-[calc(50%+22px)] w-[calc(100%-22px)] h-px bg-ringo-border" aria-hidden="true" />
-          )}
-          <span className="relative z-10 w-9 h-9 rounded-full bg-ringo-indigo/10 text-ringo-indigo font-display font-bold text-xs flex items-center justify-center">
-            {step.n}
-          </span>
-          <h3 className="text-sm font-semibold text-ringo-text">{step.title}</h3>
-          <p className="text-sm text-ringo-muted leading-relaxed">{step.body}</p>
-        </div>
-      ))}
-    </div>
+    <ol className="grid gap-x-5 gap-y-8 sm:grid-cols-5">
+      {steps.map((step, i) => {
+        const last = i === steps.length - 1;
+        return (
+          <li key={step.n} className="relative grid grid-cols-[2.5rem_1fr] gap-x-4 sm:block">
+            {!last && (
+              <>
+                <span aria-hidden="true" className="absolute left-5 top-12 -bottom-8 w-px bg-ringo-gold/40 sm:hidden" />
+                <span aria-hidden="true" className="absolute left-14 top-5 hidden h-px w-[calc(100%-2rem)] bg-ringo-gold/40 sm:block" />
+              </>
+            )}
+            {last ? (
+              <Ring size={40} state="connected" />
+            ) : (
+              <span className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border border-ringo-gold-text/40 bg-ringo-surface ringo-display text-sm font-semibold tabular-nums text-ringo-gold-text">
+                {step.n}
+              </span>
+            )}
+            <div className="sm:mt-4">
+              <h3 className="ringo-display text-base font-semibold">{step.title}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-ringo-muted">{step.body}</p>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }

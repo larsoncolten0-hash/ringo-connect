@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { loadAccountAccess } from "@/lib/auth/accountAccess";
 
 // Supabase Auth only knows email/phone as identifiers — usernames live in
 // our own `profiles` table, not `auth.users`. So logging in with a
@@ -53,12 +54,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "generic" }, { status: 401 });
   }
 
-  const { data: userRow } = await supabase.from("users").select("role, status").eq("id", data.user.id).single();
+  const access = await loadAccountAccess(supabase, data.user.id);
 
-  if (userRow?.status === "suspended") {
+  if (access.suspended) {
     await supabase.auth.signOut();
     return NextResponse.json({ error: "suspended" }, { status: 403 });
   }
 
-  return NextResponse.json({ ok: true, role: userRow?.role || "creator" });
+  return NextResponse.json({ ok: true, role: access.role });
 }

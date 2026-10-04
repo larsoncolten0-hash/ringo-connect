@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pin, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useAutosave } from "@/components/dashboard/sectionAutosave";
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
@@ -28,6 +29,9 @@ export default function PinnedSpotlightCard({
   const { t } = useLanguage();
   const [pinnedType, setPinnedType] = useState<PinType | null>((initialPinnedType as PinType) || null);
   const [pinnedId, setPinnedId] = useState<string | null>(initialPinnedId);
+  const autosave = useAutosave();
+  // what the database has, so a failed save can put the selection back
+  const savedRef = useRef<{ type: PinType | null; id: string | null }>({ type: (initialPinnedType as PinType) || null, id: initialPinnedId });
   const pulse = useSavedPulse();
   const { draft, updateDraft } = useEditorPreview();
 
@@ -56,8 +60,18 @@ export default function PinnedSpotlightCard({
   // ProfileView uses to decide whether the section renders at all.
   const supportPinnable = draft.hub_support_enabled !== false && !!draft.whatsapp_number;
 
+  // The preview and the "Saved" tick only change once the database confirmed; if the save fails the
+  // selection goes back to what is really saved and the section says so.
   const persist = async (type: PinType | null, id: string | null) => {
-    await supabase.from("profiles").update({ pinned_type: type, pinned_id: id }).eq("id", profileId);
+    const ok = await autosave.run(() => supabase.from("profiles").update({ pinned_type: type, pinned_id: id }).eq("id", profileId), {
+      key: "pinned",
+      rollback: () => {
+        setPinnedType(savedRef.current.type);
+        setPinnedId(savedRef.current.id);
+      },
+    });
+    if (!ok) return;
+    savedRef.current = { type, id };
     updateDraft({ pinned_type: type, pinned_id: id });
     pulse.show();
   };
@@ -98,7 +112,7 @@ export default function PinnedSpotlightCard({
               key={type}
               onClick={() => selectType(type)}
               disabled={type === "support" && !supportPinnable}
-              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`text-xs font-medium px-3 py-2 min-h-[44px] rounded-full border transition disabled:opacity-40 disabled:cursor-not-allowed ${
                 pinnedType === type
                   ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo"
                   : "border-ringo-border text-ringo-muted"
@@ -114,7 +128,7 @@ export default function PinnedSpotlightCard({
         {pinnedType === "support" ? (
           <div className="flex items-center gap-2">
             <p className="flex-1 text-xs text-ringo-muted">{t.music.pinnedSupportSelected}</p>
-            <button onClick={clearPin} className="shrink-0 flex items-center gap-1 text-xs font-medium text-ringo-muted hover:text-red-500 px-2 py-2">
+            <button type="button" onClick={clearPin} className="shrink-0 flex items-center gap-1 min-h-[44px] text-xs font-medium text-ringo-muted hover:text-red-500 px-2 py-2">
               <X size={13} />
               {t.music.pinnedClear}
             </button>
@@ -141,8 +155,9 @@ export default function PinnedSpotlightCard({
               </select>
               {pinnedId && (
                 <button
+                  type="button"
                   onClick={clearPin}
-                  className="shrink-0 flex items-center gap-1 text-xs font-medium text-ringo-muted hover:text-red-500 px-2 py-2"
+                  className="shrink-0 flex items-center gap-1 min-h-[44px] text-xs font-medium text-ringo-muted hover:text-red-500 px-2 py-2"
                 >
                   <X size={13} />
                   {t.music.pinnedClear}

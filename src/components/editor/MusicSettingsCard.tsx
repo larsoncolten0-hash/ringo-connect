@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sparkles, Palette } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useAutosave } from "@/components/dashboard/sectionAutosave";
 import { MUSIC_ROLES, getCategory, type MusicRole } from "@/lib/categories";
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
@@ -34,21 +35,38 @@ export default function MusicSettingsCard({
   const [supportMessage, setSupportMessage] = useState(initialSupportMessage || "");
   const [applyingTheme, setApplyingTheme] = useState(false);
   const pulse = useSavedPulse();
+  const autosave = useAutosave();
   const { updateDraft } = useEditorPreview();
 
+  // Role and the support switch change on screen at once and are saved straight away; if the save
+  // fails the control goes back to what is really saved and the section says so.
   const selectRole = async (id: MusicRole) => {
+    const previous = role;
     setRole(id);
     updateDraft({ music_role: id });
-    await supabase.from("profiles").update({ music_role: id }).eq("id", profileId);
-    pulse.show();
+    const ok = await autosave.run(() => supabase.from("profiles").update({ music_role: id }).eq("id", profileId), {
+      key: "music_role",
+      rollback: () => {
+        setRole(previous);
+        updateDraft({ music_role: previous });
+      },
+    });
+    if (ok) pulse.show();
   };
 
   const toggleSupport = async () => {
-    const next = !supportEnabled;
+    const previous = supportEnabled;
+    const next = !previous;
     setSupportEnabled(next);
     updateDraft({ hub_support_enabled: next });
-    await supabase.from("profiles").update({ hub_support_enabled: next }).eq("id", profileId);
-    pulse.show();
+    const ok = await autosave.run(() => supabase.from("profiles").update({ hub_support_enabled: next }).eq("id", profileId), {
+      key: "hub_support_enabled",
+      rollback: () => {
+        setSupportEnabled(previous);
+        updateDraft({ hub_support_enabled: previous });
+      },
+    });
+    if (ok) pulse.show();
   };
 
   const applyRecommendedTheme = async () => {
@@ -64,7 +82,11 @@ export default function MusicSettingsCard({
       button_style: theme.buttonStyle,
       button_radius: theme.buttonRadius,
     };
-    await supabase.from("profiles").update(patch).eq("id", profileId);
+    const ok = await autosave.run(() => supabase.from("profiles").update(patch).eq("id", profileId), {
+      key: "recommended-theme",
+      rollback: () => setApplyingTheme(false),
+    });
+    if (!ok) return; // nothing was applied: no preview change, no reload
     // ThemeCard seeds its own color/style state once at mount from the
     // server-rendered profile, not from this shared draft — so without a
     // reload it would keep showing the old selection even though the DB
@@ -93,7 +115,7 @@ export default function MusicSettingsCard({
               <button
                 key={r.id}
                 onClick={() => selectRole(r.id)}
-                className={`text-xs px-2.5 py-1.5 rounded-full border transition ${
+                className={`text-xs px-3 py-2 min-h-[44px] rounded-full border transition ${
                   role === r.id
                     ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo font-medium"
                     : "border-ringo-border text-ringo-muted"
@@ -127,8 +149,11 @@ export default function MusicSettingsCard({
               onBlur={async (e) => {
                 const value = e.target.value.trim() || null;
                 updateDraft({ support_message: value });
-                await supabase.from("profiles").update({ support_message: value }).eq("id", profileId);
-                pulse.show();
+                // the typed text stays on screen; a failure is kept for a retry
+                const ok = await autosave.run(() => supabase.from("profiles").update({ support_message: value }).eq("id", profileId), {
+                  key: "support_message",
+                });
+                if (ok) pulse.show();
               }}
               placeholder={t.music.supportMessagePlaceholder}
               rows={2}

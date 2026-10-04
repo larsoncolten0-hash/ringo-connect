@@ -4,6 +4,7 @@ import { useState } from "react";
 import { UtensilsCrossed, Clock, Palette } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useAutosave } from "@/components/dashboard/sectionAutosave";
 import { RESTAURANT_SUBCATEGORIES, getCategory, type RestaurantSubcategory } from "@/lib/categories";
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
@@ -53,12 +54,17 @@ export default function RestaurantSettingsCard({
   const [hours, setHours] = useState<OpeningHours>(initialOpeningHours || {});
   const [applyingTheme, setApplyingTheme] = useState(false);
   const pulse = useSavedPulse();
+  const autosave = useAutosave();
   const { updateDraft } = useEditorPreview();
 
+  // Saved straight away. The value stays on screen; if the save fails the section says so and keeps it
+  // for a retry (a later success of the same setting clears the failure).
   const persist = async (patch: Record<string, any>) => {
     updateDraft(patch);
-    await supabase.from("profiles").update(patch).eq("id", profileId);
-    pulse.show();
+    const ok = await autosave.run(() => supabase.from("profiles").update(patch).eq("id", profileId), {
+      key: `profile:${Object.keys(patch).sort().join(",")}`,
+    });
+    if (ok) pulse.show();
   };
 
   const applyRecommendedTheme = async () => {
@@ -74,7 +80,11 @@ export default function RestaurantSettingsCard({
       button_style: theme.buttonStyle,
       button_radius: theme.buttonRadius,
     };
-    await supabase.from("profiles").update(patch).eq("id", profileId);
+    const ok = await autosave.run(() => supabase.from("profiles").update(patch).eq("id", profileId), {
+      key: "recommended-theme",
+      rollback: () => setApplyingTheme(false),
+    });
+    if (!ok) return; // nothing was applied: no preview change, no reload
     // Same reasoning as MusicSettingsCard's identical button: ThemeCard
     // seeds its own state once at mount, so a reload is what actually
     // makes its controls reflect what was just applied.
@@ -110,7 +120,7 @@ export default function RestaurantSettingsCard({
                   setSubcategory(s.id);
                   persist({ restaurant_subcategory: s.id });
                 }}
-                className={`text-xs px-2.5 py-1.5 rounded-full border transition ${
+                className={`text-xs px-3 py-2 min-h-[44px] rounded-full border transition ${
                   subcategory === s.id
                     ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo font-medium"
                     : "border-ringo-border text-ringo-muted"

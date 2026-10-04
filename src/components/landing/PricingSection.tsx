@@ -62,11 +62,11 @@ export default function PricingSection({
             <button
               key={opt.id}
               onClick={() => setTrack(opt.id)}
-              className={`flex items-center gap-1.5 text-sm font-medium px-5 py-2 rounded-full transition ${
-                track === opt.id ? "bg-ringo-surface text-ringo-indigo shadow-sm" : "text-ringo-muted"
+              className={`flex items-center gap-1.5 min-h-[44px] whitespace-nowrap text-sm font-medium px-2.5 min-[430px]:px-5 py-2 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text ${
+                track === opt.id ? "bg-ringo-surface text-ringo-text shadow-ringo-1" : "text-ringo-muted"
               }`}
             >
-              <opt.icon size={14} />
+              <opt.icon size={14} className="hidden min-[430px]:block" />
               {opt.label}
             </button>
           ))}
@@ -89,8 +89,8 @@ export default function PricingSection({
               <button
                 key={iv}
                 onClick={() => setInterval_(iv)}
-                className={`text-xs font-medium px-4 py-1.5 rounded-full transition ${
-                  interval === iv ? "bg-ringo-surface text-ringo-indigo shadow-sm" : "text-ringo-muted"
+                className={`min-h-[40px] text-xs font-medium px-4 py-1.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text ${
+                  interval === iv ? "bg-ringo-surface text-ringo-text shadow-ringo-1" : "text-ringo-muted"
                 }`}
               >
                 {iv === "monthly" ? t.subscription.billingMonthly : t.subscription.billingYearly}
@@ -111,8 +111,8 @@ export default function PricingSection({
                 : [`${bundle.grants_plan_duration_days >= 300 ? "1 year" : "1 month"} Basic subscription included`, "QR code on card", "Free card configuration"];
 
             return (
-              <div key={bundle.id} className="relative flex flex-col rounded-[22px] border border-ringo-border/70 bg-ringo-surface p-6">
-                <p className="font-display text-lg font-bold mb-1">{bundle.name}</p>
+              <div key={bundle.id} className="relative flex flex-col rounded-ringo-lg border border-ringo-line-warm p-6">
+                <p className="ringo-display text-lg font-semibold mb-1">{bundle.name}</p>
                 <p className="mb-5" suppressHydrationWarning>
                   <span className="text-3xl font-bold tracking-[-0.02em]">{formatPrice(getBundlePrice(bundle), isCameroon ? "XAF" : "USD", locale)}</span>
                 </p>
@@ -120,7 +120,7 @@ export default function PricingSection({
                 <ul className="flex flex-col gap-2.5 mb-8 flex-1">
                   {features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm text-ringo-text">
-                      <Check size={14} className="text-ringo-teal shrink-0 mt-0.5" />
+                      <Check size={14} className="text-ringo-gold-text shrink-0 mt-0.5" />
                       <span>{f}</span>
                     </li>
                   ))}
@@ -132,7 +132,7 @@ export default function PricingSection({
                     preselected bundle. */}
                 <Link
                   href="/get-started?card=1"
-                  className="text-center text-sm font-semibold py-3 rounded-full border border-ringo-border text-ringo-text hover:border-ringo-indigo transition-all hover:-translate-y-0.5"
+                  className="ringo-press transition-[transform,opacity,border-color] duration-ringo-fast ease-ringo flex items-center justify-center min-h-[48px] text-sm font-semibold rounded-full border border-ringo-line-warm text-ringo-text hover:border-ringo-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text"
                 >
                   {t.landing.pricingCta}
                 </Link>
@@ -141,7 +141,7 @@ export default function PricingSection({
           })}
         </div>
       ) : (
-        <div className={`grid gap-5 max-w-5xl mx-auto ${trackPlans.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2 max-w-3xl"}`}>
+        <div className={`grid gap-5 max-w-5xl mx-auto sm:items-center ${trackPlans.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2 max-w-3xl"}`}>
         {trackPlans.map((plan) => {
           const features: string[] = (locale === "fr" ? plan.features_fr : plan.features_en) || [];
           const price = getPrice(plan);
@@ -150,30 +150,32 @@ export default function PricingSection({
           return (
             <div
               key={plan.id}
-              className={`relative flex flex-col rounded-[22px] border bg-ringo-surface p-6 transition ${
-                isFeatured ? "border-ringo-indigo shadow-[0_16px_40px_-16px_rgba(79,70,229,0.35)]" : "border-ringo-border/70"
+              className={`relative flex flex-col rounded-ringo-lg p-6 ${
+                isFeatured
+                  ? "ringo-gilt ringo-gilt--strong ringo-lamp [--lamp-y:18%] [--lamp-size:280px] [--lamp-strength:0.22] bg-ringo-ink text-ringo-paper shadow-ringo-3 sm:-my-4 sm:py-10"
+                  : "border border-ringo-line-warm"
               }`}
             >
               {isFeatured && (
-                <span className="absolute -top-3 left-6 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full bg-ringo-indigo text-white">
+                <span className="absolute -top-3 left-6 text-xs font-semibold px-3 py-1 rounded-full bg-ringo-gold text-ringo-ink">
                   {t.landing.pricingMostPopular}
                 </span>
               )}
 
-              <p className="font-display text-lg font-bold mb-1">{plan.display_name || plan.name}</p>
+              <p className="ringo-display text-lg font-semibold mb-1">{plan.display_name || plan.name}</p>
               <p className="mb-5" suppressHydrationWarning>
                 <span className="text-3xl font-bold tracking-[-0.02em]">{formatPrice(price, isCameroon ? "XAF" : "USD", locale)}</span>
-                {price > 0 && <span className="text-sm text-ringo-muted">{interval === "yearly" ? "/yr" : "/mo"}</span>}
+                {price > 0 && <span className={`text-sm ${isFeatured ? "text-ringo-stone-300" : "text-ringo-muted"}`}>{interval === "yearly" ? "/yr" : "/mo"}</span>}
               </p>
 
               {plan.max_team_seats != null && (
-                <p className="text-xs font-medium text-ringo-indigo mb-4 -mt-3">{t.landing.pricingSeats(plan.max_team_seats)}</p>
+                <p className={`text-xs font-medium mb-4 -mt-3 ${isFeatured ? "text-ringo-gold" : "text-ringo-gold-text"}`}>{t.landing.pricingSeats(plan.max_team_seats)}</p>
               )}
 
               <ul className="flex flex-col gap-2.5 mb-8 flex-1">
                 {features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-ringo-text">
-                    <Check size={14} className="text-ringo-teal shrink-0 mt-0.5" />
+                  <li key={f} className={`flex items-start gap-2 text-sm ${isFeatured ? "text-ringo-paper/90" : "text-ringo-text"}`}>
+                    <Check size={14} className={`shrink-0 mt-0.5 ${isFeatured ? "text-ringo-gold" : "text-ringo-gold-text"}`} />
                     <span>{f}</span>
                   </li>
                 ))}
@@ -181,8 +183,10 @@ export default function PricingSection({
 
               <Link
                 href={`/get-started?plan=${plan.name}`}
-                className={`text-center text-sm font-semibold py-3 rounded-full transition-all hover:-translate-y-0.5 ${
-                  isFeatured ? "bg-ringo-indigo text-white shadow-[0_12px_28px_-8px_rgba(79,70,229,0.45)]" : "border border-ringo-border text-ringo-text hover:border-ringo-indigo"
+                className={`ringo-press transition-[transform,opacity,filter,border-color] duration-ringo-fast ease-ringo flex items-center justify-center min-h-[48px] text-sm font-semibold rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                  isFeatured
+                    ? "bg-ringo-gold text-ringo-ink shadow-ringo-2 hover:brightness-105 focus-visible:outline-ringo-paper"
+                    : "border border-ringo-line-warm text-ringo-text hover:border-ringo-gold focus-visible:outline-ringo-text"
                 }`}
               >
                 {t.landing.pricingCta}

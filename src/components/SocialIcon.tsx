@@ -1,5 +1,6 @@
 "use client";
 
+import { displayHref } from "@/lib/linkUrl";
 import {
   FaInstagram,
   FaTiktok,
@@ -72,11 +73,11 @@ export default function SocialIcon({
   if (themed && brand) {
     return (
       <a
-        href={url}
+        href={displayHref(url)}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={platform}
-        className="w-10 h-10 flex items-center justify-center rounded-full transition hover:brightness-95 hover:-translate-y-0.5"
+        className="w-11 h-11 flex items-center justify-center rounded-full transition hover:brightness-95 hover:-translate-y-0.5"
         style={{ background: brand.background, color: brand.color }}
       >
         <Icon size={17} />
@@ -86,7 +87,7 @@ export default function SocialIcon({
 
   return (
     <a
-      href={url}
+      href={displayHref(url)}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={platform}

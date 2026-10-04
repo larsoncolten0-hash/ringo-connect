@@ -1,6 +1,10 @@
+import type { Metadata } from "next";
 import GuestOrderTrackingView from "@/components/restaurant/GuestOrderTrackingView";
 
 export const dynamic = "force-dynamic";
+
+// Order tracking is reachable only by its own link: it must not be indexed (metadata only; access is unchanged).
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 // Public, unauthenticated — same "the id itself is the access control"
 // pattern as GET /api/orders/[id] (which this page's client component

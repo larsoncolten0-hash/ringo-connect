@@ -72,10 +72,10 @@ export default function CatalogSection({
     <section id="merch" className="flex flex-col gap-4 scroll-mt-6">
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em]" style={{ opacity: 0.55 }}>
-            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
+          <h2 className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em]" style={{ opacity: 0.55 }}>
+            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} aria-hidden="true" />
             {label}
-          </span>
+          </h2>
         </div>
         <span
           className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums"
@@ -249,6 +249,13 @@ function ProductCard({
     </>
   );
 
+  // The card link's accessible name keeps what a sighted visitor reads on it: the name, the price, whether it is
+  // sold out, and the action the button shows. (The visible button is aria-hidden, so it is named here.)
+  const hasPrice = product.price != null && product.price !== "";
+  const accessibleName = [product.name, hasPrice ? formatPrice(product.price, currency) : "", soldOut ? t.music.soldOut : "", buttonLabel]
+    .filter((part) => typeof part === "string" && part.trim() !== "")
+    .join(", ");
+
   const motionProps = reduceMotion
     ? {}
     : {
@@ -265,7 +272,7 @@ function ProductCard({
       {body}
     </motion.div>
   ) : (
-    <motion.a href={href} onClick={onOpen} className={`${cls} active:scale-[0.985] transition-transform`} aria-label={product.name} {...motionProps}>
+    <motion.a href={href} onClick={onOpen} className={`${cls} active:scale-[0.985] transition-transform`} aria-label={accessibleName} {...motionProps}>
       {body}
     </motion.a>
   );
