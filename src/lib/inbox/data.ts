@@ -27,16 +27,22 @@ export interface ThreadMessage {
   status: string;
   at: string;
   display: MessageDisplay;
+  /** An outbound message still 'queued' long after it was created: Meta's answer never arrived. Shown as "not confirmed", never re-sent automatically. */
+  unconfirmed: boolean;
 }
 
 export interface ThreadData {
-  conversation: { id: string; channel: string; status: "open" | "closed" };
+  /** replyWindowOpen: the customer wrote within the last 24 hours, so a free-form reply is allowed (the database enforces it too). */
+  conversation: { id: string; channel: string; status: "open" | "closed"; replyWindowOpen: boolean };
   contact: { name: string | null; waId: string };
   messages: ThreadMessage[];
   truncated: boolean;
 }
 
 export const LIST_LIMIT = 40;
+const UNCONFIRMED_AFTER_MS = 2 * 60 * 1000;
+const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
+const isWindowOpen = (lastInbound: unknown) => typeof lastInbound === "string" && Date.now() - Date.parse(lastInbound) < REPLY_WINDOW_MS;
 export const THREAD_LIMIT = 100;
 
 function fail(code: unknown) {
@@ -102,7 +108,7 @@ export async function loadThread(client: Client, profileId: string, conversation
   try {
     const conv = await client
       .from("inbox_conversations")
-      .select("id, channel, status, contact_id")
+      .select("id, channel, status, contact_id, last_inbound_at")
       .eq("profile_id", profileId)
       .eq("id", conversationId)
       .maybeSingle();
@@ -137,7 +143,7 @@ export async function loadThread(client: Client, profileId: string, conversation
     return {
       ok: true,
       thread: {
-        conversation: { id: conv.data.id, channel: conv.data.channel, status: conv.data.status === "closed" ? "closed" : "open" },
+        conversation: { id: conv.data.id, channel: conv.data.channel, status: conv.data.status === "closed" ? "closed" : "open", replyWindowOpen: isWindowOpen(conv.data.last_inbound_at) },
         contact: { name: contact.data?.display_name ?? null, waId: contact.data?.external_id ?? "" },
         messages: rows.map((r) => ({
           id: r.id,
@@ -145,6 +151,7 @@ export async function loadThread(client: Client, profileId: string, conversation
           status: r.status,
           at: r.provider_timestamp || r.received_at,
           display: messageDisplay({ type: r.type, body: r.body }, media.get(r.id) ?? null),
+          unconfirmed: r.direction === "outbound" && r.status === "queued" && Date.now() - Date.parse(r.provider_timestamp || r.received_at) > UNCONFIRMED_AFTER_MS,
         })),
         truncated,
       },

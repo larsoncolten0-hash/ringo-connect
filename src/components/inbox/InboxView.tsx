@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, MessageCircle, MessagesSquare, TriangleAlert } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import ReplyComposer, { RetryButton } from "@/components/inbox/ReplyComposer";
 import type { ConversationItem, ThreadData, ThreadMessage } from "@/lib/inbox/data";
 import { formatBubbleTime, formatListTime, formatWaId, previewText } from "@/lib/inbox/format";
 
@@ -188,21 +189,25 @@ function Thread({ data }: { data: ThreadData }) {
         ) : (
           <ol className="flex flex-col gap-2">
             {data.messages.map((m) => (
-              <Bubble key={m.id} m={m} />
+              <Bubble key={m.id} m={m} conversationId={data.conversation.id} />
             ))}
           </ol>
         )}
         <div ref={endRef} />
       </div>
+
+      {data.conversation.channel === "whatsapp" && <ReplyComposer conversationId={data.conversation.id} open={data.conversation.replyWindowOpen} />}
     </>
   );
 }
 
-function Bubble({ m }: { m: ThreadMessage }) {
+function Bubble({ m, conversationId }: { m: ThreadMessage; conversationId: string }) {
   const { t, locale } = useLanguage();
   const u = t.inbox;
   const out = m.direction === "outbound";
   const d = m.display;
+  // A message stuck in 'queued' for minutes is "not confirmed", never shown as sent or delivered.
+  const statusLabel = m.unconfirmed ? u.unconfirmed : (u.statuses as Record<string, string>)[m.status];
   return (
     <li className={`flex ${out ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm sm:max-w-[75%] ${out ? "rounded-br-md bg-ringo-indigo/10 text-ringo-text" : "rounded-bl-md border border-ringo-border bg-ringo-surface text-ringo-text"}`}>
@@ -219,7 +224,8 @@ function Bubble({ m }: { m: ThreadMessage }) {
         {d.kind === "unsupported" && <p className="text-xs italic text-ringo-muted">{u.unsupported}</p>}
         <p className={`mt-1 flex items-center gap-1.5 text-[10px] text-ringo-muted ${out ? "justify-end" : ""}`}>
           <time dateTime={m.at} suppressHydrationWarning>{formatBubbleTime(m.at, locale)}</time>
-          {out && (u.statuses as Record<string, string>)[m.status] && <span>· {(u.statuses as Record<string, string>)[m.status]}</span>}
+          {out && statusLabel && <span className={m.status === "failed" ? "font-medium text-rose-700 dark:text-rose-400" : undefined}>· {statusLabel}</span>}
+          {out && m.status === "failed" && d.kind === "text" && <RetryButton conversationId={conversationId} text={d.text} />}
         </p>
       </div>
     </li>

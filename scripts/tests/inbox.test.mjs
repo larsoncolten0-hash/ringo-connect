@@ -23,7 +23,7 @@ class RedirectSignal extends Error { constructor(url) { super("REDIRECT"); this.
 class NotFoundSignal extends Error { constructor() { super("NOT_FOUND"); } }
 const STUBS = {
   "next/link": { __esModule: true, default: ({ href, children, ...rest }) => React.createElement("a", { href, ...rest }, children) },
-  "next/navigation": { redirect: (url) => { throw new RedirectSignal(url); }, notFound: () => { throw new NotFoundSignal(); } },
+  "next/navigation": { redirect: (url) => { throw new RedirectSignal(url); }, notFound: () => { throw new NotFoundSignal(); }, useRouter: () => ({ refresh() {} }) },
   "react": { ...React, cache: (fn) => fn },
   "@/lib/supabase/server": { createClient: () => globalThis.__sb(), createAdminClient: () => { throw new Error("the Inbox must never use the admin client"); } },
 };
@@ -270,7 +270,7 @@ const threadXss = await D.loadThread(own, alice.profile, convA2);
   const x = render("en", { list: listOk, selectedId: convA2, thread: threadXss });
   check("render thread: HTML in a customer message is escaped (no injected element, no script)", !/<script|<img src=x|onerror=/i.test(x.replace(/&lt;[^]*?&gt;/g, "")) && /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt;/.test(x) && /&lt;script&gt;/.test(x), x.slice(x.indexOf("thread-scroll"), x.indexOf("thread-scroll") + 400));
   const fr = render("fr", { list: listOk, selectedId: convA1, thread: threadOk });
-  check("render thread (FR): French labels", /Type de message non pris en charge/.test(fr) && /Retour aux conversations/.test(fr) && /Remis/.test(fr) && /Ouverte/.test(fr) && /Le média n’est pas encore affiché/.test(fr));
+  check("render thread (FR): French labels", /Type de message non pris en charge/.test(fr) && /Retour aux conversations/.test(fr) && /Distribué/.test(fr) && /Ouverte/.test(fr) && /Le média n’est pas encore affiché/.test(fr));
   const trunc = await D.loadThread(own, alice.profile, convA1, 2);
   check("render thread: a truncated thread says how many messages are shown", /Showing the latest 2 messages\./.test(render("en", { list: listOk, selectedId: convA1, thread: trunc })));
 }
@@ -336,7 +336,7 @@ const threadXss = await D.loadThread(own, alice.profile, convA2);
   check("security: the Inbox only reads (no insert/update/delete/rpc)", !/\.(insert|update|upsert|delete|rpc)\(/.test(all));
   check("security: pages never read a profile id from the URL, query string or body", !/searchParams|profile_id\s*[:=]\s*params|params\.profile|request\.json|formData/i.test(all) && /resolveInboxOwner/.test(code("src/app/dashboard/inbox/page.tsx")) && /resolveInboxOwner/.test(code("src/app/dashboard/inbox/[id]/page.tsx")));
   check("security: every query is scoped by the owner's profile id", ((code("src/lib/inbox/data.ts").match(/\.from\("inbox_/g) || []).length) === ((code("src/lib/inbox/data.ts").match(/\.eq\("profile_id", profileId\)/g) || []).length));
-  check("security: no new API endpoint exposes inbox data", !fs.existsSync(path.join(SRC, "app/api/inbox")) && !fs.existsSync(path.join(SRC, "app/api/dashboard/inbox")));
+  check("security: no API endpoint exposes inbox DATA: the only inbox API (Phase 7) is the POST reply route, which exports no GET", (() => { const dir = path.join(SRC, "app/api/inbox/conversations/[id]/messages"); const files = fs.existsSync(path.join(SRC, "app/api/inbox")) ? fs.readdirSync(path.join(SRC, "app/api/inbox"), { recursive: true }).filter((f) => /[.]ts$/.test(String(f))) : []; return files.length === 1 && fs.existsSync(path.join(dir, "route.ts")) && !/export async function GET/.test(read("src/app/api/inbox/conversations/[id]/messages/route.ts")) && !fs.existsSync(path.join(SRC, "app/api/dashboard/inbox")); })());
   check("scope: no outbound send, composer, AI, media download or storage in the Inbox", !/graph\.facebook|fetch\(|<textarea|<form|storage\.|createSignedUrl|openai|anthropic/i.test(all));
   check("scope: Inbox logging is a code only (no message text / number in console calls)", (all.match(/console\.\w+\([^)]*\)/g) || []).every((c) => /JSON\.stringify\(\{ scope: "inbox"/.test(c) || true) && !/console\.\w+\([^)]*(body|text|display|external_id|waId)/.test(all));
   const shell = read("src/components/dashboard/DashboardShell.tsx"), lay = read("src/app/dashboard/layout.tsx");
