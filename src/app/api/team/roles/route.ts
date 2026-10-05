@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOrgAccessJson, ensureDefaultRoles } from "@/lib/team/access";
-import { sanitizePermissions } from "@/lib/team/permissions";
+import { inboxDependencyProblems, inboxPermissionsOf, sanitizePermissions } from "@/lib/team/permissions";
+import { inboxDependencyResponse, inboxOwnerOnlyResponse } from "@/lib/team/inboxOwnerOnly";
 import { logOrgActivity } from "@/lib/team/activity";
 
 // GET /api/team/roles?profileId=... — every role defined for this
@@ -44,6 +45,13 @@ export async function POST(request: Request) {
   const auth = await requireOrgAccessJson(profileId, "staff.manage");
   if (!auth.ok) return auth.response;
   const { supabase, user, access } = auth;
+
+  // Inbox permissions: owner only (the database enforces this too), and the set must be coherent.
+  if (inboxPermissionsOf(permissions).length > 0) {
+    if (!access.isOwner) return inboxOwnerOnlyResponse(); // the owner only (not even a platform admin)
+    const missing = inboxDependencyProblems(permissions);
+    if (missing.length > 0) return inboxDependencyResponse(missing);
+  }
 
   if (!access.isOwner && !access.isAdmin) {
     const disallowed = permissions.filter((p) => !access.hasPermission(p));

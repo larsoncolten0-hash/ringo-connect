@@ -98,6 +98,11 @@ export async function POST(request: Request) {
   const { data: role } = await supabase.from("organization_roles").select("id, name, permissions").eq("id", roleId).eq("profile_id", profileId).maybeSingle();
   if (!role) return NextResponse.json({ error: "Invalid role for this organization." }, { status: 400 });
 
+  // Inbox access is owner-only to grant (the database enforces it too): a manager cannot invite someone into a role that holds inbox.*.
+  if (!access.isOwner && (role.permissions || []).some((p: string) => typeof p === "string" && p.trim().toLowerCase().startsWith("inbox."))) {
+    return NextResponse.json({ code: "inbox_owner_only", error: "Only the organization owner can grant or change Inbox permissions." }, { status: 403 });
+  }
+
   // A manager can never invite someone into a role that grants a
   // permission the manager doesn't hold themselves — owner/admin callers
   // already passed the check above unconditionally.

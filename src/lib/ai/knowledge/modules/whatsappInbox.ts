@@ -10,7 +10,7 @@ export const whatsappInboxModule: KnowledgeModule = {
   summary: "The Inbox for messages customers send to the owner's WhatsApp Business number: reading, replying within the 24-hour window, saved replies, sending files, AI assistant, automation and reminders.",
   appliesTo: {},
   status: "partial",
-  whoCanUse: "Account OWNERS whose WhatsApp Business number has been connected to Ringo. It appears as Inbox in the dashboard menu only for those accounts. Staff members and accounts without a connected number do not see it.",
+  whoCanUse: "Account OWNERS whose WhatsApp Business number has been connected to Ringo, and team members the owner has given Inbox permissions to (on a plan that includes Team Management). It appears as Inbox in the dashboard menu only for those people. Accounts without a connected number do not see it.",
   body: `
 What it is: a shared inbox, inside the dashboard, for the WhatsApp messages your customers send to your business number. Open Dashboard → Inbox. The list shows conversations (Open, Closed or All, with a search box for a name or number); opening one shows the messages. Customer messages are shown as plain text only.
 
@@ -19,6 +19,8 @@ Replying: type in the reply box and press Send. WhatsApp only allows a free-form
 Saved replies: reusable texts you write yourself (Dashboard → Inbox → saved replies). Choosing one only puts its text in the reply box; you can edit it and you still press Send. Up to 50 per account.
 
 Close and reopen: closing a conversation only changes its label. A new customer message reopens it. Nothing is deleted.
+
+Team members: on a plan with Team Management, the OWNER can let team members work in the Inbox from their own Ringo account (Dashboard → Team → Roles → the Inbox permissions). The owner chooses, role by role: View Inbox, Reply to customers, Send media (needs Reply), Manage saved replies, Use AI assistance, Mark conversations as read, and Close / reopen conversations. Every one of them needs View Inbox. Only the owner can give or take away Inbox permissions: a manager with team-management rights cannot. Replies from team members are sent from the business WhatsApp number and show who sent them. Team members can see the customer conversations, names and phone numbers. AI help for team members uses the business plan and its AI allowance, and still never sends anything by itself. Team members can never delete customer messages or history, only the owner can delete saved replies, and Inbox settings and automation stay owner-only.
 
 Files and photos: customers' images, audio, video and documents are shown as a small card (type, file name, caption) — Ringo does not download or keep the file itself. You can attach ONE file to a reply (image JPEG/PNG, video MP4, audio, PDF, Office or text document), up to 4 MB, with an optional caption (not for audio). Ringo checks the real file, not just its name, and does not keep a copy of what you send. A file that failed to send must be attached again to retry. This may not be available on your account yet.
 
@@ -39,13 +41,14 @@ What Ringo AI chat cannot do here: it cannot read your conversations or customer
     "Reply within 24 hours of the customer's last message",
     "Write saved replies and insert them into the reply box",
     "Close or reopen a conversation",
+    "As the owner, give a team role Inbox permissions under Dashboard → Team → Roles",
     "Attach one file to a reply with an optional caption",
     "Use Summarize or Suggest reply, then edit and press Send yourself",
     "Set business hours, an acknowledgement message and reminders under Inbox → Automation",
   ],
   prerequisites: [
     "A WhatsApp Business number connected to your Ringo account (the Inbox menu entry only appears once it is)",
-    "Owner access (staff members cannot open the Inbox)",
+    "Owner access, or a team role with Inbox permissions on a plan that includes Team Management",
     "For the AI buttons: a plan that includes Ringo AI and remaining AI allowance",
   ],
   limitations: [

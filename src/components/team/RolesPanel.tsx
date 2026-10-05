@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Loader2, Check, X } from "lucide-react";
-import { PERMISSION_GROUPS, type Permission } from "@/lib/team/permissions";
+import { INBOX_DEPENDENCIES, INBOX_PERMISSIONS, PERMISSION_GROUPS, inboxDependencyProblems, isInboxPermission, type InboxPermission, type Permission } from "@/lib/team/permissions";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export interface RoleRow {
@@ -54,6 +54,7 @@ export default function RolesPanel({
         <RoleForm
           profileId={profileId}
           canGrant={canGrant}
+          isOwner={isOwner}
           onCancel={() => setCreating(false)}
           onSaved={() => {
             setCreating(false);
@@ -69,6 +70,7 @@ export default function RolesPanel({
               key={role.id}
               profileId={profileId}
               canGrant={canGrant}
+              isOwner={isOwner}
               existing={role}
               onCancel={() => setEditingId(null)}
               onSaved={() => {
@@ -108,15 +110,71 @@ export default function RolesPanel({
   );
 }
 
+// WhatsApp Inbox permissions. Only the business OWNER can change them: for anyone else (e.g. a manager with staff.manage) the group is read-only and
+// says why. The database refuses a non-owner's change regardless of what this UI shows. There is no delete permission, by design.
+const INBOX_LABEL_KEYS: Record<InboxPermission, "view" | "reply" | "media" | "savedReplies" | "ai" | "markRead" | "close"> = {
+  "inbox.view": "view",
+  "inbox.reply": "reply",
+  "inbox.media": "media",
+  "inbox.saved_replies": "savedReplies",
+  "inbox.ai": "ai",
+  "inbox.mark_read": "markRead",
+  "inbox.close": "close",
+};
+
+function InboxPermissionGroup({ selected, locked, onToggle }: { selected: Set<Permission>; locked: boolean; onToggle: (p: Permission) => void }) {
+  const { t } = useLanguage();
+  const tt = t.inbox.team;
+  return (
+    <div data-testid="inbox-permission-group" data-locked={locked ? "true" : "false"}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ringo-muted mb-1">{tt.group}</p>
+      <p className="text-[11px] text-ringo-muted mb-1.5">{locked ? tt.locked : tt.ownerIntro}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {INBOX_PERMISSIONS.map((p) => {
+          const active = selected.has(p);
+          const missing = active ? INBOX_DEPENDENCIES[p].filter((d) => !selected.has(d)) : [];
+          return (
+            <button
+              key={p}
+              type="button"
+              disabled={locked}
+              aria-pressed={active}
+              onClick={() => onToggle(p)}
+              title={missing.length > 0 ? (missing.includes("inbox.reply") ? tt.needsReply : tt.needsView) : undefined}
+              className={`text-[11px] font-medium px-2 py-1 rounded-full border transition ${
+                active
+                  ? `bg-ringo-indigo text-white border-ringo-indigo ${locked ? "opacity-60" : ""}`
+                  : locked
+                  ? "border-ringo-border/50 text-ringo-muted/40 cursor-not-allowed"
+                  : "border-ringo-border text-ringo-muted hover:border-ringo-indigo/40"
+              }`}
+            >
+              {tt[INBOX_LABEL_KEYS[p]]}
+              {missing.length > 0 && " !"}
+            </button>
+          );
+        })}
+      </div>
+      <ul className="mt-1.5 list-disc pl-4 text-[11px] text-ringo-muted flex flex-col gap-0.5">
+        {tt.notes.map((n) => (
+          <li key={n}>{n}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function RoleForm({
   profileId,
   canGrant,
+  isOwner,
   existing,
   onCancel,
   onSaved,
 }: {
   profileId: string;
   canGrant: (p: Permission) => boolean;
+  isOwner: boolean;
   existing?: RoleRow;
   onCancel: () => void;
   onSaved: () => void;
@@ -128,6 +186,8 @@ function RoleForm({
   const [error, setError] = useState("");
 
   const toggle = (p: Permission) => {
+    // Inbox permissions: only the business owner can grant or revoke them (the database enforces it too).
+    if (isInboxPermission(p) && !isOwner) return;
     if (!canGrant(p) && !selected.has(p)) return; // can't add a permission you don't hold — removing is always allowed
     setSelected((prev) => {
       const next = new Set(prev);
@@ -139,6 +199,10 @@ function RoleForm({
   const save = async () => {
     if (!name.trim()) {
       setError("Give the role a name.");
+      return;
+    }
+    if (isOwner && inboxDependencyProblems(Array.from(selected)).length > 0) {
+      setError(t.inbox.team.dependencyError);
       return;
     }
     setSaving(true);
@@ -169,7 +233,7 @@ function RoleForm({
       />
 
       <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-1">
-        {PERMISSION_GROUPS.map((group) => (
+        {PERMISSION_GROUPS.filter((group) => group.labelKey !== "inbox").map((group) => (
           <div key={group.label}>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-ringo-muted mb-1">{group.labelKey === "loyalty" ? t.loyalty.permissionGroup : group.label}</p>
             <div className="flex flex-wrap gap-1.5">
@@ -197,6 +261,7 @@ function RoleForm({
             </div>
           </div>
         ))}
+        <InboxPermissionGroup selected={selected} locked={!isOwner} onToggle={toggle} />
       </div>
 
       {error && <p className="text-xs text-ringo-coral">{error}</p>}

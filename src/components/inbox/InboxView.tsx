@@ -33,6 +33,10 @@ export type InboxViewProps = {
   savedReplies?: SavedReply[] | null;
   /** Derived lead signals and automatic-message labels (read-only); null when unavailable (the inbox then simply shows none). */
   automation?: AutomationView | null;
+  /** Who is looking: the owner (everything, as before) or a team member with the Inbox permissions that work for them. UX only: the server and the database decide. */
+  access?: { kind: "owner" | "staff"; permissions: readonly string[] };
+  /** Outbound message id -> the team member who sent it (only for messages sent by someone other than the owner). */
+  senders?: Record<string, string>;
 };
 
 export const INBOX_PATH = "/dashboard/inbox";
@@ -48,7 +52,9 @@ export function filterQuery(filter: InboxFilter, override: Partial<InboxFilter> 
   return s ? `?${s}` : "";
 }
 
-export default function InboxView({ list, selectedId, thread, filter = DEFAULT_FILTER, unreadOpen = 0, savedReplies = null, automation = null }: InboxViewProps) {
+const OWNER_ACCESS = { kind: "owner" as const, permissions: [] as readonly string[] };
+
+export default function InboxView({ list, selectedId, thread, filter = DEFAULT_FILTER, unreadOpen = 0, savedReplies = null, automation = null, access = OWNER_ACCESS, senders = {} }: InboxViewProps) {
   const { t } = useLanguage();
   const u = t.inbox;
   const hasSelection = selectedId !== null;
@@ -58,7 +64,7 @@ export default function InboxView({ list, selectedId, thread, filter = DEFAULT_F
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="font-display text-xl font-medium text-ringo-text">{u.title}</h1>
-          <Link href={`${INBOX_PATH}/settings`} className="inline-flex min-h-[36px] items-center rounded-full border border-ringo-border px-3 text-xs text-ringo-text hover:bg-ringo-surface">{u.automationLink}</Link>
+          {access.kind === "owner" && <Link href={`${INBOX_PATH}/settings`} className="inline-flex min-h-[36px] items-center rounded-full border border-ringo-border px-3 text-xs text-ringo-text hover:bg-ringo-surface">{u.automationLink}</Link>}
         </div>
         <p className="mt-1 text-sm text-ringo-muted">{u.intro}</p>
       </div>
@@ -77,7 +83,7 @@ export default function InboxView({ list, selectedId, thread, filter = DEFAULT_F
             {thread === null ? (
               <NoSelection />
             ) : thread.ok ? (
-              <Thread data={thread.thread} filter={filter} savedReplies={savedReplies} automation={automation} />
+              <Thread data={thread.thread} filter={filter} savedReplies={savedReplies} automation={automation} access={access} senders={senders} />
             ) : thread.reason === "not_found" ? (
               <NotFound filter={filter} />
             ) : (
@@ -251,9 +257,11 @@ function ConversationList({ items, selectedId, truncated, filter, signals }: { i
   );
 }
 
-function Thread({ data, filter, savedReplies, automation }: { data: ThreadData; filter: InboxFilter; savedReplies: SavedReply[] | null; automation: AutomationView | null }) {
+function Thread({ data, filter, savedReplies, automation, access, senders }: { data: ThreadData; filter: InboxFilter; savedReplies: SavedReply[] | null; automation: AutomationView | null; access: NonNullable<InboxViewProps["access"]>; senders: Record<string, string> }) {
   const { t } = useLanguage();
   const u = t.inbox;
+  // The owner can do everything (as before). A team member only what their role grants; the server and the database enforce the same rules.
+  const can = (p: string) => access.kind === "owner" || access.permissions.includes(p);
   const endRef = useRef<HTMLDivElement | null>(null);
   // text the owner chose to insert from an AI draft; the composer puts it in the box (it is never sent for them)
   const [insert, setInsert] = useState<{ id: number; text: string } | null>(null);
@@ -265,7 +273,7 @@ function Thread({ data, filter, savedReplies, automation }: { data: ThreadData; 
   const name = data.contact.name || u.unknownContact;
   return (
     <>
-      <ConversationReadMarker conversationId={data.conversation.id} />
+      {can("inbox.mark_read") && <ConversationReadMarker conversationId={data.conversation.id} />}
       <header className="flex items-center gap-3 border-b border-ringo-border px-4 py-3">
         <Link href={`${INBOX_PATH}${filterQuery(filter)}`} aria-label={u.back} className="-ml-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-surface hover:text-ringo-text lg:hidden">
           <ArrowLeft size={18} aria-hidden="true" />
@@ -287,7 +295,7 @@ function Thread({ data, filter, savedReplies, automation }: { data: ThreadData; 
           <span className={`rounded-full px-2 py-0.5 text-[11px] ${data.conversation.status === "open" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-ringo-muted/15 text-ringo-muted"}`}>
             {data.conversation.status === "open" ? u.open : u.closed}
           </span>
-          <ConversationStatusButton conversationId={data.conversation.id} status={data.conversation.status} />
+          {can("inbox.close") && <ConversationStatusButton conversationId={data.conversation.id} status={data.conversation.status} />}
         </div>
       </header>
 
@@ -298,17 +306,18 @@ function Thread({ data, filter, savedReplies, automation }: { data: ThreadData; 
         ) : (
           <ol className="flex flex-col gap-2">
             {data.messages.map((m) => (
-              <Bubble key={m.id} m={m} conversationId={data.conversation.id} automatic={automation?.automaticMessageIds.includes(m.id) === true} />
+              <Bubble key={m.id} m={m} conversationId={data.conversation.id} automatic={automation?.automaticMessageIds.includes(m.id) === true} sender={senders[m.id] ?? null} canRetry={can("inbox.reply")} />
             ))}
           </ol>
         )}
         <div ref={endRef} />
       </div>
 
-      {data.conversation.channel === "whatsapp" && (
+      {data.conversation.channel === "whatsapp" && can("inbox.ai") && (
         <InboxAiPanel conversationId={data.conversation.id} canSuggest={data.conversation.replyWindowOpen} onInsert={(text) => setInsert((p) => ({ id: (p?.id ?? 0) + 1, text }))} />
       )}
-      {data.conversation.channel === "whatsapp" && <ReplyComposer conversationId={data.conversation.id} open={data.conversation.replyWindowOpen} savedReplies={savedReplies} insert={insert} />}
+      {data.conversation.channel === "whatsapp" && can("inbox.reply") && <ReplyComposer conversationId={data.conversation.id} open={data.conversation.replyWindowOpen} savedReplies={savedReplies} insert={insert} allowMedia={can("inbox.media")} />}
+      {data.conversation.channel === "whatsapp" && !can("inbox.reply") && <p className="border-t border-ringo-border px-4 py-3 text-xs text-ringo-muted" data-testid="staff-read-only">{u.staffReadOnly}</p>}
     </>
   );
 }
@@ -329,7 +338,7 @@ function LeadBadge({ signal }: { signal: LeadSignal }) {
   return <span data-lead={signal} className={`rounded-full px-2 py-0.5 text-[10px] ${LEAD_STYLE[signal]}`}>{t.inbox.lead[signal]}</span>;
 }
 
-function Bubble({ m, conversationId, automatic = false }: { m: ThreadMessage; conversationId: string; automatic?: boolean }) {
+function Bubble({ m, conversationId, automatic = false, sender = null, canRetry = true }: { m: ThreadMessage; conversationId: string; automatic?: boolean; sender?: string | null; canRetry?: boolean }) {
   const { t, locale } = useLanguage();
   const u = t.inbox;
   const out = m.direction === "outbound";
@@ -362,8 +371,9 @@ function Bubble({ m, conversationId, automatic = false }: { m: ThreadMessage; co
         <p className={`mt-1 flex items-center gap-1.5 text-[10px] text-ringo-muted ${out ? "justify-end" : ""}`}>
           <time dateTime={m.at} suppressHydrationWarning>{formatBubbleTime(m.at, locale)}</time>
           {out && automatic && <span data-automatic="true">· {u.autoReplyLabel}</span>}
+          {out && sender && <span data-sender="true">· {u.sentByLabel(sender)}</span>}
           {out && statusLabel && <span className={m.status === "failed" ? "font-medium text-rose-700 dark:text-rose-400" : undefined}>· {statusLabel}</span>}
-          {out && m.status === "failed" && d.kind === "text" && <RetryButton conversationId={conversationId} text={d.text} />}
+          {out && canRetry && m.status === "failed" && d.kind === "text" && <RetryButton conversationId={conversationId} text={d.text} />}
         </p>
       </div>
     </li>

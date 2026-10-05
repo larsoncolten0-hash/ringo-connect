@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireOrgAccessJson, getOrgMaxSeats, countActiveOrgMembers } from "@/lib/team/access";
 import { logOrgActivity } from "@/lib/team/activity";
+import { inboxPermissionsOf } from "@/lib/team/permissions";
+import { inboxOwnerOnlyResponse } from "@/lib/team/inboxOwnerOnly";
 
 const VALID_STATUSES = ["active", "inactive", "removed"];
 
@@ -58,6 +60,20 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         );
       }
     }
+  }
+
+  // Inbox access is owner-only to give, move or restore (the database enforces it too): moving a member onto or away from a role that holds inbox.*,
+  // or reactivating a member whose role holds it, needs the owner. A manager may still deactivate or remove such a member (that only takes access away).
+  if (!access.isOwner) {
+    const { data: currentRole } = await supabase.from("organization_roles").select("permissions").eq("id", member.role_id).eq("profile_id", profileId).maybeSingle();
+    const currentHasInbox = inboxPermissionsOf(currentRole?.permissions).length > 0;
+    let targetHasInbox = false;
+    if (roleId && roleId !== member.role_id) {
+      const { data: targetRole } = await supabase.from("organization_roles").select("permissions").eq("id", roleId).eq("profile_id", profileId).maybeSingle();
+      targetHasInbox = inboxPermissionsOf(targetRole?.permissions).length > 0;
+      if (currentHasInbox || targetHasInbox) return inboxOwnerOnlyResponse();
+    }
+    if (status === "active" && member.status !== "active" && currentHasInbox) return inboxOwnerOnlyResponse();
   }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };

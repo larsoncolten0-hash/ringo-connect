@@ -15,7 +15,7 @@ import { BODY_MAX, SAVED_REPLY_LIMIT, TITLE_MAX } from "@/lib/inbox/format";
 
 type Draft = { id: string | null; title: string; body: string };
 
-export default function SavedRepliesManager({ items, available }: { items: SavedReply[]; available: boolean }) {
+export default function SavedRepliesManager({ items, available, canDelete = true }: { items: SavedReply[]; available: boolean; canDelete?: boolean }) {
   const { t } = useLanguage();
   const u = t.inbox;
   const router = useRouter();
@@ -128,7 +128,7 @@ export default function SavedRepliesManager({ items, available }: { items: Saved
                   ) : (
                     <div className="flex gap-2">
                       <button type="button" className={secondary} disabled={busy} onClick={() => { setError(null); setDraft({ id: r.id, title: r.title, body: r.body }); }}>{u.edit}</button>
-                      <button type="button" className={secondary} disabled={busy} onClick={() => { setError(null); setConfirmId(r.id); }}>{u.delete}</button>
+                      {canDelete && <button type="button" className={secondary} disabled={busy} onClick={() => { setError(null); setConfirmId(r.id); }}>{u.delete}</button>}
                     </div>
                   )}
                 </li>

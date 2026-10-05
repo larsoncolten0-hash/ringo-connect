@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
-import { resolveInboxOwner } from "@/lib/inbox/access";
+import { guardConversationAction } from "@/lib/inbox/actorRoute";
 import { sendMediaReply } from "@/lib/inbox/sendMedia";
 import { MEDIA_MAX_BYTES } from "@/lib/whatsapp/media";
 
@@ -28,8 +27,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const declared = Number(request.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > MEDIA_MAX_BYTES + OVERHEAD) return json({ ok: false, error: "too_large" }, 413);
 
-  const access = await resolveInboxOwner();
-  if (!access.ok) return json({ ok: false, error: "not_found" }, access.reason === "not_signed_in" ? 401 : 403);
+  // the owner (unchanged) or a team member with inbox.media (+ reply + view): the database decides the relation to the organization that owns this conversation
+  const guard = await guardConversationAction(params.id, "inbox.media", "whatsapp_media");
+  if (!guard.ok) return json({ ok: false, error: guard.error }, guard.status);
 
   let form: FormData;
   try {
@@ -42,18 +42,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if ((file as Blob).size > MEDIA_MAX_BYTES) return json({ ok: false, error: "too_large" }, 413);
   const bytes = new Uint8Array(await (file as Blob).arrayBuffer());
 
-  let admin: ReturnType<typeof createAdminClient>;
-  try {
-    admin = createAdminClient();
-  } catch {
-    console.error(JSON.stringify({ scope: "whatsapp_media", result: "client_unavailable" }));
-    return json({ ok: false, error: "server_error" }, 503);
-  }
-
   const result = await sendMediaReply(
-    { admin },
+    { admin: guard.admin },
     {
-      userId: access.owner.userId,
+      userId: guard.userId,
       conversationId: params.id,
       clientRequestId: form.get("client_request_id"),
       file: { name: (file as File).name, type: (file as Blob).type, bytes },

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/server";
-import { resolveInboxOwner } from "@/lib/inbox/access";
+import { guardConversationAction } from "@/lib/inbox/actorRoute";
 import { sendReply } from "@/lib/inbox/send";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +18,9 @@ const json = (body: unknown, status: number) => NextResponse.json(body, { status
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   if (!(request.headers.get("content-type") || "").toLowerCase().includes("application/json")) return json({ ok: false, error: "invalid" }, 415);
 
-  const access = await resolveInboxOwner();
-  if (!access.ok) return json({ ok: false, error: "not_found" }, access.reason === "not_signed_in" ? 401 : 403);
+  // the owner (unchanged) or a team member with inbox.reply: the database decides the relation to the organization that owns this conversation
+  const guard = await guardConversationAction(params.id, "inbox.reply", "whatsapp_send");
+  if (!guard.ok) return json({ ok: false, error: guard.error }, guard.status);
 
   let raw = "";
   let body: unknown = null;
@@ -33,14 +33,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
   const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
 
-  let admin: ReturnType<typeof createAdminClient>;
-  try {
-    admin = createAdminClient();
-  } catch {
-    console.error(JSON.stringify({ scope: "whatsapp_send", result: "client_unavailable" }));
-    return json({ ok: false, error: "server_error" }, 503);
-  }
-
-  const result = await sendReply({ admin }, { userId: access.owner.userId, conversationId: params.id, clientRequestId: b.client_request_id, text: b.text });
+  const result = await sendReply({ admin: guard.admin }, { userId: guard.userId, conversationId: params.id, clientRequestId: b.client_request_id, text: b.text });
   return json(result.body, result.status);
 }

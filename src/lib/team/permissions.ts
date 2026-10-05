@@ -53,6 +53,15 @@ export const PERMISSIONS = [
   "loyalty.scan",
   "loyalty.manage",
   "loyalty.reverse",
+  // WhatsApp Inbox (staff access). Only the organization OWNER can grant or revoke these (enforced in the database: 2026-12-13_whatsapp_inbox_team_permission_guard.sql).
+  // There is deliberately NO delete permission: customer message history can never be deleted by staff.
+  "inbox.view",
+  "inbox.reply",
+  "inbox.media",
+  "inbox.saved_replies",
+  "inbox.ai",
+  "inbox.mark_read",
+  "inbox.close",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -73,7 +82,7 @@ export function sanitizePermissions(input: unknown): Permission[] {
 // order and section labels, not a security boundary.
 // `labelKey` (optional) names a group whose heading is translated (English + French) instead of using
 // the plain `label`; only the Loyalty group uses it today, every other group is unchanged.
-export const PERMISSION_GROUPS: { label: string; labelKey?: "loyalty"; permissions: Permission[] }[] = [
+export const PERMISSION_GROUPS: { label: string; labelKey?: "loyalty" | "inbox"; permissions: Permission[] }[] = [
   { label: "Orders", permissions: ["orders.view", "orders.create", "orders.update", "orders.cancel"] },
   { label: "Menu", permissions: ["menu.view", "menu.manage"] },
   { label: "Kitchen", permissions: ["kitchen.view", "kitchen.update"] },
@@ -89,7 +98,41 @@ export const PERMISSION_GROUPS: { label: string; labelKey?: "loyalty"; permissio
   { label: "Admissions", permissions: ["admissions.view", "admissions.manage"] },
   { label: "Reports", permissions: ["reports.view", "analytics.view"] },
   { label: "Loyalty", labelKey: "loyalty", permissions: ["loyalty.scan", "loyalty.manage", "loyalty.reverse"] },
+  { label: "Inbox", labelKey: "inbox", permissions: ["inbox.view", "inbox.reply", "inbox.media", "inbox.saved_replies", "inbox.ai", "inbox.mark_read", "inbox.close"] },
 ];
+
+// ---- WhatsApp Inbox permissions -----------------------------------------------------------------------------------------------------------
+// Only the organization OWNER may grant or revoke any of these (the database enforces it; the role APIs and the UI repeat it). The dependency rules are
+// enforced by the database function inbox_member_can at USE time; the role APIs also refuse a role that breaks them, so nothing is granted silently.
+export const INBOX_PERMISSIONS = ["inbox.view", "inbox.reply", "inbox.media", "inbox.saved_replies", "inbox.ai", "inbox.mark_read", "inbox.close"] as const;
+export type InboxPermission = (typeof INBOX_PERMISSIONS)[number];
+
+/** Anything in the inbox namespace (matches the database guard, which also catches case / spacing variants). */
+export const isInboxPermissionName = (value: unknown): boolean => typeof value === "string" && value.trim().toLowerCase().startsWith("inbox.");
+
+export function isInboxPermission(value: unknown): value is InboxPermission {
+  return typeof value === "string" && (INBOX_PERMISSIONS as readonly string[]).includes(value);
+}
+
+/** The permissions each Inbox permission needs in the same role. */
+export const INBOX_DEPENDENCIES: Record<InboxPermission, InboxPermission[]> = {
+  "inbox.view": [],
+  "inbox.reply": ["inbox.view"],
+  "inbox.media": ["inbox.view", "inbox.reply"],
+  "inbox.saved_replies": ["inbox.view"],
+  "inbox.ai": ["inbox.view"],
+  "inbox.mark_read": ["inbox.view"],
+  "inbox.close": ["inbox.view"],
+};
+
+/** Inbox permissions in `permissions` whose dependencies are missing (empty = the set is coherent). */
+export function inboxDependencyProblems(permissions: readonly string[]): InboxPermission[] {
+  const have = new Set(permissions);
+  return INBOX_PERMISSIONS.filter((p) => have.has(p) && INBOX_DEPENDENCIES[p].some((d) => !have.has(d)));
+}
+
+/** The distinct Inbox permissions of a list (any case / spacing variant counts as inbox). */
+export const inboxPermissionsOf = (permissions: readonly string[] | null | undefined): string[] => Array.from(new Set((permissions || []).filter(isInboxPermissionName)));
 
 export interface RoleTemplate {
   key: string;

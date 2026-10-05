@@ -12,6 +12,7 @@ import { inventoryNavVisible } from "@/lib/inventory/access";
 import { reportsNavVisible } from "@/lib/reports/access";
 import { customersNavVisible } from "@/lib/customers/access";
 import { inboxNavVisible } from "@/lib/inbox/access";
+import { staffInboxNavVisible } from "@/lib/inbox/actor";
 import { salesNavVisible } from "@/lib/sales/access";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
@@ -164,6 +165,10 @@ export default async function DashboardLayout({
   // Inbox nav entry (WhatsApp, read-only): the owner's OWN profile, and only when it has a WhatsApp account. UX only; /dashboard/inbox/** and the database enforce access.
   const hasInbox = !isActingAsStaff && ownProfile ? await inboxNavVisible({ supabase, profileId: ownProfile.id }) : false;
 
+  // Inbox nav entry for a TEAM MEMBER: only when they belong to an organization on a Team-enabled plan, and the database confirms an active role with
+  // inbox.view in an organization that has WhatsApp. UX only: /dashboard/inbox/**, the routes and the database enforce access themselves.
+  const hasStaffInbox = orgs.some((o) => !o.isOwner && o.teamEnabled) ? await staffInboxNavVisible(user.id) : false;
+
   // Business Toolkit Record Sale nav entry: same owner-only gate as Invoices, and only once the database function sale_record exists. UX only; /api/sales and the database enforce access.
   const hasSales = !isActingAsStaff && ownProfile ? await salesNavVisible({ userId: user.id, profile: ownProfile }) : false;
 
@@ -214,6 +219,7 @@ export default async function DashboardLayout({
       hasSales={hasSales}
       hasCustomers={hasCustomers}
       hasInbox={hasInbox}
+      hasStaffInbox={hasStaffInbox}
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
       canUseLoyalty={canUseLoyalty}

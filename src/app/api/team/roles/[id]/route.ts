@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOrgAccessJson } from "@/lib/team/access";
-import { sanitizePermissions } from "@/lib/team/permissions";
+import { inboxDependencyProblems, inboxPermissionsOf, sanitizePermissions } from "@/lib/team/permissions";
+import { inboxDependencyResponse, inboxOwnerOnlyResponse } from "@/lib/team/inboxOwnerOnly";
 import { logOrgActivity } from "@/lib/team/activity";
 
 // PATCH /api/team/roles/[id] — body: { profileId, name?, permissions? }.
@@ -22,6 +23,15 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   const { data: role } = await supabase.from("organization_roles").select("id, permissions").eq("id", params.id).eq("profile_id", profileId).maybeSingle();
   if (!role) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+
+  // Inbox permissions: only the owner may change them (add, remove or replace); the resulting set must be coherent.
+  if (permissions) {
+    const before = inboxPermissionsOf(role.permissions).sort().join(",");
+    const after = inboxPermissionsOf(permissions).sort().join(",");
+    if (before !== after && !access.isOwner) return inboxOwnerOnlyResponse(); // the owner only (not even a platform admin)
+    const missing = inboxDependencyProblems(permissions);
+    if (after !== "" && missing.length > 0 && before !== after) return inboxDependencyResponse(missing);
+  }
 
   if (permissions && !access.isOwner && !access.isAdmin) {
     const added = permissions.filter((p) => !(role.permissions || []).includes(p));

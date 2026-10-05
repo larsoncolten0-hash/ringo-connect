@@ -84,6 +84,7 @@ export default function DashboardShell({
   hasSales = false,
   hasCustomers = false,
   hasInbox = false,
+  hasStaffInbox = false,
   canManageTeam = false,
   canManageAssociation = false,
   canUseLoyalty = false,
@@ -152,6 +153,8 @@ export default function DashboardShell({
   // Business Toolkit customers (/dashboard/customers): same owner-only entitlement and table-existence rule as hasDocuments.
   hasCustomers?: boolean;
   hasInbox?: boolean;
+  // Inbox nav entry for a team member with inbox.view in an organization that has WhatsApp (UX only; the server and the database enforce access).
+  hasStaffInbox?: boolean;
   // Team & Organization Management — whether this account can see/manage
   // the Team section: the owner always can, a staff member only with the
   // staff.view permission (see dashboard/layout.tsx). Never trusted as the
@@ -322,7 +325,7 @@ export default function DashboardShell({
         ]
       : []),
     // Inbox (WhatsApp, read-only): owners whose profile has a WhatsApp account only (see src/lib/inbox/access.ts). Hidden for staff.
-    ...(hasInbox && !organization?.isStaff ? [{ href: "/dashboard/inbox", label: t.nav.inbox, icon: Inbox, core: false }] : []),
+    ...((hasInbox && !organization?.isStaff) || hasStaffInbox ? [{ href: "/dashboard/inbox", label: t.nav.inbox, icon: Inbox, core: false }] : []),
     // Same "always visible" reasoning as Bookings above — every category
     // can build a community, so this isn't gated either.
     { href: "/dashboard/community", label: t.nav.community, icon: Users, core: true },

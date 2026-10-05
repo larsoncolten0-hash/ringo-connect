@@ -18,11 +18,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const auth = await requireOrgAccessJson(profileId, "staff.invite");
   if (!auth.ok) return auth.response;
-  const { supabase, user } = auth;
+  const { supabase, user, access } = auth;
 
   const { data: invitation } = await supabase
     .from("organization_invitations")
-    .select("id, status, expires_at, invitee_email, invitee_name, invitee_phone, role_id, organization_roles(name)")
+    .select("id, status, expires_at, invitee_email, invitee_name, invitee_phone, role_id, organization_roles(name, permissions)")
     .eq("id", params.id)
     .eq("profile_id", profileId)
     .maybeSingle();
@@ -50,6 +50,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // through a brand-new invitation instead (never extended silently).
   if (invitation.status !== "pending" || new Date(invitation.expires_at) < new Date()) {
     return NextResponse.json({ error: "This invitation is no longer pending — create a new one instead." }, { status: 400 });
+  }
+
+  // Re-issuing the link of an invitation that grants Inbox access is a modification of it: owner only (the database enforces it too). Revoking stays allowed.
+  const invitedPerms = ((invitation.organization_roles as any)?.permissions || []) as string[];
+  if (!access.isOwner && invitedPerms.some((p) => typeof p === "string" && p.trim().toLowerCase().startsWith("inbox."))) {
+    return NextResponse.json({ code: "inbox_owner_only", error: "Only the organization owner can grant or change Inbox permissions." }, { status: 403 });
   }
 
   const { token, tokenHash } = generateInvitationToken();

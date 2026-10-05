@@ -19,7 +19,7 @@ import { ALLOWED_EXTENSIONS, ALLOWED_MIME_TYPES, MEDIA_CAPTION_MAX, MEDIA_TYPES,
 type Attachment = { file: File; kind: OutboundMediaKind };
 const MEDIA_ICONS: Record<OutboundMediaKind, typeof FileText> = { image: ImageIcon, video: Video, audio: Mic, document: FileText };
 
-export default function ReplyComposer({ conversationId, open, savedReplies = null, insert = null }: { conversationId: string; open: boolean; savedReplies?: SavedReply[] | null; insert?: { id: number; text: string } | null }) {
+export default function ReplyComposer({ conversationId, open, savedReplies = null, insert = null, allowMedia = true }: { conversationId: string; open: boolean; savedReplies?: SavedReply[] | null; insert?: { id: number; text: string } | null; allowMedia?: boolean }) {
   const { t } = useLanguage();
   const u = t.inbox;
   const router = useRouter();
@@ -242,7 +242,7 @@ export default function ReplyComposer({ conversationId, open, savedReplies = nul
       )}
       <div className="mt-2 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <input
+          {allowMedia && <input
             ref={fileInput}
             type="file"
             hidden
@@ -250,8 +250,8 @@ export default function ReplyComposer({ conversationId, open, savedReplies = nul
             onChange={(e) => pickFile(e.target.files)}
             aria-label={u.attach}
             tabIndex={-1}
-          />
-          <button
+          />}
+          {allowMedia && <button
             type="button"
             onClick={() => fileInput.current?.click()}
             disabled={sending}
@@ -260,7 +260,7 @@ export default function ReplyComposer({ conversationId, open, savedReplies = nul
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ringo-border text-ringo-muted transition-colors hover:bg-ringo-surface hover:text-ringo-text disabled:opacity-60"
           >
             <Paperclip size={16} aria-hidden="true" />
-          </button>
+          </button>}
           <p id={`${id}-hint`} className="truncate text-[11px] text-ringo-muted">{u.sendHint}</p>
         </div>
         <button

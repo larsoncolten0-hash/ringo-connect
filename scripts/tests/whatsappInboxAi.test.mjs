@@ -18,7 +18,7 @@ const React = nodeRequire("react");
 const { renderToStaticMarkup } = nodeRequire("react-dom/server");
 
 // ---- controllable stand-ins for the AI access layer, usage recording and the inbox reads
-const S = { owner: null, access: null, quota: null, thread: null, calls: [], usage: [], released: [], loads: [] };
+const S = { owner: null, access: null, quota: null, thread: null, calls: [], usage: [], released: [], loads: [], guard: null, activity: [], staffCalls: [], staffAccess: null, reserved: [], ownerAiCalls: 0 };
 const reset = () => {
   S.owner = { ok: true, owner: { userId: "u1", profileId: "p1", supabase: { tag: "owner-client" } } };
   S.provider = { id: "fake", isConfigured: () => true, runTurn: async (req) => { S.calls.push(req); return { message: { role: "assistant", parts: [{ type: "text", text: S.answer }] }, stopReason: S.stop, usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 0, cacheWriteTokens: 0 } }; } };
@@ -26,6 +26,8 @@ const reset = () => {
   S.quota = { ok: true, reservationId: "r1", remainingToday: 5 };
   S.thread = { ok: true, thread: { conversation: { id: CONV, channel: "whatsapp", status: "open", replyWindowOpen: true }, contact: { name: "Secret Name", waId: "237600000001" }, messages: MSGS, truncated: false } };
   S.answer = "Hello, how can I help?"; S.stop = "end"; S.calls = []; S.usage = []; S.released = []; S.loads = [];
+  S.guard = null; S.activity = []; S.staffCalls = []; S.reserved = []; S.ownerAiCalls = 0;
+  S.staffAccess = { ok: true, access: { ...S.access.access, workspace: { userId: "owner-u", profileId: "org-p", username: "ownerbiz", actor: { kind: "staff", roleName: "Agent", permissions: ["inbox.view", "inbox.ai"] } } } };
 };
 const CONV = "d0000000-0000-4000-8000-000000000001";
 const txt = (id, dir, text) => ({ id, direction: dir, status: "sent", at: "2026-01-01T00:00:00Z", display: { kind: "text", text }, unconfirmed: false });
@@ -43,8 +45,11 @@ const STUBS = {
   "next/link": { __esModule: true, default: ({ href, children, ...rest }) => React.createElement("a", { href, ...rest }, children) },
   "next/navigation": { redirect() {}, notFound() {}, useRouter: () => ({ refresh() {} }) },
   "react": { ...React, cache: (fn) => fn },
-  "@/lib/supabase/server": { createClient: () => ({}), createAdminClient: () => ({}) },
-  "@/lib/ai/guard": { resolveAiAccess: async () => S.access, reserveAiQuota: async () => S.quota, releaseAiQuota: async (id) => { S.released.push(id); } },
+  "@/lib/supabase/server": { createClient: () => S.owner?.owner?.supabase ?? {}, createAdminClient: () => ({}) },
+  "@/lib/ai/guard": { resolveAiAccess: async () => { S.ownerAiCalls++; return S.access; }, reserveAiQuota: async (acc) => { S.reserved.push(acc.workspace); return S.quota; }, releaseAiQuota: async (id) => { S.released.push(id); } },
+  // the staff-aware guard (real code is covered by whatsappInboxStaffRoutes.test.mjs): owner by default, or whatever S.guard says
+  "@/lib/inbox/actorRoute": { guardConversationAction: async (id, perm) => S.guard ?? (S.owner.ok ? { ok: true, kind: "owner", userId: S.owner.owner.userId, profileId: S.owner.owner.profileId, admin: {} } : { ok: false, status: S.owner.reason === "not_signed_in" ? 401 : 403, error: "not_found" }), recordMemberActivity: async (g, a, d) => { if (g.kind === "member") S.activity.push({ g, a, d }); } },
+  "@/lib/ai/inboxStaffAccess": { resolveOrganizationAiAccess: async (i) => { S.staffCalls.push(i); return S.staffAccess; } },
   "@/lib/ai/usage": { estimateCostUsd: () => null, recordUsageEvent: async (e) => { S.usage.push(e); } },
   "@/lib/inbox/access": { resolveInboxOwner: async () => S.owner },
   "@/lib/inbox/data": { loadThread: async (client, profileId, id, limit) => { S.loads.push({ client, profileId, id, limit }); return S.thread; } },
@@ -167,6 +172,36 @@ check("route: invalid input -> 415 / 422 and nothing is called", (await post(CON
 reset(); S.answer = "SUMMARY: ok";
 await post(CONV, { action: "summarize", locale: "en", messages: [{ text: "FORGED" }], profile_id: "evil", to: "237699999999", text: "FORGED", conversation_id: "evil" });
 check("route: forged messages / profile / recipient / text fields are ignored: the transcript comes only from the database", S.calls.length === 1 && !/FORGED|evil|237699999999/.test(JSON.stringify(S.calls[0])) && S.loads[0].profileId === "p1" && S.loads[0].id === CONV);
+// ---- team members (staff): the ORGANIZATION OWNER'S eligibility and quota, the staff member only as the actor
+reset(); S.guard = { ok: true, kind: "member", userId: "staff-u", profileId: "org-p", admin: {} }; S.answer = "SUMMARY: ok";
+x = await j(await post(CONV, { action: "summarize", locale: "en" }));
+check("staff: a team member authorized for inbox.ai gets the summary (200)", x.status === 200 && x.body.ok === true);
+check("staff: eligibility comes from the ORGANIZATION OWNER (the staff resolver is asked for the owner's profile + the staff user; the user's own Ringo AI access is never consulted)", S.staffCalls.length === 1 && S.staffCalls[0].ownerProfileId === "org-p" && S.staffCalls[0].staffUserId === "staff-u" && S.ownerAiCalls === 0);
+check("staff: the quota is reserved on the OWNER's workspace (shared pool) and the single usage row is the owner's, never the staff member's", S.reserved.length === 1 && S.reserved[0].userId === "owner-u" && S.reserved[0].profileId === "org-p" && S.usage.length === 1 && S.usage[0].userId === "owner-u" && S.usage[0].profileId === "org-p" && S.released.length === 1);
+check("staff: the staff member is recorded as the ACTOR (activity log: conversation id and action only), not as the billing owner", S.reserved[0].actor.kind === "staff" && S.activity.length === 1 && S.activity[0].a === "inbox_ai_assist" && S.activity[0].g.userId === "staff-u" && JSON.stringify(S.activity[0].d) === JSON.stringify({ conversationId: CONV, action: "summarize" }) && !/Secret|Hi, do you|Yes we do/.test(JSON.stringify(S.activity)));
+check("staff: the conversation is loaded for the SERVER-resolved organization (not a browser value) with the member's own session", S.loads.length === 1 && S.loads[0].profileId === "org-p" && S.loads[0].id === CONV);
+reset(); S.guard = { ok: true, kind: "member", userId: "staff-u", profileId: "org-p", admin: {} }; S.staffAccess = { ok: false, reason: "plan_not_eligible" };
+x = await j(await post(CONV, { action: "summarize" }));
+check("staff: when the OWNER's plan has no Ringo AI -> 403 plan_not_eligible, no quota, no model call, no usage", x.status === 403 && x.body.reason === "plan_not_eligible" && S.calls.length === 0 && S.reserved.length === 0 && S.usage.length === 0 && S.activity.length === 0);
+for (const reason of ["disabled", "not_configured", "account_inactive", "demo_account", "not_in_beta"]) {
+  reset(); S.guard = { ok: true, kind: "member", userId: "staff-u", profileId: "org-p", admin: {} }; S.staffAccess = { ok: false, reason };
+  x = await j(await post(CONV, { action: "summarize" }));
+  check(`staff: owner-side gate (${reason}) refuses the team member too, no model call`, x.body.error === "ai_unavailable" && x.body.reason === reason && S.calls.length === 0 && S.reserved.length === 0);
+}
+reset(); S.guard = { ok: true, kind: "member", userId: "staff-u", profileId: "org-p", admin: {} }; S.quota = { ok: false, reason: "daily_limit", remainingToday: 0 };
+x = await j(await post(CONV, { action: "summarize" }));
+check("staff: the OWNER's shared daily limit applies to the team member (429), no model call", x.status === 429 && x.body.reason === "daily_limit" && S.calls.length === 0);
+reset(); S.guard = { ok: false, status: 403, error: "forbidden" };
+x = await j(await post(CONV, { action: "summarize" }));
+check("staff: a member WITHOUT inbox.ai (guard: forbidden) -> 403, nothing loaded, no AI access check, no model call", x.status === 403 && x.body.error === "forbidden" && S.loads.length === 0 && S.staffCalls.length === 0 && S.ownerAiCalls === 0 && S.calls.length === 0);
+reset(); S.guard = { ok: false, status: 404, error: "not_found" };
+check("staff: another organization's / unknown conversation (guard: not_found) -> 404, nothing loaded or called", (await j(await post(CONV, { action: "summarize" }))).status === 404 && S.loads.length === 0 && S.calls.length === 0);
+reset(); S.guard = { ok: true, kind: "member", userId: "staff-u", profileId: null, admin: {} };
+check("staff: an unresolved organization -> 404, nothing called", (await j(await post(CONV, { action: "summarize" }))).status === 404 && S.calls.length === 0);
+reset(); S.guard = { ok: true, kind: "owner", userId: "u1", profileId: "p1", admin: {} };
+await post(CONV, { action: "summarize" });
+check("owner: unchanged — the owner's own Ringo AI access is used (and no staff resolver)", S.ownerAiCalls === 1 && S.staffCalls.length === 0 && S.reserved[0].userId === "u1" && S.activity.length === 0);
+reset();
 x = await j(await post(CONV, { action: "summarize", locale: "de" }));
 check("route: an unknown locale falls back to English", /English/.test(S.calls.at(-1).system.stable));
 
@@ -210,7 +245,7 @@ check("route: an unknown locale falls back to English", /English/.test(S.calls.a
   const server = ["src/lib/inbox/aiAssist.ts", "src/app/api/inbox/conversations/[id]/assist/route.ts"].map(code).join("\n");
   check("scope: the assistant has no way to act: no send/outbound/media/status/RPC/insert/update call and no tool wiring", !/sendReply|sendMediaReply|sendWhatsApp|outbound|inbox_prepare|inbox_complete|\.rpc\(|\.insert\(|\.update\(|\.delete\(|createAdminClient|tools:\s*\[[^\]]/.test(server) && /tools: \[\]/.test(server));
   check("scope: reuses the Ringo AI gates (resolveAiAccess, reserveAiQuota, releaseAiQuota, recordUsageEvent) and the provider abstraction; no direct SDK or fetch", /resolveAiAccess/.test(server) && /reserveAiQuota/.test(server) && /releaseAiQuota/.test(server) && /recordUsageEvent/.test(server) && /provider\.runTurn/.test(server) && !/anthropic|openai|fetch\(|process\.env/i.test(server.replace(/AiProvider/g, "")));
-  check("security: the route reads only action + locale from the body, requires JSON, derives the owner from the session and loads messages server-side with the owner's profile", /\(body as any\)\.action/.test(server) && /\(body as any\)\.locale/.test(server) && [...new Set((server.match(/\(body as any\)\.(\w+)/g) || []))].length === 2 && /application\/json/.test(server) && /resolveInboxOwner/.test(server) && /loadThread\(owner\.owner\.supabase, owner\.owner\.profileId, params\.id/.test(server) && !/export async function (GET|PUT|PATCH|DELETE)/.test(server));
+  check("security: the route reads only action + locale from the body, requires JSON, derives the owner from the session and loads messages server-side with the owner's profile", /\(body as any\)\.action/.test(server) && /\(body as any\)\.locale/.test(server) && [...new Set((server.match(/\(body as any\)\.(\w+)/g) || []))].length === 2 && /application\/json/.test(server) && /guardConversationAction/.test(server) && /loadThread\(createClient\(\), guard\.profileId, params\.id/.test(server) && !/export async function (GET|PUT|PATCH|DELETE)/.test(server));
   check("security: the usage row stores no text and no conversation id", /conversationId: null/.test(server) && !/prompt|transcript|summary|reply/.test(server.slice(server.indexOf("recordUsageEvent({"), server.indexOf("recordUsageEvent({") + 700)));
   const cc = ["src/components/inbox/InboxAiPanel.tsx", "src/lib/inbox/client.ts"].map(code).join("\n");
   check("security: the browser code never mentions Meta, a token, the provider, a model, or the server-only modules", !/graph\.facebook|WHATSAPP_|Bearer|Authorization|anthropic|openai|modelChat|ai\/guard|ai\/providers|inbox\/aiAssist|supabase\/server/i.test(cc));

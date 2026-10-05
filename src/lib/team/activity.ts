@@ -13,7 +13,12 @@ export type OrgActivityAction =
   | "member_removed"
   | "role_created"
   | "role_updated"
-  | "role_deleted";
+  | "role_deleted"
+  // WhatsApp Inbox: which team member did what (internal attribution; conversation id only, never message text)
+  | "inbox_conversation_closed"
+  | "inbox_conversation_reopened"
+  | "inbox_conversation_read"
+  | "inbox_ai_assist";
 
 /**
  * Records one organization_activity_log row. Uses the service-role client
