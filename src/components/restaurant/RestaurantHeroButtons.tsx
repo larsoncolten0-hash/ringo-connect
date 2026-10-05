@@ -2,7 +2,7 @@
 
 import { UtensilsCrossed, ShoppingCart, MapPin, Phone, CalendarDays } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
-import { hexToRgba } from "@/lib/color";
+import { hexToRgba, readableOn } from "@/lib/color";
 import { getBookingConfig } from "@/lib/categories";
 import type { Translations } from "@/lib/i18n/translations";
 
@@ -51,7 +51,7 @@ export default function RestaurantHeroButtons({
       label: "WhatsApp",
     },
     mapsHref && { href: mapsHref, icon: MapPin, label: t.profilePage.location },
-    whatsappNumber && { href: `tel:${cleanNumber}`, icon: Phone, label: "Call" },
+    whatsappNumber && { href: `tel:${cleanNumber}`, icon: Phone, label: t.profilePage.callButton },
     reserveHref && { href: reserveHref, icon: CalendarDays, label: reserveLabel },
   ].filter(Boolean) as { href: string; icon: any; label: string }[];
 
@@ -61,7 +61,7 @@ export default function RestaurantHeroButtons({
         <a
           href={menuHref}
           className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition hover:brightness-95 active:scale-[0.98]"
-          style={{ backgroundColor: accent, color: "#fff" }}
+          style={{ backgroundColor: accent, color: readableOn(accent) }}
         >
           <UtensilsCrossed size={16} />
           {t.restaurant.viewMenuButton}
@@ -69,7 +69,7 @@ export default function RestaurantHeroButtons({
         <a
           href={menuHref}
           className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition hover:brightness-95 active:scale-[0.98]"
-          style={{ backgroundColor: accent, color: "#fff" }}
+          style={{ backgroundColor: accent, color: readableOn(accent) }}
         >
           <ShoppingCart size={16} />
           {t.restaurant.orderNowButton}

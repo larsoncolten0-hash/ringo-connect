@@ -2,6 +2,7 @@
 
 import { Star, ArrowRight } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { readableOn } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
 
 // A teaser, not the ordering surface itself — tapping any card (or "View
@@ -66,8 +67,8 @@ export default function FeaturedMenuSection({
               </p>
               {item.featured && (
                 <span
-                  className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full mt-1"
-                  style={{ backgroundColor: accent, color: "#fff" }}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-full mt-1"
+                  style={{ backgroundColor: accent, color: readableOn(accent) }}
                 >
                   <Star size={8} fill="currentColor" />
                   {t.restaurant.featuredLabel}

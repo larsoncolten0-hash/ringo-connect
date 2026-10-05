@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { Ticket, MapPin, Clock } from "lucide-react";
-import { hexToRgba, readableOn } from "@/lib/color";
+import { accentTextOn, hexToRgba, readableOn } from "@/lib/color";
 import { MUSIC } from "@/lib/profileStage";
 import { formatPrice } from "@/lib/currency";
 import { primaryTicketType } from "@/lib/ticketTypes";
@@ -27,6 +27,8 @@ export default function EventsSection({
   whatsappNumber,
   username,
   currency,
+  dateLead = false,
+  locale,
 }: {
   t: Translations;
   events: any[];
@@ -35,6 +37,11 @@ export default function EventsSection({
   whatsappNumber?: string | null;
   username: string;
   currency: string;
+  /** The date leads the card (an Events stage): a large day and month first, and the thumbnail only when the event has a picture. Off
+   *  for Music, which keeps the small date stamp on the thumbnail. */
+  dateLead?: boolean;
+  /** The visitor's language, so the month on the date reads in it ("DÉC." in French) rather than in the browser's. */
+  locale?: string;
 }) {
   if (events.length === 0) return null;
   const onAccent = readableOn(accent);
@@ -43,7 +50,7 @@ export default function EventsSection({
     if (!iso) return null;
     const d = new Date(`${iso}T00:00:00`);
     if (Number.isNaN(d.getTime())) return null;
-    return { day: d.getDate(), month: d.toLocaleDateString(undefined, { month: "short" }).toUpperCase() };
+    return { day: d.getDate(), month: d.toLocaleDateString(locale === "fr" ? "fr-FR" : locale === "en" ? "en-US" : undefined, { month: "short" }).replace(/\.$/, "").toUpperCase() };
   };
 
   return (
@@ -79,6 +86,24 @@ export default function EventsSection({
                     branch in ItemDetailPage.tsx), so its cover art is
                     always clickable there — independent of whether the Get
                     Ticket CTA below is even shown. */}
+                {dateLead && parts && (
+                  // The date block is also the way into the event's page when there is no picture to tap (the thumbnail below is only
+                  // drawn for events that have one), so no event loses its link.
+                  <a
+                    href={`/m/${username}/ticket/${event.id}`}
+                    aria-label={event.title}
+                    className="flex min-h-[44px] w-14 shrink-0 flex-col items-center justify-center self-stretch rounded-ringo-md py-1.5 leading-none"
+                    style={{ backgroundColor: hexToRgba(accent, 0.14) }}
+                  >
+                    <time dateTime={event.event_date} className="flex flex-col items-center">
+                      <span className="text-[11px] font-semibold tracking-wider" style={{ color: accentTextOn("#14110A", accent) }} suppressHydrationWarning>
+                        {parts.month}
+                      </span>
+                      <span className="mt-1 font-display text-2xl font-bold">{parts.day}</span>
+                    </time>
+                  </a>
+                )}
+                {(!dateLead || event.cover_image_url) && (
                 <a
                   href={`/m/${username}/ticket/${event.id}`}
                   aria-label={event.title}
@@ -91,7 +116,7 @@ export default function EventsSection({
                       <Ticket size={20} style={{ color: accent }} />
                     </div>
                   )}
-                  {parts && (
+                  {parts && !dateLead && (
                     <div
                       className="absolute top-0.5 left-0.5 rounded-md px-1 py-0.5 flex flex-col items-center leading-none"
                       style={{ backgroundColor: "rgba(0,0,0,0.75)" }}
@@ -103,6 +128,7 @@ export default function EventsSection({
                     </div>
                   )}
                 </a>
+                )}
 
                 <div className="flex-1 min-w-[9rem]">
                   <p className="text-sm font-semibold line-clamp-2 [overflow-wrap:anywhere]">{event.title}</p>
@@ -125,7 +151,7 @@ export default function EventsSection({
                       whichever tier the artist picked is what shows here,
                       by name, so it updates the instant they change it. */}
                   {primary && (
-                    <p className="text-xs font-semibold mt-1" style={{ color: accent }} suppressHydrationWarning>
+                    <p className="text-xs font-semibold mt-1" style={{ color: accentTextOn("#14110A", accent) }} suppressHydrationWarning>
                       {primary.name} — {formatPrice(primary.price, currency)}
                     </p>
                   )}

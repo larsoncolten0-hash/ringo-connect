@@ -10,6 +10,7 @@ import { execSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { PHASE11_FILES } from "./phase11Files.mjs";
+import { PHASE12_FILES } from "./phase12Files.mjs";
 import { isPhase2File } from "./phase2Files.mjs";
 
 const require = createRequire(import.meta.url);
@@ -33,7 +34,10 @@ async function test(name, fn) {
 const raw = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8").replace(/\r\n/g, "\n");
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 const git = (cmd) => execSync(`git ${cmd}`, { cwd: REPO, encoding: "utf8" });
-const PHASE3_BASE = "b33b1f4"; // the approved Phase 1 + 2 commit: Phase 3A is the working tree on top of it
+const PHASE3_BASE = "b33b1f4"; // the approved Phase 1 + 2 commit
+const PHASE3A_COMMIT = "55eb256"; // Phase 3A as committed. The WhatsApp inbox commits landed on this branch after it, so "everything since PHASE3_BASE" is no longer
+// the Phase 3 work; phase3Diff() is the Phase 3 work only: the 3A commit plus whatever is uncommitted on top of the current HEAD (3B onward).
+const phase3Diff = (opts, paths = "") => git(`diff ${opts} ${PHASE3_BASE} ${PHASE3A_COMMIT} ${paths}`) + git(`diff ${opts} HEAD ${paths}`);
 
 const { translations } = jiti(path.join(SRC, "lib/i18n/translations.ts"));
 const color = jiti(path.join(SRC, "lib/color.ts"));
@@ -97,7 +101,7 @@ const music = (over = {}) => ({
   about_position: "Artist", about_email: "b@jaykay.example", profile_phone_numbers: [], menu_items: [],
   ...baseTheme, ...over,
 });
-const generic = (over = {}) => ({ ...music(), category: "professional_services", categories: ["professional_services"], pinned_type: null, pinned_id: null, tracks: [], music_releases: [], events: [], ...over });
+const generic = (over = {}) => ({ ...music(), category: "other", categories: ["other"], pinned_type: null, pinned_id: null, tracks: [], music_releases: [], events: [], ...over });
 const render = (p, lang = "en") => html(ProfileView, { profile: p, pageViewEventId: "e" }, lang);
 
 // ------------------------------------------------------------------ contrast helpers
@@ -141,14 +145,13 @@ await test("getPanelButtonStyle: the creator's accent stays the border and the f
 });
 
 // ------------------------------------------------------------------ the stage: foundation tokens, data-driven, Music only
-await test("stage: Music gets a Paper panel, Ink player cards, the avatar Ring and a closing Ring; every other category gets none (no fork, no panel)", () => {
+await test("stage: Music gets a Paper panel, Ink player cards, the avatar Ring and a closing seal; \"other\" and anything unknown get the neutral default (no fork, no panel)", () => {
   const m = stages.getProfileStage("music_entertainment");
   assert.equal(m.id, "music");
-  assert.ok(m.panel && m.player && m.avatarRing && m.closingRing);
-  for (const c of CATEGORIES.filter((c) => c.id !== "music_entertainment")) {
-    const s = stages.getProfileStage(c.id);
-    assert.deepEqual([s.id, s.panel, s.player, s.avatarRing, s.closingRing], ["default", null, null, false, false], c.id);
-  }
+  assert.ok(m.panel && m.player && m.avatar === "ring" && m.closingRing);
+  assert.equal(m.eventDate, "badge", "Music keeps the small date stamp on its event thumbnails");
+  const s = stages.getProfileStage("other");
+  assert.deepEqual([s.id, s.panel, s.player, s.avatar, s.cover, s.name, s.headings, s.eventDate, s.closingRing], ["default", null, null, "pulse", "standard", "upper", "label", "badge", false]);
   for (const v of [undefined, null, "", "nonsense"]) assert.equal(stages.getProfileStage(v).id, "default");
 });
 await test("stage colors ARE the foundation tokens (no private palette): the hex mirrors match globals.css, and the panel is built from var(--rc-*)", () => {
@@ -185,7 +188,7 @@ await test("theme safety: ProfileView only READS the creator's theme fields; not
   assert.match(v, /const accent = profile\.theme_color \|\| "#D4A954";/);
   assert.match(v, /const textColor = profile\.text_color \|\| "#FAFAFA";/);
   assert.match(v, /const bgColor = profile\.background_color \|\| "#0A0A0A";/);
-  assert.equal(git(`diff --name-only ${PHASE3_BASE} -- "src/app/[username]/page.tsx" src/lib/categories.ts src/components/editor src/components/dashboard src/app/api`).trim(), "", "the theme sources, the editor and the APIs are untouched");
+  assert.equal(phase3Diff("--name-only", `-- "src/app/[username]/page.tsx" src/lib/categories.ts src/components/editor src/components/dashboard src/app/api`).trim(), "", "the theme sources, the editor and the APIs are untouched");
 });
 await test("theme safety (rendered): a saved creator theme reaches the page exactly as saved, in every theme and every theme field", () => {
   for (const t of [
@@ -254,7 +257,7 @@ await test("Music behavior is preserved: Buy Now, Book, the 10-second preview, p
 await test("a protected track is still sold only through its detail page and a preview clip: no direct audio on a protected row", () => {
   const h = render(music());
   assert.ok(!h.includes('src="/p.mp3"') && !/<audio/.test(h), "the page ships no <audio> element or source in the HTML (the single audio element is created on play by useTrackPlayback)");
-  assert.equal(git(`diff --name-only ${PHASE3_BASE} -- src/components/music/useTrackPlayback.ts src/components/music/ItemDetailPage.tsx src/components/music/MusicStorePage.tsx src/lib src/app/api`).split("\n").filter(Boolean).filter((f) => !PHASE11_FILES.has(f)).join(","), "", "playback, storefront and every API are untouched");
+  assert.equal(phase3Diff("--name-only", "-- src/components/music/useTrackPlayback.ts src/components/music/ItemDetailPage.tsx src/components/music/MusicStorePage.tsx src/lib src/app/api").split("\n").filter(Boolean).filter((f) => !PHASE11_FILES.has(f)).join(","), "", "playback, storefront and every API are untouched");
 });
 await test("latest release: the creator's pinned item leads, as an artwork-led card with an accent edge and a readable badge; nothing is invented", () => {
   const h = render(music());
@@ -267,12 +270,12 @@ await test("latest release: the creator's pinned item leads, as an artwork-led c
   assert.ok(!render(music({ cover_image_url: null, tracks: [{ ...music().tracks[0], cover_image_url: null }, music().tracks[1]] })).includes("undefined"), "no cover art means no fake art");
 });
 await test("releases: with an odd count the first leads full width (an editorial grid that always fills); with an even count it is the old 2-up grid", () => {
-  const odd = render(music());
+  const odd = render(music({ products: [] })); // no catalog: a lone product is featured full width too, which is not what this counts
   assert.equal((odd.match(/col-span-2/g) || []).length, 1);
   assert.ok(odd.includes("aspect-[16/10]"));
-  const even = render(music({ music_releases: music().music_releases.slice(0, 2) }));
+  const even = render(music({ products: [], music_releases: music().music_releases.slice(0, 2) }));
   assert.equal((even.match(/col-span-2/g) || []).length, 0);
-  const one = render(music({ music_releases: music().music_releases.slice(0, 1) }));
+  const one = render(music({ products: [], music_releases: music().music_releases.slice(0, 1) }));
   assert.equal((one.match(/col-span-2/g) || []).length, 1);
   assert.ok(!render(music({ music_releases: [] })).includes(translations.en.music.releasesTitle));
 });
@@ -308,10 +311,10 @@ await test("no language leakage: the French Music profile has no English UI text
   assert.equal(JSON.stringify(Object.keys(translations.en.music).sort()), JSON.stringify(Object.keys(translations.fr.music).sort()), "the same keys in both languages");
 });
 await test("translations: only the eight Gift wording lines were rewritten; the two new aria keys exist in both languages; nothing else moved", () => {
-  const removed = git(`diff -U0 ${PHASE3_BASE} -- src/lib/i18n/translations.ts`).split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
+  const removed = phase3Diff("-U0", "-- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
   assert.equal(removed.length, 8, removed.join(" | "));
   assert.ok(removed.every((l) => /(pinnedSupportCta|supportTitle|supportHint|sendSupportButton):/.test(l)));
-  const added = git(`diff -U0 ${PHASE3_BASE} -- src/lib/i18n/translations.ts`).split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++"));
+  const added = phase3Diff("-U0", "-- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++"));
   assert.equal(added.length, 12, "8 rewritten + playLabel / pauseLabel in two languages");
 });
 
@@ -325,7 +328,8 @@ await test("accessibility: play / pause are named and translated, the Ring is hi
   assert.match(strip(raw("src/components/music/MusicSection.tsx")), /w-11 h-11 rounded-full/);
   assert.equal((strip(raw("src/components/music/SupportArtistSection.tsx")).match(/min-h-\[44px\]/g) || []).length >= 4, true);
   const ring = strip(raw("src/components/ProfileView.tsx"));
-  assert.equal((ring.match(/<Ring\b/g) || []).length, 2, "the avatar Ring and the closing Ring, nothing else");
+  assert.equal((ring.match(/<Ring\b/g) || []).length, 1, "the avatar Ring is the only Ring ProfileView draws itself (the closing seal is its own component)");
+  assert.match(strip(raw("src/components/profile/ConnectionSeal.tsx")), /aria-hidden="true"/, "and the closing seal is hidden from assistive tech");
   assert.match(strip(raw("src/components/brand/Ring.tsx")), /\{ "aria-hidden": true \}/, "decorative by default");
   assert.ok(!/text-\[10px\]/.test(pin), "the spotlight badge is no longer 10px");
 });
@@ -361,14 +365,17 @@ await test("hero pin: MusicHeroButtons was edited on purpose and carries its new
   assert.ok(!/heroAction|GenericHeroActions|ConnectButton/.test(s));
   assert.match(s, /href=\{`\/m\/\$\{profile\.username\}`\}/);
   assert.match(s, /`\/\$\{profile\.username\}\/book`/);
-  assert.equal(git(`diff --stat ${PHASE3_BASE} -- src/components/restaurant src/components/connect`).trim(), "", "the restaurant hero and Stay Connected are untouched");
+  assert.equal(git(`diff --stat ${PHASE3_BASE} -- src/components/connect`).trim(), "", "Stay Connected is untouched");
+  // Phase 3B: the restaurant hero and menu teaser changed ONLY in the text colour on the accent (readableOn instead of fixed white) and an 11px badge.
+  const rest = phase3Diff("-U0", "-- src/components/restaurant").split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
+  assert.ok(rest.every((l) => /readableOn|#fff|lib\/color|text-\[(9|11)px\]|icon: Phone, label: (\"Call\"|t\.profilePage\.callButton)/.test(l)), "restaurant: colour and size only: " + rest.join(" | "));
 });
 await test("scope: no auth, payment, commission, payout, inventory, booking, ticketing, API, database, SEO, routing, package or profile-page file changed", () => {
-  const changed = git(`diff --name-only ${PHASE3_BASE}`).split("\n").filter(Boolean).concat(git("ls-files --others --exclude-standard").split("\n").filter(Boolean));
+  const changed = phase3Diff("--name-only").split("\n").filter(Boolean).concat(git("ls-files --others --exclude-standard").split("\n").filter(Boolean)).filter((f) => !PHASE12_FILES.has(f)); // Phase 3B files are pinned by their own list
   const protectedPath = /^(package(-lock)?\.json|tsconfig\.tsbuildinfo|\.env|supabase\/|migrations\/|src\/middleware\.ts|src\/app\/|src\/lib\/(auth|billing|payments?|productCheckout|fapshi|stripe|shop|settlement|reports|inventory|music|ticket|booking|publicContent|sectionOrder|heroAction|seo|categories|branding|brandingDefaults)|src\/components\/(checkout|dashboard|auth|catalog|editor|restaurant|connect|landing|overview|BookingButton|WhatsAppButton|SocialIcon)|src\/components\/music\/(useTrackPlayback|ItemDetailPage|MusicStorePage|MusicTabs|Music(Orders|Sales|Earnings|Customers|Overview|Receipt)|ReceiptPageView|TicketPassView|EventCheckinDashboard))/;
   assert.deepEqual(changed.filter((f) => protectedPath.test(f)), []);
   assert.deepEqual(changed.filter((f) => !isPhase2File(f)), [], "every changed file is on the allowlist");
-  assert.deepEqual(changed.filter((f) => !PHASE11_FILES.has(f)), [], "and every changed file belongs to Phase 3A");
+  assert.deepEqual(changed.filter((f) => !PHASE11_FILES.has(f)), [], "and every changed file belongs to Phase 3A (3B has its own list)");
 });
 await test("no dependency, no image payload, no canvas / WebGL / video, no new package: the profile stays light", () => {
   assert.equal(git(`diff --stat ${PHASE3_BASE} -- package.json package-lock.json tsconfig.tsbuildinfo`).trim(), "");

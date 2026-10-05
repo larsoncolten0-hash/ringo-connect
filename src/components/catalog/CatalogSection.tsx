@@ -26,6 +26,7 @@ export default function CatalogSection({
   currency,
   isMusic,
   accent,
+  accentText,
   textColor,
   borderTint,
   squareCorners,
@@ -45,6 +46,8 @@ export default function CatalogSection({
   currency: string;
   isMusic: boolean;
   accent: string;
+  /** The accent as TEXT on this section's surface (a legible tone of it on a light panel). Defaults to the accent itself. */
+  accentText?: string;
   textColor: string;
   borderTint: string;
   squareCorners: boolean;
@@ -72,14 +75,14 @@ export default function CatalogSection({
     <section id="merch" className="flex flex-col gap-4 scroll-mt-6">
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em]" style={{ opacity: 0.55 }}>
+          <h2 className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em]" style={{ opacity: 0.7 }}>
             <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} aria-hidden="true" />
             {label}
           </h2>
         </div>
         <span
           className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums"
-          style={{ backgroundColor: hexToRgba(accent, 0.12), color: accent }}
+          style={{ backgroundColor: hexToRgba(accent, 0.12), color: accentText || accent }}
         >
           {sorted.length}
         </span>
@@ -91,7 +94,7 @@ export default function CatalogSection({
           <ProductCard
             key={product.id}
             product={product}
-            featured={sorted.length >= 3 && i === 0}
+            featured={(sorted.length >= 3 && i === 0) || sorted.length === 1}
             index={i}
             href={productHref(username, product.id, isMusic)}
             currency={currency}

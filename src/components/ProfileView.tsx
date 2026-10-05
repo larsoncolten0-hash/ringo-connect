@@ -9,8 +9,9 @@ import { getCategory, getMusicRole, profileHasCategory, profileHasTicketing } fr
 import { formatPrice } from "@/lib/currency";
 import { accentTextOn, hexToRgba } from "@/lib/color";
 import { getButtonStyle, getPanelButtonStyle, getRadiusClass, getBackgroundStyle } from "@/lib/theme";
-import { getProfileStage } from "@/lib/profileStage";
+import { getProfileStage, type AvatarMark, type ProfileStage } from "@/lib/profileStage";
 import Ring from "@/components/brand/Ring";
+import ConnectionPath from "@/components/profile/ConnectionPath";
 import { ensureVisitorId, captureTtclid, newEventId } from "@/lib/pixelClient";
 import { metaEventName, tiktokEventName, isValidFacebookPixelId, isValidTiktokPixelId } from "@/lib/pixelEvents";
 import SocialIcon from "./SocialIcon";
@@ -39,6 +40,17 @@ import ConnectButton from "./connect/ConnectButton";
 import RegisterServiceWorker from "./RegisterServiceWorker";
 import CatalogSection from "@/components/catalog/CatalogSection";
 import AppBadgeReset from "./AppBadgeReset";
+
+// What a stage's choices look like (lib/profileStage.ts holds the choices; these are only their classes).
+const AVATAR_IMAGE: Record<AvatarMark, string> = { pulse: "rounded-full ring-4", ring: "rounded-full", still: "rounded-full ring-4", tile: "rounded-ringo-lg ring-4" };
+const COVER_HEIGHT: Record<ProfileStage["cover"], string> = { standard: "h-52 sm:h-60", tall: "h-64 sm:h-80" };
+const NAME_CASE: Record<ProfileStage["name"], string> = { upper: "uppercase", natural: "" };
+// Editorial headings: every section title is a real heading in the display face. The sections set their own quiet label (small, upper-
+// case, faded), so the override has to win over those classes and over the label's inline opacity.
+const HEADINGS: Record<ProfileStage["headings"], string> = {
+  label: "",
+  editorial: "[&_h2]:!font-display [&_h2]:!text-lg [&_h2]:!font-bold [&_h2]:!normal-case [&_h2]:!tracking-tight [&_h2]:!opacity-100",
+};
 
 export default function ProfileView({
   profile,
@@ -237,7 +249,8 @@ export default function ProfileView({
   const contentBorderTint = panel ? panel.border : borderTint;
   // Buttons and accent-coloured text that sit ON the fixed panel keep the creator's accent as border / fill, with a legible text colour.
   const panelButtonStyle = panel ? getPanelButtonStyle(profile.button_style || "outline", accent, panel.backgroundHex) : linkButtonStyle;
-  const panelAccentText = panel ? accentTextOn(panel.backgroundHex, accent) : accent;
+  // 5.2 (not the 4.5 minimum): the cards inside the panel are a few percent darker than the panel itself, and the text must still read on them
+  const panelAccentText = panel ? accentTextOn(panel.backgroundHex, accent, 5.2) : accent;
 
   // The public page is the creator's brand, not app chrome — it renders
   // with exactly the colors they chose, independent of the visitor's own
@@ -360,7 +373,7 @@ export default function ProfileView({
                           <>
                             <item.icon size={15} style={{ color: accent }} className="shrink-0 mt-0.5" />
                             <div className="min-w-0">
-                              <p className="text-xs uppercase tracking-wider" style={{ opacity: 0.55 }}>
+                              <p className="text-xs uppercase tracking-wider" style={{ opacity: 0.7 }}>
                                 {item.label}
                               </p>
                               <p className="text-sm font-medium [overflow-wrap:anywhere]">{item.value}</p>
@@ -437,7 +450,7 @@ export default function ProfileView({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold [overflow-wrap:anywhere]">{publicLinkTitle(link)}</p>
                       {link.description && (
-                        <p className="text-xs line-clamp-2 mt-0.5" style={{ opacity: 0.7 }}>
+                        <p className="text-xs line-clamp-2 mt-0.5" style={{ opacity: panel ? 1 : 0.7 }}>
                           {link.description}
                         </p>
                       )}
@@ -455,6 +468,7 @@ export default function ProfileView({
               currency={profile.currency || "USD"}
               isMusic={isMusic}
               accent={accent}
+              accentText={panelAccentText}
               textColor={contentTextColor}
               borderTint={contentBorderTint}
               squareCorners={profile.button_radius === "square"}
@@ -484,6 +498,8 @@ export default function ProfileView({
               whatsappNumber={profile.whatsapp_number}
               username={profile.username}
               currency={profile.currency || "USD"}
+              dateLead={stage.eventDate === "lead"}
+              locale={locale}
             />
           ),
   };
@@ -567,7 +583,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           The image/gradient sit in their own clipped inner layer so the
           share button's dropdown (taller than this whole box) can still
           extend past it instead of being cut off by overflow-hidden. */}
-      <div className="relative w-full h-52 sm:h-60 shrink-0">
+      <div className={`relative w-full shrink-0 ${COVER_HEIGHT[stage.cover]}`}>
         <div className="absolute inset-0 overflow-hidden">
           {profile.cover_image_url ? (
             <img src={profile.cover_image_url} alt="" className="w-full h-full object-cover" />
@@ -628,13 +644,10 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
       </div>
 
       <div className="relative z-10 flex flex-col items-center px-4 -mt-16 w-full">
-        <div className={`relative animate-fade-up ${stage.avatarRing ? "mb-4" : ""}`}>
-          {/* Subtle pulsing glow — the same ring-pulse signature used on
-              the auth pages, scaled down and tinted to the creator's own
-              accent color rather than the fixed brand palette. */}
-          {stage.avatarRing ? (
-            // The Ringo ring, open with its node, in the creator's own accent: a still signature of connection around who they are,
-            // in place of the looping pulse (decorative, hidden from assistive technology).
+        <div className={`relative animate-fade-up ${stage.avatar === "ring" ? "mb-4" : ""}`}>
+          {stage.avatar === "ring" && (
+            // The Ringo ring, open with its node, in the creator's own accent: a still signature of connection around who they are
+            // (decorative, hidden from assistive technology).
             <Ring
               size={188}
               state="idle"
@@ -642,7 +655,10 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               color={accent}
               className="pointer-events-none absolute -inset-9 h-[calc(100%+4.5rem)] w-[calc(100%+4.5rem)] opacity-90"
             />
-          ) : (
+          )}
+          {stage.avatar === "pulse" && (
+            // Subtle pulsing glow: the same ring-pulse signature used on the auth pages, scaled down and tinted to the creator's own
+            // accent color rather than the fixed brand palette.
             <>
               <span
                 className="absolute inset-0 rounded-full animate-ring-pulse-1 motion-reduce:animate-none pointer-events-none"
@@ -657,13 +673,13 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           <img
             src={profile.avatar_url || "/default-avatar.png"}
             alt={profile.name}
-            className={`relative w-36 h-36 sm:w-40 sm:h-40 rounded-full object-cover ${stage.avatarRing ? "" : "ring-4"}`}
+            className={`relative w-36 h-36 sm:w-40 sm:h-40 object-cover ${AVATAR_IMAGE[stage.avatar]}`}
             style={{ ["--tw-ring-color" as any]: hexToRgba(accent, 0.85), backgroundColor: bgColor }}
           />
         </div>
 
         <h1
-          className="font-display text-2xl sm:text-3xl font-bold tracking-tight uppercase mt-3 text-center animate-fade-up flex items-center justify-center gap-1.5 max-w-full"
+          className={`font-display text-2xl sm:text-3xl font-bold tracking-tight ${NAME_CASE[stage.name]} mt-3 text-center animate-fade-up flex items-center justify-center gap-1.5 max-w-full`}
           style={{ animationDelay: "80ms" }}
         >
           <span className="min-w-0 [overflow-wrap:anywhere]">
@@ -798,7 +814,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         <div
           id={preview ? undefined : "profile-content"}
           tabIndex={preview ? undefined : -1}
-          className={`w-full max-w-md mt-6 flex flex-col gap-6 animate-fade-up focus:outline-none ${panel ? panel.className : ""}`}
+          className={`w-full max-w-md lg:max-w-xl mt-6 flex flex-col gap-6 animate-fade-up focus:outline-none ${panel ? panel.className : ""} ${HEADINGS[stage.headings]}`}
           style={{
             animationDelay: "340ms",
             ...(panel ? { backgroundColor: panel.background, color: panel.text } : {}),
@@ -900,7 +916,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         </div>
 
         <footer role="contentinfo" className="mt-10 text-center">
-          {stage.closingRing && <Ring size={40} state="idle" color={accent} className="mx-auto mb-4" />}
+          {stage.closingRing && <ConnectionPath accent={accent} line={borderTint} className="mb-6" />}
           <p className="text-xs" style={{ opacity: 0.5 }}>
             © {new Date().getFullYear()} {profile.name}. {t.profilePage.rights}
           </p>

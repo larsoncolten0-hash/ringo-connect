@@ -12,6 +12,7 @@ import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { isPhase2File } from "./phase2Files.mjs";
 import { PHASE11_FILES } from "./phase11Files.mjs";
+import { PHASE12_FILES } from "./phase12Files.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -296,6 +297,7 @@ await test("compatibility: apart from the landing hero (Phase 2A), no foundation
         const rel = path.relative(REPO, f).replace(/\\/g, "/");
         // Phase 2A: the landing hero is the one approved first adopter of the foundation.
         if (rel.startsWith("src/components/landing/")) continue; // Phase 2A/2: the landing page is the approved adopter (checked in landingHero / landingStory tests)
+        if (PHASE12_FILES.has(rel)) continue; // Phase 3B: the category stages on every public profile
         if (PHASE11_FILES.has(rel)) continue; // Phase 3A: the Music public profile is the next approved adopter (checked in musicProfile.test.mjs)
         if (rel === "src/app/globals.css" || rel.startsWith("src/components/brand/") || rel.startsWith("src/lib/design/") || rel.startsWith("src/app/dev-preview-foundation/") || rel === "src/lib/i18n/translations.ts") continue;
         const s = fs.readFileSync(f, "utf8");
