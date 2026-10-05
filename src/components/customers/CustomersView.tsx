@@ -70,7 +70,6 @@ export default function CustomersView() {
         <div>
           <h1 className="font-display text-xl font-medium text-ringo-text">{u.title}</h1>
           <p className="mt-1 text-sm text-ringo-muted">{u.intro}</p>
-          <p className="mt-1 text-xs text-ringo-muted">{u.debtorsNote}</p>
         </div>
         <button className={primaryButton} onClick={() => setAdding(true)}><Plus size={15} />{u.add}</button>
       </div>
@@ -86,7 +85,7 @@ export default function CustomersView() {
         {typed.trim() !== "" && Array.from(typed.trim()).length < SEARCH.minLength && <p className="text-xs text-ringo-muted">{u.searchHint}</p>}
         <div className="flex flex-wrap items-center gap-2">
           {STATUSES.map((s) => (
-            <button key={s} aria-pressed={status === s} onClick={() => setStatus(s)} className={`${status === s ? primaryButton : secondaryButton} !min-h-[36px] !px-3 !py-1 text-xs`}>{label[s]}</button>
+            <button key={s} aria-pressed={status === s} onClick={() => setStatus(s)} className={`${status === s ? primaryButton : secondaryButton} !px-3 !py-1 text-xs`}>{label[s]}</button>
           ))}
           {total !== null && loaded && !error && <span className="ml-auto text-xs text-ringo-muted">{u.count(total)}</span>}
         </div>
@@ -101,9 +100,10 @@ export default function CustomersView() {
       {!loaded && busy && <p className="flex items-center gap-2 text-sm text-ringo-muted"><Loader2 size={14} className="animate-spin" />{u.loading}</p>}
       {loaded && !error && items.length === 0 && (
         searching ? <p className="text-sm text-ringo-muted">{u.noResults(q.trim())}</p> : (
-          <div className="rounded-card border border-dashed border-ringo-border p-5 text-center">
+          <div className="flex flex-col items-center gap-1 rounded-2xl border border-dashed border-ringo-border p-6 text-center">
             <p className="text-sm font-medium text-ringo-text">{u.empty}</p>
-            <p className="mt-1 text-xs text-ringo-muted">{u.emptyHint}</p>
+            <p className="text-xs text-ringo-muted">{u.emptyHint}</p>
+            {status === "active" && <button className={`${primaryButton} mt-2`} onClick={() => setAdding(true)}><Plus size={15} />{u.add}</button>}
           </div>
         )
       )}
@@ -112,7 +112,7 @@ export default function CustomersView() {
         {items.map((c) => (
           <li key={c.id} className={`flex flex-col gap-3 rounded-card border border-ringo-border p-3 sm:p-4 ${c.archived ? "opacity-80" : ""}`}>
             <div className="min-w-0">
-              <Link href={`/dashboard/customers/${c.id}`} className="text-sm font-medium text-ringo-text hover:underline">{c.name}</Link>
+              <Link href={`/dashboard/customers/${c.id}`} className="inline-flex min-h-[44px] items-center text-sm font-medium text-ringo-text hover:underline">{c.name}</Link>
               <p className="break-words text-xs text-ringo-muted">{[c.phone, c.email].filter(Boolean).join(" · ") || "—"}</p>
               {(c.archived || c.auto_reminders_paused) && (
                 <p className="mt-1 flex flex-wrap gap-1.5 text-[11px]">

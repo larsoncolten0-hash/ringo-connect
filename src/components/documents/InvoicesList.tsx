@@ -58,7 +58,7 @@ export default function InvoicesList() {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em] mb-1">{u.title}</h1>
-          <p className="text-sm text-ringo-muted max-w-lg">{u.subtitle}</p>
+          <p className="text-sm text-ringo-muted">{u.subtitle}</p>
         </div>
         <Link href="/dashboard/documents/new" className={primaryButton}><Plus size={16} />{u.createInvoice}</Link>
       </div>
@@ -68,7 +68,7 @@ export default function InvoicesList() {
           const active = f.key === status;
           return (
             <button key={f.key} role="tab" aria-selected={active} onClick={() => { setStatus(f.key); setOffset(0); }}
-              className={`inline-flex min-h-[40px] items-center rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${active ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo" : "border-ringo-border/70 text-ringo-muted hover:text-ringo-text"}`}>
+              className={`inline-flex min-h-[44px] items-center rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${active ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo" : "border-ringo-border/70 text-ringo-muted hover:text-ringo-text"}`}>
               {u[f.label]}
             </button>
           );
@@ -83,27 +83,29 @@ export default function InvoicesList() {
           <button onClick={load} className={secondaryButton}>{u.retry}</button>
         </div>
       ) : items.length === 0 ? (
-        <EmptyState icon={FileText} title={status ? u.emptyFilteredTitle : u.emptyTitle} hint={status ? undefined : u.emptyHint} />
+        <EmptyState icon={FileText} title={status ? u.emptyFilteredTitle : u.emptyTitle} hint={status ? undefined : u.emptyHint} action={status ? undefined : <Link href="/dashboard/documents/new" className={primaryButton}><Plus size={16} />{u.createInvoice}</Link>} />
       ) : (
         <ul className="flex flex-col gap-3">
           {items.map((d) => (
             <li key={d.id} className="rounded-2xl border border-ringo-border/70 bg-ringo-surface p-4 flex flex-col gap-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <Link href={`/dashboard/documents/${d.id}`} className="text-base font-medium text-ringo-text hover:text-ringo-indigo break-words">
+                  <Link href={`/dashboard/documents/${d.id}`} className="inline-flex min-h-[44px] items-center text-base font-medium text-ringo-text hover:text-ringo-indigo break-words">
                     {d.number ?? u.draftLabel}
                   </Link>
                   <p className="text-sm text-ringo-muted break-words">{d.customer_name || u.noCustomer}</p>
                 </div>
                 <StatusBadge status={d.status} overdue={d.overdue} />
               </div>
-              <dl className="grid grid-cols-2 sm:grid-cols-5 gap-x-4 gap-y-2 text-sm">
-                <Figure label={u.issueDate} value={d.issue_date ? formatDateKey(d.issue_date, locale) : "—"} />
-                <Figure label={u.dueDate} value={d.due_date ? formatDateKey(d.due_date, locale) : "—"} />
+              <dl className="flex flex-wrap items-end gap-x-8 gap-y-2">
                 <Figure label={u.total} value={formatMoney(d.total_minor, d.currency, locale)} strong />
-                <Figure label={u.received} value={formatMoney(d.amount_paid_minor, d.currency, locale)} />
-                <Figure label={u.outstanding} value={d.status === "draft" || d.status === "void" ? "—" : formatMoney(d.balance_minor, d.currency, locale)} strong />
+                <Figure label={u.outstanding} value={d.status === "draft" || d.status === "void" ? "\u2014" : formatMoney(d.balance_minor, d.currency, locale)} strong />
               </dl>
+              <p className="text-xs text-ringo-muted">
+                {u.issueDate}: {d.issue_date ? formatDateKey(d.issue_date, locale) : "\u2014"}
+                {d.due_date ? ` \u00b7 ${u.dueDate}: ${formatDateKey(d.due_date, locale)}` : ""}
+                {d.amount_paid_minor > 0 ? ` \u00b7 ${u.received}: ${formatMoney(d.amount_paid_minor, d.currency, locale)}` : ""}
+              </p>
               <div className="flex flex-wrap items-center gap-2">
                 <Link href={`/dashboard/documents/${d.id}`} className={secondaryButton}>{u.view}</Link>
                 <DocumentActions doc={{ id: d.id, number: d.number, currency: d.currency, balanceMinor: d.balance_minor, issueDate: d.issue_date }} actions={d.actions} onChanged={load} />

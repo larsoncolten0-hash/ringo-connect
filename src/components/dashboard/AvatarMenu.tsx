@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence } from "framer-motion";
-import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff, BadgeCheck, KeyRound, Loader2 } from "lucide-react";
+import { ExternalLink, LogOut, Volume2, VolumeX, Bell, BellOff, BadgeCheck, KeyRound, Loader2, CreditCard } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useSound } from "@/components/SoundProvider";
 import { usePushToggle } from "@/lib/push/usePushToggle";
@@ -100,7 +100,7 @@ export default function AvatarMenu({
         onClick={() => setOpen((v) => !v)}
         aria-label="Account menu"
         aria-expanded={open}
-        className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-ringo-indigo text-white text-sm font-medium ring-2 ring-transparent hover:ring-ringo-indigo/30 transition"
+        className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center bg-ringo-indigo text-white text-sm font-medium ring-2 ring-transparent hover:ring-ringo-indigo/30 transition focus-visible:outline-none focus-visible:ring-ringo-indigo/60"
       >
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -128,17 +128,26 @@ export default function AvatarMenu({
             href={`/${username}`}
             target="_blank"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors"
+            className="flex items-center gap-2 min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors"
           >
             <ExternalLink size={14} />
             {t.account.viewPage}
+          </Link>
+          {/* Subscription is an account matter, so it lives here (not in the dashboard's navigation). */}
+          <Link
+            href="/dashboard/subscription"
+            onClick={() => setOpen(false)}
+            className="flex min-h-[44px] items-center gap-2 min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors"
+          >
+            <CreditCard size={14} />
+            {t.nav.subscription}
           </Link>
           {/* Blue-tick request — opens a full modal (VerificationRequestModal)
               rather than anything inline here, since a real form needs more
               room than a dropdown row. Already-verified creators see a plain
               label instead of a button — nothing left to request. */}
           {isVerified ? (
-            <span className="flex items-center gap-2 px-3.5 py-2.5 text-sm text-blue-500">
+            <span className="flex items-center gap-2 min-h-[44px] px-3.5 py-2.5 text-sm text-blue-500">
               <BadgeCheck size={14} />
               {t.account.verifiedLabel}
             </span>
@@ -148,7 +157,7 @@ export default function AvatarMenu({
                 setOpen(false);
                 setShowVerification(true);
               }}
-              className="flex items-center gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left"
+              className="flex items-center gap-2 w-full min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left"
             >
               <BadgeCheck size={14} />
               {t.account.requestVerification}
@@ -162,7 +171,7 @@ export default function AvatarMenu({
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
             aria-pressed={soundEnabled}
-            className="flex items-center justify-between gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left"
+            className="flex items-center justify-between gap-2 w-full min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left"
           >
             <span className="flex items-center gap-2">
               {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
@@ -185,7 +194,7 @@ export default function AvatarMenu({
             // won't show a browser prompt again, so a normal toggle here
             // would silently do nothing on click. Explain it instead of
             // pretending it's a working switch.
-            <div className="flex items-center gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-muted">
+            <div className="flex items-center gap-2 w-full min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-muted">
               <BellOff size={14} className="shrink-0" />
               <span className="text-xs">{t.pushNotifications.permissionDenied}</span>
             </div>
@@ -195,7 +204,7 @@ export default function AvatarMenu({
                 onClick={togglePush}
                 disabled={pushBusy}
                 aria-pressed={pushStatus === "on"}
-                className="flex items-center justify-between gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left disabled:opacity-60"
+                className="flex items-center justify-between gap-2 w-full min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left disabled:opacity-60"
               >
                 <span className="flex items-center gap-2">
                   {pushStatus === "on" ? <Bell size={14} /> : <BellOff size={14} />}
@@ -223,7 +232,7 @@ export default function AvatarMenu({
               onClick={toggleTeamBadges}
               disabled={badgesSaving}
               aria-pressed={badgesEnabled}
-              className="flex items-center justify-between gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left disabled:opacity-60"
+              className="flex items-center justify-between gap-2 w-full min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left disabled:opacity-60"
             >
               <span className="flex items-center gap-2">
                 {badgesSaving ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
@@ -251,14 +260,14 @@ export default function AvatarMenu({
               setOpen(false);
               setShowChangePassword(true);
             }}
-            className="flex items-center gap-2 w-full px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left"
+            className="flex items-center gap-2 w-full min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-text hover:bg-ringo-muted/10 transition-colors text-left"
           >
             <KeyRound size={14} />
             {t.account.changePassword}
           </button>
           <Link
             href="/auth/logout"
-            className="flex items-center gap-2 px-3.5 py-2.5 text-sm text-ringo-coral hover:bg-ringo-coral/10 transition-colors"
+            className="flex items-center gap-2 min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-coral hover:bg-ringo-coral/10 transition-colors"
           >
             <LogOut size={14} />
             {t.account.logout}

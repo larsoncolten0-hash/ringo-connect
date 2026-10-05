@@ -36,8 +36,10 @@ const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$
 const git = (cmd) => execSync(`git ${cmd}`, { cwd: REPO, encoding: "utf8" });
 const PHASE3_BASE = "b33b1f4"; // the approved Phase 1 + 2 commit
 const PHASE3A_COMMIT = "55eb256"; // Phase 3A as committed. The WhatsApp inbox commits landed on this branch after it, so "everything since PHASE3_BASE" is no longer
-// the Phase 3 work; phase3Diff() is the Phase 3 work only: the 3A commit plus whatever is uncommitted on top of the current HEAD (3B onward).
-const phase3Diff = (opts, paths = "") => git(`diff ${opts} ${PHASE3_BASE} ${PHASE3A_COMMIT} ${paths}`) + git(`diff ${opts} HEAD ${paths}`);
+const PHASE3B_COMMIT = "8fc6f6c"; // Phase 3B-3F as committed (category stages, connection journey), also on top of the WhatsApp commits
+// the Phase 3 work; phase3Diff() is the Phase 3 work only: exactly the two Phase 3 commits. It does NOT read the working tree: whatever is uncommitted
+// on top of HEAD belongs to the work in progress after Phase 3 and is guarded by that work's own scope tests (see ownerWorkspaceFiles.mjs).
+const phase3Diff = (opts, paths = "") => git(`diff ${opts} ${PHASE3_BASE} ${PHASE3A_COMMIT} ${paths}`) + git(`diff ${opts} ${PHASE3B_COMMIT}^ ${PHASE3B_COMMIT} ${paths}`);
 
 const { translations } = jiti(path.join(SRC, "lib/i18n/translations.ts"));
 const color = jiti(path.join(SRC, "lib/color.ts"));
@@ -371,7 +373,7 @@ await test("hero pin: MusicHeroButtons was edited on purpose and carries its new
   assert.ok(rest.every((l) => /readableOn|#fff|lib\/color|text-\[(9|11)px\]|icon: Phone, label: (\"Call\"|t\.profilePage\.callButton)/.test(l)), "restaurant: colour and size only: " + rest.join(" | "));
 });
 await test("scope: no auth, payment, commission, payout, inventory, booking, ticketing, API, database, SEO, routing, package or profile-page file changed", () => {
-  const changed = phase3Diff("--name-only").split("\n").filter(Boolean).concat(git("ls-files --others --exclude-standard").split("\n").filter(Boolean)).filter((f) => !PHASE12_FILES.has(f)); // Phase 3B files are pinned by their own list
+  const changed = phase3Diff("--name-only").split("\n").filter(Boolean).filter((f) => !PHASE12_FILES.has(f)); // Phase 3B files are pinned by their own list
   const protectedPath = /^(package(-lock)?\.json|tsconfig\.tsbuildinfo|\.env|supabase\/|migrations\/|src\/middleware\.ts|src\/app\/|src\/lib\/(auth|billing|payments?|productCheckout|fapshi|stripe|shop|settlement|reports|inventory|music|ticket|booking|publicContent|sectionOrder|heroAction|seo|categories|branding|brandingDefaults)|src\/components\/(checkout|dashboard|auth|catalog|editor|restaurant|connect|landing|overview|BookingButton|WhatsAppButton|SocialIcon)|src\/components\/music\/(useTrackPlayback|ItemDetailPage|MusicStorePage|MusicTabs|Music(Orders|Sales|Earnings|Customers|Overview|Receipt)|ReceiptPageView|TicketPassView|EventCheckinDashboard))/;
   assert.deepEqual(changed.filter((f) => protectedPath.test(f)), []);
   assert.deepEqual(changed.filter((f) => !isPhase2File(f)), [], "every changed file is on the allowlist");

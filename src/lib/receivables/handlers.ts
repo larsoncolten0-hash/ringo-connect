@@ -47,6 +47,8 @@ export async function saveContact(owner: DocOwner, id: string | null, body: unkn
   const r = await rpc(owner, "bk_customer_save", {
     ...base(owner), p_customer_id: id, p_name: p.value.name, p_phone: p.value.phone, p_email: p.value.email, p_notes: p.value.notes,
     p_client_request_id: p.value.client_request_id,
+    // the location is optional and is only sent when there is one: without it this is exactly the call that was always made (the original function)
+    ...(p.value.address !== null ? { p_address: p.value.address } : {}),
   }, id === null ? 201 : 200);
   if (r.status >= 400 || "pdf" in r) return r;
   // an existing active contact with the same phone/email is REPORTED (409), never merged and never duplicated

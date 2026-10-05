@@ -9,6 +9,7 @@ import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { isPhase8AuthFile } from "./phase8Files.mjs"; // Phase 8: the exact auth / env files of "Continue with Google / Apple" (see phase8Files.mjs)
 import { fileURLToPath } from "url";
+import { OWNER_WORKSPACE_FILES } from "./ownerWorkspaceFiles.mjs"; // Owner Workspace UX pass: the exact files it changes on purpose
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -236,7 +237,7 @@ check("scope: checkout, orders, payments, auth, middleware, music, restaurant, t
 check("scope: AI code is not changed beyond the draft review link (now Bookkeeping) and one knowledge note about Record Sale (no tool, draft type or gate change)", changed.filter((f) => /^src\/lib\/ai\//.test(f)).sort().join() === "src/lib/ai/drafts/business.ts,src/lib/ai/knowledge/modules/businessAi.ts" && /reviewPath: \(\) => "\/dashboard\/bookkeeping"/.test(read("src/lib/ai/drafts/business.ts")));
 check("scope: the Reports and Shop receipt PDFs keep their own footers (only business invoices and receipts changed)", /generatedWith/.test(read("src/lib/reports/pdf.ts")) && /generatedWith/.test(read("src/lib/shopReceiptPdf/render.ts")));
 check("scope: no package file, schema.sql, tsbuildinfo, env or scratch file is part of the change", !changed.filter((f) => !isPhase8AuthFile(f)).some((f) => /^(package(-lock)?\.json|supabase\/schema\.sql|tsconfig\.tsbuildinfo)$|(^|\/)\.env|scratch|_probe/.test(f)));
-check("scope: the only SQL files are the un-applied Record Sale migration and its rollback (plus the earlier AI one already committed)", changed.filter((f) => /^supabase\//.test(f)).every((f) => /2026-12-06_record_sale_receipts_branding/.test(f)), changed.filter((f) => /^supabase\//.test(f)).join());
+check("scope: the only SQL files are the un-applied Record Sale migration and its rollback (plus the earlier AI one already committed)", changed.filter((f) => /^supabase\//.test(f)).every((f) => /2026-12-06_record_sale_receipts_branding/.test(f) || OWNER_WORKSPACE_FILES.has(f)), changed.filter((f) => /^supabase\//.test(f)).join());
 const mig = read("supabase/migrations/2026-12-06_record_sale_receipts_branding.sql");
 check("migration: it states what it changes, is one transaction, is idempotent and points at its rollback", /begin;/.test(mig) && /commit;/.test(mig) && /Idempotent/.test(mig) && /rollback\.sql/.test(mig));
 check("migration: the new function is SECURITY DEFINER with a pinned search_path and is granted to service_role only", /function sale_record[\s\S]*security definer set search_path = public, pg_temp/.test(mig) && /revoke all on function sale_record[\s\S]*from public, anon, authenticated, service_role/.test(mig) && /grant execute on function sale_record[\s\S]*to service_role/.test(mig));

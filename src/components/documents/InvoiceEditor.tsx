@@ -14,6 +14,7 @@ import { bpToPercentText } from "@/lib/documents/validation";
 import { parseDetail, errorKey } from "@/lib/documents/uiErrors";
 import { ConfirmModal } from "./DocModals";
 import { callApi, inputClass, labelClass, newRequestId, primaryButton, secondaryButton, useErrorText } from "./shared";
+import Disclosure from "@/components/ui/Disclosure";
 
 type LineState = { key: string; description: string; quantity: string; unit_price: string; discount: string; showDiscount: boolean; product_id: string | null };
 const blankLine = (): LineState => ({ key: newRequestId(), description: "", quantity: "1", unit_price: "", discount: "", showDiscount: false, product_id: null });
@@ -208,28 +209,22 @@ export default function InvoiceEditor({ mode, id, correctId, credit = false }: {
   return (
     <div className="flex flex-col gap-5 max-w-3xl">
       <div className="flex flex-col gap-1">
-        <Link href="/dashboard/documents" className="text-sm text-ringo-muted hover:text-ringo-text w-fit">← {u.back}</Link>
+        <Link href="/dashboard/documents" className="inline-flex min-h-[44px] items-center text-sm text-ringo-muted hover:text-ringo-text w-fit">← {u.back}</Link>
         <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em]">{credit && !docId ? cr.creditSaleTitle : mode === "edit" || docId ? u.editTitle : u.newTitle}</h1>
         {credit && <p className="text-sm text-ringo-muted">{cr.creditSaleIntro}</p>}
         {replacesId && <p className="text-sm text-ringo-muted">{u.correctsInvoice}</p>}
       </div>
 
-      <Card title={u.sellerSection}>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl border border-ringo-border/70 bg-ringo-surface px-4 py-3 text-sm" title={u.sellerHint}>
         {seller ? (
-          <div className="text-sm text-ringo-text break-words">
-            <p className="font-medium">{seller.display_name}</p>
-            {seller.legal_name && <p className="text-ringo-muted">{seller.legal_name}</p>}
-            {seller.address && <p className="text-ringo-muted whitespace-pre-line">{seller.address}</p>}
-            {seller.tax_id && <p className="text-ringo-muted">{t.documents.pdf.taxId}: {seller.tax_id}</p>}
-          </div>
+          <p className="min-w-0 break-words"><span className="text-ringo-muted">{u.sellerFrom}: </span><span className="font-medium text-ringo-text">{seller.display_name}</span></p>
         ) : (
-          <p className="text-sm text-ringo-muted">{u.sellerMissing}{biz?.suggestion?.display_name ? ` (${biz.suggestion.display_name})` : ""}</p>
+          <p className="text-ringo-muted">{u.sellerMissing}{biz?.suggestion?.display_name ? ` (${biz.suggestion.display_name})` : ""}</p>
         )}
-        <p className="text-xs text-ringo-muted">{u.sellerHint}</p>
-        <Link href="/dashboard/documents/settings" className="text-sm text-ringo-indigo hover:underline w-fit">{u.editBusiness}</Link>
-      </Card>
+        <Link href="/dashboard/documents/settings" className="inline-flex min-h-[44px] items-center text-ringo-indigo hover:underline">{u.editBusiness}</Link>
+      </div>
 
-      <Card title={u.customerSection}>
+      <Card n={1} title={u.customerSection}>
         {contacts && contacts.length > 0 && (
           <label className={labelClass}>
             {cr.pickContact}
@@ -249,30 +244,13 @@ export default function InvoiceEditor({ mode, id, correctId, credit = false }: {
           <label className={labelClass}>{u.customerPhone}<input value={cust.phone} onChange={(e) => { touch(); setCust({ ...cust, phone: e.target.value }); }} maxLength={LIMITS.customerPhone} inputMode="tel" className={inputClass} /></label>
           <label className={labelClass}>{u.customerEmail}<input value={cust.email} onChange={(e) => { touch(); setCust({ ...cust, email: e.target.value }); }} maxLength={LIMITS.customerEmail} inputMode="email" className={inputClass} /></label>
         </div>
-        <label className={labelClass}>{u.customerAddress}<textarea value={cust.address} onChange={(e) => { touch(); setCust({ ...cust, address: e.target.value }); }} maxLength={LIMITS.customerAddress} rows={2} className={inputClass} /></label>
-        <label className={labelClass}>{u.customerTaxId}<input value={cust.tax_id} onChange={(e) => { touch(); setCust({ ...cust, tax_id: e.target.value }); }} maxLength={LIMITS.customerTaxId} className={inputClass} /></label>
+        <Disclosure title={u.moreCustomer} defaultOpen={!!(cust.address || cust.tax_id)}>
+          <label className={labelClass}>{u.customerAddress}<textarea value={cust.address} onChange={(e) => { touch(); setCust({ ...cust, address: e.target.value }); }} maxLength={LIMITS.customerAddress} rows={2} className={inputClass} /></label>
+          <label className={labelClass}>{u.customerTaxId}<input value={cust.tax_id} onChange={(e) => { touch(); setCust({ ...cust, tax_id: e.target.value }); }} maxLength={LIMITS.customerTaxId} className={inputClass} /></label>
+        </Disclosure>
       </Card>
 
-      <Card title={u.detailsSection}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className={labelClass}>
-            {u.language}
-            <select value={docLocale} onChange={(e) => { touch(); setDocLocale(e.target.value === "en" ? "en" : "fr"); }} className={inputClass}>
-              <option value="fr">{u.languageFr}</option>
-              <option value="en">{u.languageEn}</option>
-            </select>
-          </label>
-          <div className={labelClass}>{u.currency}<div className={`${inputClass} bg-ringo-muted/5`}>{currency}</div></div>
-        </div>
-        <label className={labelClass}>
-          {u.dueDateLabel}
-          <input type="date" value={dueDate} onChange={(e) => { touch(); setDueDate(e.target.value); }} className={inputClass} />
-          {seller?.default_due_days !== null && seller?.default_due_days !== undefined && <span className="font-normal">{u.dueDateDefault(seller.default_due_days)}</span>}
-        </label>
-        <p className="text-xs text-ringo-muted">{u.issueDateAuto}</p>
-      </Card>
-
-      <Card title={u.linesSection}>
+      <Card n={2} title={u.linesSection}>
         {lines.map((l, i) => {
           const r = preview.per[i];
           return (
@@ -289,11 +267,11 @@ export default function InvoiceEditor({ mode, id, correctId, credit = false }: {
               {l.showDiscount ? (
                 <label className={labelClass}>{u.lineDiscount}<input value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} inputMode="decimal" className={inputClass} /></label>
               ) : (
-                <button type="button" onClick={() => setLine(l.key, { showDiscount: true })} className="self-start text-xs text-ringo-indigo hover:underline">{u.addDiscount}</button>
+                <button type="button" onClick={() => setLine(l.key, { showDiscount: true })} className="inline-flex min-h-[44px] items-center self-start text-xs text-ringo-indigo hover:underline">{u.addDiscount}</button>
               )}
               {lineErrors[i] && <p role="alert" className="text-xs text-rose-600">{lineErrors[i]}</p>}
               {lines.length > 1 && (
-                <button type="button" onClick={() => { touch(); setLines((ls) => ls.filter((x) => x.key !== l.key)); }} className="self-end inline-flex items-center gap-1.5 text-xs text-rose-600 hover:underline">
+                <button type="button" onClick={() => { touch(); setLines((ls) => ls.filter((x) => x.key !== l.key)); }} className="self-end inline-flex min-h-[44px] items-center gap-1.5 text-xs text-rose-600 hover:underline">
                   <Trash2 size={13} />{u.removeLine}
                 </button>
               )}
@@ -310,7 +288,30 @@ export default function InvoiceEditor({ mode, id, correctId, credit = false }: {
         {lines.length >= LIMITS.maxLines && <p className="text-xs text-ringo-muted">{u.maxLines}</p>}
       </Card>
 
-      <Card title={u.taxSection}>
+      <Card n={3} title={u.paymentSection}>
+        <label className={labelClass}>
+          {u.dueDateLabel}
+          <input type="date" value={dueDate} onChange={(e) => { touch(); setDueDate(e.target.value); }} className={inputClass} />
+          {seller?.default_due_days !== null && seller?.default_due_days !== undefined && <span className="font-normal">{u.dueDateDefault(seller.default_due_days)}</span>}
+        </label>
+        <p className="text-xs text-ringo-muted">{u.issueDateAuto}</p>
+        <Disclosure title={u.moreDetails}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className={labelClass}>
+              {u.language}
+              <select value={docLocale} onChange={(e) => { touch(); setDocLocale(e.target.value === "en" ? "en" : "fr"); }} className={inputClass}>
+                <option value="fr">{u.languageFr}</option>
+                <option value="en">{u.languageEn}</option>
+              </select>
+            </label>
+            <div className={labelClass}>{u.currency}<div className={`${inputClass} bg-ringo-muted/5`}>{currency}</div></div>
+          </div>
+          <label className={labelClass}>{u.notes}<textarea value={notes} onChange={(e) => { touch(); setNotes(e.target.value); }} maxLength={LIMITS.notes} rows={3} className={inputClass} /></label>
+          <label className={labelClass}>{u.terms}<textarea value={terms} onChange={(e) => { touch(); setTerms(e.target.value); }} maxLength={LIMITS.terms} rows={3} className={inputClass} /></label>
+        </Disclosure>
+      </Card>
+
+      <Card n={4} title={u.summarySection}>
         {taxConfigured ? (
           <label className="flex items-center gap-2 text-sm text-ringo-text">
             <input type="checkbox" checked={taxEnabled} onChange={(e) => { touch(); setTaxEnabled(e.target.checked); }} className="accent-ringo-indigo" />
@@ -319,20 +320,14 @@ export default function InvoiceEditor({ mode, id, correctId, credit = false }: {
         ) : (
           <p className="text-sm text-ringo-muted">{u.taxOffHint}</p>
         )}
+        <div className="flex flex-col gap-2 text-sm">
+          <Row label={u.subtotal} value={shown ? formatMoney(shown.subtotal, currency, locale) : "—"} />
+          {shown && shown.discount > 0 && <Row label={u.discountTotal} value={`-${formatMoney(shown.discount, currency, locale)}`} />}
+          {rateBp !== null && <Row label={u.taxTotal} value={shown ? formatMoney(shown.tax, currency, locale) : "—"} />}
+          <Row label={u.totalDue} value={shown ? formatMoney(shown.total, currency, locale) : "—"} strong />
+          {!serverTotals && <p className="text-xs text-ringo-muted pt-1">{u.estimateNote}</p>}
+        </div>
       </Card>
-
-      <Card title={`${u.notes} / ${u.terms}`}>
-        <label className={labelClass}>{u.notes}<textarea value={notes} onChange={(e) => { touch(); setNotes(e.target.value); }} maxLength={LIMITS.notes} rows={3} className={inputClass} /></label>
-        <label className={labelClass}>{u.terms}<textarea value={terms} onChange={(e) => { touch(); setTerms(e.target.value); }} maxLength={LIMITS.terms} rows={3} className={inputClass} /></label>
-      </Card>
-
-      <div className="rounded-2xl border border-ringo-border/70 bg-ringo-surface p-4 sm:p-5 flex flex-col gap-2 text-sm">
-        <Row label={u.subtotal} value={shown ? formatMoney(shown.subtotal, currency, locale) : "—"} />
-        {shown && shown.discount > 0 && <Row label={u.discountTotal} value={`-${formatMoney(shown.discount, currency, locale)}`} />}
-        {rateBp !== null && <Row label={u.taxTotal} value={shown ? formatMoney(shown.tax, currency, locale) : "—"} />}
-        <Row label={u.totalDue} value={shown ? formatMoney(shown.total, currency, locale) : "—"} strong />
-        {!serverTotals && <p className="text-xs text-ringo-muted pt-1">{u.estimateNote}</p>}
-      </div>
 
       {credit && !docId && (
         <Card title={cr.depositTitle}>
@@ -371,10 +366,13 @@ function trimZeros(v: string): string {
   return /^\d+\.\d+$/.test(v) ? v.replace(/0+$/, "").replace(/\.$/, "") : v;
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, n, children }: { title: string; n?: number; children: React.ReactNode }) {
   return (
     <section className="rounded-2xl border border-ringo-border/70 bg-ringo-surface p-4 sm:p-5 flex flex-col gap-4">
-      <h2 className="text-sm font-medium text-ringo-text">{title}</h2>
+      <h2 className="flex items-center gap-2.5 font-display text-base font-medium text-ringo-text">
+        {n && <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ringo-indigo/10 text-xs font-semibold text-ringo-indigo">{n}</span>}
+        {title}
+      </h2>
       {children}
     </section>
   );

@@ -4,7 +4,7 @@ import { docError } from "@/lib/documents/http";
 
 const STATUS: Record<string, number> = {
   customer_not_found: 404, reminder_not_found: 404,
-  invalid_customer_name: 400, invalid_phone: 400, invalid_email: 400, invalid_notes: 400, invalid_setting: 400, invalid_channel: 400,
+  invalid_customer_name: 400, invalid_phone: 400, invalid_email: 400, invalid_notes: 400, invalid_address: 400, invalid_setting: 400, invalid_channel: 400,
   not_an_invoice: 400, no_reminder_timing: 400, share_link_invalid: 400,
   customer_archived: 409, duplicate_customer: 409, business_email_required: 409, invoice_not_open: 409, nothing_due: 409,
   no_email: 409, email_suppressed: 409, no_phone: 409,

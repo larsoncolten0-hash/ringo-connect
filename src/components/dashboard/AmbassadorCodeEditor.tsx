@@ -69,7 +69,7 @@ export default function AmbassadorCodeEditor({ code }: { code: string }) {
         <p className="text-xs text-ringo-muted">{c.label}</p>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-mono font-semibold text-ringo-text tracking-wide">{code}</span>
-          <button type="button" onClick={start} className="text-xs font-medium text-ringo-indigo hover:underline">
+          <button type="button" onClick={start} className="inline-flex min-h-[44px] items-center text-xs font-medium text-ringo-indigo hover:underline">
             {c.edit}
           </button>
           {saved && (

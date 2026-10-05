@@ -3,7 +3,7 @@
 const MAP: Record<string, string> = {
   receivables_unavailable: "unavailable", documents_unavailable: "unavailable",
   customer_not_found: "customerNotFound", customer_archived: "customerArchived", duplicate_customer: "duplicateCustomer",
-  invalid_customer_name: "invalidName", invalid_phone: "invalidPhone", invalid_email: "invalidEmail", invalid_notes: "invalidNotes",
+  invalid_customer_name: "invalidName", invalid_phone: "invalidPhone", invalid_email: "invalidEmail", invalid_notes: "invalidNotes", invalid_address: "invalidAddress",
   invalid_setting: "invalidSetting", business_email_required: "businessEmailRequired", no_reminder_timing: "noReminderTiming",
   invoice_not_open: "invoiceNotOpen", nothing_due: "nothingDue", no_email: "noEmail", email_suppressed: "emailSuppressed", no_phone: "noPhone",
   reminder_too_soon: "reminderTooSoon", invoice_reminder_cap: "invoiceReminderCap", daily_cap_reached: "dailyCapReached",

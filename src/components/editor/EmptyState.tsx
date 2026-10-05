@@ -7,10 +7,13 @@ export default function EmptyState({
   icon: Icon,
   title,
   hint,
+  action,
 }: {
   icon: LucideIcon;
   title: string;
   hint?: string;
+  /** One clear next step (a link or button), shown under the text. Optional: omitted, the block is exactly what it was. */
+  action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center text-center gap-2 py-8 px-4 rounded-2xl border border-dashed border-ringo-border bg-ringo-muted/[0.04]">
@@ -19,6 +22,7 @@ export default function EmptyState({
       </span>
       <p className="text-sm font-medium text-ringo-text">{title}</p>
       {hint && <p className="text-xs text-ringo-muted max-w-[280px] leading-relaxed">{hint}</p>}
+      {action && <div className="mt-1">{action}</div>}
     </div>
   );
 }

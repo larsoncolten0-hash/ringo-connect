@@ -245,8 +245,7 @@ export default function DashboardShell({
   useFreshOnReturn();
 
   // `core: true` marks the small set of items the mobile bottom tab bar
-  // actually shows (Editor, Community, Ringo Card, Analytics,
-  // Subscription) — kept deliberately short so the space-constrained tab
+  // actually shows (Home, Editor, Community, Ringo Card, Analytics) — kept deliberately short so the space-constrained tab
   // bar never has to scroll. Everything else defaults to living in the
   // mobile header's "More" hamburger menu (see MobileMoreMenu.tsx) instead
   // — including any category-specific item added here in the future — so
@@ -254,9 +253,9 @@ export default function DashboardShell({
   // The desktop sidebar is unaffected by this split: it always renders
   // every item below, core or not, since it has the room for it.
   const NAV_ITEMS = [
-    // Ringo Home: the guidance overview (next best action, presence, this week). Owner-only like the
-    // Editor's own profile, and deliberately NOT a bottom-bar item, so the 5-item dock is unchanged.
-    ...(!organization?.isStaff ? [{ href: "/dashboard/home", label: t.nav.home, icon: House, core: false }] : []),
+    // Ringo Home: the guidance overview (next best action, presence, this week). Owner-only like the Editor's own profile. It is the
+    // first item of the bottom dock, so getting back home never needs the hamburger menu.
+    ...(!organization?.isStaff ? [{ href: "/dashboard/home", label: t.nav.home, icon: House, core: true }] : []),
     { href: "/dashboard", label: t.nav.editor, icon: LayoutGrid, exact: true, core: true },
     // Restaurant is safe to show to staff regardless: requireRestaurantProfile
     // is org-aware (resolves the active organization, not just an owned
@@ -357,7 +356,9 @@ export default function DashboardShell({
     // canManageAssociation (Owner or active Partner), never on canManageTeam
     // or `organization` — the two features are entirely independent.
     ...(canManageAssociation ? [{ href: "/dashboard/association", label: t.nav.association, icon: Award, core: false }] : []),
-    { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard, core: true },
+    // Subscription lives in the account (avatar) menu, not in the dock, the hamburger or the sidebar: `account: true` keeps it out of all
+    // three lists while the header can still title its page.
+    { href: "/dashboard/subscription", label: t.nav.subscription, icon: CreditCard, core: false, account: true },
     ...(canApproveRequests
       ? [
           { href: "/dashboard/requests", label: t.nav.requests, icon: ClipboardCheck, core: false },
@@ -366,8 +367,9 @@ export default function DashboardShell({
       : []),
   ];
 
-  const mobileTabItems = NAV_ITEMS.filter((item) => item.core);
-  const moreMenuItems = NAV_ITEMS.filter((item) => !item.core);
+  const listedItems = NAV_ITEMS.filter((item) => !item.account);
+  const mobileTabItems = listedItems.filter((item) => item.core);
+  const moreMenuItems = listedItems.filter((item) => !item.core);
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
@@ -418,14 +420,15 @@ export default function DashboardShell({
           <p className="px-3.5 mb-2 text-[10px] font-semibold uppercase tracking-wider text-ringo-muted/70">
             {t.nav.menu}
           </p>
-          <nav className="flex flex-col gap-0.5">
-            {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
+          <nav className="flex flex-col gap-0.5" aria-label={t.nav.menu}>
+            {listedItems.map(({ href, label, icon: Icon, exact }) => {
               const active = isActive(href, exact);
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`group relative flex items-center gap-3 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
+                  aria-current={active ? "page" : undefined}
+                  className={`group relative flex items-center gap-3 pl-3.5 pr-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 ${
                     active
                       ? "bg-ringo-indigo/10 text-ringo-indigo"
                       : "text-ringo-muted hover:bg-ringo-muted/10 hover:text-ringo-text hover:translate-x-0.5"
@@ -529,7 +532,8 @@ export default function DashboardShell({
               <h1 className="hidden sm:block text-[15px] font-semibold text-ringo-text truncate">{currentLabel}</h1>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          {/* the header controls are all at least 44px square (touch target), whatever size their own component draws */}
+          <div className="flex items-center gap-0.5 shrink-0 [&_button]:min-h-[44px] [&_button]:min-w-[44px]">
             <LanguageToggle />
             {userId && <NotificationBell mode="user" userId={userId} backdropTop="top-16" />}
             <ThemeToggle iconOnly />
@@ -677,6 +681,7 @@ export default function DashboardShell({
             secondary items stay out of this dock entirely — they live in
             MobileMoreMenu's hamburger, kept deliberately separate. */}
         <nav
+          aria-label={t.nav.menu}
           className="lg:hidden fixed bottom-3 inset-x-3 z-40 mx-auto flex max-w-[420px] items-center gap-0.5 rounded-[28px] border border-ringo-border/60 bg-ringo-surface/75 px-1.5 py-1.5 shadow-[0_10px_28px_-10px_rgba(15,23,42,0.2)] backdrop-blur-2xl"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
@@ -687,11 +692,11 @@ export default function DashboardShell({
               // instead of each sizing to its label plus fixed padding, so
               // the last one (Subscription) is always on screen — no
               // horizontal scrolling to discover it.
-              <Link key={href} href={href} className="relative flex-1 min-w-0">
+              <Link key={href} href={href} aria-current={active ? "page" : undefined} className="relative flex-1 min-w-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50">
                 <motion.span
                   whileTap={{ scale: 0.92 }}
                   transition={{ type: "spring", stiffness: 600, damping: 32 }}
-                  className="relative flex flex-col items-center gap-0.5 rounded-full px-1 py-1.5 text-[11px] font-medium"
+                  className="relative flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1.5 text-[10px] min-[360px]:text-[11px] font-medium"
                 >
                   {active && (
                     <motion.span

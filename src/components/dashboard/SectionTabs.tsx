@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ChevronRight, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 // A tab is either a link to its own page (`href`) or, for views that swap
 // content in place without navigating, a button (`onSelect` + `active`).
@@ -16,101 +15,75 @@ export type SectionTab = {
   onSelect?: () => void;
 };
 
-// Shared sub-navigation for a dashboard section (Music, Restaurant,
-// Community, Bookings). On desktop it stays the familiar horizontal tab
-// strip. On mobile a row of 5-6 tabs doesn't fit, so instead of a sideways
-// scroller (where the last tabs are easy to miss) it collapses into a
-// button showing the current page; tapping it opens every page stacked
-// top-to-bottom, each row with a right-pointing arrow, so nothing is hidden
-// off-screen and no scrolling is needed to discover it.
+// Shared sub-navigation for a dashboard section (Music, Restaurant, Community, Bookings, Shop, Reports, Documents, Customers, ...).
+// Every page of the section is ALWAYS visible, on every screen size: nothing is tucked behind a small arrow or a collapsed menu that a
+// first-time owner has to discover. On desktop it is the familiar horizontal tab strip. On a phone the same pages are laid out as a
+// grid of large, labelled tabs (two per row, so a name is never cut off), with the current page filled and announced as such
+// (aria-current), so the owner always sees where they are and what else this section holds.
 export default function SectionTabs({ tabs, isActive }: { tabs: SectionTab[]; isActive?: (href: string, exact?: boolean) => boolean }) {
-  const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
   const isTabActive = (tab: SectionTab) => tab.active ?? (tab.href && isActive ? isActive(tab.href, tab.exact) : false);
-  const current = tabs.find(isTabActive) ?? tabs[0];
-  if (!current) return null;
+  if (tabs.length === 0) return null;
   const desktopClass = (active: boolean) =>
-    `flex items-center gap-1.5 px-3.5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+    `flex items-center gap-1.5 px-3.5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 rounded-t-lg ${
       active ? "border-ringo-indigo text-ringo-indigo" : "border-transparent text-ringo-muted hover:text-ringo-text"
     }`;
   const mobileClass = (active: boolean) =>
-    `w-full flex items-center gap-3 px-3.5 py-3 text-sm font-medium border-b border-ringo-border/60 last:border-0 transition-colors ${
-      active ? "bg-ringo-indigo/10 text-ringo-indigo" : "text-ringo-text hover:bg-ringo-muted/10"
+    `flex min-h-[44px] w-full items-center gap-2 rounded-xl border px-3 py-2 text-sm leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 ${
+      active ? "border-ringo-indigo/50 bg-ringo-indigo/10 font-semibold text-ringo-indigo" : "border-ringo-border text-ringo-text hover:bg-ringo-muted/10"
     }`;
+  // an odd last tab takes the whole row, so the grid never leaves a lone half-width gap
+  const spanLast = tabs.length > 2 && tabs.length % 2 === 1;
 
   return (
-    <>
-      {/* Desktop / tablet — unchanged horizontal tabs. */}
+    <nav aria-label={t.nav.sectionPages}>
+      {/* Desktop / tablet: horizontal tabs. */}
       <div className="hidden sm:flex gap-1 overflow-x-auto no-scrollbar border-b border-ringo-border pb-0.5">
         {tabs.map((tab) => {
           const active = isTabActive(tab);
           const inner = (
             <>
-              {tab.icon && <tab.icon size={15} />}
+              {tab.icon && <tab.icon size={15} aria-hidden="true" />}
               {tab.label}
             </>
           );
           return tab.href ? (
-            <Link key={tab.href} href={tab.href} className={desktopClass(active)}>
+            <Link key={tab.href} href={tab.href} aria-current={active ? "page" : undefined} className={desktopClass(active)}>
               {inner}
             </Link>
           ) : (
-            <button key={tab.label} onClick={tab.onSelect} className={desktopClass(active)}>
+            <button key={tab.label} type="button" onClick={tab.onSelect} aria-current={active ? "true" : undefined} className={desktopClass(active)}>
               {inner}
             </button>
           );
         })}
       </div>
 
-      {/* Mobile — collapsible vertical list. */}
-      <div className="sm:hidden rounded-xl border border-ringo-border bg-ringo-surface/60 overflow-hidden">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          className="w-full flex items-center gap-2.5 px-3.5 py-3 text-sm font-semibold text-ringo-indigo"
-        >
-          {current.icon && <current.icon size={16} />}
-          <span className="flex-1 text-left truncate">{current.label}</span>
-          <ChevronDown size={16} className={`text-ringo-muted transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
-        </button>
-        <AnimatePresence initial={false}>
-          {open && (
-            <motion.nav
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.16 }}
-              className="flex flex-col border-t border-ringo-border/60 overflow-hidden"
-            >
-              {tabs.map((tab) => {
-                const active = isTabActive(tab);
-                const inner = (
-                  <>
-                    {tab.icon && <tab.icon size={16} />}
-                    <span className="flex-1 truncate text-left">{tab.label}</span>
-                    <ChevronRight size={16} className={active ? "text-ringo-indigo" : "text-ringo-muted/60"} />
-                  </>
-                );
-                return tab.href ? (
-                  <Link key={tab.href} href={tab.href} onClick={() => setOpen(false)} className={mobileClass(active)}>
-                    {inner}
-                  </Link>
-                ) : (
-                  <button
-                    key={tab.label}
-                    onClick={() => {
-                      tab.onSelect?.();
-                      setOpen(false);
-                    }}
-                    className={mobileClass(active)}
-                  >
-                    {inner}
-                  </button>
-                );
-              })}
-            </motion.nav>
-          )}
-        </AnimatePresence>
-      </div>
-    </>
+      {/* Phone: every page visible as a labelled tab; no hidden menu. */}
+      <ul className={`sm:hidden grid gap-2 ${tabs.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+        {tabs.map((tab, i) => {
+          const active = isTabActive(tab);
+          const inner = (
+            <>
+              {tab.icon && <tab.icon size={16} aria-hidden="true" className="shrink-0" />}
+              <span className="min-w-0 flex-1 break-words text-left">{tab.label}</span>
+            </>
+          );
+          return (
+            <li key={tab.href ?? tab.label} className={spanLast && i === tabs.length - 1 ? "col-span-2" : undefined}>
+              {tab.href ? (
+                <Link href={tab.href} aria-current={active ? "page" : undefined} className={mobileClass(active)}>
+                  {inner}
+                </Link>
+              ) : (
+                <button type="button" onClick={tab.onSelect} aria-current={active ? "true" : undefined} className={mobileClass(active)}>
+                  {inner}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }

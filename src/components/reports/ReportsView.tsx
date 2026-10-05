@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, Clock, Download, Loader2, Wallet, type LucideIcon } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { periodOptions, previousCompletedMonth } from "@/lib/reports/period";
 import type { ReportModel } from "@/lib/reports/build";
@@ -70,6 +71,8 @@ export default function ReportsView() {
 
   const cur = report?.currency ?? "XAF";
   const M = (minor: number, currency = cur) => fmt.money(minor, currency);
+  // what customers still owe, in the report's own currency (the server's figure; shown only when there is something owed)
+  const outstanding = report?.receivables.available ? report.receivables.currencies.find((c) => c.currency === cur)?.outstandingMinor ?? 0 : 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -99,7 +102,6 @@ export default function ReportsView() {
           {pdfBusy ? u.downloading : u.download}
         </button>
       </div>
-      <p className="-mt-3 text-xs text-ringo-muted">{u.defaultNote}</p>
       {pdfError && <p role="alert" className="rounded-card bg-rose-500/10 p-3 text-sm text-rose-700 dark:text-rose-400">{pdfError}</p>}
 
       {loading && <p className="flex items-center gap-2 text-sm text-ringo-muted"><Loader2 size={14} className="animate-spin" />{u.loading}</p>}
@@ -120,17 +122,34 @@ export default function ReportsView() {
             <p>{u.shownIn(cur)}</p>
           </div>
 
-          <Section title={L.secSummary}>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Kpi label={L.revenue} value={M(report.revenue.totalMinor)} />
-              <Kpi label={L.expensesRecorded} value={M(report.expenses.totalMinor)} />
-              <Kpi label={L.netCash} value={M(report.cash.netMovementMinor)} />
+          <section aria-label={u.keyFigures} className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Kpi icon={ArrowDownLeft} tone="in" label={L.revenue} value={M(report.revenue.totalMinor)} />
+              <Kpi icon={ArrowUpRight} tone="out" label={L.expensesRecorded} value={M(report.expenses.totalMinor)} />
+              <Kpi icon={Wallet} tone="net" label={L.netCash} value={M(report.cash.netMovementMinor)} />
+              {outstanding > 0 && <Kpi icon={Clock} tone="owed" label={L.outstanding} value={M(outstanding)} />}
             </div>
-            <Note>{L.profitNote}</Note>
-            <details className="text-xs text-ringo-muted"><summary className="cursor-pointer">{u.howToRead}</summary><p className="mt-1">{u.howToReadBody}</p></details>
-          </Section>
+            {/* how to read the numbers: the profit and net-cash notes stay on the page, one tap away */}
+            <details className="text-xs text-ringo-muted">
+              <summary className="inline-flex min-h-[44px] cursor-pointer items-center">{u.howToRead}</summary>
+              <div className="flex flex-col gap-1.5 pb-2">
+                <p>{u.howToReadBody}</p>
+                <Note>{L.profitNote}</Note>
+              </div>
+            </details>
+          </section>
 
-          <Section title={L.secRevenue}>
+          {report.revenue.totalMinor === 0 && report.expenses.totalMinor === 0 && (
+            <div className="flex flex-col items-start gap-1 rounded-2xl border border-dashed border-ringo-border p-5">
+              <p className="font-display text-base font-medium text-ringo-text">{u.emptyTitle}</p>
+              <p className="text-sm text-ringo-muted">{u.emptyBody}</p>
+              <Link href="/dashboard/bookkeeping" className={`${primaryButton} mt-2`}>{u.emptyCta}</Link>
+            </div>
+          )}
+
+          <h2 className="-mb-2 text-xs font-medium uppercase tracking-wider text-ringo-muted">{u.details}</h2>
+
+          <Section title={L.secRevenue} value={M(report.revenue.totalMinor)}>
             <Row label={L.onlineGross} value={M(report.revenue.onlineGrossMinor)} />
             <Row label={L.invoicePayments} value={M(report.revenue.invoicePaymentsMinor)} />
             <Row label={L.manualSales} value={M(report.revenue.manualSalesMinor)} />
@@ -144,7 +163,7 @@ export default function ReportsView() {
             <Note>{L.revenueNote}</Note>
           </Section>
 
-          <Section title={L.secOnline}>
+          <Section title={L.secOnline} value={M(report.online.netMinor)}>
             <Row label={L.grossOnline} value={M(report.online.grossMinor)} />
             <Row label={L.commission} value={M(report.online.commissionMinor)} />
             <Row label={L.netEarnings} value={M(report.online.netMinor)} bold />
@@ -170,7 +189,7 @@ export default function ReportsView() {
             )}
           </Section>
 
-          <Section title={L.secExpenses}>
+          <Section title={L.secExpenses} value={M(report.expenses.totalMinor)}>
             {report.expenses.totalMinor === 0 && report.expenses.unpaidMinor === 0 ? <Note>{L.noExpenses}</Note> : (
               <>
                 <Row label={L.operatingExpenses} value={M(report.expenses.operatingMinor)} />
@@ -188,7 +207,7 @@ export default function ReportsView() {
             )}
           </Section>
 
-          <Section title={L.secCash}>
+          <Section title={L.secCash} value={M(report.cash.netMovementMinor)}>
             <Row label={L.cashDirect} value={M(report.cash.receivedDirectMinor)} />
             <Row label={L.cashPaidOut} value={`- ${M(report.cash.paidOutMinor)}`} />
             <Row label={L.netCash} value={M(report.cash.netMovementMinor)} bold />
@@ -250,19 +269,34 @@ export default function ReportsView() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// A detail block: closed by default, the headline figure on the row itself. A native <details>, so Enter / Space toggle it, the open state is
+// announced to screen readers, and everything inside stays in the page.
+function Section({ title, value, children }: { title: string; value?: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-1.5 rounded-card border border-ringo-border p-4">
-      <h2 className="mb-1 font-display text-base font-medium text-ringo-text">{title}</h2>
-      {children}
-    </section>
+    <details className="group rounded-card border border-ringo-border bg-ringo-surface">
+      <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 rounded-card px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 [&::-webkit-details-marker]:hidden">
+        <span className="font-display text-base font-medium text-ringo-text">{title}</span>
+        <span className="flex shrink-0 items-center gap-2">
+          {value && <span className="text-sm tabular-nums text-ringo-muted">{value}</span>}
+          <ChevronDown size={16} aria-hidden="true" className="text-ringo-muted transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+        </span>
+      </summary>
+      <div className="flex flex-col gap-1.5 border-t border-ringo-border/60 px-4 py-3">{children}</div>
+    </details>
   );
 }
-function Kpi({ label, value }: { label: string; value: string }) {
+const KPI_TONES: Record<string, string> = {
+  in: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  out: "bg-rose-500/10 text-rose-700 dark:text-rose-400",
+  net: "bg-ringo-indigo/10 text-ringo-indigo",
+  owed: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+};
+function Kpi({ icon: Icon, tone, label, value }: { icon: LucideIcon; tone: "in" | "out" | "net" | "owed"; label: string; value: string }) {
   return (
-    <div className="rounded-card border border-ringo-border p-3">
+    <div className="flex min-w-0 flex-col gap-1.5 rounded-2xl border border-ringo-border/70 bg-ringo-surface p-4">
+      <span aria-hidden="true" className={`flex h-8 w-8 items-center justify-center rounded-xl ${KPI_TONES[tone]}`}><Icon size={16} /></span>
       <p className="text-xs text-ringo-muted">{label}</p>
-      <p className="mt-1 text-lg font-medium text-ringo-text">{value}</p>
+      <p className="text-base sm:text-lg font-semibold tabular-nums tracking-[-0.01em] text-ringo-text">{value}</p>
     </div>
   );
 }

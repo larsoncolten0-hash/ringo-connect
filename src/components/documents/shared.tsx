@@ -144,8 +144,8 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   );
 }
 
-export const inputClass = "w-full text-sm border border-ringo-border rounded-card px-3 py-2.5 bg-ringo-bg text-ringo-text disabled:opacity-60";
+export const inputClass = "w-full text-sm border border-ringo-border rounded-card px-3 py-2.5 min-h-[44px] bg-ringo-bg text-ringo-text disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";
 export const labelClass = "flex flex-col gap-1.5 text-xs font-medium text-ringo-muted";
-export const primaryButton = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card bg-ringo-indigo px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:opacity-50";
-export const secondaryButton = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card border border-ringo-border px-4 py-2 text-sm font-medium text-ringo-text transition hover:bg-ringo-muted/10 disabled:opacity-50";
-export const dangerButton = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card border border-rose-500/40 px-4 py-2 text-sm font-medium text-rose-700 dark:text-rose-400 transition hover:bg-rose-500/10 disabled:opacity-50";
+export const primaryButton = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card bg-ringo-indigo px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";
+export const secondaryButton = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card border border-ringo-border px-4 py-2 text-sm font-medium text-ringo-text transition hover:bg-ringo-muted/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";
+export const dangerButton = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card border border-rose-500/40 px-4 py-2 text-sm font-medium text-rose-700 dark:text-rose-400 transition hover:bg-rose-500/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";

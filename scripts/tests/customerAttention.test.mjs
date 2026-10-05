@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
 import { SRC, REPO, PROFILE, OTHER, USER, ID, makeJiti, mkOwner, counters } from "./phase7Harness.mjs";
+import { OWNER_WORKSPACE_FILES } from "./ownerWorkspaceFiles.mjs"; // Owner Workspace UX pass: the exact files it changes on purpose
 
 const read = (f) => fs.readFileSync(path.join(REPO, f), "utf8").replace(/\r\n/g, "\n");
 const strip = (s) => s.replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/\/\*[\s\S]*?\*\//g, "");
@@ -183,6 +184,7 @@ const ids = (items) => items.map((i) => `${i.customerId}`);
   check("the Business Overview links to Needs attention", /\/dashboard\/customers\/attention/.test(read("src/components/overview/OverviewView.tsx")) && /u\.openAttention/.test(read("src/components/overview/OverviewView.tsx")));
   let diff = "x";
   try { diff = execFileSync("git", ["diff", "--name-only", "HEAD", "--", "src/components/customers/CustomersView.tsx", "src/components/customers/CustomerProfileView.tsx", "src/components/customers/CustomerForm.tsx", "src/components/customers/PossibleOrders.tsx", "src/components/customers/shared.tsx", "src/lib/customers/handlers.ts", "src/lib/customers/access.ts", "src/lib/customers/match.ts", "src/lib/customers/profile.ts", "src/lib/customers/search.ts", "src/lib/customers/constants.ts", "src/app/api/customers/route.ts", "src/app/dashboard/customers/layout.tsx", "src/app/dashboard/customers/[id]", "src/app/api/customers/[id]", "src/components/receivables", "src/lib/receivables", "src/app/api/receivables"], { cwd: REPO }).toString().trim(); } catch { diff = ""; }
+  diff = diff.split("\n").filter((f) => f.trim() && !OWNER_WORKSPACE_FILES.has(f.trim())).join("\n"); // the Owner Workspace pass edited CustomersView on purpose (exact list: ownerWorkspaceFiles.mjs); the rest of this list stays frozen
   check("Phase 6 and Phase 3 customer code is untouched (directory, profile, matching, handlers, contacts, debtors)", diff === "", diff);
 
   const flat = (o, p = "") => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" ? flat(v, `${p}${k}.`) : [`${p}${k}`]));

@@ -11,7 +11,7 @@ const optText = (v: unknown, max: number, code: string, errors: string[]): strin
   return v.trim() === "" ? null : v;
 };
 
-export type ContactInput = { name: string; phone: string | null; email: string | null; notes: string | null; client_request_id: string | null };
+export type ContactInput = { name: string; phone: string | null; email: string | null; notes: string | null; address: string | null; client_request_id: string | null };
 
 export function parseContactBody(body: unknown, creating: boolean): Parsed<ContactInput> {
   if (!isObj(body)) return { ok: false, details: ["invalid_body"] };
@@ -22,11 +22,12 @@ export function parseContactBody(body: unknown, creating: boolean): Parsed<Conta
   const email = optText(body.email, CONTACT_LIMITS.email, "invalid_email", errors);
   if (email !== null && !/^[^\s@]+@[^\s@]+$/.test(email.trim())) errors.push("invalid_email");
   const notes = optText(body.notes, CONTACT_LIMITS.notes, "invalid_notes", errors);
+  const address = optText(body.address, CONTACT_LIMITS.address, "invalid_address", errors);
   let rid: string | null = null;
   if (body.client_request_id !== undefined && body.client_request_id !== null) {
     if (!isUuid(body.client_request_id)) errors.push("request_id_required"); else rid = body.client_request_id;
   } else if (creating) errors.push("request_id_required");
-  return errors.length ? { ok: false, details: errors } : { ok: true, value: { name, phone, email, notes, client_request_id: rid } };
+  return errors.length ? { ok: false, details: errors } : { ok: true, value: { name, phone, email, notes, address, client_request_id: rid } };
 }
 
 export type SettingsInput = {

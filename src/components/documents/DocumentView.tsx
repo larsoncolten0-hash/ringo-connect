@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, Loader2, Printer, Plus, XCircle } from "lucide-react";
+import { CheckCircle2, Download, Loader2, Printer, Plus, XCircle } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatDateKey, formatMoney, formatQuantityMilli } from "@/lib/documents/moneyFormat";
 import type { DocumentModel, LineModel, PartyModel } from "@/lib/documents/types";
@@ -288,16 +288,17 @@ function ReceiptBody({ view, reload }: { view: View; reload: () => void }) {
   const justRecorded = useSearchParams()?.get("sale") === "1";
   const errorText = useErrorText();
   const [voiding, setVoiding] = useState(false);
+  const dash = "border-t border-dashed border-ringo-border";
   return (
-    <div className="flex flex-col gap-5 max-w-2xl">
+    <div className="flex max-w-xl flex-col gap-5">
       {sale && justRecorded && (
-        <div role="status" className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4">
+        <div role="status" className="flex items-center gap-2.5 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3">
+          <CheckCircle2 size={18} aria-hidden="true" className="shrink-0 text-emerald-600 dark:text-emerald-400" />
           <p className="text-sm font-medium text-ringo-text">{u.saleRecordedTitle(m.number ?? "")}</p>
-          <p className="mt-1 text-sm text-ringo-muted">{u.saleRecordedBody}</p>
         </div>
       )}
       <div className="flex flex-col gap-2">
-        <Link href={sale ? "/dashboard/sales" : view.parent ? `/dashboard/documents/${view.parent.id}` : "/dashboard/documents"} className="text-sm text-ringo-muted hover:text-ringo-text w-fit">← {sale ? t.sales.title : view.parent ? `${u.forInvoice} ${view.parent.number}` : u.back}</Link>
+        <Link href={sale ? "/dashboard/sales" : view.parent ? `/dashboard/documents/${view.parent.id}` : "/dashboard/documents"} className="inline-flex min-h-[44px] w-fit items-center text-sm text-ringo-muted hover:text-ringo-text">&larr; {sale ? t.sales.title : view.parent ? `${u.forInvoice} ${view.parent.number}` : u.back}</Link>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-display text-2xl font-medium text-ringo-text tracking-[-0.01em] break-words">{u.receiptHeading} {m.number}</h1>
           <StatusBadge status={view.status} />
@@ -306,52 +307,67 @@ function ReceiptBody({ view, reload }: { view: View; reload: () => void }) {
 
       {view.status === "void" && <VoidBanner view={view} />}
 
-      <Card>
-        {/* This is the sentence that matters: a receipt for a payment the business recorded, never a Ringo-verified payment. */}
-        <p className="text-sm font-medium text-ringo-text">{sale ? u.saleReceiptNote : u.recordedByBusiness}</p>
-        {p && (
-          <>
-            <div className="rounded-xl border border-ringo-border/60 p-4">
-              <p className="text-xs text-ringo-muted">{u.amountReceived}</p>
-              <p className={`text-2xl font-semibold tabular-nums break-words ${view.status === "void" ? "line-through text-ringo-muted" : "text-ringo-indigo"}`}>{formatMoney(p.amountMinor, m.currency, locale)}</p>
-              <p className="text-xs text-ringo-muted">{m.currency}</p>
-            </div>
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <div><dt className="text-xs text-ringo-muted">{u.receiptNumber}</dt><dd className="text-ringo-text">{m.number}</dd></div>
-              {!sale && <div><dt className="text-xs text-ringo-muted">{u.forInvoice}</dt><dd className="text-ringo-text">{view.parent ? <Link href={`/dashboard/documents/${view.parent.id}`} className="text-ringo-indigo hover:underline">{p.invoiceNumber}</Link> : p.invoiceNumber}</dd></div>}
-              <div><dt className="text-xs text-ringo-muted">{u.paymentDate}</dt><dd className="text-ringo-text">{formatDateKey(p.paidOn, locale)}</dd></div>
-              <div><dt className="text-xs text-ringo-muted">{u.paymentMethod}</dt><dd className="text-ringo-text">{t.documents.pdf.methods[p.method] ?? p.method}</dd></div>
-              {!sale && <div><dt className="text-xs text-ringo-muted">{u.reference}</dt><dd className="text-ringo-text break-words">{p.reference || "—"}</dd></div>}
-              {!sale && <div><dt className="text-xs text-ringo-muted">{u.balanceAfter}</dt><dd className="text-ringo-text tabular-nums">{formatMoney(p.balanceAfterMinor, m.currency, locale)}</dd></div>}
-            </dl>
-          </>
-        )}
-      </Card>
-
-      <Card>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      {/* The receipt itself: the business, the amount, the customer, the items, how it was paid. Dashed rules only between the parts, like a printed receipt. */}
+      <article className="overflow-hidden rounded-2xl border border-ringo-border/70 bg-ringo-surface">
+        <div className="flex items-start justify-between gap-4 p-5">
           <PartyBlock title={u.from} p={m.seller} seller />
-          {m.customer.name || !sale ? <PartyBlock title={u.billedTo} p={m.customer} seller={false} /> : <div><h3 className="text-xs font-medium text-ringo-muted mb-1">{u.billedTo}</h3><p className="text-ringo-muted">{u.walkInCustomer}</p></div>}
+          <dl className="shrink-0 text-right text-xs">
+            <dt className="text-ringo-muted">{u.receiptNumber}</dt>
+            <dd className="font-medium text-ringo-text tabular-nums">{m.number}</dd>
+            {p && <><dt className="mt-2 text-ringo-muted">{u.paymentDate}</dt><dd className="text-ringo-text">{formatDateKey(p.paidOn, locale)}</dd></>}
+          </dl>
         </div>
-      </Card>
 
-      {sale && m.lines.length > 0 && (
-        <Card title={u.items}>
-          <ItemsList lines={m.lines} m={m} showMoney />
-        </Card>
-      )}
+        {p && (
+          <div className={`${dash} px-5 py-6 text-center`}>
+            <p className="text-xs text-ringo-muted">{u.amountReceived}</p>
+            <p className={`mt-1 text-3xl font-semibold tabular-nums break-words ${view.status === "void" ? "line-through text-ringo-muted" : "text-ringo-text"}`}>{formatMoney(p.amountMinor, m.currency, locale)}</p>
+          </div>
+        )}
+
+        {(m.customer.name || !sale) && (
+          <div className={`${dash} p-5`}>
+            <PartyBlock title={sale ? t.sales.pickedCustomer : u.billedTo} p={m.customer} seller={false} />
+          </div>
+        )}
+        {sale && !m.customer.name && (
+          <div className={`${dash} p-5`}>
+            <h3 className="mb-1 text-xs font-medium text-ringo-muted">{t.sales.pickedCustomer}</h3>
+            <p className="text-sm text-ringo-muted">{u.walkInCustomer}</p>
+          </div>
+        )}
+
+        {sale && m.lines.length > 0 && (
+          <div className={`${dash} p-5`}>
+            <h3 className="mb-1 text-xs font-medium text-ringo-muted">{u.items}</h3>
+            <ItemsList lines={m.lines} m={m} showMoney />
+          </div>
+        )}
+
+        {p && (
+          <dl className={`${dash} grid grid-cols-2 gap-4 p-5 text-sm`}>
+            <div><dt className="text-xs text-ringo-muted">{u.paymentMethod}</dt><dd className="text-ringo-text">{t.documents.pdf.methods[p.method] ?? p.method}</dd></div>
+            {!sale && <div><dt className="text-xs text-ringo-muted">{u.forInvoice}</dt><dd className="text-ringo-text">{view.parent ? <Link href={`/dashboard/documents/${view.parent.id}`} className="text-ringo-indigo hover:underline">{p.invoiceNumber}</Link> : p.invoiceNumber}</dd></div>}
+            {!sale && <div><dt className="text-xs text-ringo-muted">{u.reference}</dt><dd className="text-ringo-text break-words">{p.reference || "\u2014"}</dd></div>}
+            {!sale && <div><dt className="text-xs text-ringo-muted">{u.balanceAfter}</dt><dd className="text-ringo-text tabular-nums">{formatMoney(p.balanceAfterMinor, m.currency, locale)}</dd></div>}
+          </dl>
+        )}
+
+        {/* The sentence that matters: a payment the business recorded, never a Ringo-verified payment. */}
+        <p className={`${dash} bg-ringo-muted/5 px-5 py-3 text-center text-xs text-ringo-muted`}>{sale ? u.saleReceiptNote : u.recordedByBusiness}</p>
+      </article>
 
       {m.parent && m.parent.lines.length > 0 && (
-        <Card title={`${u.items} · ${m.parent.number}`}>
+        <Card title={`${u.items} \u00b7 ${m.parent.number}`}>
           <ItemsList lines={m.parent.lines} m={m} showMoney={false} />
         </Card>
       )}
 
       <div className="flex flex-wrap gap-2">
-        <PrintBtn id={view.id} />
-        <Pdf id={view.id} label={u.downloadReceipt} />
-        {view.actions?.share && <ShareButton docId={view.id} number={m.number} className={secondaryButton} />}
         {sale && <Link href="/dashboard/sales" className={primaryButton}><Plus size={15} />{t.sales.title}</Link>}
+        <Pdf id={view.id} label={u.downloadReceipt} />
+        <PrintBtn id={view.id} />
+        {view.actions?.share && <ShareButton docId={view.id} number={m.number} className={secondaryButton} />}
         {view.actions?.voidSale && <button onClick={() => setVoiding(true)} className={dangerButton}><XCircle size={15} />{u.voidSale}</button>}
       </div>
       {voiding && (
@@ -361,4 +377,3 @@ function ReceiptBody({ view, reload }: { view: View; reload: () => void }) {
     </div>
   );
 }
-

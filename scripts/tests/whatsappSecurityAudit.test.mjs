@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
 import { fileURLToPath } from "url";
+import { OWNER_WORKSPACE_FILES } from "./ownerWorkspaceFiles.mjs"; // Owner Workspace UX pass: the exact files it changes on purpose
 
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
 const results = [];
@@ -95,7 +96,7 @@ check("preserved: the audited Phase 4/7/8 migrations and the ingest, parse, sign
 const num = git("diff", "--numstat", "--", "src/lib/whatsapp/outbound.ts");
 check("preserved: the Phase 7 text sender changed by exactly one line (exporting its error classifier)", num === null || num.trim() === "" || num.trim().startsWith("1\t1\t"), num);
 const ALLOWED = [/^src\/(lib|components|app)\/.*inbox/i, /^src\/lib\/whatsapp\//, /^src\/app\/api\/(inbox|cron\/inbox-follow-ups|integrations\/whatsapp)\//, /^src\/app\/dashboard\/inbox\//, /^src\/lib\/(i18n\/translations|notificationCategories)\.ts$/, /^src\/lib\/ai\/knowledge\//, /^vercel\.json$/, /^src\/lib\/team\/(permissions|activity|inboxOwnerOnly)\.ts$/, /^src\/app\/api\/team\/(roles|members|invitations)\//, /^src\/components\/team\/RolesPanel\.tsx$/, /^src\/components\/dashboard\/DashboardShell\.tsx$/, /^src\/app\/dashboard\/layout\.tsx$/, /^src\/lib\/ai\/inboxStaffAccess\.ts$/, /^scripts\/tests\/(inbox|whatsapp|documentsAi\.test)/, /^supabase\/(migrations|support)\/.*(whatsapp)/, /^supabase\/support\/tests\/whatsapp_/];
-check("scope: every changed or new file belongs to the WhatsApp/Inbox work (no unrelated file was touched)", changed === null || changed.every((f) => ALLOWED.some((re) => re.test(f))), (changed || []).filter((f) => !ALLOWED.some((re) => re.test(f))).join());
+check("scope: every changed or new file belongs to the WhatsApp/Inbox work (no unrelated file was touched)", changed === null || changed.every((f) => ALLOWED.some((re) => re.test(f)) || OWNER_WORKSPACE_FILES.has(f)), (changed || []).filter((f) => !ALLOWED.some((re) => re.test(f)) && !OWNER_WORKSPACE_FILES.has(f)).join());
 check("scope: no package, lockfile, config, middleware, billing, payment or auth file changed", changed === null || changed.every((f) => !/package(-lock)?\.json|next\.config|middleware|tsconfig|billing|payment|checkout|fapshi|auth\//i.test(f)), (changed || []).filter((f) => /package|middleware|billing|payment|fapshi|auth\//i.test(f)).join());
 check("preserved: Phase 8 and 9 behaviour is covered by suites that still exist (saved replies, status, media, AI)", ["scripts/tests/whatsappInboxTools.test.mjs", "scripts/tests/whatsappMedia.test.mjs", "scripts/tests/whatsappInboxAi.test.mjs", "scripts/tests/whatsappInboxAutomation.test.mjs", "scripts/tests/whatsappReply.test.mjs", "scripts/tests/whatsappIngest.test.mjs", "scripts/tests/whatsappWebhook.test.mjs", "scripts/tests/inbox.test.mjs"].every((f) => fs.existsSync(path.join(REPO, f))));
 

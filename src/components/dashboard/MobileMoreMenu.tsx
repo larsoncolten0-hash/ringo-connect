@@ -56,7 +56,7 @@ export default function MobileMoreMenu({
         onClick={() => setOpen((v) => !v)}
         aria-label={label}
         aria-expanded={open}
-        className="lg:hidden shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-ringo-text hover:bg-ringo-muted/10 transition-colors"
+        className="lg:hidden shrink-0 w-11 h-11 -ml-2 flex items-center justify-center rounded-lg text-ringo-text hover:bg-ringo-muted/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
       >
         {open ? <X size={20} /> : <Menu size={20} />}
       </button>
@@ -117,7 +117,8 @@ export default function MobileMoreMenu({
                     <Link
                       href={href}
                       onClick={() => setOpen(false)}
-                      className={`flex items-center gap-3 py-3 text-sm font-medium transition-colors ${
+                      aria-current={active ? "page" : undefined}
+                      className={`flex min-h-[44px] items-center gap-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 rounded-lg ${
                         active ? "text-ringo-indigo" : "text-ringo-text"
                       }`}
                     >
