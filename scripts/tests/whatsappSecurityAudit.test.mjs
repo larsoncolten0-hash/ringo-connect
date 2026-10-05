@@ -19,7 +19,7 @@ const LIBS = [...walk("src/lib/whatsapp"), ...walk("src/lib/inbox")];
 const COMPONENTS = walk("src/components/inbox");
 const ROUTES = [...walk("src/app/api/inbox"), ...walk("src/app/api/integrations/whatsapp"), ...walk("src/app/api/cron/inbox-follow-ups")].filter((f) => /route\.ts$/.test(f));
 const PAGES = walk("src/app/dashboard/inbox");
-const MIGRATIONS = ["2026-12-07_whatsapp_inbox_foundation", "2026-12-08_whatsapp_outbound_replies", "2026-12-09_whatsapp_inbox_tools", "2026-12-10_whatsapp_outbound_media", "2026-12-11_whatsapp_inbox_automation"].map((m) => `supabase/migrations/${m}.sql`);
+const MIGRATIONS = ["2026-12-07_whatsapp_inbox_foundation", "2026-12-08_whatsapp_outbound_replies", "2026-12-09_whatsapp_inbox_tools", "2026-12-10_whatsapp_outbound_media", "2026-12-11_whatsapp_inbox_automation", "2026-12-12_whatsapp_inbox_mark_read"].map((m) => `supabase/migrations/${m}.sql`);
 const SQL_SUPPORT = walk("supabase/support").filter((f) => /whatsapp_(inbox|outbound)/.test(f) && f.endsWith(".sql"));
 const ALL_SRC = [...LIBS, ...COMPONENTS, ...ROUTES, ...PAGES].filter((f) => /\.(ts|tsx)$/.test(f));
 
@@ -27,7 +27,7 @@ const ALL_SRC = [...LIBS, ...COMPONENTS, ...ROUTES, ...PAGES].filter((f) => /\.(
 const methods = (f) => [...code(f).matchAll(/export async function (GET|POST|PUT|PATCH|DELETE)\b/g)].map((m) => m[1]);
 const routeInfo = Object.fromEntries(ROUTES.map((f) => [f.replace("src/app/api/", ""), { methods: methods(f), src: code(f) }]));
 const inboxRoutes = Object.entries(routeInfo).filter(([k]) => k.startsWith("inbox/"));
-check("inventory: the inbox API is exactly the expected routes", JSON.stringify(inboxRoutes.map(([k]) => k).sort()) === JSON.stringify(["inbox/conversations/[id]/assist/route.ts", "inbox/conversations/[id]/media/route.ts", "inbox/conversations/[id]/messages/route.ts", "inbox/conversations/[id]/status/route.ts", "inbox/saved-replies/[id]/route.ts", "inbox/saved-replies/route.ts", "inbox/settings/route.ts"]), inboxRoutes.map(([k]) => k).join());
+check("inventory: the inbox API is exactly the expected routes", JSON.stringify(inboxRoutes.map(([k]) => k).sort()) === JSON.stringify(["inbox/conversations/[id]/assist/route.ts", "inbox/conversations/[id]/media/route.ts", "inbox/conversations/[id]/messages/route.ts", "inbox/conversations/[id]/read/route.ts", "inbox/conversations/[id]/status/route.ts", "inbox/saved-replies/[id]/route.ts", "inbox/saved-replies/route.ts", "inbox/settings/route.ts"]), inboxRoutes.map(([k]) => k).join());
 check("inbox routes: none exports GET (no inbox data endpoint exists), every one derives the owner from the session (withInboxOwner or resolveInboxOwner)", inboxRoutes.every(([, r]) => !r.methods.includes("GET") && r.methods.length >= 1 && /withInboxOwner|resolveInboxOwner/.test(r.src)));
 check("inbox routes: none reads a profile id, recipient, phone number, WABA id or token from the request", inboxRoutes.every(([, r]) => !/(body|form|b|json)(\.|\?\.|\[["'])(profile|profile_id|to|recipient|phone|phone_number_id|waba|waba_id|token|access_token|user_id|actor)\b/i.test(r.src)), inboxRoutes.filter(([, r]) => /(body|form|b)\.(profile|to|recipient|phone|waba|token|user_id)/i.test(r.src)).map(([k]) => k).join());
 const jsonOrMultipart = (r) => /application\/json|multipart\/form-data/.test(r.src) || /withInboxOwner/.test(r.src);

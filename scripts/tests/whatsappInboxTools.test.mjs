@@ -55,6 +55,7 @@ const routes = {
   status: src("app/api/inbox/conversations/[id]/status/route.ts"),
   create: src("app/api/inbox/saved-replies/route.ts"),
   item: src("app/api/inbox/saved-replies/[id]/route.ts"),
+  read: src("app/api/inbox/conversations/[id]/read/route.ts"),
 };
 const pageList = src("app/dashboard/inbox/page.tsx").default;
 const pageThread = src("app/dashboard/inbox/[id]/page.tsx").default;
@@ -87,7 +88,7 @@ await db.exec(`
   insert into public.users values ('${alice.user}','a@x.test'), ('${bob.user}','b@x.test'), ('${carol.user}','c@x.test');
   insert into public.profiles values ('${alice.profile}','${alice.user}','alice'), ('${bob.profile}','${bob.user}','bob'), ('${carol.profile}','${carol.user}','carol');
 `);
-for (const m of ["2026-12-07_whatsapp_inbox_foundation", "2026-12-08_whatsapp_outbound_replies", "2026-12-09_whatsapp_inbox_tools"]) await db.exec(read(`supabase/migrations/${m}.sql`));
+for (const m of ["2026-12-07_whatsapp_inbox_foundation", "2026-12-08_whatsapp_outbound_replies", "2026-12-09_whatsapp_inbox_tools", "2026-12-12_whatsapp_inbox_mark_read"]) await db.exec(read(`supabase/migrations/${m}.sql`));
 await db.exec(`insert into public.wa_accounts (profile_id, phone_number_id, waba_id) values ('${alice.profile}', '${PH_A}', '1110000000002'), ('${bob.profile}', '${PH_B}', '9990000000002')`);
 const sq = (v) => (v === null || v === undefined ? "null" : Array.isArray(v) ? `'{${v.join(",")}}'` : `'${String(v).replace(/'/g, "''")}'`);
 const hoursAgo = (h) => new Date(Date.now() - h * 3600 * 1000).toISOString();
@@ -198,7 +199,7 @@ try {
   const unreadBefore = (await q1(`select unread_count from public.inbox_conversations where id = '${conv1}'`))[0].unread_count;
   r = await setStatus(conv1, "closed");
   check("owner closes a conversation -> 200 state closed", r.status === 200 && r.body.state === "closed" && (await q1(`select status from public.inbox_conversations where id = '${conv1}'`))[0].status === "closed");
-  check("closing leaves unread_count untouched (no fake 'mark as read')", (await q1(`select unread_count from public.inbox_conversations where id = '${conv1}'`))[0].unread_count === unreadBefore && unreadBefore === 2);
+  check("closing leaves unread_count untouched (close/reopen never changes read state)", (await q1(`select unread_count from public.inbox_conversations where id = '${conv1}'`))[0].unread_count === unreadBefore && unreadBefore === 2);
   check("closing again is a harmless no-op (200)", (await setStatus(conv1, "closed")).status === 200);
   r = await setStatus(conv1, "open");
   check("owner reopens it -> 200 state open", r.status === 200 && (await q1(`select status from public.inbox_conversations where id = '${conv1}'`))[0].status === "open");
@@ -394,6 +395,57 @@ check("logs: nothing sensitive was logged (no titles, bodies, names, numbers or 
   check("migration scope: the status function writes only conversations.status; saved replies are the only deletable rows", /update public\.inbox_conversations cv set status = p_status/.test(sql) && !/unread_count/.test(sql) && (sql.match(/delete from public\./g) || []).length === 1 && /delete from public\.inbox_saved_replies/.test(sql));
   check("the webhook route, parser, ingestion and outbound sender are untouched by Phase 8 (no new import of Phase 8 code)", !/inbox\/(tools|route|client)|saved/i.test(code("src/app/api/integrations/whatsapp/webhook/route.ts") + code("src/lib/whatsapp/parseWebhook.ts") + code("src/lib/whatsapp/ingest.ts") + code("src/lib/whatsapp/outbound.ts") + code("src/lib/inbox/send.ts")));
 }
+// ---- mark a conversation as read (2026-12-12_whatsapp_inbox_mark_read.sql): opening a conversation clears ITS unread count and nothing else ----
+{
+  let r;
+  const code = (f) => read(f).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  const markRead = (id, o) => call(routes.read.POST, `/api/inbox/conversations/${id}/read`, "POST", {}, { ...o, params: { id } });
+  const unreadOf = async (id) => Number((await q1(`select unread_count from public.inbox_conversations where id = '${id}'`))[0].unread_count);
+  const rowSans = async (id) => JSON.stringify((({ unread_count, updated_at, ...rest }) => rest)((await q1(`select * from public.inbox_conversations where id = '${id}'`))[0]));
+  const msgs = async () => JSON.stringify(await q1(`select id, status, body, provider_message_id, received_at from public.inbox_messages order by id`));
+  await ingest({ phone: PH_A, id: "wamid.R1", from: "237644000999", ts: hoursAgo(1), name: "Reader Test", text: "unread one" });
+  await ingest({ phone: PH_A, id: "wamid.R2", from: "237644000999", ts: hoursAgo(0.5), name: "Reader Test", text: "unread two" });
+  const convR = await convOf("237644000999");
+  const bobBefore = await unreadOf(convB), otherBefore = await unreadOf(conv1);
+  reset();
+  check("mark-read: inbound messages raised the count (2) before it is opened", (await unreadOf(convR)) === 2);
+  const rowBefore = await rowSans(convR), msgsBefore = await msgs();
+  r = await markRead(convR);
+  check("mark-read: the owner opening the conversation -> 200 state cleared, unread_count 0", r.status === 200 && r.body.ok === true && r.body.state === "cleared" && (await unreadOf(convR)) === 0);
+  check("mark-read: unread_count is the ONLY conversation field changed (status, timestamps, identity untouched) and no message changed", (await rowSans(convR)) === rowBefore && (await msgs()) === msgsBefore);
+  check("mark-read: other conversations of the same owner and of other owners are untouched", (await unreadOf(conv1)) === otherBefore && (await unreadOf(convB)) === bobBefore);
+  const stamp = String((await q1(`select updated_at from public.inbox_conversations where id = '${convR}'`))[0].updated_at);
+  r = await markRead(convR);
+  check("mark-read: repeating it is harmless (200 state unchanged), still 0, and no row is rewritten", r.status === 200 && r.body.state === "unchanged" && (await unreadOf(convR)) === 0 && String((await q1(`select updated_at from public.inbox_conversations where id = '${convR}'`))[0].updated_at) === stamp);
+  await ingest({ phone: PH_A, id: "wamid.R3", from: "237644000999", ts: hoursAgo(0.1), name: "Reader Test", text: "unread three" });
+  check("mark-read: a new inbound message still increments the count normally (0 -> 1)", (await unreadOf(convR)) === 1);
+  reset();
+  check("mark-read: another owner cannot mark it (404), nothing changed", (await markRead(convR, { user: bob.user })).status === 404 && (await unreadOf(convR)) === 1);
+  check("mark-read: alice cannot mark bob's conversation (404), bob's count is unchanged", (await markRead(convB)).status === 404 && (await unreadOf(convB)) === bobBefore);
+  reset();
+  check("mark-read: unauthenticated -> 401; no WhatsApp account -> 403; no database call in either case", (await markRead(convR, { user: null })).status === 401 && (await markRead(convR, { user: carol.user })).status === 403 && rpcCalls.length === 0 && (await unreadOf(convR)) === 1);
+  check("mark-read: a non-JSON request -> 415 before anything else (a cross-site form post cannot drive it)", (await call(routes.read.POST, `/api/inbox/conversations/${convR}/read`, "POST", null, { contentType: "text/plain", raw: "x", params: { id: convR } })).status === 415 && rpcCalls.length === 0);
+  check("mark-read: a malformed id -> 404 before the database; a well-formed but unknown id -> 404, safely", (await markRead("zzz")).status === 404 && rpcCalls.length === 0 && (await markRead("00000000-0000-4000-8000-00000000ffff")).status === 404 && (await unreadOf(convR)) === 1);
+  check("mark-read: browser-supplied owner/recipient/phone fields are ignored; the database call carries only the actor and the conversation", await (async () => { reset(); const x = await call(routes.read.POST, `/api/inbox/conversations/${convR}/read`, "POST", { profile_id: bob.profile, to: "237699999999", phone_number_id: "1", waba_id: "2", unread_count: 99 }, { params: { id: convR } }); const a = rpcCalls[0].args; return x.status === 200 && Object.keys(a).sort().join() === "p_actor_user_id,p_conversation_id" && a.p_actor_user_id === alice.user && (await unreadOf(convR)) === 0; })());
+  check("mark-read: the route has no GET (a page view never writes)", !/export async function GET/.test(read("src/app/api/inbox/conversations/[id]/read/route.ts")) && routes.read.GET === undefined);
+  reset(); rpcMode = "rpc_error";
+  r = await markRead(conv1);
+  check("mark-read: a database error -> 500 server_error with nothing leaked", r.status === 500 && r.body.error === "server_error" && !JSON.stringify(r.body).includes("SECRET") && !logs.join("\n").includes("SECRET") && (await unreadOf(conv1)) === otherBefore);
+  reset(); rpcMode = "no_client";
+  check("mark-read: service client unavailable -> 503", (await markRead(conv1)).status === 503);
+  reset();
+  await db.exec(`update public.inbox_conversations set unread_count = 4 where id = '${convR}'`);
+  await setStatus(convR, "closed"); await setStatus(convR, "open"); reset();
+  check("mark-read: closing and reopening still never change the count", (await unreadOf(convR)) === 4);
+  check("mark-read: the function cannot be called by anon or authenticated directly (service_role only)", await (async () => { const denied = async (role) => { await db.exec(`set role ${role}`); try { await db.query(`select public.inbox_mark_conversation_read('${alice.user}', '${convR}')`); return false; } catch (e) { return /permission denied/i.test(String(e.message)); } finally { await db.exec("reset role"); } }; return (await denied("anon")) && (await denied("authenticated")) && (await unreadOf(convR)) === 4; })());
+  check("mark-read: the function answers 'invalid' for a null actor or conversation", (await asService(`select public.inbox_mark_conversation_read(null, '${convR}') as r`)).rows[0].r === "invalid" && (await asService(`select public.inbox_mark_conversation_read('${alice.user}', null) as r`)).rows[0].r === "invalid" && (await unreadOf(convR)) === 4);
+  const mig = read("supabase/migrations/2026-12-12_whatsapp_inbox_mark_read.sql").replace(/--.*$/gm, "");
+  check("mark-read migration: one SECURITY DEFINER function with a pinned search_path, service_role-only grants, writes only unread_count, creates no table/column/policy", (mig.match(/create or replace function/g) || []).length === 1 && /security definer\s+set search_path = public, pg_temp/.test(mig) && /revoke all on function %s from public, anon, authenticated, service_role/.test(mig) && /grant execute on function %s to service_role'/.test(mig) && /update public\.inbox_conversations cv set unread_count = 0 where cv\.id = p_conversation_id/.test(mig) && !/create table|alter table|drop |create policy|create trigger|insert into|delete from/i.test(mig) && /p\.user_id = p_actor_user_id/.test(mig));
+  const comp = code("src/components/inbox/ConversationReadMarker.tsx"), srv = code("src/lib/inbox/readState.ts");
+  check("mark-read UI: the marker POSTs to our route (never GET), refreshes only when something was cleared, renders nothing, and is mounted in the thread", /callInboxTool\("POST", readUrl\(conversationId\)\)/.test(comp) && /state === "cleared"/.test(comp) && /return null/.test(comp) && !/createAdminClient|supabase\/server|WHATSAPP_|graph\.facebook/.test(comp + srv) && /<ConversationReadMarker conversationId=\{data\.conversation\.id\} \/>/.test(code("src/components/inbox/InboxView.tsx")));
+  check("mark-read UI: the thread renders without error and the marker adds no visible markup", await (async () => { const m = render("en", React.createElement(InboxView, { list: { ok: true, items: [] }, selectedId: convR, thread: { ok: true, thread: { conversation: { id: convR, channel: "whatsapp", status: "open", replyWindowOpen: true }, contact: { name: "Reader", waId: "237644000999" }, messages: [], truncated: false } } })); return m.includes("Reader") && !/ConversationReadMarker/.test(m); })());
+}
+
 // ---- translations -----------------------------------------------------------------------------------------------------------------------
 {
   const en = translations.en.inbox, fr = translations.fr.inbox;

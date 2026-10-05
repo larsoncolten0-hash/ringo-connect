@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, FileText, Image as ImageIcon, MessageCircle, MessagesSquare, Mic, Search, Smile, TriangleAlert, Video, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ConversationStatusButton from "@/components/inbox/ConversationStatusButton";
+import ConversationReadMarker from "@/components/inbox/ConversationReadMarker";
 import InboxAiPanel from "@/components/inbox/InboxAiPanel";
 import ReplyComposer, { RetryButton } from "@/components/inbox/ReplyComposer";
 import type { ConversationItem, SavedReply, ThreadData, ThreadMessage } from "@/lib/inbox/data";
@@ -264,6 +265,7 @@ function Thread({ data, filter, savedReplies, automation }: { data: ThreadData; 
   const name = data.contact.name || u.unknownContact;
   return (
     <>
+      <ConversationReadMarker conversationId={data.conversation.id} />
       <header className="flex items-center gap-3 border-b border-ringo-border px-4 py-3">
         <Link href={`${INBOX_PATH}${filterQuery(filter)}`} aria-label={u.back} className="-ml-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-surface hover:text-ringo-text lg:hidden">
           <ArrowLeft size={18} aria-hidden="true" />
