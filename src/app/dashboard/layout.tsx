@@ -128,7 +128,7 @@ export default async function DashboardLayout({
   // Partner is a totally separate relationship — see the migration's own
   // header). Always resolved against the signed-in person's OWN profile,
   // never whichever organization Team has switched into.
-  const canManageAssociation = ASSOCIATION_PUBLIC && ownProfile ? await getAssociationNavAccess(user.id, ownProfile.id) : false;
+  const canManageAssociationP: PromiseLike<boolean> = ASSOCIATION_PUBLIC && ownProfile ? getAssociationNavAccess(user.id, ownProfile.id) : Promise.resolve(false);
 
   // Ringo Loyalty — available on every plan (no plan gate). Shown when the active organization's
   // category offers loyalty AND the viewer is its owner or holds a loyalty permission. Only a UX
@@ -148,34 +148,34 @@ export default async function DashboardLayout({
 
   // Seller Shop nav entry: the viewer's OWN profile only (owner-only, like Music). Hidden while platform
   // commerce is off unless the profile already has orders. Any failure just hides the entry.
-  const hasShop = !isActingAsStaff && ownProfile ? await shopIsVisibleFor(supabase, ownProfile) : false;
+  const hasShopP: PromiseLike<boolean> = !isActingAsStaff && ownProfile ? shopIsVisibleFor(supabase, ownProfile) : Promise.resolve(false);
 
   // Business Toolkit invoices nav entry: the viewer's OWN profile only (owner-only), entitled plan + category, and only once the Phase 2
   // tables exist. Any failure just hides the entry. UX only: /dashboard/documents/** and /api/documents/** enforce access themselves.
-  const hasDocuments = !isActingAsStaff && ownProfile ? await documentsNavVisible({ userId: user.id, profile: ownProfile }) : false;
+  const hasDocumentsP: PromiseLike<boolean> = !isActingAsStaff && ownProfile ? documentsNavVisible({ userId: user.id, profile: ownProfile }) : Promise.resolve(false);
 
   // Business Toolkit inventory nav entry: same owner-only gate and "tables exist" rule as Invoices. UX only; /api/inventory/** and the database enforce access.
-  const hasInventory = !isActingAsStaff && ownProfile ? await inventoryNavVisible({ userId: user.id, profile: ownProfile }) : false;
+  const hasInventoryP: PromiseLike<boolean> = !isActingAsStaff && ownProfile ? inventoryNavVisible({ userId: user.id, profile: ownProfile }) : Promise.resolve(false);
 
   // Business Toolkit reports nav entry: same owner-only gate as Invoices and Inventory. UX only; /api/reports/** and the database enforce access.
-  const hasReports = !isActingAsStaff && ownProfile ? await reportsNavVisible({ userId: user.id, profile: ownProfile }) : false;
+  const hasReportsP: PromiseLike<boolean> = !isActingAsStaff && ownProfile ? reportsNavVisible({ userId: user.id, profile: ownProfile }) : Promise.resolve(false);
 
   // Business Toolkit customers nav entry: same owner-only gate, shown once the Phase 3 contact table exists. UX only; /api/customers/** and the database enforce access.
-  const hasCustomers = !isActingAsStaff && ownProfile ? await customersNavVisible({ userId: user.id, profile: ownProfile }) : false;
+  const hasCustomersP: PromiseLike<boolean> = !isActingAsStaff && ownProfile ? customersNavVisible({ userId: user.id, profile: ownProfile }) : Promise.resolve(false);
 
   // Inbox nav entry (WhatsApp, read-only): the owner's OWN profile, and only when it has a WhatsApp account. UX only; /dashboard/inbox/** and the database enforce access.
-  const hasInbox = !isActingAsStaff && ownProfile ? await inboxNavVisible({ supabase, profileId: ownProfile.id }) : false;
+  const hasInboxP: PromiseLike<boolean> = !isActingAsStaff && ownProfile ? inboxNavVisible({ supabase, profileId: ownProfile.id }) : Promise.resolve(false);
 
   // Inbox nav entry for a TEAM MEMBER: only when they belong to an organization on a Team-enabled plan, and the database confirms an active role with
   // inbox.view in an organization that has WhatsApp. UX only: /dashboard/inbox/**, the routes and the database enforce access themselves.
-  const hasStaffInbox = orgs.some((o) => !o.isOwner && o.teamEnabled) ? await staffInboxNavVisible(user.id) : false;
+  const hasStaffInboxP: PromiseLike<boolean> = orgs.some((o) => !o.isOwner && o.teamEnabled) ? staffInboxNavVisible(user.id) : Promise.resolve(false);
 
   // Business Toolkit Record Sale nav entry: same owner-only gate as Invoices, and only once the database function sale_record exists. UX only; /api/sales and the database enforce access.
-  const hasSales = !isActingAsStaff && ownProfile ? await salesNavVisible({ userId: user.id, profile: ownProfile }) : false;
+  const hasSalesP: PromiseLike<boolean> = !isActingAsStaff && ownProfile ? salesNavVisible({ userId: user.id, profile: ownProfile }) : Promise.resolve(false);
 
   // The same business tools on a plan WITHOUT the toolkit (Free): shown in the menu locked, so an owner can see what Ringo offers and why to upgrade. Entitled
   // category + owner only (never staff); costs no database call outside an entitled category. The pages render an upgrade screen, never the tool.
-  const toolkitLock = !isActingAsStaff && ownProfile ? await toolkitLockForNav({ userId: user.id, profile: ownProfile }) : { locked: false, inventoryLocked: false };
+  const toolkitLockP: PromiseLike<{ locked: boolean; inventoryLocked: boolean }> = !isActingAsStaff && ownProfile ? toolkitLockForNav({ userId: user.id, profile: ownProfile }) : Promise.resolve({ locked: false, inventoryLocked: false });
 
   // Ambassador Program — whether the signed-in person (not the active
   // organization) has their own ambassador_profiles row. RLS already
@@ -183,22 +183,36 @@ export default async function DashboardLayout({
   // client is needed here. Safe to run before the Ambassador migrations
   // exist: a query against a not-yet-created table resolves with data:
   // null rather than throwing, so isAmbassador just stays false.
-  const { data: ambassadorProfile } = await supabase.from("ambassador_profiles").select("id").eq("user_id", user.id).maybeSingle();
-  const isAmbassador = !!ambassadorProfile;
-  const { data: ambassadorTeam } = await supabase.from("ambassador_teams").select("id").eq("team_leader_user_id", user.id).maybeSingle();
-  const isTeamLeader = !!ambassadorTeam;
+  const ambassadorProfileQ = supabase.from("ambassador_profiles").select("id").eq("user_id", user.id).maybeSingle();
+  const ambassadorTeamQ = supabase.from("ambassador_teams").select("id").eq("team_leader_user_id", user.id).maybeSingle();
 
   // Referral banner: quotes the LIVE affiliate rate only while the existing Affiliate program is on
   // and this account isn't suspended from it. A settings-read failure just hides the banner.
+  const affiliateSettingsP = getAffiliateSettings().then((v) => v, () => null);
+
+  // Everything above that only reads (the menu entries, the lock state, the ambassador rows and the affiliate settings) was awaited one after another:
+  // about twenty database round trips in a row on every dashboard load and every editor save's refresh. They are independent reads, each already
+  // handles its own failure (a failed read just hides that entry), so they are started together and awaited once. Same conditions, same fallbacks.
+  const [
+    canManageAssociation, hasShop, hasDocuments, hasInventory, hasReports, hasCustomers, hasInbox, hasStaffInbox, hasSales, toolkitLock,
+    { data: ambassadorProfile }, { data: ambassadorTeam }, affiliateSettings,
+  ] = await Promise.all([
+    canManageAssociationP, hasShopP, hasDocumentsP, hasInventoryP, hasReportsP, hasCustomersP, hasInboxP, hasStaffInboxP, hasSalesP, toolkitLockP,
+    ambassadorProfileQ, ambassadorTeamQ, affiliateSettingsP,
+  ]);
+  const isAmbassador = !!ambassadorProfile;
+  const isTeamLeader = !!ambassadorTeam;
+
   let referralPromo = null as ReturnType<typeof getReferralPromo>;
   try {
-    const affiliateSettings = await getAffiliateSettings();
-    referralPromo = getReferralPromo({
-      isActingAsStaff,
-      affiliateEnabled: affiliateSettings.affiliateEnabled,
-      affiliateSuspended: !!userRow?.affiliate_suspended,
-      commissionRate: affiliateSettings.affiliateCommissionRate,
-    });
+    if (affiliateSettings) {
+      referralPromo = getReferralPromo({
+        isActingAsStaff,
+        affiliateEnabled: affiliateSettings.affiliateEnabled,
+        affiliateSuspended: !!userRow?.affiliate_suspended,
+        commissionRate: affiliateSettings.affiliateCommissionRate,
+      });
+    }
   } catch {
     referralPromo = null;
   }

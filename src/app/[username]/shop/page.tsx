@@ -1,6 +1,7 @@
 import type { Metadata, ResolvingMetadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { memoPerRequest } from "@/lib/requestMemo";
 import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import { profileHasCategory, profileHasTicketing, getCategory } from "@/lib/categories";
 import { limitPublicRows, isPublicProduct } from "@/lib/publicContent";
@@ -22,7 +23,8 @@ export { generateViewport };
 // (/r/[username]); this route sends those profiles there rather than building a second one.
 export const dynamic = "force-dynamic";
 
-async function load(username: string) {
+// Memoised per request: generateMetadata and the page load the same profile and products.
+const load = memoPerRequest(async function load(username: string) {
   const supabase = createClient();
   const { data: profile } = await supabase
     .from("profiles")
@@ -33,7 +35,7 @@ async function load(username: string) {
   if (!profile) return null;
   if (await isPublicProfileSuspended(username)) return null;
   return profile;
-}
+});
 
 export async function generateMetadata({ params }: { params: { username: string } }, parent: ResolvingMetadata): Promise<Metadata> {
   const profile = await load(params.username);

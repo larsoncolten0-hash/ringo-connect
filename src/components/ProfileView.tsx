@@ -446,7 +446,7 @@ export default function ProfileView({
                     style={panelButtonStyle}
                   >
                     {link.image_url && (
-                      <img src={link.image_url} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                      <img src={link.image_url} alt="" loading="lazy" decoding="async" className="w-14 h-14 rounded-lg object-cover shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold [overflow-wrap:anywhere]">{publicLinkTitle(link)}</p>

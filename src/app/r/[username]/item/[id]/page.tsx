@@ -2,6 +2,7 @@ import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata, ResolvingMetadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { memoPerRequest } from "@/lib/requestMemo";
 import { profileHasCategory } from "@/lib/categories";
 import { generateMetadata as generateProfileMetadata, generateViewport } from "@/lib/profileMetadata";
 import { NOINDEX, withItemSeo } from "@/lib/seo";
@@ -15,7 +16,8 @@ export { generateViewport };
 // the cart). A dish that has been deleted sends the visitor to the menu instead of a dead end.
 export const dynamic = "force-dynamic";
 
-async function getItem(username: string, id: string) {
+// Memoised per request: generateMetadata and the page both call it with the same arguments and used to run the same profile + menu query twice.
+const getItem = memoPerRequest(async function getItem(username: string, id: string) {
   const supabase = createClient();
   const { data: profile } = await supabase
     .from("profiles")
@@ -27,7 +29,7 @@ async function getItem(username: string, id: string) {
   if (await isPublicProfileSuspended(username)) return null;
   const item = (profile.menu_items || []).find((i: any) => i.id === id);
   return { profile, item: item ?? null };
-}
+});
 
 export async function generateMetadata({ params }: { params: { username: string; id: string } }, parent: ResolvingMetadata): Promise<Metadata> {
   const found = await getItem(params.username, params.id);

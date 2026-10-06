@@ -66,6 +66,8 @@ export default function FeaturedMenuSection({
               <img
                 src={item.image_urls?.[0] || item.image_url}
                 alt={item.name}
+                loading="lazy"
+                decoding="async"
                 className="w-full aspect-square object-cover"
               />
             ) : (

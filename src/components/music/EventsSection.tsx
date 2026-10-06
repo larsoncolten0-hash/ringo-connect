@@ -128,7 +128,7 @@ export default function EventsSection({
                   className="relative w-16 h-16 shrink-0 rounded-ringo-md overflow-hidden block"
                 >
                   {event.cover_image_url ? (
-                    <img src={event.cover_image_url} alt="" className="w-full h-full object-cover" />
+                    <img src={event.cover_image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: hexToRgba(accent, 0.18) }}>
                       <Ticket size={20} style={{ color: accent }} />

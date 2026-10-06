@@ -344,7 +344,7 @@ const threadXss = await D.loadThread(own, alice.profile, convA2);
   check("scope: Inbox logging is a code only (no message text / number in console calls)", (all.match(/console\.\w+\([^)]*\)/g) || []).every((c) => /JSON\.stringify\(\{ scope: "inbox"/.test(c) || true) && !/console\.\w+\([^)]*(body|text|display|external_id|waId)/.test(all));
   const shell = read("src/components/dashboard/DashboardShell.tsx"), lay = read("src/app/dashboard/layout.tsx");
   check("nav: Inbox entry is gated on hasInbox and hidden for staff, in the More group (not a core tab)", /\(hasInbox && !organization\?\.isStaff\) \|\| hasStaffInbox \? \[\{ href: "\/dashboard\/inbox", label: t\.nav\.inbox, icon: Inbox, core: false \}\]/.test(shell) && /hasInbox = false/.test(shell) && /hasStaffInbox = false/.test(shell));
-  check("nav: the layout computes hasInbox for the owner's OWN profile only", /const hasInbox = !isActingAsStaff && ownProfile \? await inboxNavVisible\(\{ supabase, profileId: ownProfile\.id \}\) : false;/.test(lay) && /hasInbox=\{hasInbox\}/.test(lay));
+  check("nav: the layout computes hasInbox for the owner's OWN profile only", /const hasInboxP: PromiseLike<boolean> = !isActingAsStaff && ownProfile \? inboxNavVisible\(\{ supabase, profileId: ownProfile\.id \}\) : Promise\.resolve\(false\);/.test(lay) && /hasInbox=\{hasInbox\}/.test(lay));
 }
 
 console.error = origErr;

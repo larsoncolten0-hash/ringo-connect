@@ -65,7 +65,7 @@ export default function ReleasesSection({
             style={{ border: `1px solid ${hexToRgba(accent, 0.15)}` }}
           >
             {release.cover_image_url ? (
-              <img src={release.cover_image_url} alt="" className={`w-full object-cover ${leadFirst && index === 0 ? "aspect-[16/10]" : "aspect-square"}`} />
+              <img src={release.cover_image_url} alt="" loading={leadFirst && index === 0 ? undefined : "lazy"} decoding="async" className={`w-full object-cover ${leadFirst && index === 0 ? "aspect-[16/10]" : "aspect-square"}`} />
             ) : (
               <div
                 className={`w-full flex items-center justify-center ${leadFirst && index === 0 ? "aspect-[16/10]" : "aspect-square"}`}

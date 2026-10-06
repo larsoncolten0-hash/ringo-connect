@@ -53,6 +53,9 @@ export default function ImageGallery({
             key={url + i}
             src={url}
             alt={i === 0 ? alt : ""}
+            // the first photo is what the visitor sees on arrival; the others wait until the gallery is near them
+            loading={i === 0 ? undefined : "lazy"}
+            decoding="async"
             className={`w-full h-full shrink-0 snap-center ${imgClassName}`}
           />
         ))}

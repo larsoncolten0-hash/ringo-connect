@@ -19,12 +19,17 @@ export async function GET(request: Request, { params }: { params: { associationI
     .order("created_at", { ascending: false });
   if (managedOnly) query = query.not("lifecycle_state", "is", null);
   const { data: members, error } = await query;
-  if (error) return NextResponse.json({ code: "server_error" }, { status: 500 });
+  if (error) {
+    // code only: a database error's text can echo roster rows (names, phone numbers), so it is never logged
+    console.error(JSON.stringify({ scope: "association_members", step: "roster", code: error.code ?? "unknown" }));
+    return NextResponse.json({ code: "server_error" }, { status: 500 });
+  }
 
   let terms: Awaited<ReturnType<typeof loadLatestTerms>> = {};
   try {
     terms = await loadLatestTerms(auth.admin, params.associationId, (members || []).filter((m: any) => m.lifecycle_state).map((m: any) => m.id));
-  } catch {
+  } catch (err) {
+    console.error(JSON.stringify({ scope: "association_members", step: "terms", error: (err as Error)?.name ?? "unknown" }));
     return NextResponse.json({ code: "server_error" }, { status: 500 });
   }
 

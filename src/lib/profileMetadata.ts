@@ -2,6 +2,7 @@ import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata, ResolvingMetadata } from "next";
 import type { Viewport } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { memoPerRequest } from "@/lib/requestMemo";
 import { buildProfileSeo, NOINDEX, profileDisplayName, safePublicImageUrl } from "@/lib/seo";
 
 // Shared by every public profile route ([username], r/[username],
@@ -15,7 +16,10 @@ import { buildProfileSeo, NOINDEX, profileDisplayName, safePublicImageUrl } from
 // fields actually needed here) rather than reusing each page's own
 // heavier profile fetch — generateMetadata runs as a separate pass from
 // the page component, so there's no way to share the result anyway.
-async function getProfileForMetadata(username: string) {
+//
+// Memoised PER REQUEST (src/lib/requestMemo.ts): generateMetadata and generateViewport both call this for the same page view (and an item page's own
+// generateMetadata calls the shared one again), and each used to run the same query. The result is shared inside one render only, never across visitors.
+const getProfileForMetadata = memoPerRequest(async function getProfileForMetadata(username: string) {
   const supabase = createClient();
   const { data } = await supabase
     .from("profiles")
@@ -27,7 +31,7 @@ async function getProfileForMetadata(username: string) {
   // may leak through <head> (this also feeds generateViewport).
   if (data && (await isPublicProfileSuspended(username))) return null;
   return data;
-}
+});
 
 // The head tags every public profile route shares. `seo` adds the search / social layer (description,
 // canonical, Open Graph, Twitter, see lib/seo.ts); it is off for transactional pages (receipts, ticket passes)

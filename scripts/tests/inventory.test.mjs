@@ -193,7 +193,7 @@ const mkOwner = (responses = {}) => ({ userId: OWNER.userId, profile: { id: OWNE
   check("editor: the row shows the count read-only with a link to Inventory for tracked products; the input is unchanged for others", /stockManaged \? \(/.test(row) && /\/dashboard\/inventory\/\$\{product\.id\}/.test(row) && /t\.music\.inventoryPlaceholder/.test(row) && /t\.inventory\.editor\.managed/.test(row));
   const layout = read("src/app/dashboard/layout.tsx");
   const shell = read("src/components/dashboard/DashboardShell.tsx");
-  check("nav: computed with the same owner-only gate as Invoices, hidden for staff", /inventoryNavVisible\(\{ userId: user\.id, profile: ownProfile \}\)/.test(layout) && /!isActingAsStaff && ownProfile \? await inventoryNavVisible/.test(layout) && /hasInventory && !organization\?\.isStaff/.test(shell) && /hasInventory=\{hasInventory\}/.test(layout));
+  check("nav: computed with the same owner-only gate as Invoices, hidden for staff", /inventoryNavVisible\(\{ userId: user\.id, profile: ownProfile \}\)/.test(layout) && /!isActingAsStaff && ownProfile \? inventoryNavVisible/.test(layout) && /hasInventory && !organization\?\.isStaff/.test(shell) && /hasInventory=\{hasInventory\}/.test(layout));
   const accessSrc = strip(read("src/lib/inventory/access.ts"));
   check("access: plan flag + category/demo gate + table-existence, any failure hides the entry", /business_toolkit_enabled/.test(accessSrc) && /decideBookkeepingAccess/.test(accessSrc) && /bk_stock_settings/.test(accessSrc) && /catch \{\s*return false;/.test(accessSrc));
   const pl = read("src/app/dashboard/inventory/layout.tsx");

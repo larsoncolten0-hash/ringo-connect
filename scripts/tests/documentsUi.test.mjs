@@ -181,7 +181,7 @@ const code = Object.fromEntries(UI_FILES.map((f) => [f, strip(read(f))]));
 // ======================================================================= wiring: nav, layout, pages
 {
   const layout = strip(read("src/app/dashboard/layout.tsx"));
-  check("the dashboard layout computes hasDocuments for the viewer's OWN profile only, never while acting as staff", /const hasDocuments = !isActingAsStaff && ownProfile \? await documentsNavVisible\(\{ userId: user\.id, profile: ownProfile \}\) : false;/.test(layout) && /hasDocuments=\{hasDocuments\}/.test(layout));
+  check("the dashboard layout computes hasDocuments for the viewer's OWN profile only, never while acting as staff", /const hasDocumentsP: PromiseLike<boolean> = !isActingAsStaff && ownProfile \? documentsNavVisible\(\{ userId: user\.id, profile: ownProfile \}\) : Promise\.resolve\(false\);/.test(layout) && /hasDocuments=\{hasDocuments\}/.test(layout));
   const shell = strip(read("src/components/dashboard/DashboardShell.tsx"));
   check("the nav entry needs hasDocuments AND not-staff, and points at /dashboard/documents", /hasDocuments && !organization\?\.isStaff \? \[\{ href: "\/dashboard\/documents", label: t\.nav\.documents, icon: FileText, core: false \}\] : \[\]/.test(shell) && /hasDocuments = false/.test(shell));
   const docLayout = code["src/app/dashboard/documents/layout.tsx"];

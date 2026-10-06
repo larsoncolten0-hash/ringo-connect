@@ -1,6 +1,7 @@
 import { PHASE13_FILES } from "./phase13Files.mjs"; // the visual / UX refinement phase: its exact files are exempted by the older scope guards too
 import { PHASE14_FILES } from "./phase14Files.mjs"; // the commercial-destination / paid-tools lock phase: likewise
 import { SCALABILITY_PHASE0_FILES } from "./scalabilityPhase0Files.mjs"; // scalability and reliability Phase 0: likewise
+import { SCALABILITY_PHASE1TO5_FILES } from "./scalabilityPhase1to5Files.mjs"; // scalability and reliability Phases 1-5: likewise
 
 // The EXACT files the Owner Workspace UX simplification and polish pass (Bookkeeping, Record Sale, receipt, Invoices, Reports, Customers,
 // Ambassador, Team Leader, dashboard footer / hamburger / account menu, section tabs) changes or adds, on top of phase12Files.mjs.
@@ -11,6 +12,7 @@ export const OWNER_WORKSPACE_FILES = new Set([
   ...PHASE13_FILES,
   ...PHASE14_FILES,
   ...SCALABILITY_PHASE0_FILES,
+  ...SCALABILITY_PHASE1TO5_FILES,
   "scripts/tests/aiBusinessDrafts.test.mjs", // scope guard: exempts this list
   "scripts/tests/aiBusinessTools.test.mjs", // scope guard: exempts this list
   "scripts/tests/customerAttention.test.mjs", // scope guard: exempts this list

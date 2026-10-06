@@ -86,7 +86,7 @@ export default function AudioUploadField({
       const path = `${pathPrefix}/${crypto.randomUUID()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("uploads").upload(path, file, {
         upsert: true,
-        cacheControl: "3600",
+        cacheControl: "31536000", // a fresh random file name each time: the object never changes
       });
       if (uploadError) throw uploadError;
 

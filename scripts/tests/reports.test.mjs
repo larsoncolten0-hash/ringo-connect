@@ -471,7 +471,7 @@ const has = (bytes, str) => pdfText(bytes).includes(hex(str));
   check("reports UI: the PDF button downloads from the server route and shows errors", /fetch\(`\/api\/reports\/monthly\/pdf/.test(ui) && /pdfError/.test(ui) && /\.blob\(\)/.test(ui));
   check("reports UI: as-of notes, informational value note, refunded note and profit note are rendered", ["L.asOf", "L.invValueNote", "L.refundedBody", "L.profitNote", "L.cashNote", "L.restateNote"].every((x) => ui.includes(x)));
   const layout = read("src/app/dashboard/layout.tsx"), shell = read("src/components/dashboard/DashboardShell.tsx");
-  check("nav: Reports is a top-level entry gated like Invoices/Inventory, hidden for staff", /reportsNavVisible\(\{ userId: user\.id, profile: ownProfile \}\)/.test(layout) && /!isActingAsStaff && ownProfile \? await reportsNavVisible/.test(layout) && /hasReports=\{hasReports\}/.test(layout) && /hasReports && !organization\?\.isStaff/.test(shell) && /href: "\/dashboard\/reports"/.test(shell));
+  check("nav: Reports is a top-level entry gated like Invoices/Inventory, hidden for staff", /reportsNavVisible\(\{ userId: user\.id, profile: ownProfile \}\)/.test(layout) && /!isActingAsStaff && ownProfile \? reportsNavVisible/.test(layout) && /hasReports=\{hasReports\}/.test(layout) && /hasReports && !organization\?\.isStaff/.test(shell) && /href: "\/dashboard\/reports"/.test(shell));
   const acc = strip(read("src/lib/reports/access.ts"));
   check("access: plan flag + category/demo gate + table existence, any failure hides the entry", /business_toolkit_enabled/.test(acc) && /decideBookkeepingAccess/.test(acc) && /bk_entries/.test(acc) && /catch \{\s*return false;/.test(acc));
   const pl = read("src/app/dashboard/reports/layout.tsx");

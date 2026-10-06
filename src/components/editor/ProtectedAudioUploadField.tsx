@@ -72,7 +72,7 @@ export default function ProtectedAudioUploadField({
     const clipPath = `${previewPathPrefix}/${crypto.randomUUID()}.mp3`;
     const { error: uploadError } = await supabase.storage.from("uploads").upload(clipPath, blob, {
       upsert: true,
-      cacheControl: "3600",
+      cacheControl: "31536000", // a fresh random file name each time: the object never changes
       contentType: "audio/mpeg",
     });
     if (uploadError) throw uploadError;

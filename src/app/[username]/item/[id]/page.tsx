@@ -1,6 +1,7 @@
 import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import type { Metadata, ResolvingMetadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { memoPerRequest } from "@/lib/requestMemo";
 import { notFound } from "next/navigation";
 import { profileHasCategory } from "@/lib/categories";
 import { generateMetadata as generateProfileMetadata, generateViewport } from "@/lib/profileMetadata";
@@ -19,7 +20,8 @@ export { generateViewport };
 // storefront checkout (Music), or WhatsApp, exactly as before.
 export const dynamic = "force-dynamic";
 
-async function getItem(username: string, id: string) {
+// Memoised per request: generateMetadata and the page both call it with the same arguments and used to run the same profile + products query twice.
+const getItem = memoPerRequest(async function getItem(username: string, id: string) {
   const supabase = createClient();
   const { data: profile } = await supabase
     .from("profiles")
@@ -34,7 +36,7 @@ async function getItem(username: string, id: string) {
   const product = (profile.products || []).find((p: any) => p.id === id && p.available !== false);
   if (!product) return null;
   return { profile, product };
-}
+});
 
 // Shares the profile's own metadata (PWA manifest link, theme color…) and
 // swaps in the item's name and photo, so a link shared on WhatsApp/social

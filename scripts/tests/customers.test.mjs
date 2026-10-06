@@ -474,7 +474,7 @@ const DIR = () => [
   check("UI: the window warning and the scan count appear only when a phone scan ran; the archived key notice is shown", /data\.phone_scanned && data\.window_full/.test(poUi) && /data\.phone_scanned \? /.test(poUi) && /contact_key_shared_with_archived/.test(poUi) && /m\.keySharedArchived/.test(poUi));
 
   const layout = read("src/app/dashboard/layout.tsx"), shell = read("src/components/dashboard/DashboardShell.tsx");
-  check("nav: Customers is a top-level entry gated like Invoices/Inventory/Reports, hidden for staff", /customersNavVisible\(\{ userId: user\.id, profile: ownProfile \}\)/.test(layout) && /!isActingAsStaff && ownProfile \? await customersNavVisible/.test(layout) && /hasCustomers=\{hasCustomers\}/.test(layout) && /hasCustomers && !organization\?\.isStaff/.test(shell) && /href: "\/dashboard\/customers"/.test(shell));
+  check("nav: Customers is a top-level entry gated like Invoices/Inventory/Reports, hidden for staff", /customersNavVisible\(\{ userId: user\.id, profile: ownProfile \}\)/.test(layout) && /!isActingAsStaff && ownProfile \? customersNavVisible/.test(layout) && /hasCustomers=\{hasCustomers\}/.test(layout) && /hasCustomers && !organization\?\.isStaff/.test(shell) && /href: "\/dashboard\/customers"/.test(shell));
   const acc = strip(read("src/lib/customers/access.ts"));
   check("access: plan flag + category/demo gate + table existence, any failure hides the entry", /business_toolkit_enabled/.test(acc) && /decideBookkeepingAccess/.test(acc) && /bk_customers/.test(acc) && /catch \{\s*return false;/.test(acc));
   const pl = read("src/app/dashboard/customers/layout.tsx");
