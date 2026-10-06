@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 import Rail from "@/components/ui/Rail";
@@ -11,10 +11,11 @@ import { resolveProductCta, resolveDisplayCtaLabel } from "@/lib/cta";
 import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import { productHref, productImages } from "./productHref";
 
-// The public profile's Catalog / Merch / Services section. With four or more items it opens as a horizontal RAIL of the first eight (a
-// preview of what is on offer, the next card always peeking in), and one button, worded from the category's own label ("View shop",
-// "View services"), expands it in place into the full grid below. Fewer items stay a grid. The grid is an editorial
-// grid instead of a collapsible list: one large feature card up top, then
+// The public profile's Catalog / Merch / Services section: the DISCOVERY layer, kept short. With four or more items it is a still
+// horizontal RAIL of the first eight (the next card always peeking in; nothing about a card moves while it scrolls), and one button,
+// worded from the category's own label ("View shop", "View services"), goes to the dedicated commercial page (/[username]/shop; the
+// music storefront for a music profile). Fewer items stay a short grid. The profile never expands into a wall of products. The grid is
+// an editorial grid: one large feature card up top, then
 // portrait cards two-up — big photography, a frosted price tag, a real
 // labeled button (not just an arrow), soft rounded corners, a gentle
 // fade-up as each card enters view. Every card opens the item's own detail
@@ -76,14 +77,13 @@ export default function CatalogSection({
   onOpen: (product: any) => void;
 }) {
   const { t } = useLanguage();
-  const [expanded, setExpanded] = useState(false);
-  // Expanded in place, but never as one unbounded wall: a dozen at a time. A music profile has a real storefront, so "view all" goes there.
-  const [shown, setShown] = useState(12);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  const storeHref = isMusic ? `/m/${username}` : null;
+  // Where "view all" leads: a music profile's storefront, otherwise the profile's dedicated shop / services page.
+  const storeHref = isMusic ? `/m/${username}` : `/${username}/shop`;
   const sorted = [...products].sort((a, b) => a.sort_order - b.sort_order);
-  const asRail = sorted.length >= 4 && !expanded;
+  const asRail = sorted.length >= 4;
   const railItems = sorted.slice(0, 8);
+  // Inside the dashboard editor's live preview nothing navigates away.
+  const goStore = preview ? (e: React.MouseEvent) => e.preventDefault() : undefined;
 
   return (
     <section id="merch" className="flex flex-col gap-4 scroll-mt-6">
@@ -101,31 +101,16 @@ export default function CatalogSection({
           >
             {sorted.length}
           </span>
-          {sorted.length >= 4 && storeHref && (
-            <a
-              href={storeHref}
-              aria-label={t.profilePage.viewAllAria(label, sorted.length)}
-              className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold"
-              style={{ borderColor: borderTint, color: textColor }}
-            >
-              {t.profilePage.viewAll(label)}
-              <ArrowRight size={13} aria-hidden="true" />
-            </a>
-          )}
-          {sorted.length >= 4 && !storeHref && (
-            <button
-              ref={toggleRef}
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              aria-expanded={expanded}
-              aria-label={expanded ? t.profilePage.showLess : t.profilePage.viewAllAria(label, sorted.length)}
-              className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold"
-              style={{ borderColor: borderTint, color: textColor }}
-            >
-              {expanded ? t.profilePage.showLess : t.profilePage.viewAll(label)}
-              {!expanded && <ArrowRight size={13} aria-hidden="true" />}
-            </button>
-          )}
+          <a
+            href={storeHref}
+            onClick={goStore}
+            aria-label={asRail ? t.profilePage.viewAllAria(label, sorted.length) : undefined}
+            className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold"
+            style={{ borderColor: borderTint, color: textColor }}
+          >
+            {t.profilePage.viewAll(label)}
+            <ArrowRight size={13} aria-hidden="true" />
+          </a>
         </div>
       </div>
       <div className="h-px w-full" style={{ backgroundColor: borderTint }} />
@@ -152,18 +137,15 @@ export default function CatalogSection({
                 checkoutAvailable={checkoutAvailable}
                 isDemo={isDemo}
                 preview={preview}
+                inRail
                 onOpen={() => onOpen(product)}
               />
             </div>
           ))}
           {sorted.length > railItems.length && (
-            <ViewAllTile
+            <a
               href={storeHref}
-              onClick={() => {
-                setExpanded(true);
-                // the tile that was activated unmounts: keep keyboard focus on the section's toggle (now "Show less")
-                requestAnimationFrame(() => toggleRef.current?.focus());
-              }}
+              onClick={goStore}
               aria-label={t.profilePage.viewAllAria(label, sorted.length)}
               className="ringo-tactile flex w-[41vw] min-w-[146px] max-w-[190px] flex-col items-center justify-center gap-2 rounded-[22px] border border-dashed px-3 text-center sm:w-[200px] sm:max-w-none"
               style={{ borderColor: borderTint, color: textColor, aspectRatio: "4 / 5" }}
@@ -173,12 +155,12 @@ export default function CatalogSection({
               </span>
               <span className="text-sm font-semibold">{t.profilePage.viewAll(label)}</span>
               <span className="text-xs tabular-nums" style={{ opacity: 0.6 }}>{sorted.length}</span>
-            </ViewAllTile>
+            </a>
           )}
         </Rail>
       ) : (
       <div className="grid grid-cols-2 gap-x-3 gap-y-6">
-        {(expanded ? sorted.slice(0, shown) : sorted).map((product, i) => (
+        {sorted.map((product, i) => (
           <ProductCard
             key={product.id}
             product={product}
@@ -203,26 +185,7 @@ export default function CatalogSection({
         ))}
       </div>
       )}
-      {expanded && sorted.length > shown && (
-        <button
-          type="button"
-          onClick={() => setShown((n) => n + 12)}
-          className="ringo-tactile mx-auto inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-5 text-sm font-semibold"
-          style={{ borderColor: borderTint, color: textColor }}
-        >
-          {t.profilePage.showMoreItems(Math.min(12, sorted.length - shown))}
-        </button>
-      )}
     </section>
-  );
-}
-
-// The trailing "view all" tile of the rail: a link to the storefront when there is one, otherwise it expands the list in place.
-function ViewAllTile({ href, onClick, children, ...rest }: { href: string | null; onClick: () => void; children: React.ReactNode; className?: string; style?: React.CSSProperties; "aria-label"?: string }) {
-  return href ? (
-    <a href={href} {...rest}>{children}</a>
-  ) : (
-    <button type="button" onClick={onClick} {...rest}>{children}</button>
   );
 }
 
@@ -244,6 +207,7 @@ function ProductCard({
   checkoutAvailable,
   isDemo,
   preview,
+  inRail = false,
   onOpen,
 }: {
   product: any;
@@ -263,6 +227,8 @@ function ProductCard({
   checkoutAvailable?: boolean;
   isDemo?: boolean;
   preview?: boolean;
+  /** In a rail the card holds perfectly still: no fade-up when it scrolls into view, no photo zoom, no button lift. */
+  inRail?: boolean;
   onOpen: () => void;
 }) {
   const { t } = useLanguage();
@@ -300,7 +266,7 @@ function ProductCard({
             src={images[0]}
             alt={product.name}
             loading="lazy"
-            className={`h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] ${soldOut ? "opacity-60" : ""}`}
+            className={`h-full w-full object-cover ${inRail ? "" : "transition-transform duration-700 ease-out group-hover:scale-[1.04]"} ${soldOut ? "opacity-60" : ""}`}
           />
         ) : (
           <div
@@ -351,7 +317,7 @@ function ProductCard({
             a second, explicit way in, never a different action. */}
         <span
           aria-hidden
-          className={`inline-flex w-full items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-transform duration-300 group-hover:-translate-y-0.5 ${radiusClass}`}
+          className={`inline-flex w-full items-center justify-center gap-1.5 py-2 text-xs font-semibold ${inRail ? "" : "transition-transform duration-300 group-hover:-translate-y-0.5"} ${radiusClass}`}
           style={buttonStyle}
         >
           {buttonLabel}
@@ -367,7 +333,7 @@ function ProductCard({
     .filter((part) => typeof part === "string" && part.trim() !== "")
     .join(", ");
 
-  const motionProps = reduceMotion
+  const motionProps = reduceMotion || inRail
     ? {}
     : {
         initial: { opacity: 0, y: 14 },

@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Inbox, FileText, Boxes, FileBarChart, Contact, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound, ReceiptText, BookOpen, House } from "lucide-react";
+import { Inbox, FileText, Boxes, FileBarChart, Contact, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound, ReceiptText, BookOpen, House, Lock } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import ReferralPromoBanner from "@/components/dashboard/ReferralPromoBanner";
 import { referralPromoShowsOn } from "@/lib/referralPromo";
@@ -82,6 +82,8 @@ export default function DashboardShell({
   hasInventory = false,
   hasReports = false,
   hasSales = false,
+  lockedToolkit = false,
+  lockedInventory = false,
   hasCustomers = false,
   hasInbox = false,
   hasStaffInbox = false,
@@ -150,6 +152,10 @@ export default function DashboardShell({
   hasReports?: boolean;
   // Business Toolkit Record Sale (/dashboard/sales): same owner-only entitlement as hasDocuments, shown once sale_record exists. Bookkeeping (/dashboard/bookkeeping) uses hasReports.
   hasSales?: boolean;
+  // The same business tools for an owner whose plan does NOT include them (Free): the entries stay in the menu, marked locked, and open an upgrade screen.
+  // lockedInventory is the subset for categories that have stock tracking. Computed in dashboard/layout.tsx; UX only.
+  lockedToolkit?: boolean;
+  lockedInventory?: boolean;
   // Business Toolkit customers (/dashboard/customers): same owner-only entitlement and table-existence rule as hasDocuments.
   hasCustomers?: boolean;
   hasInbox?: boolean;
@@ -301,12 +307,21 @@ export default function DashboardShell({
     ...(hasShop && !organization?.isStaff ? [{ href: "/dashboard/shop", label: t.nav.shop, icon: ShoppingBag, core: false }] : []),
     // Business Toolkit, in the order an owner thinks about it: Shop, Record sale, Inventory, Customers, Invoices, Bookkeeping, Reports.
     ...(hasSales && !organization?.isStaff ? [{ href: "/dashboard/sales", label: t.nav.recordSale, icon: ReceiptText, core: false }] : []),
+    ...(lockedToolkit && !organization?.isStaff ? [{ href: "/dashboard/sales", label: t.nav.recordSale, icon: ReceiptText, core: false, locked: true }] : []),
     ...(hasInventory && !organization?.isStaff ? [{ href: "/dashboard/inventory", label: t.nav.inventory, icon: Boxes, core: false }] : []),
+    ...(lockedInventory && !organization?.isStaff ? [{ href: "/dashboard/inventory", label: t.nav.inventory, icon: Boxes, core: false, locked: true }] : []),
     ...(hasCustomers && !organization?.isStaff ? [{ href: "/dashboard/customers", label: t.nav.customers, icon: Contact, core: false }] : []),
     ...(hasDocuments && !organization?.isStaff ? [{ href: "/dashboard/documents", label: t.nav.documents, icon: FileText, core: false }] : []),
+    ...(lockedToolkit && !organization?.isStaff ? [{ href: "/dashboard/documents", label: t.nav.documents, icon: FileText, core: false, locked: true }] : []),
     // Bookkeeping is its own entry (it used to live under Reports); it shares Reports' entitlement.
     ...(hasReports && !organization?.isStaff ? [{ href: "/dashboard/bookkeeping", label: t.nav.bookkeeping, icon: BookOpen, core: false }] : []),
     ...(hasReports && !organization?.isStaff ? [{ href: "/dashboard/reports", label: t.nav.reports, icon: FileBarChart, core: false }] : []),
+    ...(lockedToolkit && !organization?.isStaff
+      ? [
+          { href: "/dashboard/bookkeeping", label: t.nav.bookkeeping, icon: BookOpen, core: false, locked: true },
+          { href: "/dashboard/reports", label: t.nav.reports, icon: FileBarChart, core: false, locked: true },
+        ]
+      : []),
     ...(hasTicketing && !organization?.isStaff ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket, core: false }] : []),
     // Universal, unlike Restaurant/Music above — every category can turn
     // bookings on, so this is never gated by category. Always visible (not
@@ -421,7 +436,7 @@ export default function DashboardShell({
             {t.nav.menu}
           </p>
           <nav className="flex flex-col gap-0.5" aria-label={t.nav.menu}>
-            {listedItems.map(({ href, label, icon: Icon, exact }) => {
+            {listedItems.map(({ href, label, icon: Icon, exact, locked }) => {
               const active = isActive(href, exact);
               return (
                 <Link
@@ -439,6 +454,12 @@ export default function DashboardShell({
                   )}
                   <Icon size={17} strokeWidth={active ? 2.3 : 2} />
                   {label}
+                  {locked && (
+                    <>
+                      <Lock size={13} className="ml-auto shrink-0 opacity-60" aria-hidden="true" />
+                      <span className="sr-only">{t.toolkitLock.lockedLabel}</span>
+                    </>
+                  )}
                 </Link>
               );
             })}

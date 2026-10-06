@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { resolveToolkitLock } from "@/lib/toolkitLock";
+import ToolkitLocked from "@/components/subscription/ToolkitLocked";
 import { requireReportsOwner, reportsAvailable } from "@/lib/reports/access";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +9,10 @@ export const dynamic = "force-dynamic";
 // Reports; it is now its own entry in the dashboard menu and shares the Reports entitlement (owner, entitled category, plan flag, not a demo). A UX redirect;
 // /api/bookkeeping/** and the database enforce the same rules independently.
 export default async function BookkeepingLayout({ children }: { children: React.ReactNode }) {
+  // A Free owner in an entitled category sees this tool locked (what it does + an upgrade call to action) instead of being sent away. The tool itself
+  // is never rendered, and its API and database functions still refuse a plan without the business tools.
+  const lock = await resolveToolkitLock();
+  if (lock.locked) return <div className="max-w-5xl"><ToolkitLocked tool="bookkeeping" /></div>;
   const owner = await requireReportsOwner();
   if (!(await reportsAvailable(owner as any))) redirect("/dashboard");
   return <div className="max-w-5xl">{children}</div>;

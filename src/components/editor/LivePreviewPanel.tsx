@@ -26,7 +26,7 @@ function PreviewNotes() {
   if (preview.hiddenProducts > 0 && preview.maxProducts != null) notes.push(t.editor.productsHiddenByPlan(preview.hiddenProducts, preview.maxProducts));
   if (preview.themeLocked) notes.push(t.editor.previewThemeNote);
   return (
-    <div className="flex flex-col gap-1.5 w-full max-w-sm">
+    <div className="flex flex-col gap-1.5 w-full max-w-sm shrink-0">
       <p className="text-xs text-ringo-muted">{t.editor.previewUnsavedNote}</p>
       {notes.map((n) => (
         <p key={n} className="text-xs text-ringo-coral">
@@ -91,7 +91,9 @@ function PreviewSheet({ onClose }: { onClose: () => void }) {
         </button>
       </div>
       <div className="no-scrollbar flex-1 overflow-y-auto flex flex-col items-center gap-3 p-4">
-        <div className="w-full max-w-sm rounded-2xl overflow-hidden border border-ringo-border">
+        {/* shrink-0: this wrapper clips its corners (overflow-hidden), and a flex item that clips is allowed to shrink below its content. Without
+            shrink-0 the profile was squeezed to the sheet's height and the sheet had nothing to scroll. */}
+        <div className="w-full max-w-sm shrink-0 rounded-2xl overflow-hidden border border-ringo-border">
           <ProfileView profile={preview.profile} preview />
         </div>
         <PreviewNotes />

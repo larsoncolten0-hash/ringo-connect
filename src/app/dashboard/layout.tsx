@@ -14,6 +14,7 @@ import { customersNavVisible } from "@/lib/customers/access";
 import { inboxNavVisible } from "@/lib/inbox/access";
 import { staffInboxNavVisible } from "@/lib/inbox/actor";
 import { salesNavVisible } from "@/lib/sales/access";
+import { toolkitLockForNav } from "@/lib/toolkitLock";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 import { countHidden } from "@/lib/planEntitlements";
@@ -172,6 +173,10 @@ export default async function DashboardLayout({
   // Business Toolkit Record Sale nav entry: same owner-only gate as Invoices, and only once the database function sale_record exists. UX only; /api/sales and the database enforce access.
   const hasSales = !isActingAsStaff && ownProfile ? await salesNavVisible({ userId: user.id, profile: ownProfile }) : false;
 
+  // The same business tools on a plan WITHOUT the toolkit (Free): shown in the menu locked, so an owner can see what Ringo offers and why to upgrade. Entitled
+  // category + owner only (never staff); costs no database call outside an entitled category. The pages render an upgrade screen, never the tool.
+  const toolkitLock = !isActingAsStaff && ownProfile ? await toolkitLockForNav({ userId: user.id, profile: ownProfile }) : { locked: false, inventoryLocked: false };
+
   // Ambassador Program — whether the signed-in person (not the active
   // organization) has their own ambassador_profiles row. RLS already
   // permits reading one's own row via the session client, so no admin
@@ -217,6 +222,8 @@ export default async function DashboardLayout({
       hasInventory={hasInventory}
       hasReports={hasReports}
       hasSales={hasSales}
+      lockedToolkit={toolkitLock.locked}
+      lockedInventory={toolkitLock.inventoryLocked}
       hasCustomers={hasCustomers}
       hasInbox={hasInbox}
       hasStaffInbox={hasStaffInbox}

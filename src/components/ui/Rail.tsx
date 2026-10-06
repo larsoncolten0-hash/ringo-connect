@@ -4,8 +4,9 @@ import { Children, useCallback, useEffect, useRef, useState, type CSSProperties,
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // A horizontal collection: the first items of something bigger, laid out so the next card is always partly visible (that sliver is the
-// "there is more" cue, no scrollbar needed). Native momentum scrolling with snap on touch; on a mouse, quiet previous / next buttons
-// appear on hover or keyboard focus. Soft edge fades appear only on a side that actually has more to show.
+// "there is more" cue, no scrollbar needed). A plain native scroller: momentum scrolling, NO snapping, and nothing about a card is
+// ever tied to the scroll position (no scale, tilt, parallax or scroll-linked transform), so the shelf stays still while it slides. On a
+// mouse, quiet previous / next buttons appear on hover or keyboard focus. Soft edge fades appear only on a side that has more to show.
 //
 // Presentation only. Every child keeps its own link or button, so the items stay individually focusable and operable; the scroll
 // container itself is focusable (a labelled region) so a keyboard user can also move it with the arrow keys.
@@ -29,12 +30,21 @@ export default function Rail({
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: false, end: false });
 
-  const measure = useCallback(() => {
+  // Scroll events fire many times a frame: read them once per frame, and only re-render when an edge actually flips.
+  const frame = useRef(0);
+  const measureNow = useCallback(() => {
+    frame.current = 0;
     const el = ref.current;
     if (!el) return;
     const max = el.scrollWidth - el.clientWidth;
-    setEdges({ start: el.scrollLeft > 4, end: el.scrollLeft < max - 4 });
+    const start = el.scrollLeft > 4;
+    const end = el.scrollLeft < max - 4;
+    setEdges((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
   }, []);
+  const measure = useCallback(() => {
+    if (frame.current) return;
+    frame.current = requestAnimationFrame(measureNow);
+  }, [measureNow]);
 
   useEffect(() => {
     measure();
@@ -46,6 +56,7 @@ export default function Rail({
     return () => {
       ro?.disconnect();
       window.removeEventListener("resize", measure);
+      if (frame.current) cancelAnimationFrame(frame.current);
     };
   }, [measure, Children.count(children)]);
 

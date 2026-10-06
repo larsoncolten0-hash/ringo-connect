@@ -477,15 +477,18 @@ h1, h2, h3, .font-display {
   outline-offset: 2px;
 }
 
-/* ---- Rail: a horizontal collection. Native momentum scrolling with snap, no scrollbar, the next card always partly visible.
+/* ---- Rail: a horizontal collection. A plain native scroller: momentum scrolling, no snapping, no scrollbar, the next card always partly visible.
+   Nothing in it is tied to the scroll position: cards keep fixed dimensions and never scale, tilt or move while the shelf slides.
    The edge fades are switched by components/ui/Rail.tsx (data-more-start / data-more-end) so a fade only shows where there is more to see. ---- */
 .ringo-rail {
   display: flex;
   gap: 12px;
   overflow-x: auto;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scroll-padding-inline: 16px;
+  /* horizontal and vertical panning stay with the browser (so the page still scrolls up and down from a rail), pinch-zoom stays the
+     visitor's own choice, and the double-tap-to-zoom delay is gone */
+  touch-action: pan-x pan-y pinch-zoom;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   padding: 4px 16px 12px;
@@ -495,8 +498,18 @@ h1, h2, h3, .font-display {
   display: none;
 }
 .ringo-rail > * {
-  scroll-snap-align: start;
   flex: 0 0 auto;
+}
+/* A card in a rail holds still: no hover lift, no press compression, no zoom on the photo. Focus and the colour of its border still respond. */
+.ringo-rail .ringo-lift,
+.ringo-rail .ringo-lift:hover,
+.ringo-rail .ringo-lift:active,
+.ringo-rail .ringo-tactile:hover,
+.ringo-rail .ringo-tactile:active {
+  transform: none;
+}
+.ringo-rail img {
+  transform: none !important;
 }
 .ringo-rail-wrap {
   position: relative;
@@ -802,5 +815,18 @@ h1, h2, h3, .font-display {
   }
   .ringo-rail {
     scroll-behavior: auto;
+  }
+  /* Tailwind hover / press movement utilities used across the public pages (a small lift, a photo zoom, a press shrink) hold still when motion is
+     reduced: colour, brightness and shadow still answer a hover or a press. A transform that only animates a state change (a chevron turning) happens at once. */
+  [class*="hover:-translate-"]:hover,
+  [class*="hover:translate-"]:hover,
+  [class*="active:scale-"]:active,
+  .group:hover [class*="group-hover:scale-"],
+  .group:hover [class*="group-hover:translate-"],
+  .group:hover [class*="group-hover:-translate-"] {
+    transform: none !important;
+  }
+  .transition-transform {
+    transition: none !important;
   }
 }

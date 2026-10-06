@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, Check, Loader2, ChevronsUpDown, type LucideIcon } from "lucide-react";
+import { Menu, X, Check, Loader2, ChevronsUpDown, Lock, type LucideIcon } from "lucide-react";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
+import { useLanguage } from "@/components/LanguageProvider";
 import { useOrgSwitch } from "@/lib/team/useOrgSwitch";
 import { orgDisplayName, orgDisplaySubtitle, type OrgOption } from "@/lib/team/orgDisplay";
 
@@ -30,7 +31,7 @@ export default function MobileMoreMenu({
   organizations = [],
   currentOrgId,
 }: {
-  items: { href: string; label: string; icon: LucideIcon; exact?: boolean }[];
+  items: { href: string; label: string; icon: LucideIcon; exact?: boolean; locked?: boolean }[];
   label: string;
   isActive: (href: string, exact?: boolean) => boolean;
   // The mobile equivalent of the desktop sidebar's OrgSwitcher — only
@@ -41,6 +42,7 @@ export default function MobileMoreMenu({
   organizations?: OrgOption[];
   currentOrgId?: string;
 }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const { switchTo, switchingTo } = useOrgSwitch();
   const showSwitcher = organizations.length > 1 && !!currentOrgId;
@@ -110,7 +112,7 @@ export default function MobileMoreMenu({
                 </div>
               )}
               <nav className="flex flex-col px-5 py-3" aria-label={label}>
-              {items.map(({ href, label: itemLabel, icon: Icon, exact }) => {
+              {items.map(({ href, label: itemLabel, icon: Icon, exact, locked }) => {
                 const active = isActive(href, exact);
                 return (
                   <div key={href} className="border-b border-ringo-border/60 last:border-0">
@@ -124,6 +126,12 @@ export default function MobileMoreMenu({
                     >
                       <Icon size={17} strokeWidth={active ? 2.3 : 2} />
                       {itemLabel}
+                      {locked && (
+                        <>
+                          <Lock size={13} className="ml-auto shrink-0 opacity-60" aria-hidden="true" />
+                          <span className="sr-only">{t.toolkitLock.lockedLabel}</span>
+                        </>
+                      )}
                     </Link>
                   </div>
                 );

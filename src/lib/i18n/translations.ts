@@ -6222,6 +6222,55 @@ export const translations = {
         firstCommunityMember: { title: "Your first community member", body: "Someone chose to hear from you." },
       },
     },
+    // Phase 14: the dedicated shop / services page (/[username]/shop) and the locked state of the paid business tools.
+    shopPage: {
+      backToProfile: (name: string) => `Back to ${name}`,
+      viewProfile: "View profile",
+      itemsCount: (n: number) => (n === 1 ? "1 item" : `${n} items`),
+      featured: "Featured",
+      newest: "New",
+      allItems: "All items",
+      filterLabel: "Filter by type",
+      filterAll: "All",
+      filterPhysical: "Physical",
+      filterDigital: "Digital",
+      emptyTitle: "Nothing here yet",
+      emptyBody: (name: string) => `${name} has not added anything yet. Please check back soon.`,
+    },
+    toolkitLock: {
+      badge: "Included with a paid plan",
+      cta: "Upgrade to use",
+      ctaAria: (tool: string) => `Upgrade your plan to use ${tool}`,
+      note: "Your Free plan lets you see this tool. Upgrade to start using it.",
+      lockedLabel: "Locked, upgrade required",
+      tools: {
+        sales: {
+          headline: "Record every sale in seconds.",
+          body: "Log what you sold, to whom and how it was paid, and get a receipt you can share.",
+          points: ["Receipts for every sale", "Linked to your customers and stock", "Your daily takings at a glance"],
+        },
+        inventory: {
+          headline: "Keep your products and stock organized.",
+          body: "Know what you have, what is running low and what to restock.",
+          points: ["Stock count for each product", "Low-stock alerts", "A history of every stock change"],
+        },
+        documents: {
+          headline: "Send professional invoices and get paid.",
+          body: "Create invoices and receipts with your own details and follow what is still owed.",
+          points: ["Invoices and receipts as PDF", "Track who has paid", "Reminders for late payments"],
+        },
+        bookkeeping: {
+          headline: "Understand where your money is going.",
+          body: "Keep your sales, income and expenses in one clear record.",
+          points: ["Sales, income and expenses together", "Corrections that keep a clean history", "Ready for your reports"],
+        },
+        reports: {
+          headline: "See how your business is really doing.",
+          body: "Monthly and trend reports built from your own records.",
+          points: ["Monthly summaries", "Trends over time", "Download as PDF"],
+        },
+      },
+    },
   },
   fr: {
     brand: {
@@ -12193,6 +12242,55 @@ export const translations = {
         firstOffering: { title: "Votre premier élément est en ligne", body: "Les visiteurs ont maintenant quelque chose à découvrir." },
         firstOrder: { title: "Votre première commande en ligne", body: "Un client a acheté sur votre Ringo." },
         firstCommunityMember: { title: "Votre premier membre de la communauté", body: "Quelqu'un a choisi de recevoir vos nouvelles." },
+      },
+    },
+    // Phase 14 : la page boutique / services dédiée (/[username]/shop) et l'état verrouillé des outils de gestion payants.
+    shopPage: {
+      backToProfile: (name: string) => `Retour à ${name}`,
+      viewProfile: "Voir le profil",
+      itemsCount: (n: number) => (n === 1 ? "1 article" : `${n} articles`),
+      featured: "À la une",
+      newest: "Nouveautés",
+      allItems: "Tous les articles",
+      filterLabel: "Filtrer par type",
+      filterAll: "Tout",
+      filterPhysical: "Physiques",
+      filterDigital: "Numériques",
+      emptyTitle: "Rien ici pour l'instant",
+      emptyBody: (name: string) => `${name} n'a encore rien ajouté. Revenez bientôt.`,
+    },
+    toolkitLock: {
+      badge: "Inclus avec un forfait payant",
+      cta: "Passer à un forfait payant",
+      ctaAria: (tool: string) => `Passer à un forfait payant pour utiliser ${tool}`,
+      note: "Votre forfait gratuit vous permet de voir cet outil. Passez à un forfait payant pour l'utiliser.",
+      lockedLabel: "Verrouillé, forfait payant requis",
+      tools: {
+        sales: {
+          headline: "Enregistrez chaque vente en quelques secondes.",
+          body: "Notez ce que vous avez vendu, à qui et comment c'était payé, et obtenez un reçu à partager.",
+          points: ["Un reçu pour chaque vente", "Lié à vos clients et à votre stock", "Vos encaissements du jour en un coup d'œil"],
+        },
+        inventory: {
+          headline: "Gardez vos produits et votre stock organisés.",
+          body: "Sachez ce que vous avez, ce qui s'épuise et ce qu'il faut réapprovisionner.",
+          points: ["Le stock de chaque produit", "Alertes de stock bas", "L'historique de chaque mouvement de stock"],
+        },
+        documents: {
+          headline: "Envoyez des factures professionnelles et soyez payé.",
+          body: "Créez des factures et des reçus à vos coordonnées et suivez ce qui vous est encore dû.",
+          points: ["Factures et reçus en PDF", "Suivez qui a payé", "Relances pour les retards de paiement"],
+        },
+        bookkeeping: {
+          headline: "Comprenez où va votre argent.",
+          body: "Gardez vos ventes, vos revenus et vos dépenses dans un seul registre clair.",
+          points: ["Ventes, revenus et dépenses réunis", "Des corrections qui gardent un historique propre", "Prêt pour vos rapports"],
+        },
+        reports: {
+          headline: "Voyez où en est vraiment votre activité.",
+          body: "Des rapports mensuels et de tendances construits à partir de vos propres données.",
+          points: ["Résumés mensuels", "Tendances dans le temps", "Téléchargement en PDF"],
+        },
       },
     },
   },
