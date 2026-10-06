@@ -206,7 +206,7 @@ export default function AnalyticsView({
           </div>
           <Link
             href="/dashboard/subscription"
-            className="text-xs font-medium px-3.5 py-2 rounded-card bg-ringo-indigo text-white mt-1"
+            className="ringo-tactile ringo-cta mt-1 inline-flex min-h-[44px] items-center rounded-card px-5 text-sm font-semibold"
           >
             {t.sidebar.upgradePlan}
           </Link>

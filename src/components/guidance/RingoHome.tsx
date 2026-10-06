@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BarChart3, CircleCheck, ExternalLink, Eye, MousePointerClick, MessageCircle, Pencil, Plus, Share2, Flag } from "lucide-react";
+import { ArrowRight, BarChart3, CircleCheck, ExternalLink, Eye, MousePointerClick, MessageCircle, Pencil, Plus, Share2, Flag } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ProfileCompletionCard from "@/components/editor/ProfileCompletionCard";
 import NextActionCard from "./NextActionCard";
@@ -75,15 +75,35 @@ export default function RingoHome({
   const noActivityYet = activity.totalPageViews === 0;
   const { achieved, next } = milestoneHighlights(milestones);
   const shownAchieved = achieved.slice(-3);
-  const actions = quickActions(health);
+  const allActions = quickActions(health);
+  // Edit profile is THE action of this page (it opens the editor): it leads as the hero button, the rest stay quiet tiles below
+  const editAction = allActions.find((a) => a.id === "edit");
+  const actions = allActions.filter((a) => a.id !== "edit");
 
   return (
     <div className="max-w-5xl mx-auto flex flex-col gap-6">
-      <header>
-        <h1 className="font-display text-xl sm:text-2xl font-medium text-ringo-text tracking-[-0.01em]">
-          {g.home.greetingLine(g.home.greeting[greeting], firstName)}
-        </h1>
-        <p className="text-sm text-ringo-muted mt-1">{g.home.subtitle}</p>
+      <header className="flex flex-col gap-4">
+        <div>
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ringo-text tracking-[-0.02em] text-balance">
+            {g.home.greetingLine(g.home.greeting[greeting], firstName)}
+          </h1>
+          <p className="text-sm sm:text-base text-ringo-muted mt-1.5">{g.home.subtitle}</p>
+        </div>
+        {editAction?.href && (
+          <Link
+            href={editAction.href}
+            className={`ringo-tactile ringo-cta group flex w-full items-center gap-4 rounded-[20px] px-5 py-4 sm:max-w-xl ${focus}`}
+          >
+            <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/18 ring-1 ring-white/25">
+              <Pencil size={19} strokeWidth={2.25} />
+            </span>
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block text-base font-semibold leading-tight">{g.home.quick.edit}</span>
+              <span className="mt-0.5 block text-sm leading-snug text-white/80">{g.home.quick.editBody}</span>
+            </span>
+            <ArrowRight size={18} aria-hidden="true" className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
+          </Link>
+        )}
       </header>
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-6 lg:items-start flex flex-col gap-6">
@@ -114,7 +134,7 @@ export default function RingoHome({
                 <button
                   type="button"
                   onClick={share}
-                  className={`mt-1 inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-full text-sm font-semibold bg-ringo-indigo text-white hover:brightness-110 transition ${focus}`}
+                  className={`ringo-tactile ringo-cta mt-1 inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-full text-sm font-semibold ${focus}`}
                 >
                   <Share2 size={14} aria-hidden="true" />
                   {g.home.emptyCta}
@@ -147,9 +167,10 @@ export default function RingoHome({
 
                 <Link
                   href="/dashboard/analytics"
-                  className={`mt-4 inline-flex items-center min-h-[44px] -mb-2 text-xs font-medium text-ringo-indigo hover:underline rounded-lg ${focus}`}
+                  className={`ringo-tactile mt-4 inline-flex items-center gap-1.5 min-h-[44px] rounded-full border border-ringo-border px-4 text-xs font-semibold text-ringo-text hover:bg-ringo-muted/[0.06] ${focus}`}
                 >
                   {g.home.seeAnalytics}
+                  <ArrowRight size={13} aria-hidden="true" />
                 </Link>
               </>
             )}
@@ -162,11 +183,13 @@ export default function RingoHome({
             <ul className="grid grid-cols-2 gap-2">
               {actions.map((a) => {
                 const Icon = QUICK_ICONS[a.id];
-                const cls = `w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-xl border border-ringo-border/60 text-sm text-ringo-text hover:bg-ringo-muted/[0.06] transition-colors text-left ${focus}`;
+                const cls = `ringo-tactile w-full flex items-center gap-2.5 min-h-[48px] px-3 rounded-xl border border-ringo-border/60 text-sm font-medium text-ringo-text hover:bg-ringo-muted/[0.06] hover:border-ringo-indigo/30 text-left ${focus}`;
                 const inner = (
                   <>
-                    <Icon size={15} className="text-ringo-indigo shrink-0" aria-hidden="true" />
-                    <span className="min-w-0 flex-1">{g.home.quick[a.id]}</span>
+                    <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ringo-indigo/10">
+                      <Icon size={15} className="text-ringo-indigo" />
+                    </span>
+                    <span className="min-w-0 flex-1 leading-tight">{g.home.quick[a.id]}</span>
                   </>
                 );
                 return (

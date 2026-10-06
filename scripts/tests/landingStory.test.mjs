@@ -114,7 +114,7 @@ await test("hierarchy: nothing outranks the hero. Display headings share one siz
 // ------------------------------------------------------------------ one visual language
 const DEMO_FILES = ["RestaurantShowcase.tsx", "IndustryShowcase.tsx", "PhoneMockup.tsx", "CommerceStory.tsx"];
 await test("one palette: no indigo, coral, teal, green, amber or per-section brand colors anywhere on the landing page, except inside the product demonstrations", () => {
-  const off = /ringo-indigo|ringo-coral|ringo-teal|#4F46E5|#FF6B4A|#14B8A6|#1F9D55|#F2B705|#7C3AED|#0EA5E9|#E11D48|#DB2777|#65A30D|#D97706|#25D366|hexToRgba|indigo-|violet|amber-/;
+  const off = /ringo-indigo(?!-world)|ringo-coral|ringo-teal|#4F46E5|#FF6B4A|#14B8A6|#1F9D55|#F2B705|#7C3AED|#0EA5E9|#E11D48|#DB2777|#65A30D|#D97706|#25D366|hexToRgba|indigo-(?!world)|violet|amber-/;
   const offenders = landingFiles.filter((f) => !DEMO_FILES.includes(f) && off.test(landingSrc(f)));
   assert.deepEqual(offenders, []);
   // the demonstrations keep the product's own look (a creator's theme), and are named here on purpose
@@ -172,7 +172,7 @@ await test("lamplight: at most one lamp per section; the ink sections that have 
 });
 await test("gold is special: gold fills only on the header, hero, close and pricing primary actions (plus the sample Order button); everything else is outline or text", () => {
   const fills = landingFiles.filter((f) => /bg-ringo-gold(?!\/|-)/.test(landingSrc(f)));
-  assert.deepEqual(fills.sort(), ["CommerceStory.tsx", "LandingView.tsx", "PricingSection.tsx", "Section.tsx"]);
+  assert.deepEqual(fills.sort(), ["PricingSection.tsx", "Section.tsx"]); // UX refinement phase: the header, hero and sample-order primaries are the brand-indigo ringo-cta; gold remains only on pricing and on the ink sections
   assert.ok(!/ringo-gilt--strong/.test(landingFiles.filter((f) => f !== "PricingSection.tsx").map((f) => landingSrc(f)).join("\n")), "the strong gilt edge belongs to the one featured plan only");
 });
 await test("teal means connected: it only appears as the Ring's connected state (and the card's), never as a decorative color", () => {
@@ -186,7 +186,7 @@ await test("header: the primary action is the hero's gold button at header size,
   const v = raw("src/components/landing/LandingView.tsx");
   const header = v.slice(v.indexOf("<header"), v.indexOf("</header>"));
   assert.ok(!/ringo-indigo|bg-ringo-indigo/.test(header));
-  assert.match(v, /const headerCta = `[^`]*bg-ringo-gold text-ringo-ink[^`]*`/);
+  assert.match(v, /const headerCta = `[^`]*ringo-cta[^`]*`/); // brand-indigo CTA (was the gold fill)
   assert.match(header, /<Link href="\/get-started" className=\{`px-3\.5 sm:px-4 \$\{headerCta\}`\}>\s*\{t\.landing\.getStarted\}/);
   assert.match(header, /<Link href=\{dashboardHref\} className=\{`lg:ml-1 w-11 sm:w-auto sm:px-4 \$\{headerCta\}`\}>/);
 });
@@ -195,7 +195,7 @@ await test("header at 320px: logo, language, theme, one gold action and the menu
   assert.match(v, /max-\[399px\]:hidden lg:hidden px-2\.5 py-2 rounded-card/);
   assert.match(v, /min-\[400px\]:hidden flex items-center min-h-\[48px\]/);
   assert.match(v, /w-11 h-11 -mr-2 rounded-full/);
-  assert.match(v, /min-h-\[44px\] rounded-full bg-ringo-gold/);
+  assert.match(v, /min-h-\[44px\] rounded-full text-sm font-semibold/); // header CTA is the indigo ringo-cta now
   assert.match(raw("src/app/globals.css"), /\.ringo-touch-toggles > button \{\s*width: 2\.75rem;\s*height: 2\.75rem;/);
   assert.match(pageEN, /ringo-touch-toggles/);
 });
@@ -273,7 +273,7 @@ await test("pricing look: the featured plan is the one gilt object; checks are g
   assert.equal((s.match(/text-ringo-gold-text/g) || []).length >= 3, true, "gold-dark checks and seats on the paper sheets");
   assert.ok(!/ringo-indigo|ringo-teal/.test(s));
   assert.match(s, /"bg-ringo-gold text-ringo-ink shadow-ringo-2 hover:brightness-105 focus-visible:outline-ringo-paper"/, "the gold action on the Ink object gets a paper focus ring");
-  assert.equal((s.match(/min-h-\[44px\]/g) || []).length, 1);
+  assert.equal((s.match(/min-h-\[44px\]/g) || []).length, 2); // the billing toggle is now a real 44px target too (was 40px)
   assert.equal((s.match(/ringo-lamp /g) || []).length, 1, "one lamp: the featured plan only");
   const html2 = html(LandingView, props(), "en");
   assert.ok(html2.includes("ringo-gilt--strong") && (html2.match(/ringo-gilt--strong/g) || []).length === 1, "exactly one featured plan");

@@ -43,7 +43,7 @@ export default function CustomerForm({ customer, onClose, onSaved }: { customer:
       <label className={labelClass}>{r.contactEmail}<input value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} maxLength={CONTACT_LIMITS.email} inputMode="email" className={inputClass} /></label>
       <label className={labelClass}>{r.contactNotes}<textarea value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} maxLength={CONTACT_LIMITS.notes} rows={3} className={inputClass} /></label>
       {error && <p role="alert" className="text-sm text-rose-600">{dup ? <strong>{r.duplicateTitle}. </strong> : null}{error}</p>}
-      {dup && <Link href={`/dashboard/customers/${dup.id}`} className="w-fit text-sm text-ringo-indigo hover:underline">{r.useExisting}</Link>}
+      {dup && <Link href={`/dashboard/customers/${dup.id}`} className="w-fit ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-sm font-semibold text-ringo-indigo hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40">{r.useExisting}</Link>}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <button onClick={onClose} disabled={busy} className={secondaryButton}>{r.cancel}</button>
         <button onClick={save} disabled={busy} className={primaryButton}>{busy ? <><Loader2 size={15} className="animate-spin" />{r.saving}</> : r.save}</button>

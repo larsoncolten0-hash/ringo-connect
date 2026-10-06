@@ -1,7 +1,8 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Ticket, MapPin, Clock } from "lucide-react";
+import { ArrowRight, Ticket, MapPin, Clock } from "lucide-react";
+import Rail from "@/components/ui/Rail";
 import { accentTextOn, hexToRgba, readableOn } from "@/lib/color";
 import { MUSIC } from "@/lib/profileStage";
 import { formatPrice } from "@/lib/currency";
@@ -29,6 +30,7 @@ export default function EventsSection({
   currency,
   dateLead = false,
   locale,
+  fadeColor,
 }: {
   t: Translations;
   events: any[];
@@ -42,8 +44,13 @@ export default function EventsSection({
   dateLead?: boolean;
   /** The visitor's language, so the month on the date reads in it ("DÉC." in French) rather than in the browser's. */
   locale?: string;
+  /** The flat surface colour behind this section, for the rail's edge fades (omit on a gradient background). */
+  fadeColor?: string;
 }) {
   if (events.length === 0) return null;
+  // three or more events open as a rail; "View events" goes to the storefront (/m/[username]) that lists every event, rather than
+  // turning the profile into a long wall of cards
+  const asRail = events.length >= 3;
   const onAccent = readableOn(accent);
 
   const dateParts = (iso?: string | null) => {
@@ -55,13 +62,24 @@ export default function EventsSection({
 
   return (
     <div id="events" className="flex flex-col gap-3 scroll-mt-6">
-      <h2 className="text-base font-bold flex items-center gap-2">
-        <Ticket size={17} style={{ color: accent }} />
-        {t.music.upcomingTitle}
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-bold flex items-center gap-2">
+          <Ticket size={17} style={{ color: accent }} />
+          {t.music.upcomingTitle}
+        </h2>
+        {events.length >= 3 && (
+          <a
+            href={`/m/${username}`}
+            className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-current/25 px-3.5 text-xs font-semibold"
+          >
+            {t.music.viewEvents}
+            <ArrowRight size={13} aria-hidden="true" />
+          </a>
+        )}
+      </div>
 
-      <div className="flex flex-col gap-3">
-        {events
+      {(() => {
+        const list = [...events]
           .sort((a, b) => a.sort_order - b.sort_order)
           .map((event) => {
             const parts = dateParts(event.event_date);
@@ -79,7 +97,7 @@ export default function EventsSection({
             return (
               <div
                 key={event.id}
-                className="relative overflow-hidden rounded-ringo-lg p-3 flex flex-wrap items-center gap-3"
+                className={`relative overflow-hidden rounded-ringo-lg p-3 flex flex-wrap items-center gap-3 ${asRail ? "w-[80vw] max-w-[320px] sm:w-[320px]" : ""}`}
                 style={{ backgroundColor: CARD_BG, color: CARD_TEXT }}
               >
                 {/* Every event gets a detail page (see EventDetail's
@@ -160,7 +178,7 @@ export default function EventsSection({
                 {href && (
                   <a
                     href={href}
-                    className="shrink-0 ml-auto inline-flex items-center min-h-[44px] text-xs font-semibold px-3.5 py-2 rounded-full transition hover:brightness-95 active:scale-95"
+                    className="ringo-tactile shrink-0 ml-auto inline-flex items-center min-h-[44px] text-xs font-semibold px-3.5 py-2 rounded-full"
                     style={{ backgroundColor: accent, color: onAccent }}
                   >
                     {primary ? t.music.viewTicketsButton : t.music.getTicket}
@@ -168,8 +186,15 @@ export default function EventsSection({
                 )}
               </div>
             );
-          })}
-      </div>
+          });
+        return asRail ? (
+          <Rail label={t.music.upcomingTitle} prevLabel={t.profilePage.railPrev} nextLabel={t.profilePage.railNext} fade={fadeColor}>
+            {list}
+          </Rail>
+        ) : (
+          <div className="flex flex-col gap-3">{list}</div>
+        );
+      })()}
     </div>
   );
 }

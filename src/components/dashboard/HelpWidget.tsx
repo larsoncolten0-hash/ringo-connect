@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { MessageCircle, X, Send, Loader2, AlertCircle } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, AlertCircle, ArrowUpRight } from "lucide-react";
+import RingoAvatar from "@/components/ai/RingoAvatar";
 import { useLanguage } from "@/components/LanguageProvider";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
 
@@ -114,11 +115,12 @@ export default function HelpWidget({ username, email }: { username: string; emai
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages, open]);
 
-  const send = async () => {
-    const text = draft.trim();
+  // `override` lets a suggested question be sent in one tap (the composer's own draft is untouched in that case)
+  const send = async (override?: string) => {
+    const text = (override ?? draft).trim();
     if (!text || sending) return;
     setSending(true);
-    setDraft("");
+    if (override === undefined) setDraft("");
     try {
       const res = await fetch("/api/support/messages", {
         method: "POST",
@@ -149,19 +151,20 @@ export default function HelpWidget({ username, email }: { username: string; emai
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.97 }}
               transition={{ duration: 0.15 }}
-              className="absolute bottom-[4.75rem] right-0 w-[calc(100vw-2rem)] max-w-[340px] h-[min(70vh,480px)] rounded-2xl border border-ringo-border/70 bg-ringo-surface shadow-[0_20px_48px_-16px_rgba(15,23,42,0.35)] flex flex-col overflow-hidden z-40"
+              className="absolute bottom-[4.75rem] right-0 w-[calc(100vw-2rem)] max-w-[340px] h-[min(76vh,540px)] rounded-2xl border border-ringo-border/70 bg-ringo-surface shadow-[0_20px_48px_-16px_rgba(15,23,42,0.35)] flex flex-col overflow-hidden z-40"
             >
-              <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-ringo-border/70 shrink-0">
-                <div>
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-ringo-border/70 bg-[linear-gradient(to_right,rgb(var(--ringo-accent)/0.08),transparent_70%)] shrink-0">
+                <RingoAvatar size={38} live />
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-ringo-text">{t.help.title}</p>
-                  <p className="text-xs text-ringo-muted mt-0.5">{t.help.subtitle}</p>
+                  <p className="text-xs text-ringo-muted mt-0.5 leading-snug">{t.help.subtitle}</p>
                 </div>
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Close"
-                  className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10 transition"
+                  className="ringo-tactile -mr-2 shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10"
                 >
-                  <X size={13} />
+                  <X size={16} />
                 </button>
               </div>
 
@@ -174,22 +177,41 @@ export default function HelpWidget({ username, email }: { username: string; emai
                   <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-4">
                     <AlertCircle size={18} className="text-ringo-coral" />
                     <p className="text-xs text-ringo-muted">{t.help.loadError}</p>
-                    <button onClick={fetchThread} className="text-xs font-medium text-ringo-indigo hover:underline">
+                    <button onClick={fetchThread} className="ringo-tactile inline-flex min-h-[44px] items-center rounded-full border border-ringo-border px-4 text-xs font-semibold text-ringo-text hover:border-ringo-indigo/40">
                       {t.help.retry}
                     </button>
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-center px-6">
-                    <p className="text-xs text-ringo-muted leading-relaxed">{t.help.emptyState}</p>
+                  <div className="my-auto flex flex-col gap-4 px-1">
+                    <div className="ringo-rise">
+                      <p className="font-display text-base font-semibold tracking-[-0.01em] text-ringo-text text-balance">{t.help.emptyTitle}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-ringo-muted">{t.help.emptyState}</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-ringo-muted">{t.help.suggestionsTitle}</p>
+                      {t.help.suggestions.map((q, i) => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => send(q)}
+                          disabled={sending}
+                          style={{ ["--i" as string]: i + 1 }}
+                          className="ringo-rise ringo-tactile group flex min-h-[44px] items-center gap-2 rounded-2xl border border-ringo-border/80 px-3.5 py-1.5 text-left text-sm text-ringo-text hover:border-ringo-indigo/50 hover:bg-ringo-indigo/[0.04] disabled:opacity-50"
+                        >
+                          <span className="min-w-0 flex-1 leading-snug">{q}</span>
+                          <ArrowUpRight size={14} aria-hidden="true" className="shrink-0 text-ringo-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transition-none" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   messages.map((m) => (
                     <div
                       key={m.id}
-                      className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-snug whitespace-pre-wrap break-words ${
+                      className={`ringo-msg-in max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-snug whitespace-pre-wrap break-words ${
                         m.sender_type === "user"
-                          ? "self-end bg-ringo-indigo text-white rounded-br-md"
-                          : "self-start bg-ringo-muted/10 text-ringo-text rounded-bl-md"
+                          ? "self-end bg-ringo-indigo text-white rounded-br-md shadow-[0_4px_12px_-6px_rgb(var(--ringo-accent)/0.55)]"
+                          : "self-start border border-ringo-border/50 bg-ringo-muted/[0.08] text-ringo-text rounded-bl-md"
                       }`}
                     >
                       {m.body}
@@ -203,8 +225,9 @@ export default function HelpWidget({ username, email }: { username: string; emai
                   e.preventDefault();
                   send();
                 }}
-                className="flex items-end gap-2 p-3 border-t border-ringo-border/70 shrink-0"
+                className="p-3 border-t border-ringo-border/70 shrink-0"
               >
+               <div className="flex items-end gap-1 rounded-[26px] border border-ringo-border bg-ringo-bg p-1.5 transition-colors focus-within:border-ringo-indigo/60 focus-within:ring-2 focus-within:ring-ringo-indigo/20">
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -215,18 +238,21 @@ export default function HelpWidget({ username, email }: { username: string; emai
                     }
                   }}
                   placeholder={t.help.placeholder}
+                  aria-label={t.help.placeholder}
                   rows={1}
                   disabled={sending}
-                  className="flex-1 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text resize-none max-h-24 disabled:opacity-60"
+                  className="min-h-[44px] flex-1 resize-none bg-transparent px-2.5 py-[11px] text-sm text-ringo-text placeholder:text-ringo-muted focus:outline-none max-h-24 disabled:opacity-60"
                 />
                 <button
                   type="submit"
                   disabled={!draft.trim() || sending}
                   aria-label={t.help.send}
-                  className="shrink-0 w-9 h-9 rounded-full bg-ringo-indigo text-white flex items-center justify-center transition disabled:opacity-40 active:scale-95"
+                  aria-busy={sending}
+                  className="ringo-tactile ringo-cta shrink-0 w-11 h-11 rounded-full flex items-center justify-center"
                 >
-                  {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />}
+                  {sending ? <Loader2 size={16} className="animate-spin motion-reduce:animate-none" /> : <Send size={16} />}
                 </button>
+               </div>
               </form>
             </motion.div>
           </>
@@ -236,7 +262,7 @@ export default function HelpWidget({ username, email }: { username: string; emai
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={unreadCount > 0 ? `${t.help.button}, ${unreadCount > 99 ? "99+" : unreadCount} unread` : t.help.button}
-        className="relative w-16 h-16 rounded-2xl bg-ringo-indigo text-white flex flex-col items-center justify-center gap-0.5 shadow-[0_10px_28px_-8px_rgba(79,70,229,0.55)] transition hover:-translate-y-0.5 active:scale-95"
+        className="ringo-tactile ringo-cta relative w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-0.5"
       >
         {open ? (
           <X size={20} />

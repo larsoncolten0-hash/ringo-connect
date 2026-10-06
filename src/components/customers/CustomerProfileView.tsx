@@ -99,7 +99,7 @@ export default function CustomerProfileView({ id }: { id: string }) {
           <div><dt className="text-xs text-ringo-muted">{p.email}</dt><dd className="break-words text-ringo-text">{c.email || p.noValue}</dd></div>
           <div className="sm:col-span-2"><dt className="text-xs text-ringo-muted">{p.notes}</dt><dd className="whitespace-pre-wrap break-words text-ringo-text">{c.notes || p.noValue}</dd></div>
         </dl>
-        <Link href={`/dashboard/documents/receivables/contacts/${c.id}`} className="w-fit text-xs text-ringo-indigo hover:underline">{p.statementLink}</Link>
+        <Link href={`/dashboard/documents/receivables/contacts/${c.id}`} className="w-fit ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-xs font-semibold text-ringo-indigo hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40">{p.statementLink}</Link>
       </section>
 
       <section className="flex flex-col gap-3 rounded-card border border-ringo-border p-4">

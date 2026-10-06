@@ -1,8 +1,9 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ShoppingBag } from "lucide-react";
+import { ArrowRight, ShoppingBag } from "lucide-react";
+import Rail from "@/components/ui/Rail";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -10,7 +11,9 @@ import { resolveProductCta, resolveDisplayCtaLabel } from "@/lib/cta";
 import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import { productHref, productImages } from "./productHref";
 
-// The public profile's Catalog / Merch / Services section. An editorial
+// The public profile's Catalog / Merch / Services section. With four or more items it opens as a horizontal RAIL of the first eight (a
+// preview of what is on offer, the next card always peeking in), and one button, worded from the category's own label ("View shop",
+// "View services"), expands it in place into the full grid below. Fewer items stay a grid. The grid is an editorial
 // grid instead of a collapsible list: one large feature card up top, then
 // portrait cards two-up — big photography, a frosted price tag, a real
 // labeled button (not just an arrow), soft rounded corners, a gentle
@@ -38,6 +41,7 @@ export default function CatalogSection({
   checkoutAvailable,
   isDemo,
   preview,
+  fadeColor,
   onOpen,
 }: {
   label: string;
@@ -67,9 +71,19 @@ export default function CatalogSection({
   isDemo?: boolean;
   // Inside the dashboard editor's live preview, cards shouldn't navigate away.
   preview?: boolean;
+  /** The flat surface colour behind this section, for the rail's edge fades (omit on a gradient background). */
+  fadeColor?: string;
   onOpen: (product: any) => void;
 }) {
+  const { t } = useLanguage();
+  const [expanded, setExpanded] = useState(false);
+  // Expanded in place, but never as one unbounded wall: a dozen at a time. A music profile has a real storefront, so "view all" goes there.
+  const [shown, setShown] = useState(12);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const storeHref = isMusic ? `/m/${username}` : null;
   const sorted = [...products].sort((a, b) => a.sort_order - b.sort_order);
+  const asRail = sorted.length >= 4 && !expanded;
+  const railItems = sorted.slice(0, 8);
 
   return (
     <section id="merch" className="flex flex-col gap-4 scroll-mt-6">
@@ -80,17 +94,91 @@ export default function CatalogSection({
             {label}
           </h2>
         </div>
-        <span
-          className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums"
-          style={{ backgroundColor: hexToRgba(accent, 0.12), color: accentText || accent }}
-        >
-          {sorted.length}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span
+            className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold tabular-nums"
+            style={{ backgroundColor: hexToRgba(accent, 0.12), color: accentText || accent }}
+          >
+            {sorted.length}
+          </span>
+          {sorted.length >= 4 && storeHref && (
+            <a
+              href={storeHref}
+              aria-label={t.profilePage.viewAllAria(label, sorted.length)}
+              className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold"
+              style={{ borderColor: borderTint, color: textColor }}
+            >
+              {t.profilePage.viewAll(label)}
+              <ArrowRight size={13} aria-hidden="true" />
+            </a>
+          )}
+          {sorted.length >= 4 && !storeHref && (
+            <button
+              ref={toggleRef}
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+              aria-label={expanded ? t.profilePage.showLess : t.profilePage.viewAllAria(label, sorted.length)}
+              className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold"
+              style={{ borderColor: borderTint, color: textColor }}
+            >
+              {expanded ? t.profilePage.showLess : t.profilePage.viewAll(label)}
+              {!expanded && <ArrowRight size={13} aria-hidden="true" />}
+            </button>
+          )}
+        </div>
       </div>
       <div className="h-px w-full" style={{ backgroundColor: borderTint }} />
 
+      {asRail ? (
+        <Rail label={label} prevLabel={t.profilePage.railPrev} nextLabel={t.profilePage.railNext} fade={fadeColor}>
+          {railItems.map((product, i) => (
+            <div key={product.id} className="w-[41vw] min-w-[146px] max-w-[190px] sm:w-[200px] sm:max-w-none">
+              <ProductCard
+                product={product}
+                featured={false}
+                index={i}
+                href={productHref(username, product.id, isMusic)}
+                currency={currency}
+                accent={accent}
+                textColor={textColor}
+                squareCorners={squareCorners}
+                buttonStyle={buttonStyle}
+                radiusClass={radiusClass}
+                category={category}
+                isMusic={isMusic}
+                bookingEnabled={bookingEnabled}
+                restaurantOrdering={restaurantOrdering}
+                checkoutAvailable={checkoutAvailable}
+                isDemo={isDemo}
+                preview={preview}
+                onOpen={() => onOpen(product)}
+              />
+            </div>
+          ))}
+          {sorted.length > railItems.length && (
+            <ViewAllTile
+              href={storeHref}
+              onClick={() => {
+                setExpanded(true);
+                // the tile that was activated unmounts: keep keyboard focus on the section's toggle (now "Show less")
+                requestAnimationFrame(() => toggleRef.current?.focus());
+              }}
+              aria-label={t.profilePage.viewAllAria(label, sorted.length)}
+              className="ringo-tactile flex w-[41vw] min-w-[146px] max-w-[190px] flex-col items-center justify-center gap-2 rounded-[22px] border border-dashed px-3 text-center sm:w-[200px] sm:max-w-none"
+              style={{ borderColor: borderTint, color: textColor, aspectRatio: "4 / 5" }}
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: hexToRgba(accent, 0.14), color: accentText || accent }}>
+                <ArrowRight size={18} aria-hidden="true" />
+              </span>
+              <span className="text-sm font-semibold">{t.profilePage.viewAll(label)}</span>
+              <span className="text-xs tabular-nums" style={{ opacity: 0.6 }}>{sorted.length}</span>
+            </ViewAllTile>
+          )}
+        </Rail>
+      ) : (
       <div className="grid grid-cols-2 gap-x-3 gap-y-6">
-        {sorted.map((product, i) => (
+        {(expanded ? sorted.slice(0, shown) : sorted).map((product, i) => (
           <ProductCard
             key={product.id}
             product={product}
@@ -114,7 +202,27 @@ export default function CatalogSection({
           />
         ))}
       </div>
+      )}
+      {expanded && sorted.length > shown && (
+        <button
+          type="button"
+          onClick={() => setShown((n) => n + 12)}
+          className="ringo-tactile mx-auto inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-5 text-sm font-semibold"
+          style={{ borderColor: borderTint, color: textColor }}
+        >
+          {t.profilePage.showMoreItems(Math.min(12, sorted.length - shown))}
+        </button>
+      )}
     </section>
+  );
+}
+
+// The trailing "view all" tile of the rail: a link to the storefront when there is one, otherwise it expands the list in place.
+function ViewAllTile({ href, onClick, children, ...rest }: { href: string | null; onClick: () => void; children: React.ReactNode; className?: string; style?: React.CSSProperties; "aria-label"?: string }) {
+  return href ? (
+    <a href={href} {...rest}>{children}</a>
+  ) : (
+    <button type="button" onClick={onClick} {...rest}>{children}</button>
   );
 }
 
@@ -181,7 +289,7 @@ function ProductCard({
   const buttonLabel = resolveDisplayCtaLabel(cta, isMusic, { presets: t.cta.labels, buyNow: t.music.buyNowLabel, shopMerch: t.music.shopMerch, viewDetails: t.profilePage.viewItem });
 
   const body = (
-    <>
+    <div className="ringo-lift ringo-lift--flat">
       <div
         className={`relative overflow-hidden ${radius} ${featured ? "aspect-[16/11]" : "aspect-[4/5]"}`}
         style={{ backgroundColor: hexToRgba(textColor, 0.06) }}
@@ -249,7 +357,7 @@ function ProductCard({
           {buttonLabel}
         </span>
       </div>
-    </>
+    </div>
   );
 
   // The card link's accessible name keeps what a sighted visitor reads on it: the name, the price, whether it is
@@ -275,7 +383,7 @@ function ProductCard({
       {body}
     </motion.div>
   ) : (
-    <motion.a href={href} onClick={onOpen} className={`${cls} active:scale-[0.985] transition-transform`} aria-label={accessibleName} {...motionProps}>
+    <motion.a href={href} onClick={onOpen} className={cls} aria-label={accessibleName} {...motionProps}>
       {body}
     </motion.a>
   );

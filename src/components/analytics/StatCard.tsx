@@ -28,7 +28,7 @@ export default function StatCard({
         </span>
         <p className="text-xs font-medium text-ringo-muted">{label}</p>
       </div>
-      <p className="text-2xl font-display font-semibold text-ringo-text tabular-nums tracking-[-0.02em]">
+      <p className="text-3xl font-display font-semibold text-ringo-text tabular-nums tracking-[-0.02em]">
         {typeof value === "number" ? value.toLocaleString("en-US") : value}
       </p>
     </div>

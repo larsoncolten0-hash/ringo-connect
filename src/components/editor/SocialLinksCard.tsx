@@ -32,6 +32,8 @@ export default function SocialLinksCard({
   const [urlError, setUrlError] = useState("");
   const { updateDraft } = useEditorPreview();
   const hintId = useId();
+  const typed = url.trim() ? normalizeLinkUrl(url.trim()) : null;
+  const detectedPlatform = typed && typed.ok ? { platform: detectPlatform(typed.url), url: typed.url } : null;
 
   // The typed-but-not-added address is the only thing here that can be lost.
   useEffect(() => {
@@ -141,11 +143,18 @@ export default function SocialLinksCard({
           onClick={addSocial}
           disabled={!url.trim() || adding}
           aria-label={t.editor.addSocial}
-          className="shrink-0 w-11 h-11 flex items-center justify-center rounded-card bg-ringo-indigo text-white disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 focus-visible:ring-offset-2"
+          className="ringo-tactile ringo-cta shrink-0 w-11 h-11 flex items-center justify-center rounded-card"
         >
           <Plus size={18} aria-hidden="true" />
         </button>
       </div>
+      {detectedPlatform && (
+        // which account this will be: the platform is read from the address as it is typed (the same detection the save uses)
+        <p aria-live="polite" className="mt-2 flex items-center gap-2 text-xs font-medium text-ringo-text">
+          <SocialIcon platform={detectedPlatform.platform} url={detectedPlatform.url} />
+          <span className="capitalize">{t.editor.socialDetected(detectedPlatform.platform)}</span>
+        </p>
+      )}
       <p id={hintId} className={`text-xs mt-1.5 ${urlError ? "text-red-500" : "text-ringo-muted"}`} role={urlError ? "alert" : undefined}>
         {urlError || t.editor.validation.urlHint}
       </p>

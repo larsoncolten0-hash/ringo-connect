@@ -28,7 +28,7 @@ function CopyChip({ text, label }: { text: string; label: string }) {
           // Clipboard blocked — text is still selectable on the card.
         }
       }}
-      className="inline-flex items-center gap-1 text-[11px] font-medium text-ringo-indigo hover:underline shrink-0"
+      className="shrink-0 ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-xs font-semibold text-ringo-indigo hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40"
     >
       {copied ? <Check size={11} /> : <Copy size={11} />}
       {copied ? t.ringoAi.copied : label}

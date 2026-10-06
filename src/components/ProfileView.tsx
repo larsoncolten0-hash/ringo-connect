@@ -422,6 +422,7 @@ export default function ProfileView({
               username={profile.username}
               accent={accent}
               currency={profile.currency || "USD"}
+              fadeColor={panel ? panel.background : profile.background_style === "gradient" ? undefined : bgColor}
             />
           ),
     links: publicLinks.length > 0 && (
@@ -480,6 +481,7 @@ export default function ProfileView({
               checkoutAvailable={!!(profile as any).commerceCheckoutAvailable}
               isDemo={profile.is_demo === true}
               preview={preview}
+              fadeColor={panel ? panel.background : profile.background_style === "gradient" ? undefined : bgColor}
               onOpen={(product) =>
                 logClick("product", product.id, {
                   name: product.name,
@@ -500,6 +502,7 @@ export default function ProfileView({
               currency={profile.currency || "USD"}
               dateLead={stage.eventDate === "lead"}
               locale={locale}
+              fadeColor={panel ? panel.background : profile.background_style === "gradient" ? undefined : bgColor}
             />
           ),
   };
@@ -867,6 +870,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               accent={accent}
               radiusClass={radiusClass}
               borderTint={contentBorderTint}
+              fadeColor={panel ? panel.background : profile.background_style === "gradient" ? undefined : bgColor}
             />
           )}
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { Disc3, ShoppingBag } from "lucide-react";
+import { ArrowRight, Disc3, ShoppingBag } from "lucide-react";
+import Rail from "@/components/ui/Rail";
 import { hexToRgba, readableOn } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
@@ -18,33 +19,49 @@ export default function ReleasesSection({
   username,
   accent,
   currency,
+  fadeColor,
 }: {
   t: Translations;
   releases: any[];
   username: string;
   accent: string;
   currency: string;
+  /** The flat surface colour behind this section, for the rail's edge fades (omit on a gradient background). */
+  fadeColor?: string;
 }) {
   const available = releases.filter((r) => r.available !== false);
   if (available.length === 0) return null;
   const onAccent = readableOn(accent);
   // Editorial: with an odd number of releases the first one leads, full width, so the grid below it always fills evenly. The cards,
   // links, prices and order are exactly the creator's; only the first card's width changes.
-  const leadFirst = available.length % 2 === 1;
+  // three or more releases scroll sideways as a rail (the next cover peeks in) with a link to the full storefront; one or two keep the grid
+  const asRail = available.length >= 3;
+  const leadFirst = !asRail && available.length % 2 === 1;
 
   return (
     <div id="releases" className="flex flex-col gap-3 scroll-mt-6">
-      <h2 className="text-base font-bold flex items-center gap-2">
-        <Disc3 size={17} style={{ color: accent }} />
-        {t.music.releasesTitle}
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-bold flex items-center gap-2">
+          <Disc3 size={17} style={{ color: accent }} />
+          {t.music.releasesTitle}
+        </h2>
+        {asRail && (
+          <a
+            href={`/m/${username}`}
+            className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-current/25 px-3.5 text-xs font-semibold"
+          >
+            {t.music.viewMusic}
+            <ArrowRight size={13} aria-hidden="true" />
+          </a>
+        )}
+      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {available.map((release, index) => (
+      {(() => {
+        const cards = available.map((release, index) => (
           <a
             key={release.id}
             href={`/m/${username}/release/${release.id}`}
-            className={`overflow-hidden rounded-ringo-lg transition hover:-translate-y-0.5 ${leadFirst && index === 0 ? "col-span-2" : ""}`}
+            className={`ringo-lift ringo-lift--flat block overflow-hidden rounded-ringo-lg ${asRail ? "w-[44vw] min-w-[150px] max-w-[200px] sm:w-[200px] sm:max-w-none" : ""} ${leadFirst && index === 0 ? "col-span-2" : ""}`}
             style={{ border: `1px solid ${hexToRgba(accent, 0.15)}` }}
           >
             {release.cover_image_url ? (
@@ -73,8 +90,15 @@ export default function ReleasesSection({
               )}
             </div>
           </a>
-        ))}
-      </div>
+        ));
+        return asRail ? (
+          <Rail label={t.music.releasesTitle} prevLabel={t.profilePage.railPrev} nextLabel={t.profilePage.railNext} fade={fadeColor}>
+            {cards}
+          </Rail>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">{cards}</div>
+        );
+      })()}
     </div>
   );
 }

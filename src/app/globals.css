@@ -351,6 +351,243 @@ h1, h2, h3, .font-display {
   transform: scale(var(--ringo-press-scale));
 }
 
+/* ==========================================================================================================
+   THE RINGO INTERACTION LANGUAGE. One small set; compose it with whatever shape/colour the control already has.
+     .ringo-tactile  any tappable control: a 1px lift on hover (mouse only), a physical press (translate + scale 0.97) on active,
+                     a visible focus ring, a clear disabled state. 70-180ms, ease-out. Transform and shadow only.
+     .ringo-cta      the few IMPORTANT actions (Connect, Edit profile, Add product, Save, Checkout): tactile + an indigo elevation that
+                     deepens on hover + a soft light that passes once across the surface on hover. Never continuous.
+     .ringo-cta--attention  Connect only: one soft ring that breathes outward for ~1.6s every 9s, then rests.
+     .ringo-lift     a card that is a link or button: 3px lift and a deeper shadow on hover (mouse only), compression on press.
+   Everything is gated for touch (hover: hover) and removed or flattened for reduced motion (block at the end of this file).
+   ========================================================================================================== */
+.ringo-tactile {
+  transition: transform 140ms var(--ringo-ease), box-shadow 180ms var(--ringo-ease), background-color 140ms ease, border-color 140ms ease, filter 140ms ease, opacity 140ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ringo-tactile:hover:not(:disabled):not([aria-disabled="true"]) {
+    transform: translateY(-1px);
+  }
+}
+.ringo-tactile:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(1px) scale(var(--ringo-press-scale));
+  transition-duration: 70ms;
+}
+.ringo-tactile:focus-visible {
+  outline: 2px solid rgb(var(--ringo-accent));
+  outline-offset: 2px;
+}
+.ringo-tactile:disabled,
+.ringo-tactile[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+.ringo-tactile[aria-busy="true"] {
+  cursor: progress;
+}
+
+.ringo-cta {
+  position: relative;
+  isolation: isolate;
+  background-color: rgb(var(--ringo-accent));
+  /* the light that passes once on hover is a background layer parked off to the right: no pseudo-element, so nothing needs clipping
+     and the breathing ring below can extend past the edge */
+  background-image: linear-gradient(105deg, transparent 30%, rgb(255 255 255 / 0.22) 50%, transparent 70%);
+  background-repeat: no-repeat;
+  background-size: 250% 100%;
+  background-position: 130% 0;
+  color: rgb(var(--ringo-on-accent));
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.18) inset, 0 6px 16px -6px rgb(var(--ringo-accent) / 0.55), 0 1px 2px rgb(var(--ringo-accent) / 0.4);
+}
+@media (hover: hover) and (pointer: fine) {
+  .ringo-cta:hover:not(:disabled):not([aria-disabled="true"]) {
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.22) inset, 0 12px 24px -8px rgb(var(--ringo-accent) / 0.6), 0 2px 4px rgb(var(--ringo-accent) / 0.4);
+    filter: brightness(1.06);
+  }
+  .ringo-cta:hover:not(:disabled):not([aria-disabled="true"]) {
+    background-position: -30% 0;
+    transition: transform 140ms var(--ringo-ease), box-shadow 180ms var(--ringo-ease), filter 140ms ease, background-position 620ms var(--ringo-ease);
+  }
+}
+.ringo-cta:active:not(:disabled):not([aria-disabled="true"]) {
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.1) inset, 0 2px 6px -2px rgb(var(--ringo-accent) / 0.5);
+  filter: brightness(0.97);
+}
+.ringo-cta:disabled,
+.ringo-cta[aria-disabled="true"] {
+  filter: saturate(0.6);
+  opacity: 0.55;
+  box-shadow: none;
+}
+.ringo-cta--attention::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 rgb(var(--ringo-accent) / 0.5);
+  animation: ringo-cta-breathe 9s ease-out 2.5s infinite;
+  pointer-events: none;
+}
+@keyframes ringo-cta-breathe {
+  0% { box-shadow: 0 0 0 0 rgb(var(--ringo-accent) / 0.45); }
+  18% { box-shadow: 0 0 0 10px rgb(var(--ringo-accent) / 0); }
+  100% { box-shadow: 0 0 0 10px rgb(var(--ringo-accent) / 0); }
+}
+
+.ringo-lift {
+  transition: transform 200ms var(--ringo-ease), box-shadow 220ms var(--ringo-ease), border-color 160ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ringo-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--ringo-shadow-2);
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .ringo-lift--flat:hover {
+    box-shadow: none;
+  }
+}
+.ringo-lift:active {
+  transform: translateY(0) scale(0.985);
+  transition-duration: 80ms;
+}
+.ringo-lift:focus-visible {
+  outline: 2px solid rgb(var(--ringo-accent));
+  outline-offset: 2px;
+}
+
+/* ---- Every filled-indigo control in the app (a button or link carrying bg-ringo-indigo) feels the same under a finger or a mouse: the 1px
+   hover lift (mouse only), the physical press, a visible focus ring. Movement only; the CTA elevation stays opt-in via .ringo-cta. ---- */
+:is(button, a, [role="button"]).bg-ringo-indigo {
+  transition: transform 140ms var(--ringo-ease), filter 140ms ease, opacity 140ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(button, a, [role="button"]).bg-ringo-indigo:hover:not(:disabled):not([aria-disabled="true"]) {
+    transform: translateY(-1px);
+  }
+}
+:is(button, a, [role="button"]).bg-ringo-indigo:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(1px) scale(var(--ringo-press-scale));
+  transition-duration: 70ms;
+}
+:is(button, a, [role="button"]).bg-ringo-indigo:focus-visible {
+  outline: 2px solid rgb(var(--ringo-accent));
+  outline-offset: 2px;
+}
+
+/* ---- Rail: a horizontal collection. Native momentum scrolling with snap, no scrollbar, the next card always partly visible.
+   The edge fades are switched by components/ui/Rail.tsx (data-more-start / data-more-end) so a fade only shows where there is more to see. ---- */
+.ringo-rail {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 16px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 16px 12px;
+  margin-inline: -16px;
+}
+.ringo-rail::-webkit-scrollbar {
+  display: none;
+}
+.ringo-rail > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
+.ringo-rail-wrap {
+  position: relative;
+}
+.ringo-rail-wrap::before,
+.ringo-rail-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 12px;
+  width: 36px;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.ringo-rail-wrap::before {
+  left: -16px;
+  background: linear-gradient(to right, var(--rail-fade, rgb(var(--rc-paper))), transparent);
+}
+.ringo-rail-wrap::after {
+  right: -16px;
+  background: linear-gradient(to left, var(--rail-fade, rgb(var(--rc-paper))), transparent);
+}
+.ringo-rail-wrap[data-more-start="true"]::before,
+.ringo-rail-wrap[data-more-end="true"]::after {
+  opacity: 1;
+}
+
+/* ---- Chat: a message arrives with a short upward fade; a typing indicator is three quiet dots; presence is one slow, small pulse ---- */
+.ringo-msg-in {
+  animation: ringo-msg-in 220ms var(--ringo-ease) both;
+}
+@keyframes ringo-msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ringo-typing > span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: ringo-typing 1.1s ease-in-out infinite;
+}
+.ringo-typing > span:nth-child(2) { animation-delay: 0.15s; }
+.ringo-typing > span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes ringo-typing {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+.ringo-presence {
+  position: relative;
+}
+.ringo-presence::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  animation: ringo-presence 3.6s ease-out infinite;
+}
+@keyframes ringo-presence {
+  0% { transform: scale(1); opacity: 0.35; }
+  60%, 100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* ---- The indigo world: Ringo's own colours (indigo #4F46E5 on paper #FAFAF8) for a surface that was built on the gold foundation (the
+   landing page, the Ringo Card). The foundation's "gold" slots are re-pointed to indigo: on paper the accent is #4F46E5 (7.1:1); on an
+   ink surface it is #818CF8 (6.6:1). Ink itself takes a faint indigo cast so dark sections read as Ringo, not as neutral black. Scoped to
+   the element that carries this class: nothing else in the app changes. Derived tokens are restated because custom properties that
+   reference other variables are resolved where they are declared (:root), not where they are used. ---- */
+.ringo-indigo-world {
+  --rc-gold: 129 140 248;
+  --rc-gold-dark: 67 56 202;
+  --rc-gold-light: 199 210 254;
+  --rc-gold-display: 79 70 229;
+  --ringo-gold-text: 79 70 229;
+  --ringo-gold-display: 79 70 229;
+  --ringo-line-gilt: rgb(129 140 248 / 0.45);
+  --rc-ink: 14 13 36;
+  --rc-ink-2: 22 20 52;
+  --ringo-glow-warm: 0 12px 40px -10px rgb(79 70 229 / 0.5), 0 2px 6px rgb(79 70 229 / 0.2);
+}
+.dark .ringo-indigo-world {
+  --ringo-gold-text: 165 180 252;
+  --ringo-gold-display: 165 180 252;
+}
+
 /* ---- The display voice on the landing page: Bricolage Grotesque (loaded by landing/heroFont.ts, whose variable is set on the
    landing root), falling back to the site's Space Grotesk. A class (not an element rule) so it only applies where it is asked for. ---- */
 .ringo-display {
@@ -526,5 +763,44 @@ h1, h2, h3, .font-display {
   .ringo-press:active:not(:disabled) {
     transform: none;
     opacity: 0.85;
+  }
+  /* the interaction language: movement goes, information stays (colour, shadow and opacity still answer a hover or a press) */
+  :is(button, a, [role="button"]).bg-ringo-indigo {
+    transition-property: opacity, filter;
+  }
+  :is(button, a, [role="button"]).bg-ringo-indigo:hover:not(:disabled),
+  :is(button, a, [role="button"]).bg-ringo-indigo:active:not(:disabled) {
+    transform: none !important;
+  }
+  .ringo-tactile,
+  .ringo-lift {
+    transition-property: background-color, border-color, box-shadow, opacity, filter;
+  }
+  .ringo-tactile:hover:not(:disabled),
+  .ringo-lift:hover {
+    transform: none !important;
+  }
+  .ringo-tactile:active:not(:disabled),
+  .ringo-lift:active {
+    transform: none !important;
+    opacity: 0.88;
+  }
+  .ringo-cta {
+    background-image: none;
+  }
+  .ringo-cta--attention::before,
+  .ringo-presence::after {
+    animation: none !important;
+    display: none;
+  }
+  .ringo-msg-in {
+    animation: none !important;
+  }
+  .ringo-typing > span {
+    animation: none !important;
+    opacity: 0.6;
+  }
+  .ringo-rail {
+    scroll-behavior: auto;
   }
 }

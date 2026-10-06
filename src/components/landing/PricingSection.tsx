@@ -89,7 +89,7 @@ export default function PricingSection({
               <button
                 key={iv}
                 onClick={() => setInterval_(iv)}
-                className={`min-h-[40px] text-xs font-medium px-4 py-1.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text ${
+                className={`min-h-[44px] text-xs font-medium px-4 py-1.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text ${
                   interval === iv ? "bg-ringo-surface text-ringo-text shadow-ringo-1" : "text-ringo-muted"
                 }`}
               >

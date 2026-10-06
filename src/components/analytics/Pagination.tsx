@@ -56,13 +56,13 @@ export default function Pagination({
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
           aria-label="Previous page"
-          className="w-7 h-7 flex items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-muted/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          className="ringo-tactile w-11 h-11 flex items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-muted/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
         >
           <ChevronLeft size={14} />
         </button>
         {getPageList(page, totalPages).map((p, i) =>
           p === "…" ? (
-            <span key={`ellipsis-${i}`} className="w-7 h-7 flex items-center justify-center text-xs text-ringo-muted">
+            <span key={`ellipsis-${i}`} className="w-6 h-11 flex items-center justify-center text-xs text-ringo-muted">
               …
             </span>
           ) : (
@@ -70,7 +70,7 @@ export default function Pagination({
               key={p}
               onClick={() => onPageChange(p)}
               aria-current={p === page ? "page" : undefined}
-              className={`w-7 h-7 shrink-0 flex items-center justify-center rounded-full text-xs font-medium tabular-nums transition-colors ${
+              className={`ringo-tactile w-11 h-11 shrink-0 flex items-center justify-center rounded-full text-xs font-medium tabular-nums transition-colors ${
                 p === page ? "bg-ringo-indigo text-white" : "text-ringo-text hover:bg-ringo-muted/10"
               }`}
             >
@@ -82,7 +82,7 @@ export default function Pagination({
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
           aria-label="Next page"
-          className="w-7 h-7 flex items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-muted/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          className="ringo-tactile w-11 h-11 flex items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-muted/10 disabled:opacity-30 disabled:pointer-events-none transition-colors"
         >
           <ChevronRight size={14} />
         </button>

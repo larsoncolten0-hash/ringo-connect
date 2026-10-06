@@ -209,7 +209,7 @@ export default function LoyaltyScanner({
               <div className="rounded-xl bg-amber-500/10 px-4 py-3 text-sm text-amber-700">
                 <p>{cameraMessage}</p>
                 {scanner.state !== "insecure" && scanner.state !== "unsupported" && (
-                  <button type="button" onClick={() => scanner.start()} className="mt-2 text-xs font-semibold underline">
+                  <button type="button" onClick={() => scanner.start()} className="mt-2 ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-xs font-semibold text-current hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40">
                     {L.scan.camera.retry}
                   </button>
                 )}

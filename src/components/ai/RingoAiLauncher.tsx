@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -16,6 +16,13 @@ export default function RingoAiLauncher() {
   const { t } = useLanguage();
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [open, setOpen] = useState(false);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  // closing the panel hands focus back to the launcher button that opened it
+  useEffect(() => {
+    if (wasOpen.current && !open) launcherRef.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
   const [initialMessage, setInitialMessage] = useState<string | null>(null);
 
   // A small, reusable "open Ringo AI with a prefilled message" hook other
@@ -80,9 +87,10 @@ export default function RingoAiLauncher() {
 
       {!open && (
         <button
+          ref={launcherRef}
           onClick={() => setOpen(true)}
           aria-label={t.ringoAi.open}
-          className="fixed z-30 bottom-[13.5rem] right-4 lg:bottom-[6.25rem] lg:right-6 w-16 h-14 rounded-2xl bg-gradient-to-br from-ringo-indigo to-fuchsia-500 text-white flex flex-col items-center justify-center gap-0.5 shadow-[0_10px_28px_-8px_rgba(168,85,247,0.6)] transition hover:-translate-y-0.5 active:scale-95"
+          className="ringo-tactile ringo-cta fixed z-30 bottom-[13.5rem] right-4 lg:bottom-[6.25rem] lg:right-6 w-16 h-14 rounded-2xl flex flex-col items-center justify-center gap-0.5"
         >
           <Sparkles size={19} />
           <span className="text-[9px] font-semibold leading-none">{t.ringoAi.launcherLabel}</span>

@@ -2,6 +2,7 @@
 
 import { Star, ArrowRight } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import Rail from "@/components/ui/Rail";
 import { readableOn } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
 
@@ -17,6 +18,7 @@ export default function FeaturedMenuSection({
   accent,
   radiusClass,
   borderTint,
+  fadeColor,
 }: {
   t: Translations;
   username: string;
@@ -25,11 +27,16 @@ export default function FeaturedMenuSection({
   accent: string;
   radiusClass: string;
   borderTint: string;
+  /** The flat surface colour behind this section, for the rail's edge fades (omit on a gradient background). */
+  fadeColor?: string;
 }) {
   const available = items.filter((i) => i.available !== false);
   const featured = available.filter((i) => i.featured);
   const rest = available.filter((i) => !i.featured);
-  const shown = [...featured, ...rest].slice(0, 3);
+  const ordered = [...featured, ...rest];
+  // up to three stay the familiar three-up row; more become a rail of the first eight, with the full menu one tap away
+  const asRail = ordered.length > 3;
+  const shown = ordered.slice(0, asRail ? 8 : 3);
 
   if (shown.length === 0) return null;
 
@@ -37,18 +44,22 @@ export default function FeaturedMenuSection({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold">{t.restaurant.featuredMenuTitle}</h2>
-        <a href={`/r/${username}`} className="text-sm font-medium flex items-center gap-1 min-h-[44px]" style={{ color: accent }}>
+        <a
+          href={`/r/${username}`}
+          className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold"
+          style={{ borderColor: borderTint, color: "inherit" }}
+        >
           {t.restaurant.viewAllMenu}
-          <ArrowRight size={13} />
+          <ArrowRight size={13} aria-hidden="true" />
         </a>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5">
-        {shown.map((item) => (
+      {(() => {
+        const cards = shown.map((item) => (
           <a
             key={item.id}
             href={`/r/${username}`}
-            className={`overflow-hidden transition hover:-translate-y-0.5 ${radiusClass}`}
+            className={`ringo-lift ringo-lift--flat block overflow-hidden ${radiusClass} ${asRail ? "w-[38vw] min-w-[136px] max-w-[170px] sm:w-[160px]" : ""}`}
             style={{ border: `1px solid ${borderTint}` }}
           >
             {item.image_urls?.[0] || item.image_url ? (
@@ -76,8 +87,15 @@ export default function FeaturedMenuSection({
               )}
             </div>
           </a>
-        ))}
-      </div>
+        ));
+        return asRail ? (
+          <Rail label={t.restaurant.featuredMenuTitle} prevLabel={t.profilePage.railPrev} nextLabel={t.profilePage.railNext} fade={fadeColor}>
+            {cards}
+          </Rail>
+        ) : (
+          <div className="grid grid-cols-3 gap-2.5">{cards}</div>
+        );
+      })()}
     </div>
   );
 }

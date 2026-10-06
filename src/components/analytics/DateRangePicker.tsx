@@ -85,8 +85,11 @@ export default function DateRangePicker({
   return (
     <div className="relative" ref={ref}>
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
+        aria-expanded={open}
+        aria-haspopup="true"
+        className="ringo-tactile flex min-h-[44px] items-center gap-2 rounded-card border border-ringo-border bg-ringo-surface px-3.5 py-2 text-sm font-medium text-ringo-text hover:border-ringo-indigo/40"
       >
         <Calendar size={15} className="text-ringo-muted" />
         {formatRangeLabel(value, locale)}

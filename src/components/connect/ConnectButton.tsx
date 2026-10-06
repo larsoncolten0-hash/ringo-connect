@@ -24,8 +24,11 @@ type Status = "loading" | "out" | "connected";
 //
 // `variant` only changes how it LOOKS - every state, request and the modal are the same in all three:
 //   "card"    - the original titled box (the default);
-//   "compact" - one quiet 44px outline pill, for sitting just under the hero without competing with it;
-//   "primary" - one full-width, theme-styled 48px button, for a profile that has no other action to offer.
+//   "compact" - one centred pill, for sitting just under the hero;
+//   "primary" - one full-width button, for a profile that has no other action to offer.
+// Connect is RINGO's own action on a creator's page, so while it is still to be done it is always Ringo indigo (#4F46E5, white text), the
+// one filled action on the page: elevated, tactile, and with a single soft ring that breathes outward every few seconds (never continuous;
+// off under reduced motion). Once connected it settles into a calm outlined state in the creator's own colours.
 export default function ConnectButton({
   profile,
   accent,
@@ -112,30 +115,29 @@ export default function ConnectButton({
     }
   };
 
-  const buttonClass =
-    variant === "compact"
-      ? "inline-flex items-center justify-center gap-2 min-h-[44px] px-5 text-sm font-medium rounded-full transition hover:brightness-95 active:scale-[0.98] disabled:opacity-70"
-      : variant === "primary"
-      ? `flex w-full items-center justify-center gap-2 min-h-[48px] px-5 py-3 text-sm font-medium transition hover:brightness-95 active:scale-[0.98] disabled:opacity-70 ${radiusClass}`
-      : `inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium transition hover:brightness-95 active:scale-[0.98] disabled:opacity-70 ${radiusClass}`;
-  const buttonLook: React.CSSProperties =
-    variant === "compact" ? { border: `1px solid ${borderTint}`, color: textColor, backgroundColor: hexToRgba(textColor, 0.03) } : buttonStyle;
+  const isConnected = status === "connected";
+  const shape = variant === "compact" ? "inline-flex min-h-[48px] px-7 rounded-full" : variant === "primary" ? "flex w-full min-h-[52px] px-6 rounded-full" : "inline-flex min-h-[48px] px-7 rounded-full";
+  const buttonClass = `ringo-tactile ${shape} items-center justify-center gap-2 text-[15px] font-semibold ${isConnected ? "" : "ringo-cta ringo-cta--attention"}`;
+  const buttonLook: React.CSSProperties = isConnected
+    ? { border: `1px solid ${borderTint}`, color: textColor, backgroundColor: hexToRgba(textColor, 0.04) }
+    : { border: "1px solid rgb(165 180 252 / 0.45)" };
 
   const button = (
     <button
       type="button"
       onClick={onClick}
-      disabled={status === "loading" || busy}
+      disabled={busy}
+      aria-busy={busy || status === "loading"}
       aria-live="polite"
       className={buttonClass}
       style={buttonLook}
     >
-      {busy || status === "loading" ? (
-        <Loader2 size={15} className="animate-spin" />
-      ) : status === "connected" ? (
-        <Check size={15} />
+      {busy ? (
+        <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+      ) : isConnected ? (
+        <Check size={16} aria-hidden="true" />
       ) : (
-        <Plus size={15} />
+        <Plus size={16} aria-hidden="true" />
       )}
       {busy ? t.connect.connecting : status === "connected" ? t.connect.connectedButton : t.connect.connectButton}
     </button>

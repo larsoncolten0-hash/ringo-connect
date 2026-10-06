@@ -69,7 +69,7 @@ export default function WorldMap({
             <button
               key={key}
               onClick={() => setMetric(key)}
-              className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition ${
+              className={`ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 text-xs font-medium px-4 py-1.5 rounded-full ${
                 metric === key
                   ? "bg-ringo-surface text-ringo-text shadow-sm border border-ringo-border"
                   : "text-ringo-muted"
@@ -122,6 +122,7 @@ export default function WorldMap({
                       fill={colorFor(count)}
                       stroke={isDark ? "#0B1120" : "#FAFAF8"}
                       strokeWidth={0.6}
+                      tabIndex={-1} // the country values are a mouse tooltip only: 250 focusable, ring-less paths would bury the rest of the page for a keyboard user
                       onMouseEnter={showTooltip}
                       onMouseMove={showTooltip}
                       onClick={showTooltip}

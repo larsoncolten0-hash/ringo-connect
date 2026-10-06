@@ -290,7 +290,7 @@ await test("Connect's behaviour and customer endpoints are untouched; only its l
   assert.match(c, /variant = "card"/, "the original card stays the default");
   assert.match(c, /t\.connect\.sectionTitle/);
   assert.match(c, /t\.connect\.sectionSubtitle\(profile\.name\)/);
-  assert.match(c, /variant === "compact"[\s\S]{0,120}min-h-\[44px\]/);
+  assert.match(c, /variant === "compact"[\s\S]{0,120}min-h-\[(44|48)px\]/); // UX refinement phase: the hero action is 48px (the 44px floor still holds)
   assert.match(c, /variant === "primary"[\s\S]{0,200}min-h-\[48px\]/);
   assert.equal(count(c, /<StayConnectedModal/g), 1);
   assert.equal(count(c, /<button/g), 1, "one button in every variant");

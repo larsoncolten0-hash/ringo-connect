@@ -505,7 +505,7 @@ function AffiliateCodeEditor({ code, onSaved, t }: { code: string; onSaved: (new
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <p className="text-xs text-ringo-muted">{t.affiliate.code}:</p>
         <span className="text-xs font-mono font-semibold text-ringo-text tracking-wide">{code}</span>
-        <button onClick={startEdit} className="text-xs font-medium text-ringo-indigo hover:underline">
+        <button onClick={startEdit} className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-xs font-semibold text-ringo-indigo hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40">
           {t.affiliate.editCode}
         </button>
         {saved && (

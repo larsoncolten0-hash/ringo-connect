@@ -58,6 +58,7 @@ export interface PreviewOptions {
   radius: string;
   long: boolean;
   minimal: boolean;
+  many?: boolean; // ten catalogue items instead of the seed's three (to see a long collection, e.g. the horizontal rail)
 }
 
 export function buildPreviewProfile(o: PreviewOptions) {
@@ -75,10 +76,10 @@ export function buildPreviewProfile(o: PreviewOptions) {
     bookings_enabled: true, ordering_enabled: o.category === "restaurant_food", hub_support_enabled: isMusic,
     pinned_type: null, pinned_id: null,
     tracks: isMusic ? [{ id: "t1", title: "My Era", artist_name: "Jay Kay", duration: "3:12", price: 500, protected_audio_path: "x", preview_audio_url: "/p.mp3", cover_image_url: art("#7C3AED", "#1E1B4B"), sort_order: 0, available: true }] : [],
-    music_releases: [],
-    products: seed.items.map((it, i) => ({ id: `p${i}`, profile_id: "preview", name: it.n[l], price: it.price, image_url: art(it.c[0], it.c[1]), images: [art(it.c[0], it.c[1])], available: true, sort_order: i, description: null })),
+    music_releases: isMusic && o.many ? Array.from({ length: 5 }, (_, i) => ({ id: `r${i}`, title: (l === "fr" ? "Sortie " : "Release ") + (i + 1), release_type: i % 2 ? "album" : "ep", price: 2000 + i * 500, cover_image_url: art("#7C3AED", "#1E1B4B"), available: true, sort_order: i })) : [],
+    products: (o.many ? Array.from({ length: 10 }, (_, i) => ({ ...seed.items[i % seed.items.length], n: { en: `${seed.items[i % seed.items.length].n.en} ${i + 1}`, fr: `${seed.items[i % seed.items.length].n.fr} ${i + 1}` } })) : seed.items).map((it, i) => ({ id: `p${i}`, profile_id: "preview", name: it.n[l], price: it.price, image_url: art(it.c[0], it.c[1]), images: [art(it.c[0], it.c[1])], available: true, sort_order: i, description: null })),
     menu_items: o.category === "restaurant_food" ? seed.items.map((it, i) => ({ id: `m${i}`, name: it.n[l], price: it.price, image_url: art(it.c[0], it.c[1]), available: true, featured: i === 0, sort_order: i })) : [],
-    events: hasTicketing ? [{ id: "e1", title: l === "fr" ? "Nuit de lancement" : "Launch night", event_date: "2026-12-05", event_time: "20:00", location: seed.place, price: 3000, status: "published", sort_order: 0, event_ticket_types: [] }, { id: "e2", title: l === "fr" ? "Scène ouverte" : "Open stage", event_date: "2027-01-16", event_time: "19:00", location: seed.place, price: 2000, status: "published", sort_order: 1, event_ticket_types: [] }] : [],
+    events: hasTicketing ? [{ id: "e1", title: l === "fr" ? "Nuit de lancement" : "Launch night", event_date: "2026-12-05", event_time: "20:00", location: seed.place, price: 3000, status: "published", sort_order: 0, event_ticket_types: [] }, { id: "e2", title: l === "fr" ? "Scène ouverte" : "Open stage", event_date: "2027-01-16", event_time: "19:00", location: seed.place, price: 2000, status: "published", sort_order: 1, event_ticket_types: [] }, ...(o.many ? [2, 3].map((k) => ({ id: `e${k + 1}`, title: (l === "fr" ? "Soirée " : "Night ") + (k + 1), event_date: `2027-0${k}-20`, event_time: "21:00", location: seed.place, price: 1500, status: "published", sort_order: k, event_ticket_types: [] }))  : [])] : [],
     links: o.minimal ? [] : [{ id: "l1", title: l === "fr" ? "Notre site web" : "Our website", url: "https://example.com", description: l === "fr" ? "Tout savoir sur nous" : "Everything about us", sort_order: 0 }, { id: "l2", title: l === "fr" ? "Commander sur WhatsApp" : "Order on WhatsApp", url: "https://wa.me/237677123456", sort_order: 1 }],
     social_links: o.minimal ? [] : [{ id: "s1", platform: "instagram", url: "https://instagram.com/ringo" }, { id: "s2", platform: "facebook", url: "https://facebook.com/ringo" }, { id: "s3", platform: "tiktok", url: "https://tiktok.com/@ringo" }],
     about_position: o.minimal ? null : (l === "fr" ? "Fondateur" : "Founder"), about_company: o.minimal ? null : seed.name[l], about_email: o.minimal ? null : "hello@example.com", about_phone: o.minimal ? null : "+237 677 12 34 56",

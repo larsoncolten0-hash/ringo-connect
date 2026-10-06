@@ -138,10 +138,10 @@ export default function LandingView({
     "inline-flex min-h-[44px] items-center text-sm text-ringo-muted hover:text-ringo-text transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text";
   const focusRing = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text";
   // The header CTA is the hero's gold button at header size: one family of primary actions on the whole page.
-  const headerCta = `ringo-press transition-[transform,opacity,filter] duration-ringo-fast ease-ringo hover:brightness-105 inline-flex items-center justify-center gap-1.5 min-h-[44px] rounded-full bg-ringo-gold text-ringo-ink text-sm font-semibold whitespace-nowrap ${focusRing}`;
+  const headerCta = `ringo-tactile ringo-cta inline-flex items-center justify-center gap-1.5 min-h-[44px] rounded-full text-sm font-semibold whitespace-nowrap ${focusRing}`;
 
   return (
-    <div className={`min-h-screen bg-ringo-bg text-ringo-text overflow-x-hidden ${heroDisplay.variable}`}>
+    <div className={`ringo-indigo-world min-h-screen bg-ringo-bg text-ringo-text overflow-x-hidden ${heroDisplay.variable}`}>
       {/* ============ NAV ============ */}
       {/* Fixed rather than sticky — sticky can visually detach and appear
           to "disappear" on scroll depending on ancestor stacking/overflow,
@@ -176,7 +176,7 @@ export default function LandingView({
             <a href="#nfc" className={navLink}>
               {t.landing.navNfc}
             </a>
-            <a href="#pricing" className={navLink}>
+            <a href="#pricing" className={`${navLink} min-w-[44px] justify-center`}>
               {t.landing.navPricing}
             </a>
           </nav>
@@ -288,7 +288,7 @@ export default function LandingView({
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <Link
                 href={primaryHref}
-                className="ringo-press transition-[transform,opacity,filter] duration-ringo-fast ease-ringo hover:brightness-105 flex items-center justify-center gap-1.5 min-h-[48px] px-7 rounded-full bg-ringo-gold text-ringo-ink text-sm font-semibold shadow-ringo-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text"
+                className="ringo-tactile ringo-cta flex items-center justify-center gap-1.5 min-h-[48px] px-7 rounded-full text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text"
               >
                 {primaryLabel}
                 <ArrowRight size={14} />

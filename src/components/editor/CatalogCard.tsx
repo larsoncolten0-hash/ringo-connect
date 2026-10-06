@@ -201,7 +201,7 @@ export default function CatalogCard({
             type="button"
             onClick={addProduct}
             disabled={limitReached}
-            className="text-xs px-3 py-2.5 min-h-[44px] rounded-card bg-ringo-indigo text-white disabled:opacity-40 whitespace-nowrap transition hover:brightness-110 active:scale-[0.97]"
+            className="ringo-tactile ringo-cta inline-flex items-center text-xs font-semibold px-3.5 min-h-[44px] rounded-card whitespace-nowrap"
           >
             {t.editor.addProduct}
           </button>

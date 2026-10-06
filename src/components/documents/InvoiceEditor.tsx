@@ -221,7 +221,7 @@ export default function InvoiceEditor({ mode, id, correctId, credit = false }: {
         ) : (
           <p className="text-ringo-muted">{u.sellerMissing}{biz?.suggestion?.display_name ? ` (${biz.suggestion.display_name})` : ""}</p>
         )}
-        <Link href="/dashboard/documents/settings" className="inline-flex min-h-[44px] items-center text-ringo-indigo hover:underline">{u.editBusiness}</Link>
+        <Link href="/dashboard/documents/settings" className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-sm font-semibold text-ringo-indigo hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40">{u.editBusiness}</Link>
       </div>
 
       <Card n={1} title={u.customerSection}>
@@ -267,11 +267,11 @@ export default function InvoiceEditor({ mode, id, correctId, credit = false }: {
               {l.showDiscount ? (
                 <label className={labelClass}>{u.lineDiscount}<input value={l.discount} onChange={(e) => setLine(l.key, { discount: e.target.value })} inputMode="decimal" className={inputClass} /></label>
               ) : (
-                <button type="button" onClick={() => setLine(l.key, { showDiscount: true })} className="inline-flex min-h-[44px] items-center self-start text-xs text-ringo-indigo hover:underline">{u.addDiscount}</button>
+                <button type="button" onClick={() => setLine(l.key, { showDiscount: true })} className="self-start ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-xs font-semibold text-ringo-indigo hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40">{u.addDiscount}</button>
               )}
               {lineErrors[i] && <p role="alert" className="text-xs text-rose-600">{lineErrors[i]}</p>}
               {lines.length > 1 && (
-                <button type="button" onClick={() => { touch(); setLines((ls) => ls.filter((x) => x.key !== l.key)); }} className="self-end inline-flex min-h-[44px] items-center gap-1.5 text-xs text-rose-600 hover:underline">
+                <button type="button" onClick={() => { touch(); setLines((ls) => ls.filter((x) => x.key !== l.key)); }} className="ringo-tactile self-end inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-rose-500/30 px-4 text-xs font-semibold text-rose-600 hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40">
                   <Trash2 size={13} />{u.removeLine}
                 </button>
               )}

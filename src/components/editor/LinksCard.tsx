@@ -117,7 +117,7 @@ export default function LinksCard({
             data-tour="add-link"
             onClick={addLink}
             disabled={limitReached}
-            className="text-xs px-3 py-2.5 min-h-[44px] rounded-card bg-ringo-indigo text-white disabled:opacity-40 transition hover:brightness-110 active:scale-[0.97]"
+            className="ringo-tactile ringo-cta inline-flex items-center text-xs font-semibold px-3.5 min-h-[44px] rounded-card"
           >
             {t.editor.addLink}
           </button>
@@ -168,7 +168,7 @@ export default function LinksCard({
         <button
           type="button"
           onClick={saveAll}
-          className="self-start mt-3 px-4 py-2 min-h-[44px] rounded-card bg-ringo-indigo text-white text-sm font-medium transition hover:brightness-110 active:scale-[0.97]"
+          className="ringo-tactile ringo-cta self-start mt-3 px-5 py-2 min-h-[44px] rounded-card text-sm font-semibold"
         >
           {t.editor.save}
         </button>

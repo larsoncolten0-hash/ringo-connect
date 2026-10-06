@@ -208,39 +208,63 @@ export default function ProductRow({
                   {!product.digital_file_path && <p className="text-xs text-ringo-coral">{t.editor.digitalProduct.noFileYet}</p>}
                 </>
               )}
+              {/* What the customer reads: a name (required), a price and a description (both optional). Every field now says what it is and
+                  whether it is needed, instead of leaning on placeholder text that disappears as soon as someone types. */}
               <div className="flex gap-2">
-                <input
-                  ref={nameRef}
-                  value={product.name}
-                  onChange={(e) => onChange({ name: e.target.value })}
-                  placeholder={t.editor.productName}
-                  aria-label={`${t.editor.productName} (${t.editor.validation.required})`}
-                  aria-required="true"
-                  aria-invalid={!!error}
-                  className={`flex-1 min-w-0 text-sm border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text ${error ? "border-red-500" : "border-ringo-border"}`}
-                />
-                <input
-                  value={product.price ?? ""}
-                  onChange={(e) => onChange({ price: e.target.value })}
-                  placeholder={t.editor.price}
-                  inputMode="decimal"
-                  className="w-24 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
-                />
+                <label className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="flex items-center justify-between text-xs font-medium text-ringo-text">
+                    {t.editor.productName}
+                    <span className="font-normal text-ringo-muted">{t.editor.validation.required}</span>
+                  </span>
+                  <input
+                    ref={nameRef}
+                    value={product.name}
+                    onChange={(e) => onChange({ name: e.target.value })}
+                    placeholder={t.editor.productName}
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    className={`min-h-[44px] w-full min-w-0 text-sm border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 ${error ? "border-red-500" : "border-ringo-border"}`}
+                  />
+                </label>
+                <label className="flex w-28 flex-col gap-1">
+                  <span className="flex items-center justify-between text-xs font-medium text-ringo-text">
+                    {t.editor.price}
+                  </span>
+                  <input
+                    value={product.price ?? ""}
+                    onChange={(e) => onChange({ price: e.target.value })}
+                    placeholder={t.editor.validation.optional}
+                    inputMode="decimal"
+                    className="min-h-[44px] w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
+                  />
+                </label>
               </div>
-              <textarea
-                value={product.description ?? ""}
-                onChange={(e) => onChange({ description: e.target.value })}
-                placeholder={t.editor.productDescription}
-                rows={2}
-                className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text resize-none"
-              />
-              <input
-                value={product.landing_url ?? ""}
-                onChange={(e) => onChange({ landing_url: e.target.value })}
-                placeholder={t.editor.productLandingUrl}
-                inputMode="url"
-                className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
-              />
+              <label className="flex flex-col gap-1">
+                <span className="flex items-center justify-between text-xs font-medium text-ringo-text">
+                  {t.editor.productDescription}
+                  <span className="font-normal text-ringo-muted">{t.editor.validation.optional}</span>
+                </span>
+                <textarea
+                  value={product.description ?? ""}
+                  onChange={(e) => onChange({ description: e.target.value })}
+                  placeholder={t.editor.productDescription}
+                  rows={2}
+                  className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="flex items-center justify-between text-xs font-medium text-ringo-text">
+                  {t.editor.productLandingUrl}
+                  <span className="font-normal text-ringo-muted">{t.editor.validation.optional}</span>
+                </span>
+                <input
+                  value={product.landing_url ?? ""}
+                  onChange={(e) => onChange({ landing_url: e.target.value })}
+                  placeholder={t.editor.productLandingUrl}
+                  inputMode="url"
+                  className="min-h-[44px] w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
+                />
+              </label>
               {/* Only once the cta columns exist on the row (post-migration). */}
               {product.cta_preset !== undefined && (
                 <CustomerActionField
@@ -264,7 +288,7 @@ export default function ProductRow({
                 className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
               />
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 text-xs text-ringo-text cursor-pointer">
+                <label className="flex min-h-[44px] items-center gap-1.5 text-xs text-ringo-text cursor-pointer">
                   <input
                     type="checkbox"
                     checked={product.available !== false}
@@ -276,7 +300,7 @@ export default function ProductRow({
                 {stockManaged ? (
                   <p className="text-xs text-ringo-muted">
                     {t.inventory.editor.managed(Number(product.inventory_count ?? 0))}{" "}
-                    <a href={`/dashboard/inventory/${product.id}`} className="font-medium text-ringo-indigo underline">{t.inventory.editor.manage}</a>
+                    <a href={`/dashboard/inventory/${product.id}`} className="font-medium text-ringo-indigo underline underline-offset-2">{t.inventory.editor.manage}</a>
                   </p>
                 ) : (
                   <input
@@ -291,7 +315,7 @@ export default function ProductRow({
               {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
               {notifyError && <p className="text-xs text-red-500">{notifyError}</p>}
               <div className="flex items-center justify-between gap-2">
-                <button type="button" onClick={onDelete} className="min-h-[44px] text-xs text-red-500 px-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
+                <button type="button" onClick={onDelete} className="ringo-tactile min-h-[44px] rounded-full border border-red-500/30 px-4 text-xs font-semibold text-red-500 hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
                   {t.editor.delete}
                 </button>
                 {communityEnabled && !isNew && product.name?.trim() && !product.community_notified_at && (

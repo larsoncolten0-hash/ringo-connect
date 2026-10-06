@@ -321,7 +321,7 @@ export default function RingoCardWriter({
 
           <button
             onClick={startNewCard}
-            className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-card bg-ringo-indigo text-white text-sm font-semibold transition hover:brightness-110 active:scale-[0.98]"
+            className="ringo-tactile ringo-cta w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-card text-sm font-semibold"
           >
             <Nfc size={16} />
             {cards.length > 0 ? c.writeNewCta : c.writeCta}
@@ -354,7 +354,7 @@ export default function RingoCardWriter({
                       {card.status === "assigned" && (
                         <button
                           onClick={() => resumeWriting(card)}
-                          className="text-xs px-3 py-1.5 rounded-card bg-ringo-indigo text-white font-medium hover:brightness-110 transition"
+                          className="ringo-tactile ringo-cta inline-flex min-h-[44px] items-center text-xs px-3.5 rounded-card font-semibold"
                         >
                           {c.finishWritingAction}
                         </button>
@@ -434,7 +434,7 @@ export default function RingoCardWriter({
 
         <button
           onClick={confirmSelection}
-          className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-card bg-ringo-indigo text-white text-sm font-semibold transition hover:brightness-110 active:scale-[0.98]"
+          className="ringo-tactile ringo-cta w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-card text-sm font-semibold"
         >
           {c.continueCta} <ChevronRight size={16} />
         </button>
@@ -471,7 +471,7 @@ export default function RingoCardWriter({
 
             <ContactPreview />
 
-            <RingoCardVisual pulsing={busy} />
+            <RingoCardVisual pulsing={busy} name={profile.name || profile.username} />
 
             <div aria-live="polite" className="text-center text-sm font-medium text-ringo-indigo h-5 mb-4">
               {busy ? statusMessage : ""}
@@ -480,7 +480,7 @@ export default function RingoCardWriter({
             <button
               onClick={handleWrite}
               disabled={busy}
-              className="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-card bg-ringo-indigo text-white text-sm font-semibold transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+              className="ringo-tactile ringo-cta w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-card text-sm font-semibold"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Nfc size={16} />}
               {flow.mode === "rewrite" ? c.confirmAndWriteCta : c.writeCta}
@@ -488,7 +488,7 @@ export default function RingoCardWriter({
 
             <button
               onClick={() => setShowHelp((v) => !v)}
-              className="w-full text-center text-xs text-ringo-muted hover:text-ringo-text transition mt-5 flex items-center justify-center gap-1"
+              className="ringo-tactile mx-auto mt-5 flex min-h-[44px] items-center justify-center gap-1.5 rounded-full border border-ringo-border px-4 text-xs font-medium text-ringo-muted hover:border-ringo-indigo/40 hover:text-ringo-text"
             >
               <HelpCircle size={13} /> {c.troubleTitle}
             </button>
@@ -537,7 +537,7 @@ export default function RingoCardWriter({
           <div className="w-full flex flex-col sm:flex-row gap-2 mb-3">
             <button
               onClick={() => testCard(successCard)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3 rounded-card bg-ringo-indigo text-white text-sm font-semibold hover:brightness-110 transition"
+              className="ringo-tactile ringo-cta flex-1 flex items-center justify-center gap-1.5 px-4 py-3 rounded-card text-sm font-semibold"
             >
               <ExternalLink size={15} /> {c.testCta}
             </button>
@@ -551,7 +551,7 @@ export default function RingoCardWriter({
             </button>
           </div>
 
-          <button onClick={startNewCard} className="text-sm text-ringo-muted hover:text-ringo-indigo transition flex items-center gap-1.5">
+          <button onClick={startNewCard} className="ringo-tactile flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-sm font-medium text-ringo-muted hover:border-ringo-indigo/40 hover:text-ringo-indigo">
             <RotateCcw size={13} /> {c.writeAnotherCta}
           </button>
 
@@ -584,7 +584,7 @@ export default function RingoCardWriter({
           <div className="w-full flex flex-col sm:flex-row gap-2 mt-4">
             <button
               onClick={() => (flow ? setStage("ready") : goHome())}
-              className="flex-1 px-4 py-3 rounded-card bg-ringo-indigo text-white text-sm font-semibold hover:brightness-110 transition"
+              className="ringo-tactile ringo-cta flex-1 px-4 py-3 rounded-card text-sm font-semibold"
             >
               {c.tryAgainCta}
             </button>
@@ -598,7 +598,7 @@ export default function RingoCardWriter({
 
           {showHowItWorks && <HowItWorksPanel c={c} />}
 
-          <button onClick={goHome} className="text-xs text-ringo-muted hover:text-ringo-text transition mt-5">
+          <button onClick={goHome} className="ringo-tactile mt-5 inline-flex min-h-[44px] items-center rounded-full border border-ringo-border px-4 text-xs font-medium text-ringo-muted hover:text-ringo-text">
             ← {c.pageTitle}
           </button>
         </div>
@@ -663,7 +663,7 @@ function UnsupportedPanel({
             transient failure — "Try Again" would imply retrying could
             help, which it never will, so it's relabeled "Back" there
             instead (same action either way: return to the main screen). */}
-        <button onClick={onBack} className="flex-1 px-4 py-3 rounded-card bg-ringo-indigo text-white text-sm font-semibold hover:brightness-110 transition">
+        <button onClick={onBack} className="ringo-tactile ringo-cta flex-1 px-4 py-3 rounded-card text-sm font-semibold">
           {isIos ? c.backCta : c.tryAgainCta}
         </button>
         <button

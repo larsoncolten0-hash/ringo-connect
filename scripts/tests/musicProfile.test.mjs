@@ -273,8 +273,11 @@ await test("latest release: the creator's pinned item leads, as an artwork-led c
 });
 await test("releases: with an odd count the first leads full width (an editorial grid that always fills); with an even count it is the old 2-up grid", () => {
   const odd = render(music({ products: [] })); // no catalog: a lone product is featured full width too, which is not what this counts
-  assert.equal((odd.match(/col-span-2/g) || []).length, 1);
-  assert.ok(odd.includes("aspect-[16/10]"));
+  // UX refinement phase: three or more releases are a horizontal rail with a "View music" link to the storefront; the editorial grid below is for one or two
+  assert.equal(music().music_releases.length >= 3, true);
+  assert.equal((odd.match(/col-span-2/g) || []).length, 0);
+  assert.ok(odd.includes('aria-label="' + translations.en.music.releasesTitle + '"') && odd.includes(translations.en.music.viewMusic), "the rail and its storefront link");
+  assert.ok(/href="\/m\/[^"/]+\/release\//.test(odd), "every release keeps its own link");
   const even = render(music({ products: [], music_releases: music().music_releases.slice(0, 2) }));
   assert.equal((even.match(/col-span-2/g) || []).length, 0);
   const one = render(music({ products: [], music_releases: music().music_releases.slice(0, 1) }));
@@ -367,7 +370,7 @@ await test("hero pin: MusicHeroButtons was edited on purpose and carries its new
   assert.ok(!/heroAction|GenericHeroActions|ConnectButton/.test(s));
   assert.match(s, /href=\{`\/m\/\$\{profile\.username\}`\}/);
   assert.match(s, /`\/\$\{profile\.username\}\/book`/);
-  assert.equal(git(`diff --stat ${PHASE3_BASE} -- src/components/connect`).trim(), "", "Stay Connected is untouched");
+  assert.equal(git(`diff --stat ${PHASE3_BASE} -- src/components/connect ":(exclude)src/components/connect/ConnectButton.tsx"`).trim(), "", "Stay Connected is untouched (ConnectButton.tsx only changed look: the UX refinement phase; its behaviour is pinned in heroAction.test.mjs)");
   // Phase 3B: the restaurant hero and menu teaser changed ONLY in the text colour on the accent (readableOn instead of fixed white) and an 11px badge.
   const rest = phase3Diff("-U0", "-- src/components/restaurant").split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
   assert.ok(rest.every((l) => /readableOn|#fff|lib\/color|text-\[(9|11)px\]|icon: Phone, label: (\"Call\"|t\.profilePage\.callButton)/.test(l)), "restaurant: colour and size only: " + rest.join(" | "));

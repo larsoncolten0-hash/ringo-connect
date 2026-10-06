@@ -1,9 +1,12 @@
+import { PHASE13_FILES } from "./phase13Files.mjs"; // the visual / UX refinement phase: its exact files are exempted by the older scope guards too
+
 // The EXACT files the Owner Workspace UX simplification and polish pass (Bookkeeping, Record Sale, receipt, Invoices, Reports, Customers,
 // Ambassador, Team Leader, dashboard footer / hamburger / account menu, section tabs) changes or adds, on top of phase12Files.mjs.
 // Same convention as phase2Files.mjs ... phase12Files.mjs: an explicit list, no wildcards, no directories. The older scope guards
 // (overview, customers, reports, aiBusinessTools, whatsappSecurityAudit) exempt exactly these files and nothing else, so each of them still
 // fails on any other changed file: no API route, no library, no migration, no payment, auth, commission or WhatsApp file is on this list.
 export const OWNER_WORKSPACE_FILES = new Set([
+  ...PHASE13_FILES,
   "scripts/tests/aiBusinessDrafts.test.mjs", // scope guard: exempts this list
   "scripts/tests/aiBusinessTools.test.mjs", // scope guard: exempts this list
   "scripts/tests/customerAttention.test.mjs", // scope guard: exempts this list

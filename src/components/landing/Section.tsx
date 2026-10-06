@@ -55,14 +55,18 @@ export function SectionHeading({
   );
 }
 
-/** The one secondary button style on the landing page (the primary is the gold fill used by the header, hero and close). */
+/** The one secondary button style on the landing page (the primary is the indigo fill used by the header, hero and close). */
 export const secondaryButton =
   "ringo-press transition-[transform,opacity,border-color] duration-ringo-fast ease-ringo inline-flex items-center justify-center gap-1.5 min-h-[48px] px-7 rounded-full border border-ringo-line-warm text-sm font-semibold text-ringo-text hover:border-ringo-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text";
 
+// Primary (on paper): Ringo indigo with white text, the elevated CTA of the interaction language. On the dark material the same
+// button is the lighter indigo of that surface with ink text (it needs to separate from near-black), kept as its own constant.
 export const primaryButton =
+  "ringo-tactile ringo-cta inline-flex items-center justify-center gap-1.5 min-h-[48px] px-7 rounded-full text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text";
+const primaryButtonInkBase =
   "ringo-press transition-[transform,opacity,filter] duration-ringo-fast ease-ringo hover:brightness-105 inline-flex items-center justify-center gap-1.5 min-h-[48px] px-7 rounded-full bg-ringo-gold text-ringo-ink text-sm font-semibold shadow-ringo-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text";
 
 /** The same two buttons on the dark material: light outline and light focus ring (the page's `text` token is dark in the light theme). */
-export const primaryButtonOnInk = primaryButton.replace("focus-visible:outline-ringo-text", "focus-visible:outline-ringo-paper");
+export const primaryButtonOnInk = primaryButtonInkBase.replace("focus-visible:outline-ringo-text", "focus-visible:outline-ringo-paper");
 export const secondaryButtonOnInk =
   "ringo-press transition-[transform,opacity,border-color] duration-ringo-fast ease-ringo inline-flex items-center justify-center gap-1.5 min-h-[48px] px-7 rounded-full border border-ringo-paper/30 text-sm font-semibold text-ringo-paper hover:border-ringo-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-paper";

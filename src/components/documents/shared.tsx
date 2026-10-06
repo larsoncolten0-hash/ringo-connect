@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -123,6 +123,13 @@ export function StatusBadge({ status, overdue = false }: { status: string; overd
 /** A bottom sheet on phones, a centred dialog on larger screens. Portaled to <body> like the other dashboard modals. */
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const { t } = useLanguage();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // focus moves into the dialog when it opens and returns to the control that opened it when it closes
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => opener?.focus?.();
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -132,7 +139,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div role="dialog" aria-modal="true" aria-label={title} className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-ringo-surface p-5 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="outline-none relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-ringo-surface p-5 sm:p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} aria-label={t.documents.ui.cancel} className="absolute right-4 top-4 w-8 h-8 rounded-full flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10 transition">
           <X size={15} />
         </button>
@@ -146,6 +153,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 
 export const inputClass = "w-full text-sm border border-ringo-border rounded-card px-3 py-2.5 min-h-[44px] bg-ringo-bg text-ringo-text disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";
 export const labelClass = "flex flex-col gap-1.5 text-xs font-medium text-ringo-muted";
-export const primaryButton = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card bg-ringo-indigo px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";
-export const secondaryButton = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card border border-ringo-border px-4 py-2 text-sm font-medium text-ringo-text transition hover:bg-ringo-muted/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";
-export const dangerButton = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card border border-rose-500/40 px-4 py-2 text-sm font-medium text-rose-700 dark:text-rose-400 transition hover:bg-rose-500/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";
+// The three buttons of the owner workspace share one language (globals.css, "THE RINGO INTERACTION LANGUAGE"): the primary is the elevated indigo CTA.
+export const primaryButton = "ringo-tactile ringo-cta inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card px-4 py-2 text-sm font-semibold";
+export const secondaryButton = "ringo-tactile inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card border border-ringo-border px-4 py-2 text-sm font-medium text-ringo-text hover:bg-ringo-muted/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";
+export const dangerButton = "ringo-tactile inline-flex min-h-[44px] items-center justify-center gap-2 rounded-card border border-rose-500/40 px-4 py-2 text-sm font-medium text-rose-700 dark:text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50";

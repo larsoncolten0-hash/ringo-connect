@@ -74,7 +74,7 @@ await test("music track rows: the title wraps instead of being squeezed, and the
 });
 await test("restaurant featured dishes: names wrap (two lines) and 'View all' is a 44px target", () => {
   const f = src("components/restaurant/FeaturedMenuSection.tsx");
-  assert.match(f, /text-sm font-medium flex items-center gap-1 min-h-\[44px\]/);
+  assert.match(f, /inline-flex min-h-\[44px\] items-center gap-1\.5 rounded-full border px-3\.5 text-xs font-semibold/); // UX refinement phase: "View all menu" is a bordered pill, still a 44px target
   assert.match(f, /text-xs font-semibold line-clamp-2 \[overflow-wrap:anywhere\]">\{item\.name\}/);
   assert.match(f, /href=\{`\/r\/\$\{username\}`\}/, "ordering route unchanged");
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { CATEGORIES, type CategoryId } from "@/lib/categories";
 
 // Shared by /auth/signup, the get-started flow, and the dashboard's
@@ -37,12 +38,18 @@ export default function CategoryPicker({
             key={c.id}
             type="button"
             onClick={() => onSelectPrimary(c.id)}
-            className={`text-left rounded-card border p-3 transition active:scale-[0.98] ${
+            aria-pressed={primary === c.id}
+            className={`ringo-tactile relative min-h-[92px] text-left rounded-card border p-3.5 ${
               primary === c.id
-                ? "border-ringo-indigo bg-ringo-indigo/5"
-                : "border-ringo-border hover:border-ringo-indigo/50"
+                ? "border-ringo-indigo bg-ringo-indigo/[0.06] shadow-[0_0_0_1px_rgb(var(--ringo-accent))]"
+                : "border-ringo-border hover:border-ringo-indigo/50 hover:bg-ringo-muted/[0.04]"
             }`}
           >
+            {primary === c.id && (
+              <span aria-hidden="true" className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-ringo-indigo text-white">
+                <Check size={12} strokeWidth={3} />
+              </span>
+            )}
             <span className="text-xl leading-none">{c.emoji}</span>
             <p className="text-sm font-medium mt-1.5">{c.label[locale]}</p>
             <p className="text-[11px] text-ringo-muted mt-0.5 line-clamp-2">{c.examples[locale]}</p>
@@ -56,7 +63,7 @@ export default function CategoryPicker({
             <button
               type="button"
               onClick={() => setShowMore(true)}
-              className="text-sm font-medium text-ringo-indigo"
+              className="ringo-tactile inline-flex min-h-[44px] items-center rounded-full border border-ringo-border px-4 text-sm font-medium text-ringo-indigo hover:border-ringo-indigo/40"
             >
               {strings.morePrompt}
             </button>
@@ -71,7 +78,8 @@ export default function CategoryPicker({
                       key={c.id}
                       type="button"
                       onClick={() => onToggleExtra(c.id)}
-                      className={`text-xs px-2.5 py-1.5 rounded-full border transition ${
+                      aria-pressed={checked}
+                      className={`ringo-tactile min-h-[44px] text-xs px-3.5 py-1.5 rounded-full border ${
                         checked
                           ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo font-medium"
                           : "border-ringo-border text-ringo-muted"

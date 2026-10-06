@@ -18,9 +18,9 @@ export interface TemplateOption {
 type Notice = { kind: "ok" | "error"; text: string } | null;
 
 const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-ringo-indigo px-4 py-2.5 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100";
+  "ringo-tactile ringo-cta inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold";
 const btnGhost =
-  "inline-flex items-center justify-center gap-1.5 rounded-xl border border-ringo-border px-3 py-2 text-sm font-medium text-ringo-text transition hover:border-ringo-indigo/40 disabled:opacity-50";
+  "ringo-tactile inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-ringo-border px-3 py-2 text-sm font-medium text-ringo-text hover:border-ringo-indigo/40 disabled:opacity-50";
 const inputCls =
   "w-full rounded-xl border border-ringo-border bg-ringo-bg px-3 py-2.5 text-sm text-ringo-text focus:outline-none focus:ring-2 focus:ring-ringo-indigo/30";
 
@@ -175,7 +175,7 @@ export default function CustomerLoyaltyCard({
 
   const progressBar = (pct: number, done: boolean) => (
     <div className="h-2.5 w-full overflow-hidden rounded-full bg-ringo-muted/15" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100}>
-      <div className={`h-full rounded-full transition-all ${done ? "bg-ringo-teal" : "bg-ringo-indigo"}`} style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }} />
+      <div className={`h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none ${done ? "bg-ringo-teal" : "bg-ringo-indigo"}`} style={{ width: `${Math.min(Math.max(pct, 0), 100)}%` }} />
     </div>
   );
 

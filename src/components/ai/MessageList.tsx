@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Check, Copy, Loader2, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
+import { AlertCircle, Check, Copy, ThumbsDown, ThumbsUp } from "lucide-react";
+import RingoAvatar from "./RingoAvatar";
 import { useLanguage } from "@/components/LanguageProvider";
 import RichText from "./RichText";
 import DraftCard from "./DraftCard";
@@ -49,7 +50,7 @@ function CopyButton({ text }: { text: string }) {
           // Clipboard blocked — nothing to do; the text is still selectable.
         }
       }}
-      className="inline-flex items-center gap-1 text-[11px] text-ringo-muted hover:text-ringo-text transition"
+      className="ringo-tactile -my-1.5 inline-flex min-h-[44px] items-center gap-1 rounded-full px-2.5 text-[11px] text-ringo-muted hover:text-ringo-text"
     >
       {copied ? <Check size={12} /> : <Copy size={12} />}
       {copied ? t.ringoAi.copied : t.ringoAi.copy}
@@ -86,17 +87,15 @@ export default function MessageList({
     <div className="flex flex-col gap-3">
       {messages.map((m) =>
         m.role === "user" ? (
-          <div key={m.id} className="self-end max-w-[85%] rounded-2xl rounded-br-md bg-ringo-indigo text-white px-3.5 py-2 text-sm leading-snug whitespace-pre-wrap break-words">
+          <div key={m.id} className="ringo-msg-in self-end max-w-[85%] rounded-2xl rounded-br-md bg-ringo-indigo text-white px-3.5 py-2.5 text-sm leading-snug whitespace-pre-wrap break-words shadow-[0_4px_12px_-6px_rgb(var(--ringo-accent)/0.55)]">
             {m.content}
           </div>
         ) : (
-          <div key={m.id} className="self-start flex gap-2 max-w-[92%]">
-            <span className="mt-0.5 w-6 h-6 shrink-0 rounded-lg bg-gradient-to-br from-ringo-indigo to-fuchsia-500 text-white flex items-center justify-center">
-              <Sparkles size={12} />
-            </span>
+          <div key={m.id} className="ringo-msg-in self-start flex gap-2 max-w-[92%]">
+            <RingoAvatar size={28} className="mt-0.5" />
             <div className="min-w-0 flex-1">
               {m.content && (
-                <div className="rounded-2xl rounded-tl-md bg-ringo-muted/10 text-ringo-text px-3.5 py-2.5 text-sm leading-relaxed break-words">
+                <div className="rounded-2xl rounded-tl-md border border-ringo-border/50 bg-ringo-muted/[0.08] text-ringo-text px-3.5 py-2.5 text-sm leading-relaxed break-words">
                   <RichText text={m.content} />
                 </div>
               )}
@@ -109,8 +108,8 @@ export default function MessageList({
               {(m.imageIds || []).map((id) => (images[id] ? <ImageCard key={id} image={images[id]} /> : null))}
               {(m.calendarPlanIds || []).map((id) => (calendarPlans[id] ? <CalendarPlanCard key={id} plan={calendarPlans[id]} /> : null))}
               {m.pending && (
-                <div className="flex items-center gap-2 text-xs text-ringo-muted px-1 py-1.5">
-                  <Loader2 size={13} className="animate-spin" />
+                <div role="status" className="flex items-center gap-2.5 text-xs text-ringo-muted px-1 py-2">
+                  <span aria-hidden="true" className="ringo-typing inline-flex items-center gap-1 text-ringo-indigo"><span /><span /><span /></span>
                   {toolStatus ? t.ringoAi.toolStatus[toolStatus] ?? t.ringoAi.toolStatusFallback : t.ringoAi.thinking}
                 </div>
               )}
@@ -129,18 +128,18 @@ export default function MessageList({
                     aria-label={t.ringoAi.helpful}
                     aria-pressed={m.rating === 1}
                     onClick={() => onRate(m, m.rating === 1 ? 0 : 1)}
-                    className={`transition ${m.rating === 1 ? "text-emerald-500" : "text-ringo-muted hover:text-ringo-text"}`}
+                    className={`ringo-tactile -my-1.5 flex h-11 w-11 items-center justify-center rounded-full ${m.rating === 1 ? "text-emerald-500" : "text-ringo-muted hover:text-ringo-text"}`}
                   >
-                    <ThumbsUp size={12} />
+                    <ThumbsUp size={13} />
                   </button>
                   <button
                     type="button"
                     aria-label={t.ringoAi.notHelpful}
                     aria-pressed={m.rating === -1}
                     onClick={() => onRate(m, m.rating === -1 ? 0 : -1)}
-                    className={`transition ${m.rating === -1 ? "text-ringo-coral" : "text-ringo-muted hover:text-ringo-text"}`}
+                    className={`ringo-tactile -my-1.5 flex h-11 w-11 items-center justify-center rounded-full ${m.rating === -1 ? "text-ringo-coral" : "text-ringo-muted hover:text-ringo-text"}`}
                   >
-                    <ThumbsDown size={12} />
+                    <ThumbsDown size={13} />
                   </button>
                 </div>
               )}

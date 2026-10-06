@@ -15,18 +15,19 @@ export default function SaveButton({ state, onClick, disabled }: { state: SaveSt
     state === "saving" ? t.editor.saving : state === "success" ? t.editor.savedSuccessfully : state === "error" ? t.editor.saveFailed : t.editor.saveChanges;
 
   return (
-    <motion.button
+    // The button itself carries no framer-motion transform (an inline transform would override the press feedback): the success
+    // confirmation is the check icon's own spring below. Idle is the elevated indigo CTA; success and error are flat, calm colours.
+    <button
       type="button"
       onClick={onClick}
       disabled={disabled || state === "saving"}
-      animate={state === "success" ? { scale: [1, 1.04, 1] } : { scale: 1 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-      className={`relative flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold overflow-hidden transition-colors duration-200 disabled:opacity-80 ${
+      aria-busy={state === "saving"}
+      className={`ringo-tactile relative flex min-h-[44px] items-center justify-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold disabled:opacity-80 ${
         state === "success"
-          ? "bg-emerald-500 text-white"
+          ? "bg-emerald-600 text-white"
           : state === "error"
-          ? "bg-red-500 text-white"
-          : "bg-ringo-indigo text-white hover:brightness-110 active:scale-[0.97]"
+          ? "bg-red-600 text-white"
+          : "ringo-cta"
       }`}
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -38,7 +39,7 @@ export default function SaveButton({ state, onClick, disabled }: { state: SaveSt
           transition={{ duration: 0.15 }}
           className="flex items-center gap-2"
         >
-          {state === "saving" && <Loader2 size={15} className="animate-spin" />}
+          {state === "saving" && <Loader2 size={15} className="animate-spin motion-reduce:animate-none" />}
           {state === "success" && (
             <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }}>
               <Check size={15} />
@@ -47,6 +48,6 @@ export default function SaveButton({ state, onClick, disabled }: { state: SaveSt
           {label}
         </motion.span>
       </AnimatePresence>
-    </motion.button>
+    </button>
   );
 }

@@ -43,7 +43,7 @@ export default function RolesPanel({
         <p className="text-sm text-ringo-muted">Roles define what a team member can access. Assign one per person from the Team tab.</p>
         <button
           onClick={() => setCreating(true)}
-          className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-ringo-indigo hover:underline"
+          className="shrink-0 ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-xs font-semibold text-ringo-indigo hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40"
         >
           <Plus size={14} />
           Custom role

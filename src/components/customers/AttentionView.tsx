@@ -151,7 +151,7 @@ export default function AttentionView() {
             <section className="flex flex-col gap-2 rounded-card border border-ringo-border p-4">
               <h2 className="font-display text-base font-medium text-ringo-text">{u.unassignedTitle}</h2>
               {data.unassigned.map((x) => <p key={x.currency} className="text-sm text-ringo-muted">{u.unassignedBody(x.invoiceCount, f.money(x.outstandingMinor, x.currency), f.money(x.overdueMinor, x.currency))}</p>)}
-              <div><Link href="/dashboard/documents/receivables" className="text-sm text-ringo-indigo underline">{u.openDebtors}</Link></div>
+              <div><Link href="/dashboard/documents/receivables" className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-sm font-semibold text-ringo-indigo hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40">{u.openDebtors}</Link></div>
             </section>
           )}
 

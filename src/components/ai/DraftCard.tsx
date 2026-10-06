@@ -190,7 +190,7 @@ export default function DraftCard({ draft, onChange }: { draft: DraftView; onCha
               {d.appliedNote[draft.type]}
             </span>
             {draft.reviewPath && (
-              <a href={draft.reviewPath} className="text-xs font-semibold text-ringo-indigo hover:underline shrink-0">
+              <a href={draft.reviewPath} className="shrink-0 ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-4 text-xs font-semibold text-ringo-indigo hover:border-ringo-indigo/40 hover:bg-ringo-indigo/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40">
                 {d.openInDashboard}
               </a>
             )}

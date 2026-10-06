@@ -132,7 +132,8 @@ await test("hero uses the foundation and nothing off-system: no hex, no indigo, 
   assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(heroCode), "no hex literal in the hero");
   assert.ok(!/ringo-indigo|ringo-coral|ringo-teal|indigo-|text-white|bg-white/.test(heroCode));
   assert.ok(!/bg-clip-text|text-transparent|backdrop-|blur-|shadow-\[/.test(heroCode));
-  for (const c of ["bg-ringo-gold", "text-ringo-ink", "text-ringo-gold-display", "shadow-ringo-2", "ringo-press", "duration-ringo-fast", "ease-ringo", "border-ringo-line-warm"]) assert.ok(heroCode.includes(c), c);
+  // UX refinement phase: the primary CTA is the brand-indigo ringo-cta (the gold fill was the discarded direction); the tokens are remapped, not removed
+  for (const c of ["ringo-cta", "text-ringo-gold-display", "ringo-press", "duration-ringo-fast", "ease-ringo", "border-ringo-line-warm"]) assert.ok(heroCode.includes(c), c);
 });
 await test("hero typography: Bricolage Grotesque via next/font on the landing only, weights 600/700, Inter body untouched; no Fraunces, no Manrope", () => {
   const font = strip(raw("src/components/landing/heroFont.ts"));
@@ -160,7 +161,7 @@ await test("CTAs are 48px tall (44px minimum), full width on phones, with a visi
   assert.equal((heroCode.match(/min-h-\[48px\]/g) || []).length, 2);
   assert.ok(heroCode.includes("w-full sm:w-auto"));
   assert.equal((heroCode.match(/focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ringo-text/g) || []).length, 2);
-  assert.equal((heroCode.match(/ringo-press/g) || []).length, 2);
+  assert.equal((heroCode.match(/ringo-press|ringo-tactile/g) || []).length, 2); // the secondary keeps ringo-press, the indigo CTA uses ringo-tactile (same 0.97 press)
 });
 await test("the headline is not animated (LCP-safe): the only entrance in the hero is the object's single rise", () => {
   assert.ok(!/ringo-rise|animate-|motion\./.test(heroCode), "no entrance on the text");

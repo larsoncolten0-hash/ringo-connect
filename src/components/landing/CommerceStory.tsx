@@ -27,7 +27,7 @@ function CommerceVisual() {
         <div className="p-5">
           <p className="ringo-display text-lg font-semibold leading-snug">{l.commerceDemoProduct}</p>
           <p className="mt-1 text-sm tabular-nums text-ringo-muted">{l.commerceDemoPrice}</p>
-          <div className="mt-4 flex h-11 items-center justify-center rounded-full bg-ringo-gold text-sm font-semibold text-ringo-ink">{l.commerceDemoOrder}</div>
+          <div className="mt-4 flex h-11 items-center justify-center rounded-full bg-ringo-indigo text-sm font-semibold text-white">{l.commerceDemoOrder}</div>
         </div>
       </div>
 

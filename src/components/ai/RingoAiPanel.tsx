@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, History, ImagePlus, LifeBuoy, Loader2, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, History, ImagePlus, LifeBuoy, Loader2, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import RingoAvatar from "./RingoAvatar";
 import { useLanguage } from "@/components/LanguageProvider";
 import { AI_MAX_USER_MESSAGE_CHARS } from "@/lib/ai/codes";
 import MessageList, { type UiMessage } from "./MessageList";
@@ -58,12 +59,18 @@ export default function RingoAiPanel({
   const [imageError, setImageError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+  // keyboard: the panel takes focus when it opens (the launcher that opened it unmounts) and Escape closes it
+  useEffect(() => { dialogRef.current?.focus(); }, []);
 
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+    // follow the conversation as it grows; an empty chat (the welcome) stays at the top so the greeting is never scrolled out of sight
+    if (messages.length === 0) return;
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: calm ? "auto" : "smooth" });
   }, [messages, toolStatus]);
 
   const patchAssistant = useCallback((id: string, patch: Partial<UiMessage> | ((m: UiMessage) => Partial<UiMessage>)) => {
@@ -313,45 +320,46 @@ export default function RingoAiPanel({
 
   return (
     <motion.div
+      ref={dialogRef}
       role="dialog"
+      tabIndex={-1}
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
       aria-label={t.ringoAi.title}
       initial={{ opacity: 0, y: 16, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 16, scale: 0.98 }}
       transition={{ duration: 0.18 }}
-      className="fixed z-50 inset-x-0 bottom-0 top-16 lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:h-[min(82vh,700px)] lg:rounded-2xl rounded-t-2xl border border-ringo-border/70 bg-ringo-surface shadow-[0_24px_64px_-20px_rgba(15,23,42,0.45)] flex flex-col overflow-hidden"
+      className="outline-none fixed z-50 inset-x-0 bottom-0 top-16 lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:h-[min(82vh,700px)] lg:rounded-2xl rounded-t-2xl border border-ringo-border/70 bg-ringo-surface shadow-[0_24px_64px_-20px_rgba(15,23,42,0.45)] flex flex-col overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-ringo-border/70 bg-gradient-to-r from-ringo-indigo/[0.08] via-fuchsia-500/[0.05] to-transparent shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-ringo-border/70 bg-[linear-gradient(to_right,rgb(var(--ringo-accent)/0.08),transparent_70%)] shrink-0">
         {view === "history" ? (
-          <button onClick={() => setView("chat")} aria-label={t.ringoAi.back} className="w-8 h-8 rounded-xl flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10">
+          <button onClick={() => setView("chat")} aria-label={t.ringoAi.back} className="ringo-tactile -ml-2 w-11 h-11 rounded-full flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10">
             <ArrowLeft size={16} />
           </button>
         ) : (
-          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-ringo-indigo to-fuchsia-500 text-white flex items-center justify-center shadow-[0_6px_16px_-6px_rgba(79,70,229,0.6)]">
-            <Sparkles size={17} />
-          </span>
+          <RingoAvatar size={40} live />
         )}
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-ringo-text flex items-center gap-1.5">
-            {view === "history" ? t.ringoAi.history : t.ringoAi.title}
+            <span className="whitespace-nowrap">{view === "history" ? t.ringoAi.history : t.ringoAi.title}</span>
             {view === "chat" && (
-              <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-ringo-indigo/10 text-ringo-indigo">{t.ringoAi.beta}</span>
+              <span className="hidden min-[380px]:inline text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-ringo-indigo/10 text-ringo-indigo">{t.ringoAi.beta}</span>
             )}
           </p>
           {view === "chat" && <p className="text-xs text-ringo-muted truncate">{t.ringoAi.subtitle}</p>}
         </div>
         {view === "chat" && (
           <>
-            <button onClick={openHistory} aria-label={t.ringoAi.history} className="w-8 h-8 rounded-xl flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10">
+            <button onClick={openHistory} aria-label={t.ringoAi.history} className="ringo-tactile w-11 h-11 rounded-full flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10">
               <History size={16} />
             </button>
-            <button onClick={startNewChat} aria-label={t.ringoAi.newChat} className="w-8 h-8 rounded-xl flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10">
+            <button onClick={startNewChat} aria-label={t.ringoAi.newChat} className="ringo-tactile w-11 h-11 rounded-full flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10">
               <Plus size={17} />
             </button>
           </>
         )}
-        <button onClick={onClose} aria-label={t.ringoAi.close} className="w-8 h-8 rounded-xl flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10">
+        <button onClick={onClose} aria-label={t.ringoAi.close} className="ringo-tactile -mr-2 w-11 h-11 rounded-full flex items-center justify-center text-ringo-muted hover:bg-ringo-muted/10">
           <X size={16} />
         </button>
       </div>
@@ -371,20 +379,20 @@ export default function RingoAiPanel({
                   {confirmDelete === c.id ? (
                     <div className="flex-1 flex items-center gap-2 text-xs">
                       <span className="flex-1 text-ringo-text">{t.ringoAi.deleteConfirm}</span>
-                      <button onClick={() => setConfirmDelete(null)} className="text-ringo-muted hover:text-ringo-text">
+                      <button onClick={() => setConfirmDelete(null)} className="ringo-tactile min-h-[44px] px-2 text-ringo-muted hover:text-ringo-text">
                         {t.ringoAi.cancel}
                       </button>
-                      <button onClick={() => deleteConversation(c.id)} className="font-semibold text-ringo-coral">
+                      <button onClick={() => deleteConversation(c.id)} className="ringo-tactile min-h-[44px] px-2 font-semibold text-ringo-coral">
                         {t.ringoAi.delete}
                       </button>
                     </div>
                   ) : (
                     <>
-                      <button onClick={() => openConversation(c.id)} className="flex-1 min-w-0 text-left">
+                      <button onClick={() => openConversation(c.id)} className="ringo-tactile flex-1 min-w-0 min-h-[44px] text-left">
                         <p className="text-sm text-ringo-text truncate">{c.title || t.ringoAi.untitled}</p>
                         <p className="text-[11px] text-ringo-muted">{new Date(c.updatedAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-GB")}</p>
                       </button>
-                      <button onClick={() => setConfirmDelete(c.id)} aria-label={t.ringoAi.deleteConversation} className="p-1.5 rounded-lg text-ringo-muted hover:text-ringo-coral">
+                      <button onClick={() => setConfirmDelete(c.id)} aria-label={t.ringoAi.deleteConversation} className="ringo-tactile flex h-11 w-11 items-center justify-center rounded-full text-ringo-muted hover:text-ringo-coral">
                         <Trash2 size={14} />
                       </button>
                     </>
@@ -398,22 +406,30 @@ export default function RingoAiPanel({
         <>
           <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4">
             {messages.length === 0 ? (
-              <div className="flex flex-col gap-4">
-                <div>
-                  <p className="text-base font-semibold text-ringo-text">{t.ringoAi.welcomeTitle}</p>
-                  <p className="text-sm text-ringo-muted mt-1 leading-relaxed">{t.ringoAi.welcomeBody}</p>
+              <div className="flex flex-col gap-5">
+                <div className="ringo-rise flex flex-col items-start gap-3">
+                  <RingoAvatar size={52} live />
+                  <div>
+                    <p className="font-display text-xl font-semibold tracking-[-0.01em] text-ringo-text">{t.ringoAi.welcomeTitle}</p>
+                    <p className="text-sm text-ringo-muted mt-1 leading-relaxed">{t.ringoAi.welcomeBody}</p>
+                  </div>
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-ringo-muted mb-2">{t.ringoAi.suggestionsTitle}</p>
                   <div className="flex flex-col gap-2">
-                    {t.ringoAi.suggestions.map((s) => (
+                    {t.ringoAi.suggestions.map((s, i) => (
                       <button
                         key={s}
                         onClick={() => send(s)}
                         disabled={!status.canSend}
-                        className="text-left text-sm rounded-xl border border-ringo-border/80 px-3 py-2.5 text-ringo-text hover:border-ringo-indigo/50 hover:bg-ringo-indigo/[0.04] transition disabled:opacity-50"
+                        style={{ ["--i" as string]: i + 1 }}
+                        className="ringo-rise ringo-tactile group flex min-h-[52px] items-center gap-3 rounded-2xl border border-ringo-border/80 bg-ringo-surface px-3.5 py-2.5 text-left text-sm text-ringo-text hover:border-ringo-indigo/50 hover:bg-ringo-indigo/[0.04] disabled:opacity-50"
                       >
-                        {s}
+                        <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ringo-indigo/10 text-ringo-indigo">
+                          <Sparkles size={14} />
+                        </span>
+                        <span className="min-w-0 flex-1 leading-snug">{s}</span>
+                        <ArrowUpRight size={15} aria-hidden="true" className="shrink-0 text-ringo-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transition-none" />
                       </button>
                     ))}
                   </div>
@@ -465,7 +481,7 @@ export default function RingoAiPanel({
                 e.preventDefault();
                 send(draft);
               }}
-              className="flex items-end gap-2"
+              className="flex items-end gap-1 rounded-[26px] border border-ringo-border bg-ringo-bg p-1.5 transition-colors focus-within:border-ringo-indigo/60 focus-within:ring-2 focus-within:ring-ringo-indigo/20"
             >
               <input
                 ref={imageInputRef}
@@ -483,9 +499,9 @@ export default function RingoAiPanel({
                 onClick={() => imageInputRef.current?.click()}
                 disabled={streaming || uploadingImage || !status.canSend}
                 aria-label={t.ringoAi.attachImage}
-                className="shrink-0 w-9 h-9 rounded-full border border-ringo-border text-ringo-muted flex items-center justify-center hover:text-ringo-text hover:border-ringo-indigo/50 transition disabled:opacity-40"
+                className="ringo-tactile shrink-0 w-11 h-11 rounded-full text-ringo-muted flex items-center justify-center hover:bg-ringo-muted/10 hover:text-ringo-text disabled:opacity-40"
               >
-                <ImagePlus size={15} />
+                <ImagePlus size={17} />
               </button>
               <textarea
                 value={draft}
@@ -497,21 +513,23 @@ export default function RingoAiPanel({
                   }
                 }}
                 placeholder={t.ringoAi.placeholder}
+                aria-label={t.ringoAi.placeholder}
                 rows={1}
                 disabled={streaming || !status.canSend}
-                className="flex-1 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text resize-none max-h-28 disabled:opacity-60"
+                className="min-h-[44px] flex-1 resize-none bg-transparent px-1.5 py-[11px] text-sm text-ringo-text placeholder:text-ringo-muted focus:outline-none max-h-28 disabled:opacity-60"
               />
               <button
                 type="submit"
                 disabled={!draft.trim() || streaming || !status.canSend}
                 aria-label={t.ringoAi.send}
-                className="shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-ringo-indigo to-fuchsia-500 text-white flex items-center justify-center transition disabled:opacity-40 active:scale-95"
+                aria-busy={streaming}
+                className="ringo-tactile ringo-cta shrink-0 w-11 h-11 rounded-full flex items-center justify-center"
               >
-                {streaming ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />}
+                {streaming ? <Loader2 size={16} className="animate-spin motion-reduce:animate-none" /> : <Send size={16} />}
               </button>
             </form>
             <div className="mt-2 flex items-center justify-between gap-2">
-              <button onClick={talkToTeam} className="inline-flex items-center gap-1.5 text-xs font-medium text-ringo-indigo hover:underline">
+              <button onClick={talkToTeam} className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-ringo-border px-3.5 text-xs font-semibold text-ringo-text hover:border-ringo-indigo/40">
                 <LifeBuoy size={13} />
                 {t.ringoAi.talkToTeam}
               </button>

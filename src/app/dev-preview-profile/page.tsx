@@ -25,6 +25,7 @@ export default function DevPreviewProfile({ searchParams: q }: { searchParams: R
     radius: ["rounded", "square", "pill"].includes(q.radius || "") ? (q.radius as string) : "rounded",
     long: q.long === "1",
     minimal: q.minimal === "1",
+    many: q.many === "1",
   });
   // The public composition (share, language selector, skip link) by default; ?preview=1 renders the dashboard editor's embedded variant.
   return <ProfileView profile={profile} pageViewEventId="preview" preview={q.preview === "1"} />;
