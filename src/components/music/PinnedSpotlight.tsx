@@ -24,6 +24,7 @@ export default function PinnedSpotlight({
   supportMessage,
   accent,
   buttonStyle,
+  radiusClass = "rounded-card",
   currency,
   whatsappNumber,
   username,
@@ -39,6 +40,8 @@ export default function PinnedSpotlight({
   supportMessage?: string | null;
   accent: string;
   buttonStyle: CSSProperties;
+  /** The artist's own button shape (rounded by default); the CTAs below follow it instead of a fixed pill. */
+  radiusClass?: string;
   currency: string;
   whatsappNumber?: string | null;
   username: string;
@@ -80,7 +83,7 @@ export default function PinnedSpotlight({
             </div>
             <a
               href="#support"
-              className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg transition hover:brightness-95 active:scale-95"
+              className={`shrink-0 flex items-center gap-1.5 min-h-[44px] text-xs font-semibold px-4 py-2.5 shadow-lg transition hover:brightness-95 active:scale-95 ${radiusClass}`}
               style={buttonStyle}
             >
               <Heart size={13} />
@@ -193,7 +196,7 @@ export default function PinnedSpotlight({
               {isProtectedTrack && item.price && (
                 <a
                   href={`/m/${username}/track/${item.id}`}
-                  className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold px-3.5 py-2.5 rounded-full shadow-lg transition hover:brightness-95 active:scale-95"
+                  className={`flex items-center gap-1.5 min-h-[44px] text-xs font-semibold px-3.5 py-2.5 shadow-lg transition hover:brightness-95 active:scale-95 ${radiusClass}`}
                   style={buttonStyle}
                 >
                   <ShoppingBag size={13} />
@@ -218,7 +221,7 @@ export default function PinnedSpotlight({
           ) : ctaHref ? (
             <a
               href={ctaHref}
-              className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-full shadow-lg transition hover:brightness-95 active:scale-95"
+              className={`shrink-0 flex items-center gap-1.5 min-h-[44px] text-xs font-semibold px-4 py-2.5 shadow-lg transition hover:brightness-95 active:scale-95 ${radiusClass}`}
               style={buttonStyle}
             >
               <CtaIcon size={13} />

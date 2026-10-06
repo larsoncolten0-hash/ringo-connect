@@ -10,6 +10,7 @@ import Disclosure from "@/components/ui/Disclosure";
 import { isValidFacebookPixelId, isValidTiktokPixelId } from "@/lib/pixelEvents";
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
+import PlanCta from "@/components/ui/PlanCta";
 
 function ConfiguredBadge({ label }: { label: string }) {
   return (
@@ -96,9 +97,7 @@ export default function PixelsCard({
       <EditorCard icon={Radar} title={t.editor.trackingPixels}>
         <div className="border border-dashed border-ringo-border rounded-card p-6 text-center text-sm text-ringo-muted flex flex-col items-center gap-3">
           {t.editor.pixelsLocked}
-          <Link href="/dashboard/subscription" className="text-xs font-medium text-ringo-indigo">
-            {t.sidebar.upgradePlan}
-          </Link>
+          <PlanCta variant="secondary">{t.sidebar.upgradePlan}</PlanCta>
         </div>
       </EditorCard>
     );

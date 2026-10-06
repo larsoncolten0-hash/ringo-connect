@@ -108,7 +108,7 @@ export default function ProductDetailView({
     ctaLabel: product.cta_label,
   });
   const ctaLabel = cta.label ? (cta.label.kind === "custom" ? cta.label.text : t.cta.labels[cta.label.id]) : null;
-  const displayLabel = resolveDisplayCtaLabel(cta, isMusic, { presets: t.cta.labels, buyNow: t.music.buyNowLabel, shopMerch: t.music.shopMerch, viewDetails: t.profilePage.viewDetails });
+  const displayLabel = resolveDisplayCtaLabel(cta, isMusic, { presets: t.cta.labels, buyNow: t.music.buyNowLabel, shopMerch: t.music.shopMerch, viewDetails: t.profilePage.viewDetails }, { category: profile.category, nouns: t.cta.nouns });
 
   // The resolved destination decides where a tap goes (see customerActionRoutes.ts):
   // only existing Ringo workflows, never a fallback. Sold out is checked first.

@@ -31,7 +31,7 @@ export default function MobileMoreMenu({
   organizations = [],
   currentOrgId,
 }: {
-  items: { href: string; label: string; icon: LucideIcon; exact?: boolean; locked?: boolean }[];
+  items: { href: string; label: string; icon: LucideIcon; exact?: boolean; locked?: boolean; category?: boolean }[];
   label: string;
   isActive: (href: string, exact?: boolean) => boolean;
   // The mobile equivalent of the desktop sidebar's OrgSwitcher — only
@@ -112,7 +112,7 @@ export default function MobileMoreMenu({
                 </div>
               )}
               <nav className="flex flex-col px-5 py-3" aria-label={label}>
-              {items.map(({ href, label: itemLabel, icon: Icon, exact, locked }) => {
+              {items.map(({ href, label: itemLabel, icon: Icon, exact, locked, category }) => {
                 const active = isActive(href, exact);
                 return (
                   <div key={href} className="border-b border-ringo-border/60 last:border-0">
@@ -129,7 +129,7 @@ export default function MobileMoreMenu({
                       {locked && (
                         <>
                           <Lock size={13} className="ml-auto shrink-0 opacity-60" aria-hidden="true" />
-                          <span className="sr-only">{t.toolkitLock.lockedLabel}</span>
+                          <span className="sr-only">{category ? t.toolkitLock.unavailableLabel : t.toolkitLock.lockedLabel}</span>
                         </>
                       )}
                     </Link>

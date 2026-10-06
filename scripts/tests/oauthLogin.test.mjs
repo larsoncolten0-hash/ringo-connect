@@ -55,13 +55,13 @@ await test("invite token: base64url only, bounded; anything that could carry a p
 });
 await test("destination: invitation first, then a safe next, then the role's home (same order as the email login)", () => {
   const t = "abcDEF0123456789_-abcDEF0123456789_-abc";
-  assert.equal(O.resolveDestination({ role: "creator" }), "/dashboard");
+  assert.equal(O.resolveDestination({ role: "creator" }), "/dashboard/home"); // everyone lands on Ringo Home, not the editor
   assert.equal(O.resolveDestination({ role: "admin" }), "/admin");
-  assert.equal(O.resolveDestination({ role: undefined }), "/dashboard");
+  assert.equal(O.resolveDestination({ role: undefined }), "/dashboard/home");
   assert.equal(O.resolveDestination({ role: "admin", invite: t }), `/team/invite/${t}`);
   assert.equal(O.resolveDestination({ role: "creator", next: "/dashboard/shop" }), "/dashboard/shop");
   assert.equal(O.resolveDestination({ role: "creator", invite: t, next: "/dashboard/shop" }), `/team/invite/${t}`);
-  assert.equal(O.resolveDestination({ role: "creator", next: "//evil.com" }), "/dashboard");
+  assert.equal(O.resolveDestination({ role: "creator", next: "//evil.com" }), "/dashboard/home");
   assert.equal(O.resolveDestination({ role: "admin", invite: "../../x", next: "https://evil.com" }), "/admin");
 });
 await test("provider errors map to our keys: cancelled, no_account (Database error saving new user), failed; no error gives null", () => {
@@ -112,7 +112,7 @@ const NEW_ONLY = { id: "u2", identities: [{ provider: "google" }] };
 await test("callback: an existing account (email identity linked to Google) is signed in and sent to its dashboard", async () => {
   const calls = fake({ user: EXISTING, row: { role: "creator", status: "active" } });
   const r = await get("?code=abc");
-  assert.equal(r.location, "https://ringoconnectltd.com/dashboard");
+  assert.equal(r.location, "https://ringoconnectltd.com/dashboard/home");
   assert.equal(calls.exchanged, "abc");
   assert.equal(calls.signOut, 0);
 });
@@ -372,7 +372,7 @@ await test("next: PROPERTY — for ~10,000 generated paths made of dot-segments,
 await test("destination: resolveDestination never returns anything that can leave the site, whatever next is", () => {
   for (const next of ["/.//evil.com", "/%2e//evil.com", "/a/..//evil.com", "//evil.com", "https://evil.com", "/.//"]) {
     const d = O.resolveDestination({ role: "creator", next });
-    assert.equal(d, "/dashboard", next);
+    assert.equal(d, "/dashboard/home", next);
   }
   assert.equal(O.resolveDestination({ role: "admin", next: "/./" }), "/");
 });
@@ -397,14 +397,14 @@ await test("callback: for EVERY next value the final redirect stays on the reque
     const r = await get(`?code=abc&next=${encodeURIComponent(next)}`);
     assert.equal(r.status, 307, next);
     assert.equal(new URL(r.location).origin, "https://ringoconnectltd.com", next);
-    assert.equal(new URL(r.location).pathname, "/dashboard", `${next}: refused values fall back to the role's home`);
+    assert.equal(new URL(r.location).pathname, "/dashboard/home", `${next}: refused values fall back to the role's home`);
   }
 });
 await test("callback: a preview or proxy origin is respected (the redirect always stays on whatever origin the request came from)", async () => {
   fake({ user: EXISTING, row: { role: "creator", status: "active" } });
   const res = await callback.GET(new Request("https://preview-abc.vercel.app/auth/callback?code=abc&next=%2F.%2F%2Fevil.com"));
   assert.equal(new URL(res.headers.get("location")).origin, "https://preview-abc.vercel.app");
-  assert.equal(new URL(res.headers.get("location")).pathname, "/dashboard");
+  assert.equal(new URL(res.headers.get("location")).pathname, "/dashboard/home");
 });
 await test("callback source: the final redirect goes through the same-origin guard, not a bare new URL(...)", () => {
   const s = src("src/app/auth/callback/route.ts");

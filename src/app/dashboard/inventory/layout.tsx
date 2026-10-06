@@ -12,6 +12,8 @@ export default async function InventoryLayout({ children }: { children: React.Re
   // is never rendered, and its API and database functions still refuse a plan without the business tools.
   const lock = await resolveToolkitLock();
   if (lock.inventoryLocked) return <div className="max-w-5xl"><ToolkitLocked tool="inventory" /></div>;
+  // not offered for this kind of business, or stock tracking is for shops only: said plainly, never an upgrade
+  if (lock.unavailable || lock.inventoryUnavailable) return <div className="max-w-5xl"><ToolkitLocked tool="inventory" unavailable={lock.unavailable ?? "inventory"} /></div>;
   const owner = await requireInventoryOwner();
   if (!(await inventoryAvailable(owner as any))) redirect("/dashboard");
   return <div className="max-w-5xl">{children}</div>;

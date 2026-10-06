@@ -7,7 +7,7 @@ import Rail from "@/components/ui/Rail";
 import { formatPrice } from "@/lib/currency";
 import { hexToRgba } from "@/lib/color";
 import { useLanguage } from "@/components/LanguageProvider";
-import { resolveProductCta, resolveDisplayCtaLabel } from "@/lib/cta";
+import { resolveProductCta, resolveDisplayCtaLabel, sectionCtaKind } from "@/lib/cta";
 import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import { productHref, productImages } from "./productHref";
 
@@ -84,6 +84,8 @@ export default function CatalogSection({
   const railItems = sorted.slice(0, 8);
   // Inside the dashboard editor's live preview nothing navigates away.
   const goStore = preview ? (e: React.MouseEvent) => e.preventDefault() : undefined;
+  // The button that opens the whole catalogue: "Shop now" where the catalogue is things you buy, otherwise "View <its own name>" (services, listings, courses...).
+  const sectionCta = sectionCtaKind(category, isMusic) === "shop" ? t.cta.shopNow : t.profilePage.viewAll(label);
 
   return (
     <section id="merch" className="flex flex-col gap-4 scroll-mt-6">
@@ -108,7 +110,7 @@ export default function CatalogSection({
             className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold"
             style={{ borderColor: borderTint, color: textColor }}
           >
-            {t.profilePage.viewAll(label)}
+            {sectionCta}
             <ArrowRight size={13} aria-hidden="true" />
           </a>
         </div>
@@ -153,7 +155,7 @@ export default function CatalogSection({
               <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: hexToRgba(accent, 0.14), color: accentText || accent }}>
                 <ArrowRight size={18} aria-hidden="true" />
               </span>
-              <span className="text-sm font-semibold">{t.profilePage.viewAll(label)}</span>
+              <span className="text-sm font-semibold">{sectionCta}</span>
               <span className="text-xs tabular-nums" style={{ opacity: 0.6 }}>{sorted.length}</span>
             </a>
           )}
@@ -252,7 +254,7 @@ function ProductCard({
     ctaPreset: product.cta_preset,
     ctaLabel: product.cta_label,
   });
-  const buttonLabel = resolveDisplayCtaLabel(cta, isMusic, { presets: t.cta.labels, buyNow: t.music.buyNowLabel, shopMerch: t.music.shopMerch, viewDetails: t.profilePage.viewItem });
+  const buttonLabel = resolveDisplayCtaLabel(cta, isMusic, { presets: t.cta.labels, buyNow: t.music.buyNowLabel, shopMerch: t.music.shopMerch, viewDetails: t.profilePage.viewItem }, { category, nouns: t.cta.nouns });
 
   const body = (
     <div className="ringo-lift ringo-lift--flat">

@@ -12,6 +12,7 @@ import { referralPromoShowsOn } from "@/lib/referralPromo";
 import LanguageToggle from "@/components/LanguageToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
+import PushResume from "@/components/PushResume";
 import AvatarMenu from "@/components/dashboard/AvatarMenu";
 import HelpWidget from "@/components/dashboard/HelpWidget";
 import RingoAiLauncher from "@/components/ai/RingoAiLauncher";
@@ -84,6 +85,8 @@ export default function DashboardShell({
   hasSales = false,
   lockedToolkit = false,
   lockedInventory = false,
+  unavailableToolkit = false,
+  unavailableInventory = false,
   hasCustomers = false,
   hasInbox = false,
   hasStaffInbox = false,
@@ -156,6 +159,10 @@ export default function DashboardShell({
   // lockedInventory is the subset for categories that have stock tracking. Computed in dashboard/layout.tsx; UX only.
   lockedToolkit?: boolean;
   lockedInventory?: boolean;
+  // The same tools for a kind of business they are not offered for (Restaurant, Music, Events, Other; stock tracking outside shops): still in the menu, marked
+  // locked, opening an honest "not available for your business type yet" screen (never an upgrade).
+  unavailableToolkit?: boolean;
+  unavailableInventory?: boolean;
   // Business Toolkit customers (/dashboard/customers): same owner-only entitlement and table-existence rule as hasDocuments.
   hasCustomers?: boolean;
   hasInbox?: boolean;
@@ -307,19 +314,19 @@ export default function DashboardShell({
     ...(hasShop && !organization?.isStaff ? [{ href: "/dashboard/shop", label: t.nav.shop, icon: ShoppingBag, core: false }] : []),
     // Business Toolkit, in the order an owner thinks about it: Shop, Record sale, Inventory, Customers, Invoices, Bookkeeping, Reports.
     ...(hasSales && !organization?.isStaff ? [{ href: "/dashboard/sales", label: t.nav.recordSale, icon: ReceiptText, core: false }] : []),
-    ...(lockedToolkit && !organization?.isStaff ? [{ href: "/dashboard/sales", label: t.nav.recordSale, icon: ReceiptText, core: false, locked: true }] : []),
+    ...((lockedToolkit || unavailableToolkit) && !organization?.isStaff ? [{ href: "/dashboard/sales", label: t.nav.recordSale, icon: ReceiptText, core: false, locked: true, category: unavailableToolkit }] : []),
     ...(hasInventory && !organization?.isStaff ? [{ href: "/dashboard/inventory", label: t.nav.inventory, icon: Boxes, core: false }] : []),
-    ...(lockedInventory && !organization?.isStaff ? [{ href: "/dashboard/inventory", label: t.nav.inventory, icon: Boxes, core: false, locked: true }] : []),
+    ...((lockedInventory || unavailableInventory) && !organization?.isStaff ? [{ href: "/dashboard/inventory", label: t.nav.inventory, icon: Boxes, core: false, locked: true, category: !lockedInventory }] : []),
     ...(hasCustomers && !organization?.isStaff ? [{ href: "/dashboard/customers", label: t.nav.customers, icon: Contact, core: false }] : []),
     ...(hasDocuments && !organization?.isStaff ? [{ href: "/dashboard/documents", label: t.nav.documents, icon: FileText, core: false }] : []),
-    ...(lockedToolkit && !organization?.isStaff ? [{ href: "/dashboard/documents", label: t.nav.documents, icon: FileText, core: false, locked: true }] : []),
+    ...((lockedToolkit || unavailableToolkit) && !organization?.isStaff ? [{ href: "/dashboard/documents", label: t.nav.documents, icon: FileText, core: false, locked: true, category: unavailableToolkit }] : []),
     // Bookkeeping is its own entry (it used to live under Reports); it shares Reports' entitlement.
     ...(hasReports && !organization?.isStaff ? [{ href: "/dashboard/bookkeeping", label: t.nav.bookkeeping, icon: BookOpen, core: false }] : []),
     ...(hasReports && !organization?.isStaff ? [{ href: "/dashboard/reports", label: t.nav.reports, icon: FileBarChart, core: false }] : []),
-    ...(lockedToolkit && !organization?.isStaff
+    ...((lockedToolkit || unavailableToolkit) && !organization?.isStaff
       ? [
-          { href: "/dashboard/bookkeeping", label: t.nav.bookkeeping, icon: BookOpen, core: false, locked: true },
-          { href: "/dashboard/reports", label: t.nav.reports, icon: FileBarChart, core: false, locked: true },
+          { href: "/dashboard/bookkeeping", label: t.nav.bookkeeping, icon: BookOpen, core: false, locked: true, category: unavailableToolkit },
+          { href: "/dashboard/reports", label: t.nav.reports, icon: FileBarChart, core: false, locked: true, category: unavailableToolkit },
         ]
       : []),
     ...(hasTicketing && !organization?.isStaff ? [{ href: "/dashboard/tickets", label: t.nav.tickets, icon: Ticket, core: false }] : []),
@@ -408,6 +415,7 @@ export default function DashboardShell({
           noticing a header icon — see that component's own comment. The
           manual on/off control still lives in AvatarMenu's account menu
           for anyone who dismissed this or wants to turn it off later. */}
+      <PushResume subscribeUrl="/api/push/subscribe" />
       <PushPermissionPrompt subscribeUrl="/api/push/subscribe" body={t.pushNotifications.promptBodyDashboard} />
 
       {/* Desktop sidebar — the persistent nav. Every dashboard page renders
@@ -436,7 +444,7 @@ export default function DashboardShell({
             {t.nav.menu}
           </p>
           <nav className="flex flex-col gap-0.5" aria-label={t.nav.menu}>
-            {listedItems.map(({ href, label, icon: Icon, exact, locked }) => {
+            {listedItems.map(({ href, label, icon: Icon, exact, locked, category }) => {
               const active = isActive(href, exact);
               return (
                 <Link
@@ -457,7 +465,7 @@ export default function DashboardShell({
                   {locked && (
                     <>
                       <Lock size={13} className="ml-auto shrink-0 opacity-60" aria-hidden="true" />
-                      <span className="sr-only">{t.toolkitLock.lockedLabel}</span>
+                      <span className="sr-only">{category ? t.toolkitLock.unavailableLabel : t.toolkitLock.lockedLabel}</span>
                     </>
                   )}
                 </Link>
@@ -474,7 +482,7 @@ export default function DashboardShell({
             >
               <p className="text-xs font-medium opacity-80 mb-0.5">{t.sidebar.freeBadge}</p>
               <p className="text-sm font-medium mb-2.5 leading-snug">{t.sidebar.unlockFeatures}</p>
-              <span className="text-xs font-medium underline underline-offset-2">{t.sidebar.upgradePlan}</span>
+              <span className="inline-flex min-h-[36px] items-center rounded-card border border-white/80 bg-white/10 px-3.5 text-xs font-semibold">{t.sidebar.upgradePlan}</span>
             </Link>
           )}
 
@@ -595,7 +603,7 @@ export default function DashboardShell({
         {subscriptionBanner && subscriptionBanner.state !== "content_hidden" && (
           <Link
             href="/dashboard/subscription"
-            className={`px-4 lg:px-10 py-2 border-b flex items-center gap-2 text-xs font-medium transition-colors ${
+            className={`px-4 lg:px-10 py-2 min-h-[44px] border-b flex items-center gap-2 text-xs font-medium transition-colors ${
               subscriptionBanner.state === "grace_period"
                 ? "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/15"
                 : "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15"
@@ -604,14 +612,10 @@ export default function DashboardShell({
             <AlertTriangle size={13} className="shrink-0" />
             <span className="truncate">
               {subscriptionBanner.state === "grace_period"
-                ? `Your subscription has expired — renew within ${subscriptionBanner.daysRemaining} day${
-                    subscriptionBanner.daysRemaining === 1 ? "" : "s"
-                  } to keep your access.`
-                : `Your subscription expires in ${subscriptionBanner.daysRemaining} day${
-                    subscriptionBanner.daysRemaining === 1 ? "" : "s"
-                  } — renew now to avoid losing access.`}
+                ? t.subscriptionBanner.expired(subscriptionBanner.daysRemaining)
+                : t.subscriptionBanner.expiring(subscriptionBanner.daysRemaining)}
             </span>
-            <span className="shrink-0 underline underline-offset-2">Renew</span>
+            <span className="shrink-0 inline-flex min-h-[32px] items-center rounded-card border border-current px-3 font-semibold">{t.subscriptionBanner.renew}</span>
           </Link>
         )}
 
@@ -623,18 +627,13 @@ export default function DashboardShell({
         {subscriptionBanner && subscriptionBanner.state === "content_hidden" && (
           <Link
             href="/dashboard/subscription"
-            className="px-4 lg:px-10 py-2 border-b border-ringo-indigo/20 bg-ringo-indigo/10 text-ringo-indigo flex items-center gap-2 text-xs font-medium transition-colors hover:bg-ringo-indigo/15"
+            className="px-4 lg:px-10 py-2 min-h-[44px] border-b border-ringo-indigo/20 bg-ringo-indigo/10 text-ringo-indigo flex items-center gap-2 text-xs font-medium transition-colors hover:bg-ringo-indigo/15"
           >
             <Info size={13} className="shrink-0" />
             <span className="truncate">
-              {(() => {
-                const parts: string[] = [];
-                if (subscriptionBanner.hiddenLinksCount > 0) parts.push(`${subscriptionBanner.hiddenLinksCount} link${subscriptionBanner.hiddenLinksCount === 1 ? "" : "s"}`);
-                if (subscriptionBanner.hiddenProductsCount > 0) parts.push(`${subscriptionBanner.hiddenProductsCount} product${subscriptionBanner.hiddenProductsCount === 1 ? "" : "s"}`);
-                return `${parts.join(" and ")} ${parts.length === 1 && (subscriptionBanner.hiddenLinksCount === 1 || subscriptionBanner.hiddenProductsCount === 1) ? "is" : "are"} hidden from your public profile because of your current plan — your data is safe and nothing was deleted.`;
-              })()}
+              {t.subscriptionBanner.hidden(subscriptionBanner.hiddenLinksCount, subscriptionBanner.hiddenProductsCount)}
             </span>
-            <span className="shrink-0 underline underline-offset-2">Resubscribe to Pro</span>
+            <span className="shrink-0 inline-flex min-h-[32px] items-center rounded-card border border-current px-3 font-semibold">{t.subscriptionBanner.resubscribe}</span>
           </Link>
         )}
 

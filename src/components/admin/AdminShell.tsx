@@ -11,6 +11,7 @@ import { Users, Layers, SlidersHorizontal, BarChart3, Inbox, Package, LogOut, Ha
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell from "@/components/NotificationBell";
 import PushPermissionPrompt from "@/components/PushPermissionPrompt";
+import PushResume from "@/components/PushResume";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import AppBadgeReset from "@/components/AppBadgeReset";
 import { AdminInstallButton } from "@/components/admin/AdminAppControls";
@@ -221,6 +222,7 @@ export default function AdminShell({
 
       {/* Proactively asks to enable push, instead of relying on someone
           noticing a header icon — see that component's own comment. */}
+      <PushResume subscribeUrl="/api/push/subscribe" />
       <PushPermissionPrompt
         subscribeUrl="/api/push/subscribe"
         body="Get notified about new paid members, signup requests and payout requests — right on this device."

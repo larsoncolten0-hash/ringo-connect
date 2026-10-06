@@ -18,6 +18,8 @@ export default function KitchenView({ profileId, initialOrders }: { profileId: s
 
   useEffect(() => {
     const poll = async () => {
+      // a hidden tab does not poll; it catches up the moment it is visible again (below)
+      if (document.visibilityState === "hidden") return;
       const { data } = await supabase
         .from("orders")
         .select("id, order_number, order_type, status, created_at, restaurant_tables(label), order_items(id, item_name_snapshot, quantity, notes)")
@@ -27,7 +29,14 @@ export default function KitchenView({ profileId, initialOrders }: { profileId: s
       if (data) setOrders(data);
     };
     const interval = setInterval(poll, 5000);
-    return () => clearInterval(interval);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") poll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [profileId]);
 
   const advance = async (order: any) => {

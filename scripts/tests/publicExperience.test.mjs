@@ -246,14 +246,16 @@ await test("3D the language selector keeps its keyboard behaviour and gets 44px 
   assert.doesNotMatch(l, /min-h-\[40px\]/);
   assert.match(l, /e\.key === "Escape"/);
 });
-await test("3D ProfileView: skip link, landmark footer, quiet decorative emoji, reduced-motion pulse and framer config", () => {
+await test("3D ProfileView: skip link, landmark footer, no decorative emoji on the name, reduced-motion pulse and framer config", () => {
   const v = src("components/ProfileView.tsx");
   assert.match(v, /href="#profile-content"/);
   assert.match(v, /\{t\.profilePage\.skipToContent\}/);
   assert.match(v, /\{!preview && \(\s*<a\s+href="#profile-content"/, "the skip link is public-page only");
   assert.match(v, /id=\{preview \? undefined : "profile-content"\}/);
   assert.match(v, /<footer role="contentinfo"/);
-  assert.match(v, /<span className="text-lg" aria-hidden="true">🎵<\/span>/);
+  // the music-note emoji that followed a Music artist's name is gone on purpose: a quiet role label (Artist, DJ, Producer...) states what they are instead
+  assert.doesNotMatch(v, /🎵/);
+  assert.match(v, /getMusicRole\(profile\.music_role\)!\.label\[locale\]/);
   assert.equal(count(v, /motion-reduce:animate-none/g), 2, "both pulse rings");
   assert.match(v, /<MotionConfig reducedMotion="user">/);
   assert.match(v, /<\/MotionConfig>/);

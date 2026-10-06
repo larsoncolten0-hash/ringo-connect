@@ -12,6 +12,8 @@ export default async function SalesLayout({ children }: { children: React.ReactN
   // is never rendered, and its API and database functions still refuse a plan without the business tools.
   const lock = await resolveToolkitLock();
   if (lock.locked) return <div className="max-w-5xl"><ToolkitLocked tool="sales" /></div>;
+  // a kind of business the tools are not offered for (Restaurant, Music, Events, Other) is told so, with what it has instead: never an upgrade
+  if (lock.unavailable) return <div className="max-w-5xl"><ToolkitLocked tool="sales" unavailable={lock.unavailable} /></div>;
   const owner = await requireSalesOwner();
   if (!(await saleRecordInstalled((owner as any).admin))) redirect("/dashboard");
   return <div className="max-w-3xl">{children}</div>;

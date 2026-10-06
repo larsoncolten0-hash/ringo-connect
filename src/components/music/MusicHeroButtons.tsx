@@ -24,12 +24,15 @@ export default function MusicHeroButtons({
   accent,
   textColor,
   locale,
+  radiusClass = "rounded-card",
 }: {
   t: Translations;
   profile: any;
   accent: string;
   textColor: string;
   locale: "en" | "fr";
+  /** The artist's own button shape (rounded unless they chose otherwise): the two primary actions follow it instead of a fixed pill. */
+  radiusClass?: string;
 }) {
   const cleanNumber = (profile.whatsapp_number || "").replace(/[^0-9]/g, "");
   const bookingsEnabled = !!profile.bookings_enabled;
@@ -47,7 +50,7 @@ export default function MusicHeroButtons({
           (bookingsEnabled ? (
             <Link
               href={bookHref}
-              className="ringo-press flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold hover:brightness-95"
+              className={`ringo-press flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold hover:brightness-95 ${radiusClass}`}
               style={{ border: `2px solid ${accent}`, color: accent }}
             >
               <CalendarCheck size={16} />
@@ -58,7 +61,7 @@ export default function MusicHeroButtons({
               href={bookHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="ringo-press flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold hover:brightness-95"
+              className={`ringo-press flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold hover:brightness-95 ${radiusClass}`}
               style={{ border: `2px solid ${accent}`, color: accent }}
             >
               <CalendarCheck size={16} />
@@ -67,7 +70,7 @@ export default function MusicHeroButtons({
           ))}
         <a
           href={`/m/${profile.username}`}
-          className="ringo-press flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold hover:brightness-95"
+          className={`ringo-press flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold hover:brightness-95 ${radiusClass}`}
           style={{ backgroundColor: accent, color: readableOn(accent) }}
         >
           <ShoppingBag size={16} />

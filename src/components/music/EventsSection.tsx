@@ -69,7 +69,7 @@ export default function EventsSection({
         </h2>
         {events.length >= 3 && (
           <a
-            href={`/m/${username}`}
+            href={`/m/${username}#tickets`}
             className="ringo-tactile inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-current/25 px-3.5 text-xs font-semibold"
           >
             {t.music.viewEvents}

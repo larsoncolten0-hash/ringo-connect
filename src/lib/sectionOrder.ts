@@ -7,9 +7,9 @@
 // matters, the subcategory) and of which sections actually have something to show. No database, no React, no
 // browser: the public page and the editor preview (the same ProfileView) get the same answer for the same data.
 //
-// What it does NOT do: invent sections, rename them, or move the specialised layouts. Music and Restaurant keep
-// the order they always had; the Restaurant menu and opening hours and Music's pinned spotlight are drawn by
-// ProfileView before this list and are not part of it. Sections with nothing to show are left out (their
+// What it does NOT do: invent sections, rename them, or move the specialised layouts. Restaurant keeps the
+// order it always had and Music has its own curated order; the Restaurant menu and opening hours and Music's lead
+// feature (the artist's pin, or their latest release) are drawn by ProfileView before this list and are not part of it. Sections with nothing to show are left out (their
 // components render nothing anyway); the one exception is the About card, which shows a short "no information
 // yet" note when it is empty - that note is kept, but always last, so it never sits above real content.
 // Booking is not a section: it is the hero's primary action (lib/heroAction.ts).
@@ -64,12 +64,14 @@ const LINKS_FIRST_SUBCATEGORIES: Record<string, Set<string>> = {
 };
 const LINKS_FIRST: Flexible[] = ["links", "catalog", "about", "events"];
 
-// Music and Restaurant: byte-for-byte the order the page always had.
-const MUSIC_LEGACY: PublicSection[] = ["about", "music", "releases", "links", "catalog", "events"];
+// Restaurant keeps byte-for-byte the order the page always had; Music has its own curated order below.
+// The Music profile reads as a curated page, not a list of modules: the lead feature (drawn before this list) -> the music -> its releases and the store
+// -> merch and products -> events -> links -> the contact card last.
+const MUSIC_ORDER: PublicSection[] = ["music", "releases", "catalog", "events", "links", "about"];
 const RESTAURANT_LEGACY: PublicSection[] = ["about", "links", "catalog", "events"];
 
 export function orderPublicSections(input: SectionOrderInput, has: SectionContent): PublicSection[] {
-  if (input.isMusic) return [...MUSIC_LEGACY];
+  if (input.isMusic) return [...MUSIC_ORDER];
   if (input.isRestaurant) return [...RESTAURANT_LEGACY];
 
   const category = input.category || "";

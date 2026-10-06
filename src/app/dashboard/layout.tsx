@@ -14,7 +14,7 @@ import { customersNavVisible } from "@/lib/customers/access";
 import { inboxNavVisible } from "@/lib/inbox/access";
 import { staffInboxNavVisible } from "@/lib/inbox/actor";
 import { salesNavVisible } from "@/lib/sales/access";
-import { toolkitLockForNav } from "@/lib/toolkitLock";
+import { toolkitLockForNav, type ToolkitLock } from "@/lib/toolkitLock";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import { getSubscriptionReminderSettings, getSubscriptionBannerState } from "@/lib/subscriptionReminderSettings";
 import { countHidden } from "@/lib/planEntitlements";
@@ -175,7 +175,7 @@ export default async function DashboardLayout({
 
   // The same business tools on a plan WITHOUT the toolkit (Free): shown in the menu locked, so an owner can see what Ringo offers and why to upgrade. Entitled
   // category + owner only (never staff); costs no database call outside an entitled category. The pages render an upgrade screen, never the tool.
-  const toolkitLockP: PromiseLike<{ locked: boolean; inventoryLocked: boolean }> = !isActingAsStaff && ownProfile ? toolkitLockForNav({ userId: user.id, profile: ownProfile }) : Promise.resolve({ locked: false, inventoryLocked: false });
+  const toolkitLockP: PromiseLike<ToolkitLock> = !isActingAsStaff && ownProfile ? toolkitLockForNav({ userId: user.id, profile: ownProfile }) : Promise.resolve({ locked: false, inventoryLocked: false, unavailable: null, inventoryUnavailable: false } as ToolkitLock);
 
   // Ambassador Program — whether the signed-in person (not the active
   // organization) has their own ambassador_profiles row. RLS already
@@ -238,6 +238,8 @@ export default async function DashboardLayout({
       hasSales={hasSales}
       lockedToolkit={toolkitLock.locked}
       lockedInventory={toolkitLock.inventoryLocked}
+      unavailableToolkit={!!toolkitLock.unavailable}
+      unavailableInventory={toolkitLock.inventoryUnavailable || !!toolkitLock.unavailable}
       hasCustomers={hasCustomers}
       hasInbox={hasInbox}
       hasStaffInbox={hasStaffInbox}

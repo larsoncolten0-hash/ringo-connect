@@ -52,7 +52,7 @@ export async function GET() {
 
   const manifest = {
     id: "/dashboard",
-    start_url: "/dashboard",
+    start_url: "/dashboard/home", // the installed app opens on Ringo Home, like a sign-in does
     name: `${displayName} Dashboard`,
     // Deliberately generic ("Dashboard"), not the creator's own name —
     // the profile manifest already uses their name, and both manifests

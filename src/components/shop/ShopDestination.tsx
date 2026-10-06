@@ -33,6 +33,7 @@ type ShopProfile = {
   category: string | null;
   currency: string | null;
   bookings_enabled: boolean;
+  restaurant_ordering: boolean;
   is_demo: boolean;
   profile_id: string;
   commerceCheckoutAvailable: boolean;
@@ -66,6 +67,7 @@ export default function ShopDestination({ profile, products }: { profile: ShopPr
     currency,
     category: profile.category,
     bookingEnabled: profile.bookings_enabled,
+    restaurantOrdering: profile.restaurant_ordering,
     checkoutAvailable: profile.commerceCheckoutAvailable,
     isDemo: profile.is_demo,
   };
@@ -240,6 +242,7 @@ function Tile({
   currency,
   category,
   bookingEnabled,
+  restaurantOrdering,
   checkoutAvailable,
   isDemo,
 }: {
@@ -249,6 +252,7 @@ function Tile({
   currency: string;
   category: string | null;
   bookingEnabled: boolean;
+  restaurantOrdering: boolean;
   checkoutAvailable: boolean;
   isDemo: boolean;
 }) {
@@ -263,14 +267,14 @@ function Tile({
     isMusic: false,
     hasLandingUrl: !!product.landing_url,
     bookingEnabled,
-    restaurantOrdering: false,
+    restaurantOrdering,
     checkoutAvailable: checkoutAvailable && checkProductEligibility({ product, profileId: product.profile_id, quantity: 1 }) === null,
     currency,
     isDemo,
     ctaPreset: product.cta_preset,
     ctaLabel: product.cta_label,
   });
-  const buttonLabel = resolveDisplayCtaLabel(cta, false, { presets: t.cta.labels, buyNow: t.music.buyNowLabel, shopMerch: t.music.shopMerch, viewDetails: t.profilePage.viewItem });
+  const buttonLabel = resolveDisplayCtaLabel(cta, false, { presets: t.cta.labels, buyNow: t.music.buyNowLabel, shopMerch: t.music.shopMerch, viewDetails: t.profilePage.viewItem }, { category, nouns: t.cta.nouns });
   const accessibleName = [product.name, hasPrice ? formatPrice(product.price, currency) : "", soldOut ? t.music.soldOut : few ? t.profilePage.onlyFewLeft(product.inventory_count) : "", buttonLabel]
     .filter((part) => typeof part === "string" && part.trim() !== "")
     .join(", ");

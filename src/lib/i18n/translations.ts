@@ -1952,6 +1952,18 @@ export const translations = {
         view_details: "View details",
         learn_more: "Learn more",
       },
+      // Category-aware DEFAULT wording (src/lib/cta.ts defaultCtaNoun): used only when the creator has not chosen a button.
+      // It names the item, it never promises an action the destination does not offer.
+      nouns: {
+        product: "View product",
+        service: "View service",
+        property: "View property",
+        course: "View course",
+        event: "View event",
+        offer: "View offer",
+        item: "View item",
+      },
+      shopNow: "Shop now",
     },
     adminFollowUp: {
       navLabel: "Account Follow-Up",
@@ -3169,6 +3181,19 @@ export const translations = {
       upcomingTitle: "Upcoming",
       viewEvents: "View events",
       viewMusic: "View music",
+      // The Music profile's editorial lead and its store entry (LatestReleaseFeature, MusicStoreEntry).
+      latestRelease: "Latest release",
+      typeSingle: "Single",
+      typeEp: "EP",
+      typeAlbum: "Album",
+      viewRelease: "View release",
+      storeTitle: "Music store",
+      storeBody: "Songs, EPs, merch and tickets in one place.",
+      storeCta: "Open the store",
+      storeCountSongs: (n: number) => (n === 1 ? "1 song" : `${n} songs`),
+      storeCountReleases: (n: number) => (n === 1 ? "1 EP or album" : `${n} EPs and albums`),
+      storeCountMerch: (n: number) => (n === 1 ? "1 merch item" : `${n} merch items`),
+      storeCountEvents: (n: number) => (n === 1 ? "1 event" : `${n} events`),
       getTicket: "Get Ticket",
       buyLabel: "Buy",
       buyNowLabel: "Buy Now",
@@ -3552,7 +3577,7 @@ export const translations = {
       reserveTableButton: "Reserve Table",
       reserveTableWhatsappMessage: "Hi! I'd like to reserve a table.",
       featuredMenuTitle: "Featured Menu Items",
-      viewAllMenu: "View all",
+      viewAllMenu: "View menu",
       currentlyUnavailable: "Currently unavailable",
       openNow: "Open",
       closedNow: "Closed",
@@ -3631,6 +3656,22 @@ export const translations = {
       markCompleted: "Mark Completed",
       cancelOrder: "Cancel Order",
       noOrdersYet: "No orders yet.",
+      // Order status, in words a person reads (the dashboard used to show the raw English status in both languages).
+      orderStatus: {
+        pending: "Pending",
+        accepted: "Accepted",
+        preparing: "Preparing",
+        ready: "Ready",
+        served: "Served",
+        completed: "Completed",
+        cancelled: "Cancelled",
+        refunded: "Refunded",
+      } as Record<string, string>,
+      allOrders: "All",
+      noOrdersHint: "New orders appear here the moment a customer places one. Share your menu to get the first one.",
+      viewMyMenu: "View my menu",
+      overviewLoadFailed: "We couldn't load today's figures. Refresh the page to try again.",
+      orderUpdateFailed: "That order couldn't be updated. It has been restored, please try again.",
       kitchenTitle: "Kitchen",
       tableAvailable: "Available",
       tableOccupied: "Occupied",
@@ -5062,6 +5103,7 @@ export const translations = {
       eventsLabel: "events",
     },
     subscription: {
+      backToWork: "Back to what you were doing",
       eyebrow: "Subscription",
       title: "Plans built to grow with you",
       subtitle: "Upgrade any time — unlocked features apply immediately, no waiting.",
@@ -5731,7 +5773,31 @@ export const translations = {
       copied: "Copied",
       helpful: "Helpful",
       notHelpful: "Not helpful",
-      remaining: (n: number) => (n === 1 ? "1 message left today" : `${n} messages left today`),
+      // No running count of what is left: the assistant simply works, and only when a limit is actually reached does a calm explanation with two
+      // choices appear (AiLimitCard).
+      limit: {
+        dailyTitle: "Today's Ringo AI limit has been reached.",
+        monthlyTitle: "This month's Ringo AI limit has been reached.",
+        imageDailyTitle: "Today's Ringo AI image limit has been reached.",
+        imageMonthlyTitle: "This month's Ringo AI image limit has been reached.",
+        dailyBody: "Your limit resets tomorrow. You can also ask the Ringo team to raise it.",
+        monthlyBody: "Your limit resets next month. You can also ask the Ringo team to raise it.",
+        increase: "Increase limit",
+        waitDaily: "Wait until tomorrow",
+        waitMonthly: "Wait until next month",
+        waitingDaily: "Ringo AI will be back tomorrow.",
+        waitingMonthly: "Ringo AI will be back next month.",
+      },
+      // What a plan WITHOUT Ringo AI sees: the assistant stays visible so it can be discovered, and opening it explains what it does and how to get it.
+      locked: {
+        title: "Ringo AI",
+        badge: "Included with a paid plan",
+        headline: "Your business assistant, ready when you are.",
+        body: "Ringo AI helps you write, plan and understand your business. It is available on paid plans.",
+        points: ["Draft posts, product text and replies", "Ask about your sales, customers and stock", "Plan a month of content in minutes"],
+        note: "Your Free plan lets you see Ringo AI. Upgrade to start using it.",
+        close: "Close",
+      },
       truncatedNote: "This answer was cut short — ask me to continue.",
       retry: "Try again",
       errors: {
@@ -6243,6 +6309,38 @@ export const translations = {
       ctaAria: (tool: string) => `Upgrade your plan to use ${tool}`,
       note: "Your Free plan lets you see this tool. Upgrade to start using it.",
       lockedLabel: "Locked, upgrade required",
+      // The tools are shown to every business so people can see what Ringo offers, but for some kinds of business they are not offered, and an upgrade would not
+      // change that. These screens say so plainly and point to what that business has instead; they never offer an upgrade.
+      unavailableLabel: "Not available for your business type yet",
+      unavailable: {
+        badge: "Not available yet",
+        note: "These tools are not offered for this kind of business yet. Nothing about your account is wrong.",
+        restaurant: {
+          headline: "Your restaurant has its own sales tools.",
+          body: "Orders, the kitchen and your sales already run in your restaurant tools. The general business tools would leave that revenue out of their totals.",
+          cta: "Open restaurant tools",
+        },
+        music: {
+          headline: "Your music sales have their own tools.",
+          body: "Releases, merch, tickets, orders and earnings already run in your music tools. The general business tools would leave that revenue out of their totals.",
+          cta: "Open music tools",
+        },
+        events: {
+          headline: "Your ticket sales have their own tools.",
+          body: "Events, tickets and gate scanning already run in your ticketing tools. The general business tools would leave that revenue out of their totals.",
+          cta: "Open ticketing",
+        },
+        other: {
+          headline: "Choose your business category to see the right tools.",
+          body: "These tools are offered for shops, services, creators, real estate, travel, education and more. Your page is set to Other, so they are not offered yet.",
+          cta: "Choose your category",
+        },
+        inventory: {
+          headline: "Stock tracking is for shops that sell products.",
+          body: "It is offered for Business and E-commerce profiles. Your other business tools are not affected.",
+          cta: "Back to Home",
+        },
+      },
       tools: {
         sales: {
           headline: "Record every sale in seconds.",
@@ -6270,6 +6368,38 @@ export const translations = {
           points: ["Monthly summaries", "Trends over time", "Download as PDF"],
         },
       },
+    },
+    // The notification bell (NotificationBell.tsx): its own interface, in both languages. The notification TEXT itself is written by the server.
+    notificationCenter: {
+      title: "Notifications",
+      bellLabel: (n: number) => (n > 0 ? `Notifications, ${n > 99 ? "99+" : n} unread` : "Notifications"),
+      markAllRead: "Mark all read",
+      close: "Close",
+      all: "All",
+      unread: "Unread",
+      messages: "Messages",
+      payments: "Payments",
+      account: "Account",
+      caughtUp: "You're all caught up.",
+      empty: "No notifications yet.",
+      justNow: "just now",
+      minutesAgo: (n: number) => `${n}m ago`,
+      hoursAgo: (n: number) => `${n}h ago`,
+      daysAgo: (n: number) => `${n}d ago`,
+    },
+    // The persistent subscription banners at the top of the dashboard (DashboardShell). Before this they were English only.
+    subscriptionBanner: {
+      expired: (days: number) => `Your subscription has expired. Renew within ${days} day${days === 1 ? "" : "s"} to keep your access.`,
+      expiring: (days: number) => `Your subscription expires in ${days} day${days === 1 ? "" : "s"}. Renew now to avoid losing access.`,
+      renew: "Renew",
+      hidden: (links: number, products: number) => {
+        const parts: string[] = [];
+        if (links > 0) parts.push(`${links} link${links === 1 ? "" : "s"}`);
+        if (products > 0) parts.push(`${products} product${products === 1 ? "" : "s"}`);
+        const verb = parts.length === 1 && (links === 1 || products === 1) ? "is" : "are";
+        return `${parts.join(" and ")} ${verb} hidden from your public profile because of your current plan. Your data is safe and nothing was deleted.`;
+      },
+      resubscribe: "Resubscribe to Pro",
     },
   },
   fr: {
@@ -8212,6 +8342,18 @@ export const translations = {
         view_details: "Voir les détails",
         learn_more: "En savoir plus",
       },
+      // Libellés par défaut selon la catégorie (src/lib/cta.ts defaultCtaNoun) : utilisés seulement quand le créateur n'a pas choisi de bouton.
+      // Ils nomment l'élément, sans jamais promettre une action que la destination n'offre pas.
+      nouns: {
+        product: "Voir le produit",
+        service: "Voir le service",
+        property: "Voir le bien",
+        course: "Voir la formation",
+        event: "Voir l'événement",
+        offer: "Voir l'offre",
+        item: "Voir l'article",
+      },
+      shopNow: "Voir la boutique",
     },
     adminFollowUp: {
       navLabel: "Suivi des comptes",
@@ -9363,6 +9505,19 @@ export const translations = {
       upcomingTitle: "À venir",
       viewEvents: "Voir les événements",
       viewMusic: "Voir la musique",
+      // L'ouverture éditoriale du profil Musique et son entrée vers la boutique (LatestReleaseFeature, MusicStoreEntry).
+      latestRelease: "Dernière sortie",
+      typeSingle: "Single",
+      typeEp: "EP",
+      typeAlbum: "Album",
+      viewRelease: "Voir la sortie",
+      storeTitle: "Boutique musique",
+      storeBody: "Titres, EP, merch et billets au même endroit.",
+      storeCta: "Ouvrir la boutique",
+      storeCountSongs: (n: number) => (n === 1 ? "1 titre" : `${n} titres`),
+      storeCountReleases: (n: number) => (n === 1 ? "1 EP ou album" : `${n} EP et albums`),
+      storeCountMerch: (n: number) => (n === 1 ? "1 article de merch" : `${n} articles de merch`),
+      storeCountEvents: (n: number) => (n === 1 ? "1 événement" : `${n} événements`),
       getTicket: "Obtenir un billet",
       buyLabel: "Acheter",
       buyNowLabel: "Acheter",
@@ -9714,7 +9869,7 @@ export const translations = {
       reserveTableButton: "Réserver une table",
       reserveTableWhatsappMessage: "Salut ! Je voudrais réserver une table.",
       featuredMenuTitle: "Plats en vedette",
-      viewAllMenu: "Voir tout",
+      viewAllMenu: "Voir le menu",
       currentlyUnavailable: "Actuellement indisponible",
       openNow: "Ouvert",
       closedNow: "Fermé",
@@ -9788,6 +9943,22 @@ export const translations = {
       markCompleted: "Marquer terminée",
       cancelOrder: "Annuler la commande",
       noOrdersYet: "Aucune commande pour l'instant.",
+      // Statut des commandes, en mots lisibles (le tableau de bord affichait le statut anglais brut dans les deux langues).
+      orderStatus: {
+        pending: "En attente",
+        accepted: "Acceptée",
+        preparing: "En préparation",
+        ready: "Prête",
+        served: "Servie",
+        completed: "Terminée",
+        cancelled: "Annulée",
+        refunded: "Remboursée",
+      } as Record<string, string>,
+      allOrders: "Toutes",
+      noOrdersHint: "Les nouvelles commandes apparaissent ici dès qu'un client en passe une. Partagez votre menu pour recevoir la première.",
+      viewMyMenu: "Voir mon menu",
+      overviewLoadFailed: "Nous n'avons pas pu charger les chiffres du jour. Actualisez la page pour réessayer.",
+      orderUpdateFailed: "Cette commande n'a pas pu être mise à jour. Elle a été rétablie, veuillez réessayer.",
       kitchenTitle: "Cuisine",
       tableAvailable: "Disponible",
       tableOccupied: "Occupée",
@@ -11127,6 +11298,7 @@ export const translations = {
       eventsLabel: "événements",
     },
     subscription: {
+      backToWork: "Retour à ce que vous faisiez",
       eyebrow: "Abonnement",
       title: "Des offres conçues pour évoluer avec vous",
       subtitle: "Changez d'offre à tout moment — les fonctionnalités sont débloquées immédiatement.",
@@ -11759,7 +11931,30 @@ export const translations = {
       copied: "Copié",
       helpful: "Utile",
       notHelpful: "Pas utile",
-      remaining: (n: number) => (n <= 1 ? `${n} message restant aujourd'hui` : `${n} messages restants aujourd'hui`),
+      // Pas de compteur de ce qu'il reste : l'assistant fonctionne simplement, et seule l'atteinte réelle d'une limite affiche une explication calme avec deux choix (AiLimitCard).
+      limit: {
+        dailyTitle: "La limite de Ringo AI pour aujourd'hui est atteinte.",
+        monthlyTitle: "La limite de Ringo AI pour ce mois est atteinte.",
+        imageDailyTitle: "La limite d'images de Ringo AI pour aujourd'hui est atteinte.",
+        imageMonthlyTitle: "La limite d'images de Ringo AI pour ce mois est atteinte.",
+        dailyBody: "Votre limite se réinitialise demain. Vous pouvez aussi demander à l'équipe Ringo de l'augmenter.",
+        monthlyBody: "Votre limite se réinitialise le mois prochain. Vous pouvez aussi demander à l'équipe Ringo de l'augmenter.",
+        increase: "Augmenter la limite",
+        waitDaily: "Attendre demain",
+        waitMonthly: "Attendre le mois prochain",
+        waitingDaily: "Ringo AI sera de retour demain.",
+        waitingMonthly: "Ringo AI sera de retour le mois prochain.",
+      },
+      // Ce que voit un forfait SANS Ringo AI : l'assistant reste visible pour être découvert, et l'ouvrir explique ce qu'il fait et comment l'obtenir.
+      locked: {
+        title: "Ringo AI",
+        badge: "Inclus avec un forfait payant",
+        headline: "Votre assistant d'entreprise, prêt quand vous l'êtes.",
+        body: "Ringo AI vous aide à rédiger, planifier et comprendre votre activité. Il est disponible avec les forfaits payants.",
+        points: ["Rédigez des publications, des descriptions et des réponses", "Interrogez vos ventes, vos clients et votre stock", "Planifiez un mois de contenu en quelques minutes"],
+        note: "Votre forfait gratuit vous permet de voir Ringo AI. Passez à un forfait payant pour l'utiliser.",
+        close: "Fermer",
+      },
       truncatedNote: "Cette réponse a été coupée — demandez-moi de continuer.",
       retry: "Réessayer",
       errors: {
@@ -12265,6 +12460,38 @@ export const translations = {
       ctaAria: (tool: string) => `Passer à un forfait payant pour utiliser ${tool}`,
       note: "Votre forfait gratuit vous permet de voir cet outil. Passez à un forfait payant pour l'utiliser.",
       lockedLabel: "Verrouillé, forfait payant requis",
+      // Les outils sont montrés à toutes les entreprises pour voir ce que Ringo offre, mais certains types d'activité n'y ont pas droit, et un forfait payant n'y changerait
+      // rien. Ces écrans le disent simplement et orientent vers ce que cette activité a à la place ; ils ne proposent jamais de forfait.
+      unavailableLabel: "Pas encore disponible pour votre type d'activité",
+      unavailable: {
+        badge: "Pas encore disponible",
+        note: "Ces outils ne sont pas encore proposés pour ce type d'activité. Rien n'est anormal sur votre compte.",
+        restaurant: {
+          headline: "Votre restaurant a ses propres outils de vente.",
+          body: "Les commandes, la cuisine et vos ventes fonctionnent déjà dans vos outils de restaurant. Les outils de gestion généraux laisseraient ces revenus hors de leurs totaux.",
+          cta: "Ouvrir les outils du restaurant",
+        },
+        music: {
+          headline: "Vos ventes de musique ont leurs propres outils.",
+          body: "Les sorties, le merch, les billets, les commandes et les gains fonctionnent déjà dans vos outils musique. Les outils de gestion généraux laisseraient ces revenus hors de leurs totaux.",
+          cta: "Ouvrir les outils musique",
+        },
+        events: {
+          headline: "Vos ventes de billets ont leurs propres outils.",
+          body: "Les événements, les billets et le contrôle à l'entrée fonctionnent déjà dans vos outils de billetterie. Les outils de gestion généraux laisseraient ces revenus hors de leurs totaux.",
+          cta: "Ouvrir la billetterie",
+        },
+        other: {
+          headline: "Choisissez votre catégorie d'activité pour voir les bons outils.",
+          body: "Ces outils sont proposés pour les boutiques, les services, les créateurs, l'immobilier, le voyage, la formation et plus encore. Votre page est réglée sur Autre, ils ne sont donc pas encore proposés.",
+          cta: "Choisir ma catégorie",
+        },
+        inventory: {
+          headline: "Le suivi de stock est pour les boutiques qui vendent des produits.",
+          body: "Il est proposé pour les profils Commerce et E-commerce. Vos autres outils de gestion ne sont pas affectés.",
+          cta: "Retour à l'accueil",
+        },
+      },
       tools: {
         sales: {
           headline: "Enregistrez chaque vente en quelques secondes.",
@@ -12292,6 +12519,38 @@ export const translations = {
           points: ["Résumés mensuels", "Tendances dans le temps", "Téléchargement en PDF"],
         },
       },
+    },
+    // La cloche de notifications (NotificationBell.tsx) : son interface, dans les deux langues. Le texte des notifications est écrit par le serveur.
+    notificationCenter: {
+      title: "Notifications",
+      bellLabel: (n: number) => (n > 0 ? `Notifications, ${n > 99 ? "99+" : n} non lue${n > 1 ? "s" : ""}` : "Notifications"),
+      markAllRead: "Tout marquer comme lu",
+      close: "Fermer",
+      all: "Toutes",
+      unread: "Non lues",
+      messages: "Messages",
+      payments: "Paiements",
+      account: "Compte",
+      caughtUp: "Vous êtes à jour.",
+      empty: "Aucune notification pour l'instant.",
+      justNow: "à l'instant",
+      minutesAgo: (n: number) => `il y a ${n} min`,
+      hoursAgo: (n: number) => `il y a ${n} h`,
+      daysAgo: (n: number) => `il y a ${n} j`,
+    },
+    // Les bandeaux d'abonnement permanents en haut du tableau de bord (DashboardShell). Jusqu'ici ils n'existaient qu'en anglais.
+    subscriptionBanner: {
+      expired: (days: number) => `Votre abonnement a expiré. Renouvelez dans les ${days} jour${days === 1 ? "" : "s"} pour conserver votre accès.`,
+      expiring: (days: number) => `Votre abonnement expire dans ${days} jour${days === 1 ? "" : "s"}. Renouvelez maintenant pour ne pas perdre votre accès.`,
+      renew: "Renouveler",
+      hidden: (links: number, products: number) => {
+        const parts: string[] = [];
+        if (links > 0) parts.push(`${links} lien${links === 1 ? "" : "s"}`);
+        if (products > 0) parts.push(`${products} produit${products === 1 ? "" : "s"}`);
+        const verb = parts.length === 1 && (links === 1 || products === 1) ? "est masqué" : "sont masqués";
+        return `${parts.join(" et ")} ${verb} de votre profil public à cause de votre forfait actuel. Vos données sont en sécurité et rien n'a été supprimé.`;
+      },
+      resubscribe: "Se réabonner à Pro",
     },
   },
 } satisfies Record<Locale, any>;

@@ -167,20 +167,68 @@ export function resolveProductCta(input: {
   return { action, destination, label };
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Category-aware DEFAULT wording.
+//
+// When the creator has not chosen a button (cta.label is null) and the card or page simply opens the item, the old
+// fallback was one generic word for every category ("View" / "View details"). That is truthful but says nothing. This
+// names what the thing IS in that category (a product, a service, a property, a course, an event, an offer, a menu item).
+//
+// It deliberately never says "Buy now" or "Book now": those promise an action, and a destination only supports one when
+// the creator explicitly chose it (see resolveProductCta, "NULL/NULL never gains a new destination"). The wording here is
+// presentation only and cannot create, change or bypass a destination; action wording still comes from the creator's own
+// preset or text, or from the music storefront's own "Buy now" / "Shop merch".
+// ---------------------------------------------------------------------------------------------------------------
+export type CtaNoun = "product" | "service" | "property" | "course" | "event" | "offer" | "item";
+
+const CATEGORY_NOUN: Record<string, CtaNoun> = {
+  business_ecommerce: "product",
+  agriculture_agribusiness: "product",
+  music_entertainment: "product",
+  restaurant_food: "item",
+  real_estate: "property",
+  education_training: "course",
+  events_experiences: "event",
+  travel_hospitality: "offer",
+  beauty_wellness: "service",
+  health_medical: "service",
+  professional_services: "service",
+  transport_logistics: "service",
+  construction_home_services: "service",
+  creative_media: "service",
+  freelancers_creators: "service",
+};
+
+/** What an item is called in this category; "item" when the category is unknown, so nothing is ever mislabelled. */
+export function defaultCtaNoun(category: string | null | undefined): CtaNoun {
+  return (category && CATEGORY_NOUN[category]) || "item";
+}
+
+// Categories whose catalogue is things you buy (so its "see everything" button says "Shop now"), as opposed to services,
+// listings or courses (whose button keeps the category's own noun: "View services", "View listings", "View courses").
+const SHOP_CATEGORIES = new Set(["business_ecommerce", "agriculture_agribusiness", "music_entertainment", "restaurant_food"]);
+
+/** The kind of button that opens a category's whole catalogue page. "shop" reads "Shop now"; "browse" reads "View <the catalogue's own name>". */
+export function sectionCtaKind(category: string | null | undefined, isMusic = false): "shop" | "browse" {
+  return isMusic || (!!category && SHOP_CATEGORIES.has(category)) ? "shop" : "browse";
+}
+
 /**
- * The actual text a resolved CTA should show — shared by every surface that displays one (the item
- * detail page, the profile's own catalog grid card) so they can never drift apart and show
- * different wording for the exact same product. `cta.label` is the creator's own explicit choice
- * (preset or custom text); when they never set one, this falls back to a destination-appropriate
- * default rather than a generic "View" that doesn't say what tapping the button actually does.
+ * The actual text a resolved CTA should show: shared by every surface that displays one (the item detail page, the
+ * profile's catalogue card, the shop page card), so they can never drift apart and show different wording for the exact
+ * same product. `cta.label` is the creator's own explicit choice (preset or custom text); when they never set one, this
+ * falls back to a destination-appropriate default. With `defaults` supplied that default names the item in its category
+ * ("View service"); without it the original generic wording is kept, so every existing caller behaves exactly as before.
  */
 export function resolveDisplayCtaLabel(
   cta: Pick<ResolvedProductCta, "label" | "destination">,
   isMusic: boolean,
-  labels: { presets: Record<CtaPresetId, string>; buyNow: string; shopMerch: string; viewDetails: string }
+  labels: { presets: Record<CtaPresetId, string>; buyNow: string; shopMerch: string; viewDetails: string },
+  defaults?: { category?: string | null; nouns: Record<CtaNoun, string> }
 ): string {
   const explicit = cta.label ? (cta.label.kind === "custom" ? cta.label.text : labels.presets[cta.label.id]) : null;
-  if (cta.destination === "external") return explicit || (isMusic ? labels.buyNow : labels.viewDetails);
+  const named = defaults ? defaults.nouns[defaultCtaNoun(defaults.category)] : labels.viewDetails;
+  if (cta.destination === "external") return explicit || (isMusic ? labels.buyNow : named);
   if (cta.destination === "music_storefront") return explicit || labels.shopMerch;
-  return explicit || labels.viewDetails;
+  return explicit || named;
 }

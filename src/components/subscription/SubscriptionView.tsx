@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import { isPaidPlan } from "@/lib/pricing";
@@ -26,6 +27,7 @@ export default function SubscriptionView({
   fapshiEnabled,
   stripeEnabled,
   isOnboarding = false,
+  returnTo = null,
 }: {
   plans: any[];
   currentPlan: string;
@@ -37,6 +39,8 @@ export default function SubscriptionView({
   fapshiEnabled: boolean;
   stripeEnabled: boolean;
   isOnboarding?: boolean;
+  /** A validated dashboard path to go back to after a successful upgrade (see the subscription page). */
+  returnTo?: string | null;
 }) {
   const router = useRouter();
   const { t, locale } = useLanguage();
@@ -55,6 +59,15 @@ export default function SubscriptionView({
 
   return (
     <div className="max-w-4xl">
+      {returnTo && !isOnboarding && (
+        <Link
+          href={returnTo}
+          className="ringo-tactile mb-3 -ml-3 inline-flex min-h-[44px] items-center gap-1.5 rounded-card px-3 text-sm font-semibold text-ringo-indigo hover:bg-ringo-indigo/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
+        >
+          <ArrowLeft size={15} aria-hidden="true" />
+          {t.subscription.backToWork}
+        </Link>
+      )}
       <p className="text-xs font-medium tracking-wide uppercase text-ringo-indigo mb-2">
         {isOnboarding ? t.subscription.onboardingEyebrow : t.subscription.eyebrow}
       </p>
@@ -227,6 +240,9 @@ export default function SubscriptionView({
             setModalPlan(null);
             if (isOnboarding) {
               router.push("/dashboard");
+            } else if (returnTo) {
+              // back to what they were doing when they chose to upgrade
+              router.push(returnTo);
             } else {
               router.refresh();
             }

@@ -454,7 +454,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           )}
 
           {merch.length > 0 && (
-            <div className="flex flex-col gap-3">
+            <div id="merch" className="flex flex-col gap-3 scroll-mt-6">
               <p className="text-base font-bold">{t.music.storeMerchHeading}</p>
               <div className="grid grid-cols-2 gap-3">
                 {merch.map((p) => {
@@ -493,7 +493,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
           )}
 
           {tickets.length > 0 && (
-            <div className="flex flex-col gap-3">
+            <div id="tickets" className="flex flex-col gap-3 scroll-mt-6">
               <p className="text-base font-bold">{t.music.storeTicketsHeading}</p>
               {tickets.map((e) => {
                 const hasTypes = (e.event_ticket_types || []).length > 0;

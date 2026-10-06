@@ -13,6 +13,8 @@ export default async function BookkeepingLayout({ children }: { children: React.
   // is never rendered, and its API and database functions still refuse a plan without the business tools.
   const lock = await resolveToolkitLock();
   if (lock.locked) return <div className="max-w-5xl"><ToolkitLocked tool="bookkeeping" /></div>;
+  // a kind of business the tools are not offered for (Restaurant, Music, Events, Other) is told so, with what it has instead: never an upgrade
+  if (lock.unavailable) return <div className="max-w-5xl"><ToolkitLocked tool="bookkeeping" unavailable={lock.unavailable} /></div>;
   const owner = await requireReportsOwner();
   if (!(await reportsAvailable(owner as any))) redirect("/dashboard");
   return <div className="max-w-5xl">{children}</div>;

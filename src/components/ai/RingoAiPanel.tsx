@@ -7,6 +7,7 @@ import RingoAvatar from "./RingoAvatar";
 import { useLanguage } from "@/components/LanguageProvider";
 import { AI_MAX_USER_MESSAGE_CHARS } from "@/lib/ai/codes";
 import MessageList, { type UiMessage } from "./MessageList";
+import AiLimitCard from "./AiLimitCard";
 import type { DraftView } from "@/lib/ai/drafts/view";
 import type { ContentView } from "@/lib/ai/content/view";
 import type { ImageView } from "@/lib/ai/content/imageView";
@@ -56,6 +57,8 @@ export default function RingoAiPanel({
   const [calendarPlans, setCalendarPlans] = useState<Record<string, CalendarPlanView>>({});
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  // set when the image tool was refused for a usage limit (the chat itself keeps working): shown as the same calm two-choice card
+  const [imageLimit, setImageLimit] = useState<"daily_limit" | "monthly_limit" | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -171,6 +174,8 @@ export default function RingoAiPanel({
             // Separate text written before a tool call from what follows it.
             patchAssistant(assistantId, (m) => ({ content: m.content && !m.content.endsWith("\n\n") ? m.content + "\n\n" : m.content }));
             setToolStatus(event.name);
+          } else if (event.type === "limit" && event.kind === "image") {
+            setImageLimit(event.reason);
           } else if (event.type === "draft" && event.draft?.id) {
             // A review card — shown under this reply. Nothing is applied until
             // the owner presses Confirm & Apply on it.
@@ -454,9 +459,14 @@ export default function RingoAiPanel({
 
           {/* Composer */}
           <div className="border-t border-ringo-border/70 p-3 shrink-0">
-            {!status.canSend && status.limitReason && (
-              <p className="text-xs text-ringo-coral mb-2">{t.ringoAi.errors[status.limitReason] ?? t.ringoAi.errors.internal}</p>
+            {!status.canSend && (status.limitReason === "daily_limit" || status.limitReason === "monthly_limit") ? (
+              <AiLimitCard kind="chat" reason={status.limitReason} onIncrease={talkToTeam} />
+            ) : (
+              !status.canSend && status.limitReason && (
+                <p className="text-xs text-ringo-coral mb-2">{t.ringoAi.errors[status.limitReason] ?? t.ringoAi.errors.internal}</p>
+              )
             )}
+            {status.canSend && imageLimit && <AiLimitCard kind="image" reason={imageLimit} onIncrease={talkToTeam} />}
             {(pendingImage || uploadingImage) && (
               <div className="flex items-center gap-2 mb-2 rounded-xl border border-ringo-border/80 bg-ringo-muted/[0.06] px-2 py-1.5">
                 <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-ringo-muted/10 flex items-center justify-center">
@@ -533,7 +543,6 @@ export default function RingoAiPanel({
                 <LifeBuoy size={13} />
                 {t.ringoAi.talkToTeam}
               </button>
-              {status.canSend && <span className="text-[11px] text-ringo-muted">{t.ringoAi.remaining(status.remainingToday)}</span>}
             </div>
             <p className="mt-1.5 text-[10px] leading-snug text-ringo-muted">{t.ringoAi.privacyNotice}</p>
           </div>

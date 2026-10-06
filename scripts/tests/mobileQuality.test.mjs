@@ -34,7 +34,7 @@ await test("a long business / person name wraps as ONE block (the first word no 
   assert.match(h1, /<span className="min-w-0 \[overflow-wrap:anywhere\]">\s*\{firstName\} \{restName && <span style=\{\{ color: accent \}\}>\{restName\}<\/span>\}\s*<\/span>/);
   assert.doesNotMatch(h1, /truncate|line-clamp|text-ellipsis|overflow-hidden/, "the name is never cut off");
   assert.equal(count(v, /<h1\b/g), 1);
-  assert.match(h1, /aria-hidden="true">🎵/);
+  assert.doesNotMatch(h1, /🎵/, "the decorative emoji after the name was replaced by a role label");
 });
 await test("contact card: long e-mails, phone numbers and addresses wrap inside the card, and link rows are 44px tap targets", () => {
   const v = src("components/ProfileView.tsx");

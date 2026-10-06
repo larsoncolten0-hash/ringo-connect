@@ -165,7 +165,7 @@ export const CATEGORIES: Category[] = [
         backgroundGradientEnd: "#1A1220",
         textColor: "#FAFAFA",
         buttonStyle: "fill",
-        buttonRadius: "pill",
+        buttonRadius: "rounded", // the Ringo default; "pill" stays a choice in ThemeCard and a saved pill is always respected
       },
       // Same fields for every music_role (artist, DJ, producer, band…) —
       // the free-text message field covers role-specific nuance (e.g. a
@@ -242,7 +242,7 @@ export const CATEGORIES: Category[] = [
         backgroundGradientEnd: null,
         textColor: "#14202B",
         buttonStyle: "fill",
-        buttonRadius: "pill",
+        buttonRadius: "rounded", // the Ringo default; "pill" stays a choice in ThemeCard and a saved pill is always respected
       },
       notePlaceholder: {
         en: "e.g. Home-cooked meals delivered in Douala",

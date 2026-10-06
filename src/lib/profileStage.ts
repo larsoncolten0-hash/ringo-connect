@@ -61,8 +61,9 @@ const PAPER_PANEL: NonNullable<ProfileStage["panel"]> = {
 };
 const INK_PLAYER = { background: "rgb(var(--rc-ink-2))", text: "rgb(var(--rc-paper))" };
 
-// Music: a light Paper panel below the dark hero, Ink player cards inside it, the Ring around the artist.
-const MUSIC_STAGE: ProfileStage = { ...DEFAULT_STAGE, id: "music", panel: PAPER_PANEL, player: INK_PLAYER, avatar: "ring", closingRing: true };
+// Music: a light Paper panel below the dark hero, Ink player cards inside it, the Ring around the artist, an image-led (tall) cover, the artist's name as
+// they wrote it (not forced to capitals) and real section headings in the display face, so the page reads as an editorial profile rather than a list of modules.
+const MUSIC_STAGE: ProfileStage = { ...DEFAULT_STAGE, id: "music", panel: PAPER_PANEL, player: INK_PLAYER, avatar: "ring", cover: "tall", name: "natural", headings: "editorial", closingRing: true };
 
 // Events: the same Paper panel and Ink ticket cards Music uses (the ticketing components are shared), an image-led cover, and the date
 // leading every event card.

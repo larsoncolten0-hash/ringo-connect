@@ -31,11 +31,17 @@ export default function RestaurantOrdersView({
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const knownIds = useRef(new Set(initialOrders.map((o) => o.id)));
+  // Status changes still in flight (order id -> the status being applied). The poll below must not overwrite one with the database's pre-change state, or
+  // the button flickers back to "Accept" for a moment after it was pressed.
+  const pending = useRef(new Map<string, string>());
+  const [error, setError] = useState<string | null>(null);
   const [hasNew, setHasNew] = useState(false);
   const { play } = useSound();
 
   useEffect(() => {
     const poll = async () => {
+      // nobody is looking at a hidden tab: it does not ask for 100 orders with their items every 6 seconds (it catches up as soon as it is visible again)
+      if (document.visibilityState === "hidden") return;
       const { data } = await supabase
         .from("orders")
         .select("*, order_items(*), restaurant_tables(label)")
@@ -51,10 +57,17 @@ export default function RestaurantOrdersView({
         play("notification");
       }
       knownIds.current = new Set(data.map((o) => o.id));
-      setOrders(data);
+      setOrders(data.map((o) => (pending.current.has(o.id) ? { ...o, status: pending.current.get(o.id) } : o)));
     };
     const interval = setInterval(poll, 6000);
-    return () => clearInterval(interval);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") poll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [profileId]);
 
   // Both routed through an API route (rather than a direct client update)
@@ -62,25 +75,37 @@ export default function RestaurantOrdersView({
   // is server-only, the Resend API key must never reach the browser. See
   // that route for the RLS ownership check and the order_status_history
   // insert, both now handled server-side.
+  // Applies a status change optimistically, and puts the order back (with a notice) if the server did not accept it. Before, a refused change (a lost
+  // connection, a permission change) left the order showing the new status until the next poll quietly flipped it back.
+  const applyStatus = async (order: any, status: string) => {
+    const previous = order.status;
+    pending.current.set(order.id, status);
+    setError(null);
+    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status } : o)));
+    try {
+      const res = await fetch(`/api/orders/${order.id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("status_update_failed");
+    } catch {
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: previous } : o)));
+      setError(t.restaurant.orderUpdateFailed);
+    } finally {
+      pending.current.delete(order.id);
+    }
+  };
+
   const advanceStatus = async (order: any) => {
     const next = nextStatus(order.status, order.order_type);
     if (!next) return;
-    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: next } : o)));
-    await fetch(`/api/orders/${order.id}/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: next }),
-    });
+    await applyStatus(order, next);
   };
 
   const cancelOrder = async (order: any) => {
     if (!window.confirm(t.restaurant.cancelOrder + "?")) return;
-    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: "cancelled" } : o)));
-    await fetch(`/api/orders/${order.id}/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "cancelled" }),
-    });
+    await applyStatus(order, "cancelled");
   };
 
   const actionLabel = (status: OrderStatus) =>
@@ -106,16 +131,24 @@ export default function RestaurantOrdersView({
         </button>
       )}
 
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+      {error && (
+        <p role="alert" className="rounded-card border border-ringo-coral/30 bg-ringo-coral/5 px-4 py-3 text-sm text-ringo-coral">
+          {error}
+        </p>
+      )}
+
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar" role="group" aria-label={t.restaurant.ordersLabel}>
         {FILTERS.map((f) => (
           <button
             key={f}
+            type="button"
+            aria-pressed={filter === f}
             onClick={() => setFilter(f)}
-            className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border capitalize transition ${
+            className={`shrink-0 inline-flex min-h-[44px] items-center text-xs font-medium px-4 rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 ${
               filter === f ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo" : "border-ringo-border text-ringo-muted"
             }`}
           >
-            {f === "all" ? "All" : f}
+            {f === "all" ? t.restaurant.allOrders : t.restaurant.orderStatus[f] ?? f}
           </button>
         ))}
       </div>
@@ -139,8 +172,8 @@ export default function RestaurantOrdersView({
                   </p>
                   <p className="text-xs text-ringo-muted">{order.customer_name}</p>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${STATUS_COLOR[order.status] || ""}`}>
-                  {order.status}
+                <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${STATUS_COLOR[order.status] || ""}`}>
+                  {t.restaurant.orderStatus[order.status] ?? order.status}
                 </span>
                 <span className="text-sm font-semibold text-ringo-text shrink-0" suppressHydrationWarning>
                   {formatPrice(order.total, currency, locale)}

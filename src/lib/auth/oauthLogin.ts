@@ -109,11 +109,14 @@ export function hasEmailIdentity(user: IdentityBearer | null | undefined): boole
   return !!user?.identities?.some((i) => i?.provider === "email");
 }
 
-/** Where a signed-in person goes next: a pending invitation first, then a safe `next`, then the role's home. */
+/** Where everyone lands after signing in unless they were heading somewhere specific: Ringo Home, "how is my Ringo doing and what next". The editor is one tap away in the menu. */
+export const DASHBOARD_HOME = "/dashboard/home";
+
+/** Where a signed-in person goes next: a pending invitation first, then a safe `next`, then the role's home (Ringo Home for everyone but admins). */
 export function resolveDestination(input: { role: string | null | undefined; invite?: unknown; next?: unknown }): string {
   const invite = safeInviteToken(input.invite);
   if (invite) return `/team/invite/${invite}`;
   const next = safeNextPath(input.next);
   if (next) return next;
-  return input.role === "admin" ? "/admin" : "/dashboard";
+  return input.role === "admin" ? "/admin" : DASHBOARD_HOME;
 }

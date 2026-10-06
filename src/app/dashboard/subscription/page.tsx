@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { getPlatformSettings } from "@/lib/platformSettings";
 import SubscriptionView from "@/components/subscription/SubscriptionView";
 import { publicPlans } from "@/lib/association/publicVisibility";
+import { safeNextPath } from "@/lib/auth/oauthLogin";
 
 // See src/app/admin/settings/page.tsx for why this matters — especially
 // here, since showing a stale plan/payment status after an upgrade or
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function SubscriptionPage({
   searchParams,
 }: {
-  searchParams: { onboarding?: string };
+  searchParams: { onboarding?: string; from?: string };
 }) {
   const supabase = createClient();
   const {
@@ -56,6 +57,12 @@ export default async function SubscriptionPage({
       fapshiEnabled={settings.fapshiEnabled}
       stripeEnabled={settings.stripeEnabled}
       isOnboarding={searchParams.onboarding === "true"}
+      // Where the person was when they chose to upgrade (a locked tool, a plan-limited card), so a successful upgrade takes them back. Only a dashboard path
+      // is accepted (the same-site validator also refuses anything that could leave the site), and never the plan page itself.
+      returnTo={(() => {
+        const from = safeNextPath(searchParams.from);
+        return from && from.startsWith("/dashboard") && !from.startsWith("/dashboard/subscription") ? from : null;
+      })()}
     />
   );
 }

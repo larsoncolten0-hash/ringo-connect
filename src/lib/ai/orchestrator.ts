@@ -28,6 +28,8 @@ export type ChatEvent =
   | { type: "draft"; draft: DraftView }
   | { type: "content"; content: ContentView }
   | { type: "image"; image: ImageView }
+  // The image tool was refused because a usage limit was reached (the model still words its own reply; this lets the UI show the limit state).
+  | { type: "limit"; kind: "image"; reason: "daily_limit" | "monthly_limit" }
   | { type: "calendar_plan"; plan: CalendarPlanView }
   | { type: "done"; messageId: string; toolsUsed: string[]; truncated: boolean }
   | { type: "error"; code: AiRuntimeError };
@@ -200,6 +202,15 @@ export async function runChat({ access, locale, conversationId, message, imageUr
         emit({ type: "tool", name: call.name });
       }
       const results = await Promise.all(calls.map((call) => executeTool(call.name, call.input, toolCtx, tools)));
+      calls.forEach((call, i) => {
+        if (call.name !== "generate_image") return;
+        try {
+          const parsed = JSON.parse(results[i].content);
+          if (parsed?.ok === false && (parsed.reason === "daily_limit" || parsed.reason === "monthly_limit")) emit({ type: "limit", kind: "image", reason: parsed.reason });
+        } catch {
+          // not a refusal we can read: the model's reply still explains it
+        }
+      });
       const resultParts: AiContentPart[] = calls.map((call, i) => ({
         type: "tool_result",
         toolCallId: call.id,

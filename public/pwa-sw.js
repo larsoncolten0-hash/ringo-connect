@@ -64,6 +64,10 @@ self.addEventListener("push", (event) => {
     // status updates) into one notification slot instead of stacking —
     // the OS shows only the latest with a given tag.
     tag: payload.category,
+    // The tag keeps the tray tidy (one slot per kind), but a notification that replaces another with the same tag is SILENT unless renotify is set: no
+    // sound, no vibration, no heads-up. A restaurant's second new-order push is exactly that case, so each push still alerts. renotify is only valid
+    // when a tag exists (showNotification throws a TypeError otherwise), hence the condition.
+    ...(payload.category ? { renotify: true } : {}),
     data: { url: payload.url || "/" },
   };
 

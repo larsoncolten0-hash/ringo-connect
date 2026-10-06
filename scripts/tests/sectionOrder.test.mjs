@@ -56,7 +56,7 @@ await test("all 16 canonical categories are covered and each gets its documented
   assert.equal(CATEGORIES.length, 16);
   for (const c of CATEGORIES) {
     if (c.id === "music_entertainment") {
-      assert.deepEqual(order(c.id, ALL, { isMusic: true }), ["about", "music", "releases", "links", "catalog", "events"], c.id);
+      assert.deepEqual(order(c.id, ALL, { isMusic: true }), ["music", "releases", "catalog", "events", "links", "about"], c.id);
     } else if (c.id === "restaurant_food") {
       assert.deepEqual(order(c.id, ALL, { isRestaurant: true }), ["about", "links", "catalog", "events"], c.id);
     } else {
@@ -139,8 +139,8 @@ await test("booking and product availability: booking is not a section, so it ca
 });
 
 // ------------------------------------------------------------------ the specialised layouts are protected
-await test("Music keeps its exact long-standing order whatever the category, subcategory or content", () => {
-  const legacy = ["about", "music", "releases", "links", "catalog", "events"];
+await test("Music has its own curated order (music, releases and store, merch, events, links, contact card last) whatever the category, subcategory or content", () => {
+  const legacy = ["music", "releases", "catalog", "events", "links", "about"];
   for (const c of [...CATEGORIES.map((x) => x.id), null, "", "nope"]) {
     for (const sub of [null, "youtuber", "influencer"]) {
       for (const has of [ALL, NONE, { ...ALL, about: false }, { about: true, links: false, catalog: false, events: false }]) {
@@ -154,7 +154,7 @@ await test("Restaurant keeps its exact long-standing order whatever the content;
   for (const c of [...CATEGORIES.map((x) => x.id), null]) {
     for (const has of [ALL, NONE, { ...ALL, about: false }]) assert.deepEqual(order(c, has, { isRestaurant: true }), legacy, String(c));
   }
-  assert.deepEqual(order("restaurant_food", ALL, { isRestaurant: true, isMusic: true }), ["about", "music", "releases", "links", "catalog", "events"]);
+  assert.deepEqual(order("restaurant_food", ALL, { isRestaurant: true, isMusic: true }), ["music", "releases", "catalog", "events", "links", "about"]);
 });
 await test("unknown or missing category falls back to the long-standing generic order", () => {
   for (const c of [null, undefined, "", "not_a_category"]) assert.deepEqual(order(c), ["about", "links", "catalog", "events"]);

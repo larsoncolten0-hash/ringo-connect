@@ -147,3 +147,73 @@ export async function unsubscribeFromPush(unsubscribeUrl: string): Promise<Subsc
     return { ok: false, error: err?.message || "unsubscribe_failed" };
   }
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Sign-out and sign-in on the same device.
+//
+// A push subscription belongs to a DEVICE, but the server stores it against an ACCOUNT. Signing out used to leave it registered, so the next person using
+// that phone kept receiving the previous account's order and payment notifications. Signing out now removes it (see /auth/logout). To keep that from
+// costing the owner their notifications when they sign back in, the account that had push ON remembers that on this device and turns it back on silently
+// the next time THEY sign in (the browser permission is already granted, so nothing is asked).
+//
+//   * Only the same account resumes: the stored value is the account's id, so a different person signing in is never subscribed by it.
+//   * Only when the browser still allows notifications.
+//   * Never when the device already has a subscription: that one now belongs to whoever enabled it, and resuming would take it from them.
+// Storage can be blocked (private mode): nothing is then remembered, and the account menu toggle still turns push on by hand.
+// ---------------------------------------------------------------------------------------------------------------
+export const PUSH_RESUME_KEY = "ringo-push-resume";
+
+export function rememberPushResume(userId: string, storage: Pick<Storage, "setItem"> | null = safeStorage()): void {
+  try {
+    storage?.setItem(PUSH_RESUME_KEY, userId);
+  } catch {
+    // not remembered
+  }
+}
+
+function forgetPushResume(storage: Pick<Storage, "removeItem"> | null = safeStorage()): void {
+  try {
+    storage?.removeItem(PUSH_RESUME_KEY);
+  } catch {
+    // nothing to forget
+  }
+}
+
+function safeStorage(): Storage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export interface PushResumeDeps {
+  storage: Pick<Storage, "getItem" | "removeItem"> | null;
+  getStatus: () => Promise<PushStatus>;
+  subscribe: (opts: { subscribeUrl: string }) => Promise<SubscribeToPushResult>;
+}
+
+/** Turns push back on for `userId` if, and only if, that same account turned it off by signing out on this device. Resolves true when it did. */
+export async function resumePushIfRemembered(
+  userId: string,
+  subscribeUrl: string,
+  deps: PushResumeDeps = { storage: safeStorage(), getStatus: getPushStatus, subscribe: subscribeToPush }
+): Promise<boolean> {
+  let remembered: string | null = null;
+  try {
+    remembered = deps.storage?.getItem(PUSH_RESUME_KEY) ?? null;
+  } catch {
+    return false;
+  }
+  if (!remembered || remembered !== userId) return false;
+
+  const status = await deps.getStatus();
+  // Permission withdrawn, or the device is already subscribed (to someone else): the memory is spent either way.
+  if (!status.supported || status.permission !== "granted" || status.subscribed) {
+    forgetPushResume(deps.storage as any);
+    return false;
+  }
+  const result = await deps.subscribe({ subscribeUrl });
+  if (result.ok) forgetPushResume(deps.storage as any);
+  return result.ok;
+}

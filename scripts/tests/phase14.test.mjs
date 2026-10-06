@@ -31,7 +31,7 @@ const test = (name, fn) => {
 const decisionSrc = code("src/lib/toolkitLock.ts");
 test("lock: the module reads only the plan flag and grants nothing", () => {
   assert.ok(!/\.(insert|update|upsert|delete|rpc)\(/.test(decisionSrc), "no write or rpc");
-  assert.match(decisionSrc, /planEnabled !== false\) return OPEN/);
+  assert.match(decisionSrc, /f\.planEnabled === false\) return \{ locked: true/); // UX refinement phase: the lock shape also carries unavailable / inventoryUnavailable
 });
 let decideToolkitLock;
 try {
@@ -42,8 +42,8 @@ try {
 if (decideToolkitLock) {
   const owner = (category, extra = {}) => ({ userId: "u1", profile: { id: "p1", user_id: "u1", category, categories: [category], is_demo: false, ...extra } });
   test("lock: a Free owner in an entitled category is locked; Inventory only where stock tracking exists", () => {
-    assert.deepEqual(decideToolkitLock({ ...owner("business_ecommerce"), planEnabled: false }), { locked: true, inventoryLocked: true });
-    assert.deepEqual(decideToolkitLock({ ...owner("professional_services"), planEnabled: false }), { locked: true, inventoryLocked: false });
+    assert.deepEqual(decideToolkitLock({ ...owner("business_ecommerce"), planEnabled: false }), { locked: true, inventoryLocked: true, unavailable: null, inventoryUnavailable: false });
+    assert.deepEqual(decideToolkitLock({ ...owner("professional_services"), planEnabled: false }), { locked: true, inventoryLocked: false, unavailable: null, inventoryUnavailable: true });
   });
   test("lock: a plan WITH the toolkit, or an unreadable plan, is never shown as locked", () => {
     assert.equal(decideToolkitLock({ ...owner("business_ecommerce"), planEnabled: true }).locked, false);
@@ -118,15 +118,15 @@ for (const [dir, guard] of [["inventory", "requireInventoryOwner"], ["bookkeepin
 }
 test("locked screen: one upgrade call to action to the existing subscription page, no data, translated, 44px", () => {
   const s = code("src/components/subscription/ToolkitLocked.tsx");
-  assert.ok(s.includes('href="/dashboard/subscription"'));
+  assert.ok(s.includes("<PlanCta") && !/href="\/(?!dashboard)/.test(s)); // UX refinement phase: the shared PlanCta links to /dashboard/subscription (and carries the return marker)
   assert.ok(!/fetch\(|supabase|useEffect/.test(s));
-  assert.ok(s.includes("min-h-[44px]"));
+  assert.ok(code("src/components/ui/PlanCta.tsx").includes("min-h-[44px]")); // the shared button carries the 44px floor
   assert.ok(s.includes("t.toolkitLock.cta"));
 });
 test("menu: the five tools stay in the menu for a Free owner, marked locked and named for assistive technology; never added for staff", () => {
   const s = code("src/components/dashboard/DashboardShell.tsx");
   assert.equal((s.match(/locked: true/g) || []).length, 5);
-  assert.ok((s.match(/locked(Toolkit|Inventory) && !organization\?\.isStaff/g) || []).length >= 4);
+  assert.ok((s.match(/\((locked|unavailable)(Toolkit|Inventory)|\(lockedToolkit \|\| unavailableToolkit\) && !organization\?\.isStaff/g) || []).length >= 4); // UX refinement phase: unavailable categories see the same entries
   assert.ok(s.includes("t.toolkitLock.lockedLabel"));
 });
 
@@ -183,7 +183,8 @@ test("shop route: read only, same visibility and plan limit as the profile, othe
   assert.ok(s.includes("isPublicProfileSuspended"));
   assert.match(s, /limitPublicRows<any>\(profile\.products, isPublicProduct, .*max_products/);
   assert.ok(s.includes("redirect(`/m/${params.username}`)"));
-  assert.ok(s.includes("redirect(`/r/${params.username}`)"));
+  assert.ok(!s.includes("redirect(`/r/${params.username}`)"), "a restaurant's SHOP must never be redirected to its MENU (/r/[username])");
+  assert.ok(s.includes("redirect(`/m/${params.username}`)"), "music and events keep their own storefront");
   assert.ok(!/facebook_capi_token|tiktok_events_token/.test(s), "no private column is passed to the client");
 });
 test("shop page: only existing item actions (the same CTA resolver and item page), words from the category, no data access", () => {

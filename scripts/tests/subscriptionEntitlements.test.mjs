@@ -141,7 +141,7 @@ const check = (name, cond, detail = "") => {
   check("the content_hidden banner explicitly says data is safe / nothing was deleted", /nothing was deleted/.test(shellSrc));
   check(
     "the content_hidden banner's CTA points at the existing subscription page (no second checkout flow)",
-    /state === "content_hidden" && \([\s\S]{0,50}<Link[\s\S]{0,1400}Resubscribe to Pro/.test(shellSrc)
+    /state === "content_hidden" && \([\s\S]{0,50}<Link[\s\S]{0,1400}t\.subscriptionBanner\.resubscribe/.test(shellSrc)
   );
 }
 

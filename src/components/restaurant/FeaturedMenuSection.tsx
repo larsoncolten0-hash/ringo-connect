@@ -6,8 +6,8 @@ import Rail from "@/components/ui/Rail";
 import { readableOn } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
 
-// A teaser, not the ordering surface itself — tapping any card (or "View
-// all") goes to the real menu/cart/checkout flow at /r/[username]. Shows
+// A teaser, not the ordering surface itself — tapping a dish opens that dish's own page (/r/[username]/item/[id], which adds it to the order),
+// and "View menu" opens the full menu/cart/checkout flow at /r/[username]. Shows
 // featured items first, then fills up to 3 with whatever's available so
 // the section isn't empty just because nothing's been marked featured yet.
 export default function FeaturedMenuSection({
@@ -58,7 +58,7 @@ export default function FeaturedMenuSection({
         const cards = shown.map((item) => (
           <a
             key={item.id}
-            href={`/r/${username}`}
+            href={`/r/${username}/item/${item.id}`}
             className={`ringo-lift ringo-lift--flat block overflow-hidden ${radiusClass} ${asRail ? "w-[38vw] min-w-[136px] max-w-[170px] sm:w-[160px]" : ""}`}
             style={{ border: `1px solid ${borderTint}` }}
           >

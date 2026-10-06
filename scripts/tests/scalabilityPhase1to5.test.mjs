@@ -47,7 +47,7 @@ await test("dashboard layout: each read keeps its exact condition and fallback (
   }
   assert.ok(s.includes("ASSOCIATION_PUBLIC && ownProfile ? getAssociationNavAccess(user.id, ownProfile.id) : Promise.resolve(false)"));
   assert.ok(s.includes("orgs.some((o) => !o.isOwner && o.teamEnabled) ? staffInboxNavVisible(user.id) : Promise.resolve(false)"));
-  assert.ok(s.includes("Promise.resolve({ locked: false, inventoryLocked: false })"));
+  assert.ok(s.includes("Promise.resolve({ locked: false, inventoryLocked: false, unavailable: null, inventoryUnavailable: false }"));
   // a failed affiliate-settings read still just hides the referral banner
   assert.ok(s.includes("getAffiliateSettings().then((v) => v, () => null)") && s.includes("if (affiliateSettings) {"));
   assert.ok(s.includes("isTeamLeader = !!ambassadorTeam") && s.includes("isAmbassador = !!ambassadorProfile"));

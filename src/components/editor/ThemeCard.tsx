@@ -11,6 +11,7 @@ import { getRadiusClass, type ButtonStyle, type ButtonRadius, type BackgroundSty
 import EditorCard from "./EditorCard";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
+import PlanCta from "@/components/ui/PlanCta";
 
 const ACCENT_PRESETS = ["#D4A954", "#4F46E5", "#FF6B4A", "#14B8A6", "#E11D48", "#059669", "#D97706", "#0EA5E9", "#7C3AED", "#0F172A"];
 
@@ -126,9 +127,7 @@ export default function ThemeCard({
       <EditorCard icon={Palette} title={t.editor.theme.title}>
         <div className="border border-dashed border-ringo-border rounded-card p-6 text-center text-sm text-ringo-muted flex flex-col items-center gap-3">
           {t.editor.theme.locked}
-          <Link href="/dashboard/subscription" className="text-xs font-medium text-ringo-indigo">
-            {t.sidebar.upgradePlan}
-          </Link>
+          <PlanCta variant="secondary">{t.sidebar.upgradePlan}</PlanCta>
         </div>
       </EditorCard>
     );

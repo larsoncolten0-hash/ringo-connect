@@ -60,14 +60,14 @@ const check = (name, cond, detail = "") => {
 {
   const ctaSrc = read("src/lib/cta.ts");
   check("a single shared resolveDisplayCtaLabel() exists so the grid card and the detail page can never show different wording for the same product", /export function resolveDisplayCtaLabel/.test(ctaSrc));
-  check("it falls back to a destination-appropriate default (never a bare 'View' for a purchase/booking/order item) only when the creator never set an explicit preset/label", /explicit \|\| \(isMusic \? labels\.buyNow : labels\.viewDetails\)/.test(ctaSrc));
+  check("it falls back to a destination-appropriate default (never a bare 'View' for a purchase/booking/order item) only when the creator never set an explicit preset/label", /explicit \|\| \(isMusic \? labels\.buyNow : named\)/.test(ctaSrc) && /named = defaults \? defaults\.nouns\[defaultCtaNoun\(defaults\.category\)\] : labels\.viewDetails/.test(ctaSrc));
 
   const detailSrc = read("src/components/catalog/ProductDetailView.tsx");
   check("ProductDetailView now uses the SHARED helper instead of its own inline copy of the same fallback logic", /resolveDisplayCtaLabel\(cta, isMusic,/.test(detailSrc));
   check("the detail page's own destination-gated behavior for booking/restaurant/checkout (no button at all without an explicit creator label) is unchanged", /: ctaLabel\s*\?\s*\{\s*label: ctaLabel,/.test(detailSrc));
 
   const catalogSrc = read("src/components/catalog/CatalogSection.tsx");
-  check("CatalogSection resolves each product's CTA using the SAME resolver the detail page uses (src/lib/cta.ts), not a reimplementation", /import \{ resolveProductCta, resolveDisplayCtaLabel \} from "@\/lib\/cta"/.test(catalogSrc));
+  check("CatalogSection resolves each product's CTA using the SAME resolver the detail page uses (src/lib/cta.ts), not a reimplementation", /import \{ resolveProductCta, resolveDisplayCtaLabel(?:, sectionCtaKind)? \} from "@\/lib\/cta"/.test(catalogSrc));
   check("per-product checkout eligibility uses the same pure, client-safe check the dashboard editor's own CatalogCard already uses", /checkProductEligibility\(\{ product, profileId: product\.profile_id, quantity: 1 \}\)/.test(catalogSrc));
   check("the card's button text now comes from the resolved CTA, not a hardcoded viewItem string", /const buttonLabel = resolveDisplayCtaLabel/.test(catalogSrc) && !/\{t\.profilePage\.viewItem\}/.test(catalogSrc));
   check("the card's own navigation destination (tap → detail page) is unchanged — only the button's TEXT changed, never where it goes", /href={productHref\(username, product\.id, isMusic\)}/.test(catalogSrc));

@@ -6,8 +6,9 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Bell, Check, X, Inbox } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/components/LanguageProvider";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
-import { categorizeNotification, NOTIFICATION_CATEGORY_LABELS, type NotificationCategory } from "@/lib/notificationCategories";
+import { categorizeNotification, type NotificationCategory } from "@/lib/notificationCategories";
 
 type NotificationRow = {
   id: string;
@@ -84,6 +85,7 @@ export default function NotificationBell({
   const [tab, setTab] = useState<Tab>("all");
   const ref = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
+  const { t } = useLanguage();
 
   const fetchUnreadCount = useCallback(async () => {
     if (mode === "user" && !userId) return;
@@ -110,17 +112,30 @@ export default function NotificationBell({
   }, [mode, userId]);
 
   // Cheap, always-on — this is what actually feeds the badge.
+  // A tab nobody is looking at does not poll (it used to ask the database every 8 seconds for as long as it stayed open); it catches up the moment it is
+  // visible again.
   useEffect(() => {
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 8000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "hidden") fetchUnreadCount();
+    }, 8000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchUnreadCount();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [fetchUnreadCount]);
 
   // Full rows only while someone's actually looking at the list.
   useEffect(() => {
     if (!open) return;
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000);
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "hidden") fetchNotifications();
+    }, 15000);
     return () => clearInterval(interval);
   }, [open, fetchNotifications]);
 
@@ -143,21 +158,15 @@ export default function NotificationBell({
   };
 
   const markAllRead = async () => {
-    const unreadIds = items.filter((n) => !n.read_at).map((n) => n.id);
     const now = new Date().toISOString();
     setItems((prev) => prev.map((n) => (n.read_at ? n : { ...n, read_at: now })));
     setUnreadCount(0);
-    if (unreadIds.length > 0) {
-      await createClient().from("notifications").update({ read_at: now }).in("id", unreadIds);
-    } else {
-      // The badge can be ahead of a stale `items` list (fetched less
-      // often than the count) — fall back to clearing every unread row
-      // for this audience directly rather than trusting `items` alone.
-      const supabase = createClient();
-      let query = supabase.from("notifications").update({ read_at: now }).is("read_at", null);
-      query = mode === "admin" ? query.eq("audience", "admin") : query.eq("audience", "user").eq("user_id", userId as string);
-      await query;
-    }
+    // EVERY unread row of this audience, not just the 30 the list has loaded. Clearing only the loaded ids left older unread rows behind, so the badge
+    // dropped to 0 and then jumped back at the next poll.
+    const supabase = createClient();
+    let query = supabase.from("notifications").update({ read_at: now }).is("read_at", null);
+    query = mode === "admin" ? query.eq("audience", "admin") : query.eq("audience", "user").eq("user_id", userId as string);
+    await query;
   };
 
   // No account to key a 'user' feed off of yet — nothing to show.
@@ -187,9 +196,9 @@ export default function NotificationBell({
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount > 99 ? "99+" : unreadCount} unread` : "Notifications"}
+        aria-label={t.notificationCenter.bellLabel(unreadCount)}
         aria-expanded={open}
-        className={`relative w-9 h-9 flex items-center justify-center rounded-full transition ${iconClass}`}
+        className={`relative w-11 h-11 flex items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 ${iconClass}`}
       >
         <Bell size={17} />
         <AnimatePresence>
@@ -228,10 +237,10 @@ export default function NotificationBell({
       {open && (
         <div className="hidden sm:block absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-card border border-ringo-border/70 bg-ringo-surface shadow-[0_8px_30px_-6px_rgba(15,23,42,0.15)] z-50 animate-dropdown-in overflow-hidden text-left">
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-ringo-border/70">
-            <p className="text-sm font-medium text-ringo-text">Notifications</p>
+            <p className="text-sm font-medium text-ringo-text">{t.notificationCenter.title}</p>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs text-ringo-indigo flex items-center gap-1 hover:underline">
-                <Check size={12} /> Mark all read
+              <button onClick={markAllRead} className="-mr-2 inline-flex min-h-[44px] items-center gap-1 rounded-full px-3 text-xs font-medium text-ringo-indigo hover:bg-ringo-indigo/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50">
+                <Check size={12} aria-hidden="true" /> {t.notificationCenter.markAllRead}
               </button>
             )}
           </div>
@@ -273,6 +282,7 @@ function NotificationSheet({
   onItemOpen: (n: NotificationRow) => void;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   return createPortal(
     <motion.div
       initial={{ y: "100%" }}
@@ -281,25 +291,25 @@ function NotificationSheet({
       transition={{ type: "spring", stiffness: 380, damping: 38 }}
       role="dialog"
       aria-modal="true"
-      aria-label="Notifications"
+      aria-label={t.notificationCenter.title}
       className="sm:hidden fixed inset-x-0 bottom-0 z-[45] rounded-t-3xl bg-ringo-surface shadow-[0_-20px_50px_-16px_rgba(15,23,42,0.35)] flex flex-col max-h-[75vh]"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="w-9 h-1 rounded-full bg-ringo-muted/25 mx-auto mt-2.5 mb-1 shrink-0" aria-hidden />
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-ringo-border/70 shrink-0">
-        <p className="text-sm font-semibold text-ringo-text">Notifications</p>
-        <div className="flex items-center gap-3">
+        <p className="text-sm font-semibold text-ringo-text">{t.notificationCenter.title}</p>
+        <div className="flex items-center gap-1">
           {unreadCount > 0 && (
-            <button onClick={onMarkAllRead} className="text-xs text-ringo-indigo flex items-center gap-1 hover:underline">
-              <Check size={12} /> Mark all read
+            <button onClick={onMarkAllRead} className="inline-flex min-h-[44px] items-center gap-1 rounded-full px-3 text-xs font-medium text-ringo-indigo hover:bg-ringo-indigo/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50">
+              <Check size={12} aria-hidden="true" /> {t.notificationCenter.markAllRead}
             </button>
           )}
           <button
             onClick={onClose}
-            aria-label="Close"
-            className="w-7 h-7 -mr-1 flex items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-muted/10 transition"
+            aria-label={t.notificationCenter.close}
+            className="-mr-2 w-11 h-11 flex items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-muted/10 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50"
           >
-            <X size={15} />
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -323,10 +333,11 @@ function NotificationTabs({
   setTab: (t: Tab) => void;
   availableCategories: NotificationCategory[];
 }) {
+  const { t } = useLanguage();
   const tabs: { key: Tab; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "unread", label: "Unread" },
-    ...availableCategories.map((c) => ({ key: c as Tab, label: NOTIFICATION_CATEGORY_LABELS[c] })),
+    { key: "all", label: t.notificationCenter.all },
+    { key: "unread", label: t.notificationCenter.unread },
+    ...availableCategories.map((c) => ({ key: c as Tab, label: t.notificationCenter[c] })),
   ];
 
   return (
@@ -335,7 +346,7 @@ function NotificationTabs({
         <button
           key={t.key}
           onClick={() => setTab(t.key)}
-          className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+          className={`shrink-0 inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-xs font-medium px-3 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 ${
             tab === t.key ? "bg-ringo-indigo/10 text-ringo-indigo" : "text-ringo-muted hover:bg-ringo-muted/10"
           }`}
         >
@@ -357,6 +368,7 @@ function NotificationList({
   tab: Tab;
   onItemOpen: (n: NotificationRow) => void;
 }) {
+  const { t } = useLanguage();
   if (!loaded) {
     // A tiny skeleton rather than a bare "Loading…" line — matches the
     // rest of the app's loading convention (see src/components/ui/Skeleton.tsx)
@@ -376,7 +388,7 @@ function NotificationList({
       <div className="flex flex-col items-center gap-2 text-center py-10 px-6">
         <Inbox size={18} className="text-ringo-muted" />
         <p className="text-xs text-ringo-muted">
-          {tab === "unread" ? "You're all caught up." : "No notifications yet."}
+          {tab === "unread" ? t.notificationCenter.caughtUp : t.notificationCenter.empty}
         </p>
       </div>
     );
@@ -391,6 +403,7 @@ function NotificationList({
 }
 
 function NotificationRowItem({ notification: n, onOpen }: { notification: NotificationRow; onOpen: () => void }) {
+  const { t } = useLanguage();
   const unread = !n.read_at;
   const content = (
     <div
@@ -407,7 +420,7 @@ function NotificationRowItem({ notification: n, onOpen }: { notification: Notifi
         {unread && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-ringo-indigo mt-1.5" aria-hidden="true" />}
       </div>
       {n.body && <p className="text-xs text-ringo-muted mt-0.5 pl-1.5">{n.body}</p>}
-      <p className="text-[11px] text-ringo-muted/70 mt-1 pl-1.5">{relativeTime(n.created_at)}</p>
+      <p className="text-[11px] text-ringo-muted/70 mt-1 pl-1.5">{relativeTime(n.created_at, t.notificationCenter)}</p>
     </div>
   );
 
@@ -422,14 +435,17 @@ function NotificationRowItem({ notification: n, onOpen }: { notification: Notifi
   );
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(
+  iso: string,
+  words: { justNow: string; minutesAgo: (n: number) => string; hoursAgo: (n: number) => string; daysAgo: (n: number) => string }
+): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return words.justNow;
+  if (mins < 60) return words.minutesAgo(mins);
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return words.hoursAgo(hours);
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return words.daysAgo(days);
   return new Date(iso).toLocaleDateString();
 }

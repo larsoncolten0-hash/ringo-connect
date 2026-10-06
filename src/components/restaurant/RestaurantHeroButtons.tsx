@@ -24,6 +24,7 @@ export default function RestaurantHeroButtons({
   aboutLocation,
   accent,
   locale,
+  radiusClass = "rounded-card",
 }: {
   t: Translations;
   profile: any;
@@ -32,6 +33,8 @@ export default function RestaurantHeroButtons({
   aboutLocation?: string | null;
   accent: string;
   locale: "en" | "fr";
+  /** The owner's own button shape (rounded unless they chose otherwise). */
+  radiusClass?: string;
 }) {
   const menuHref = `/r/${username}`;
   const cleanNumber = (whatsappNumber || "").replace(/[^0-9]/g, "");
@@ -58,20 +61,22 @@ export default function RestaurantHeroButtons({
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-sm animate-fade-up" style={{ animationDelay: "260ms" }}>
       <div className="flex gap-2.5 w-full">
+        {/* Both go to the menu page, so they are one decision, not two competing fills: ordering is the primary action (the filled accent), browsing the
+            menu is the quiet secondary one (an accent border on the page's own text colour, so it reads on any theme). */}
         <a
           href={menuHref}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition hover:brightness-95 active:scale-[0.98]"
-          style={{ backgroundColor: accent, color: readableOn(accent) }}
+          className={`ringo-tactile flex-1 flex min-h-[44px] items-center justify-center gap-2 py-3 text-sm font-semibold transition hover:brightness-95 ${radiusClass}`}
+          style={{ border: `1.5px solid ${accent}`, backgroundColor: hexToRgba(accent, 0.08), color: "inherit" }}
         >
-          <UtensilsCrossed size={16} />
+          <UtensilsCrossed size={16} aria-hidden="true" />
           {t.restaurant.viewMenuButton}
         </a>
         <a
           href={menuHref}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold transition hover:brightness-95 active:scale-[0.98]"
-          style={{ backgroundColor: accent, color: readableOn(accent) }}
+          className={`ringo-tactile flex-1 flex min-h-[44px] items-center justify-center gap-2 py-3 text-sm font-semibold transition hover:brightness-95 ${radiusClass}`}
+          style={{ border: `1.5px solid ${accent}`, backgroundColor: accent, color: readableOn(accent) }}
         >
-          <ShoppingCart size={16} />
+          <ShoppingCart size={16} aria-hidden="true" />
           {t.restaurant.orderNowButton}
         </a>
       </div>

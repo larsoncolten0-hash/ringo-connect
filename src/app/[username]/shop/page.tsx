@@ -19,8 +19,8 @@ export { generateViewport };
 // non-suspended profile, only items with a name that are not hidden, and never more than the owner's current plan allows (planEntitlements.ts).
 // Buying, booking and contacting still happen on each item's own page, through the existing flows. Nothing is written.
 //
-// Music & Entertainment and Events & Experiences already have their dedicated storefront (/m/[username]) and Restaurant & Food its menu
-// (/r/[username]); this route sends those profiles there rather than building a second one.
+// Music & Entertainment and Events & Experiences already have their dedicated storefront (/m/[username]); this route sends those profiles there rather
+// than building a second one. A Restaurant & Food profile keeps its MENU at /r/[username] and its SHOP (the products it sells) is this page.
 export const dynamic = "force-dynamic";
 
 // Memoised per request: generateMetadata and the page load the same profile and products.
@@ -40,7 +40,7 @@ const load = memoPerRequest(async function load(username: string) {
 export async function generateMetadata({ params }: { params: { username: string } }, parent: ResolvingMetadata): Promise<Metadata> {
   const profile = await load(params.username);
   // A page that would 404 (or redirect to another storefront) advertises nothing of its own.
-  if (!profile || profileHasTicketing(profile) || profileHasCategory(profile, "restaurant_food")) return { robots: NOINDEX };
+  if (!profile || profileHasTicketing(profile)) return { robots: NOINDEX };
   const base = await generateProfileMetadata({ params }, parent);
   const label = getCategory(profile.category)?.defaults.catalogLabel?.en || "Shop";
   const firstImage = (profile.products || []).map((p: any) => productImages(p)[0]).find(Boolean);
@@ -56,7 +56,8 @@ export default async function ShopRoute({ params }: { params: { username: string
   const profile = await load(params.username);
   if (!profile) return notFound();
   if (profileHasTicketing(profile)) redirect(`/m/${params.username}`);
-  if (profileHasCategory(profile, "restaurant_food")) redirect(`/r/${params.username}`);
+  // A restaurant's SHOP is its products, and it shows them here like any other shop. Its MENU is a different thing with its own page (/r/[username]);
+  // this route used to send restaurants to the menu, so "Shop > View all" opened the menu. It must not.
 
   // Same visibility and plan limit as the profile page (see [username]/page.tsx): fetched with the admin client because an anonymous visitor
   // cannot read the owner's plan row. Hidden or unavailable items are never listed.
@@ -76,6 +77,7 @@ export default async function ShopRoute({ params }: { params: { username: string
     category: profile.category,
     currency: profile.currency,
     bookings_enabled: !!profile.bookings_enabled,
+    restaurant_ordering: profileHasCategory(profile, "restaurant_food") && profile.ordering_enabled !== false,
     is_demo: profile.is_demo === true,
     profile_id: profile.id,
     commerceCheckoutAvailable: await computeProfileCheckoutAvailability(profile),

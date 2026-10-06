@@ -15,6 +15,7 @@ import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useAutosavedRows } from "./useAutosavedRows";
 import { planLinksSave, type LinkRowLike } from "./linksSave";
 import { countHidden } from "@/lib/planEntitlements";
+import PlanCta from "@/components/ui/PlanCta";
 
 export default function LinksCard({
   profileId,
@@ -125,20 +126,16 @@ export default function LinksCard({
       }
     >
       {hiddenCount > 0 ? (
-        <p className="text-xs text-ringo-coral mb-3">
-          {t.editor.linksHiddenByPlan(hiddenCount, maxLinks!)}{" "}
-          <NextLink href="/dashboard/subscription" className="font-medium underline">
-            {t.sidebar.upgradePlan}
-          </NextLink>
-        </p>
+        <div className="mb-3 flex flex-col items-start gap-2">
+          <p className="text-xs text-ringo-coral">{t.editor.linksHiddenByPlan(hiddenCount, maxLinks!)}</p>
+          <PlanCta variant="secondary">{t.sidebar.upgradePlan}</PlanCta>
+        </div>
       ) : (
         limitReached && (
-          <p className="text-xs text-ringo-coral mb-3">
-            {t.editor.linkLimitReached(maxLinks!)}{" "}
-            <NextLink href="/dashboard/subscription" className="font-medium underline">
-              {t.sidebar.upgradePlan}
-            </NextLink>
-          </p>
+          <div className="mb-3 flex flex-col items-start gap-2">
+            <p className="text-xs text-ringo-coral">{t.editor.linkLimitReached(maxLinks!)}</p>
+            <PlanCta variant="secondary">{t.sidebar.upgradePlan}</PlanCta>
+          </div>
         )
       )}
       {links.length === 0 && (

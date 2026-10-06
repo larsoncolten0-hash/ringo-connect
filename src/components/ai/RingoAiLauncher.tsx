@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import RingoAiPanel, { type AiStatus } from "./RingoAiPanel";
+import AiLockedPanel from "./AiLockedPanel";
 
 // Ringo AI's entry point on the dashboard. Renders NOTHING until
 // /api/ai/status says this signed-in owner is allowed (kill switch on,
@@ -16,6 +17,8 @@ export default function RingoAiLauncher() {
   const { t } = useLanguage();
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [open, setOpen] = useState(false);
+  // true for an account whose plan does not include Ringo AI: the assistant is shown, locked, so it can be discovered (the chat API still refuses it)
+  const [locked, setLocked] = useState(false);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
   // closing the panel hands focus back to the launcher button that opened it
@@ -46,7 +49,12 @@ export default function RingoAiLauncher() {
     fetch("/api/ai/status")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (cancelled || !data?.available) return;
+        if (cancelled) return;
+        if (data?.locked === "plan") {
+          setLocked(true);
+          return;
+        }
+        if (!data?.available) return;
         setStatus({ canSend: !!data.canSend, limitReason: data.limitReason ?? null, remainingToday: Number(data.remainingToday) || 0 });
       })
       .catch(() => {
@@ -57,6 +65,34 @@ export default function RingoAiLauncher() {
     };
   }, []);
 
+  if (!status && !locked) return null;
+
+  if (locked) {
+    return (
+      <>
+        {open && (
+          <>
+            <div onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[2px]" aria-hidden="true" />
+            <AiLockedPanel onClose={() => setOpen(false)} />
+          </>
+        )}
+        {!open && (
+          <button
+            ref={launcherRef}
+            onClick={() => setOpen(true)}
+            aria-label={`${t.ringoAi.open}. ${t.ringoAi.locked.badge}`}
+            className="ringo-tactile fixed z-30 bottom-[13.5rem] right-4 lg:bottom-[6.25rem] lg:right-6 w-16 h-14 rounded-2xl border border-ringo-indigo/60 bg-ringo-surface text-ringo-indigo flex flex-col items-center justify-center gap-0.5 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 focus-visible:ring-offset-2"
+          >
+            <span className="relative">
+              <Sparkles size={19} aria-hidden="true" />
+              <Lock size={9} className="absolute -right-1.5 -top-1 rounded-full bg-ringo-surface" aria-hidden="true" />
+            </span>
+            <span className="text-[9px] font-semibold leading-none">{t.ringoAi.launcherLabel}</span>
+          </button>
+        )}
+      </>
+    );
+  }
   if (!status) return null;
 
   return (

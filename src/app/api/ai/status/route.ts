@@ -8,7 +8,12 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const access = await resolveAiAccess();
-  if (!access.ok) return NextResponse.json({ available: false });
+  if (!access.ok) {
+    // A plan that simply does not include Ringo AI is told so (the launcher then shows a locked, upgrade-oriented Ringo AI so the feature can be
+    // discovered). Every other reason (kill switch, beta allowlist, demo, staff workspace...) is not about the plan and keeps Ringo AI hidden.
+    // Nothing about the person's data is returned either way, and the chat API still refuses a plan without Ringo AI.
+    return NextResponse.json(access.reason === "plan_not_eligible" ? { available: false, locked: "plan" } : { available: false });
+  }
 
   const quota = await checkAiQuota(access.access);
   return NextResponse.json({

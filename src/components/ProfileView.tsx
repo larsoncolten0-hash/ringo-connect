@@ -21,6 +21,9 @@ import SupportArtistSection from "./music/SupportArtistSection";
 import PinnedSpotlight from "./music/PinnedSpotlight";
 import MusicHeroButtons from "./music/MusicHeroButtons";
 import ReleasesSection from "./music/ReleasesSection";
+import LatestReleaseFeature from "./music/LatestReleaseFeature";
+import MusicStoreEntry from "./music/MusicStoreEntry";
+import { pickLatestRelease } from "@/lib/latestRelease";
 import { useTrackPlayback } from "./music/useTrackPlayback";
 import RestaurantHeroButtons from "./restaurant/RestaurantHeroButtons";
 import FeaturedMenuSection from "./restaurant/FeaturedMenuSection";
@@ -135,6 +138,8 @@ export default function ProfileView({
   // depends on the Support the Artist toggle still being on, the same way
   // track/product/event depend on the item still existing.
   const showPinnedSupport = isMusic && profile.pinned_type === "support" && supportEnabled;
+  // The artist's own pin always leads. With nothing pinned, the newest REAL release or single leads instead (never invented: none means nothing).
+  const latestRelease = isMusic && !pinnedItem && !showPinnedSupport ? pickLatestRelease(releases, musicTracks) : null;
   const isVerified = !!profile.verified;
   // Restaurant and Music keep their own hero buttons (branch order below is unchanged); only a generic
   // profile gets the single-primary-action hero. Pure and synchronous: see lib/heroAction.ts.
@@ -416,14 +421,25 @@ export default function ProfileView({
             />
           ),
     releases: isMusic && (
-            <ReleasesSection
-              t={t}
-              releases={releases}
-              username={profile.username}
-              accent={accent}
-              currency={profile.currency || "USD"}
-              fadeColor={panel ? panel.background : profile.background_style === "gradient" ? undefined : bgColor}
-            />
+            <>
+              <ReleasesSection
+                t={t}
+                releases={releases}
+                username={profile.username}
+                accent={accent}
+                currency={profile.currency || "USD"}
+                fadeColor={panel ? panel.background : profile.background_style === "gradient" ? undefined : bgColor}
+              />
+              <MusicStoreEntry
+                t={t}
+                username={profile.username}
+                counts={{ songs: musicTracks.length, releases: releases.filter((r: any) => r.available !== false).length, merch: catalogProducts.length, events: hasTicketing ? musicEvents.length : 0 }}
+                buttonStyle={panel ? panelButtonStyle : linkButtonStyle}
+                radiusClass={radiusClass}
+                borderTint={contentBorderTint}
+                preview={preview}
+              />
+            </>
           ),
     links: publicLinks.length > 0 && (
             <div className="flex flex-col gap-3">
@@ -688,7 +704,6 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           <span className="min-w-0 [overflow-wrap:anywhere]">
             {firstName} {restName && <span style={{ color: accent }}>{restName}</span>}
           </span>
-          {isMusic && <span className="text-lg" aria-hidden="true">🎵</span>}
           {isVerified && (
             <BadgeCheck
               size={20}
@@ -714,6 +729,17 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           >
             {t.demo.publicBadge}
           </div>
+        )}
+
+        {isMusic && getMusicRole(profile.music_role) && (
+          // What kind of artist this is (Artist, DJ, Producer, Band...): a quiet, bordered label in the artist's accent, instead of the music-note emoji
+          // that used to follow the name. Stated as fact, so it is not a button.
+          <p
+            className="mt-2 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold animate-fade-up"
+            style={{ borderColor: hexToRgba(accent, 0.45), color: accent, animationDelay: "110ms" }}
+          >
+            {getMusicRole(profile.music_role)!.label[locale]}
+          </p>
         )}
 
         {profile.bio && (
@@ -779,6 +805,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             aboutLocation={profile.about_location}
             accent={accent}
             locale={locale}
+            radiusClass={radiusClass}
           />
         ) : isMusic ? (
           // Music gets Book Now / Buy Now up top (the two commerce entry
@@ -786,7 +813,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           // row as before, all bundled inside MusicHeroButtons — every
           // other category keeps the original theme-driven, evenly-
           // stretched three-button row unchanged below.
-          <MusicHeroButtons t={t} profile={profile} accent={accent} textColor={textColor} locale={locale} />
+          <MusicHeroButtons t={t} profile={profile} accent={accent} textColor={textColor} locale={locale} radiusClass={radiusClass} />
         ) : (
           genericHero && (
             <GenericHeroActions
@@ -853,8 +880,25 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               supportMessage={profile.support_message}
               accent={accent}
               buttonStyle={linkButtonStyle}
+              radiusClass={radiusClass}
               currency={profile.currency || "USD"}
               whatsappNumber={profile.whatsapp_number}
+              username={profile.username}
+              playingId={playingId}
+              onTogglePlay={togglePlay}
+            />
+          )}
+
+          {latestRelease && stage.player && (
+            <LatestReleaseFeature
+              t={t}
+              latest={latestRelease}
+              artistName={profile.name || ""}
+              accent={accent}
+              buttonStyle={linkButtonStyle}
+              radiusClass={radiusClass}
+              player={stage.player}
+              currency={profile.currency || "USD"}
               username={profile.username}
               playingId={playingId}
               onTogglePlay={togglePlay}

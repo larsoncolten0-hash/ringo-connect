@@ -4,13 +4,31 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import AuthShell from "@/components/auth/AuthShell";
+import { getPushStatus, rememberPushResume, unsubscribeFromPush } from "@/lib/push/subscribeClient";
 
 export default function LogoutPage() {
   const [done, setDone] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.signOut().then(() => setDone(true));
+    (async () => {
+      // Take this device's push subscription off the account BEFORE the session ends (it is matched by endpoint, so no sign-in is needed, but the user id is
+      // read first so the same account can quietly turn push back on when it signs in again). Never blocks signing out: any failure just moves on.
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const status = await getPushStatus();
+        if (user && status.supported && status.subscribed) {
+          const result = await unsubscribeFromPush("/api/push/unsubscribe");
+          if (result.ok) rememberPushResume(user.id);
+        }
+      } catch {
+        // signing out must always work
+      }
+      await supabase.auth.signOut();
+      setDone(true);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

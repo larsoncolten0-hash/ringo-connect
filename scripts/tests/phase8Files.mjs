@@ -11,6 +11,11 @@ export const PHASE8_AUTH_SENSITIVE_FILES = new Set([
   "src/app/auth/callback/route.ts",
   "src/app/auth/callback/", // how `git status --porcelain` lists the new callback folder while it is untracked (it holds only route.ts)
   "src/app/auth/login/page.tsx",
+  // UX refinement phase: login lands on Ringo Home (login page + oauthLogin.resolveDestination), the sign-out bounce remembers where the person was going
+  // (middleware: one added query parameter), and logout removes this device's push subscription. No session, token, cookie, RLS or role logic changed.
+  "src/app/auth/logout/page.tsx",
+  "src/lib/auth/oauthLogin.ts",
+  "src/middleware.ts",
   "src/app/api/admin/requests/[id]/approve/route.ts" // only the "email already exists" 409 mapping; see oauthCleanup.test.mjs
 ]);
 export const isPhase8AuthFile = (f) => PHASE8_AUTH_SENSITIVE_FILES.has(String(f).replace(/\\/g, "/"));

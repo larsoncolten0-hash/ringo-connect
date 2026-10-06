@@ -20,6 +20,7 @@ import { useEditorPreview } from "./EditorPreviewContext";
 import { useAutosavedRows } from "./useAutosavedRows";
 import { planProductsSave } from "./productsSave";
 import { countHidden } from "@/lib/planEntitlements";
+import PlanCta from "@/components/ui/PlanCta";
 
 export default function CatalogCard({
   profileId,
@@ -181,9 +182,7 @@ export default function CatalogCard({
       <EditorCard icon={ShoppingBag} title={title}>
         <div className="border border-dashed border-ringo-border rounded-card p-6 text-center text-sm text-ringo-muted flex flex-col items-center gap-3">
           {t.editor.catalogLocked}
-          <Link href="/dashboard/subscription" className="text-xs font-medium text-ringo-indigo">
-            {t.sidebar.upgradePlan}
-          </Link>
+          <PlanCta variant="secondary">{t.sidebar.upgradePlan}</PlanCta>
         </div>
       </EditorCard>
     );
@@ -209,12 +208,10 @@ export default function CatalogCard({
       }
     >
       {hiddenCount > 0 && (
-        <p className="text-xs text-ringo-coral mb-3">
-          {t.editor.productsHiddenByPlan(hiddenCount, maxProducts!)}{" "}
-          <Link href="/dashboard/subscription" className="font-medium underline">
-            {t.sidebar.upgradePlan}
-          </Link>
-        </p>
+        <div className="mb-3 flex flex-col items-start gap-2">
+          <p className="text-xs text-ringo-coral">{t.editor.productsHiddenByPlan(hiddenCount, maxProducts!)}</p>
+          <PlanCta variant="secondary">{t.sidebar.upgradePlan}</PlanCta>
+        </div>
       )}
       {products.length === 0 && <EmptyState icon={ShoppingBag} title={t.editor.noProductsYet} hint={t.editor.noProductsHint} />}
 

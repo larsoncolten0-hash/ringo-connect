@@ -8,6 +8,7 @@ import FormField from "@/components/auth/FormField";
 import SubmitButton from "@/components/auth/SubmitButton";
 import FormBanner from "@/components/auth/FormBanner";
 import OAuthButtons from "@/components/auth/OAuthButtons";
+import { resolveDestination } from "@/lib/auth/oauthLogin";
 
 function LoginForm() {
   const [identifier, setIdentifier] = useState("");
@@ -60,7 +61,8 @@ function LoginForm() {
     // right where the person left off instead of stranding them on the
     // main dashboard with no obvious way back to what they clicked.
     const invite = searchParams.get("invite");
-    router.push(invite ? `/team/invite/${invite}` : data.role === "admin" ? "/admin" : "/dashboard");
+    // ...then where they were heading when the login page interrupted them (middleware adds ?next=, validated by safeNextPath), then Ringo Home.
+    router.push(resolveDestination({ role: data.role, invite, next: searchParams.get("next") }));
     router.refresh();
   };
 

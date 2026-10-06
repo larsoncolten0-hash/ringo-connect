@@ -41,8 +41,13 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   // Protect /dashboard and /admin from logged-out visitors.
   const path = request.nextUrl.pathname;
   if (!user && (path.startsWith("/dashboard") || path.startsWith("/admin"))) {
+    // Remember where they were going, so the login page can take them back there (it validates the value with safeNextPath, so only a same-site path is
+    // ever followed). Before this a notification link, a bookmark or a shared dashboard URL opened while signed out landed on the default page after login.
+    const requested = `${path}${request.nextUrl.search}`;
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
+    url.search = "";
+    url.searchParams.set("next", requested);
     return NextResponse.redirect(url);
   }
 
