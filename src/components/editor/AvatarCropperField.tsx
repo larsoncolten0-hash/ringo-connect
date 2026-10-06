@@ -95,7 +95,7 @@ export default function AvatarCropperField({
       const path = `${userId}/avatar/${crypto.randomUUID()}.jpg`;
       const { error: uploadError } = await supabase.storage.from("uploads").upload(path, blob, {
         upsert: true,
-        cacheControl: "3600",
+        cacheControl: "31536000", // a fresh random file name each time: the object never changes
         contentType: "image/jpeg",
       });
       if (uploadError) throw uploadError;

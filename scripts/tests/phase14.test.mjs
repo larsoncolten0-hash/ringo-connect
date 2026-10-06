@@ -99,10 +99,8 @@ if (decide && decideToolkitLock) {
   });
 }
 test("agreement: the lock only ever renders a screen, so the unchanged API guards and database checks remain the authority", () => {
-  const git = (args) => execFileSync("git", args, { cwd: REPO, encoding: "utf8" });
-  let diff = "";
-  try { diff = git(["status", "--porcelain"]); } catch { return; }
-  const touched = diff.split(String.fromCharCode(10)).filter(Boolean).map((l) => l.slice(3));
+  let touched;
+  try { touched = execFileSync("git", ["show", "--name-only", "--format=", "84bdfea"], { cwd: REPO, encoding: "utf8" }).split(String.fromCharCode(10)).filter(Boolean); } catch { return; }
   for (const f of ["src/lib/bookkeeping/access.ts", "src/lib/bookkeeping/decision.ts", "src/lib/inventory/access.ts", "src/lib/documents/access.ts", "src/lib/reports/access.ts", "src/lib/sales/access.ts", "src/lib/documents/routeKit.ts"]) assert.ok(!touched.includes(f), `${f} must be unchanged`);
   assert.ok(!touched.some((f) => f.startsWith("src/app/api/") || f.startsWith("supabase/")), "no API route or SQL changed");
 });
@@ -214,14 +212,15 @@ test("preview sheet: the clipped profile wrapper cannot be squeezed by the flex 
 });
 
 // ---------------------------------------------------------------- 7. scope
-const status = (() => {
+// Pinned to the Phase 14 COMMIT, not the working tree, so later phases do not trip it (same convention as the other finished phases).
+const PHASE14_COMMIT = "84bdfea";
+const changed = (() => {
   try {
-    return execFileSync("git", ["status", "--porcelain"], { cwd: REPO, encoding: "utf8" });
+    return execFileSync("git", ["show", "--name-only", "--format=", PHASE14_COMMIT], { cwd: REPO, encoding: "utf8" }).split(String.fromCharCode(10)).filter(Boolean);
   } catch {
-    return null;
+    return null; // commit not present (a shallow clone): nothing to compare
   }
 })();
-const changed = status === null ? null : status.split("\n").filter(Boolean).map((l) => l.slice(3).replace(/^"|"$/g, ""));
 test("scope: no package, lockfile, env, migration, Supabase, API route, payment, auth, WhatsApp, booking, order, NFC or QR file changed", () => {
   if (changed === null) return;
   const bad = changed.filter(

@@ -24,6 +24,47 @@ export { generateMetadata, generateViewport } from "@/lib/profileMetadata";
 // page. See dashboard/subscription/page.tsx for the same reasoning.
 export const dynamic = "force-dynamic";
 
+type StaffBadge = { orgUsername: string; orgName: string; orgAvatarUrl: string | null; roleName: string };
+
+// Public "current role" badge(s) — e.g. "Chef at Mama's Kitchen" — live-
+// derived from active organization_members rows every render (never a
+// stored copy, so being removed from a team makes the badge disappear
+// automatically). Governed by one global opt-out
+// (profiles.team_badges_enabled, default true — see AvatarMenu.tsx).
+//
+// Fetched with the admin client: an anonymous visitor has no RLS access
+// to organization_members/organization_roles at all ("staff.view or
+// your own row" — a public visitor is neither), the same posture every
+// other public-page read of cross-tenant data in this app already uses
+// (see /r/[username]/page.tsx for the identical createAdminClient()
+// pattern). Only ever returns non-sensitive, already-public fields
+// (an org's own name/username/avatar, a role's own name).
+async function loadStaffBadges(profile: any): Promise<StaffBadge[]> {
+  if (profile.team_badges_enabled === false) return [];
+  const admin = createAdminClient();
+  const { data: memberships } = await admin
+    .from("organization_members")
+    .select("organization_roles(name), profiles(username, name, avatar_url, published)")
+    .eq("user_id", profile.user_id)
+    .eq("status", "active");
+
+  return (memberships || [])
+    .map((m: any) => ({
+      orgUsername: m.profiles?.username as string | undefined,
+      orgName: (m.profiles?.name || m.profiles?.username) as string | undefined,
+      orgAvatarUrl: (m.profiles?.avatar_url ?? null) as string | null,
+      roleName: m.organization_roles?.name as string | undefined,
+      published: m.profiles?.published as boolean | undefined,
+    }))
+    // Only a badge that can actually be clicked through to a real,
+    // reachable page — an org profile that isn't published 404s on
+    // /[username] itself, so no point linking to it.
+    .filter((b): b is { orgUsername: string; orgName: string; orgAvatarUrl: string | null; roleName: string; published: boolean } =>
+      !!b.orgUsername && !!b.roleName && b.published !== false
+    )
+    .map(({ orgUsername, orgName, orgAvatarUrl, roleName }) => ({ orgUsername, orgName: orgName!, orgAvatarUrl, roleName }));
+}
+
 export default async function PublicProfilePage({
   params,
 }: {
@@ -43,6 +84,18 @@ export default async function PublicProfilePage({
   if (!profile) return notFound();
   if (await isPublicProfileSuspended(params.username)) return notFound();
 
+  // What follows that only needs the profile row runs TOGETHER: the owner's plan, the signed-in user, the checkout capability and the staff
+  // badges used to be awaited one after another (four extra round trips in a row on the busiest page). They are reads with no effect on each
+  // other. The suspension gate above stays first and sequential (it is also request-cached), and the visit is only recorded, and the Pixel
+  // event only sent, after it.
+  const [ownerPlanResult, authResult, commerceCheckoutAvailable, staffBadges] = await Promise.all([
+    createAdminClient().from("users").select("plans(max_links, max_products, custom_theme_enabled)").eq("id", profile.user_id).maybeSingle(),
+    supabase.auth.getUser(),
+    computeProfileCheckoutAvailability(profile),
+    loadStaffBadges(profile),
+  ]);
+  const ownerPlanRow = ownerPlanResult.data;
+
   // Subscription controls ACCESS, never data retention (see planEntitlements.ts): a downgraded
   // creator's extra links/products/theme customization stay fully intact in the database — only
   // what's currently visible on THIS public page is limited to what their CURRENT plan allows. The
@@ -54,11 +107,6 @@ export default async function PublicProfilePage({
   // anon-key query above would silently resolve to null for every real visitor (confirmed live —
   // RLS filters an embedded to-one relation to null rather than erroring, so this failure mode is
   // completely silent unless checked against the anon key specifically, not just the service role).
-  const { data: ownerPlanRow } = await createAdminClient()
-    .from("users")
-    .select("plans(max_links, max_products, custom_theme_enabled)")
-    .eq("id", profile.user_id)
-    .maybeSingle();
   const ownerPlan = (ownerPlanRow as any)?.plans ?? null;
   // Rows with nothing to show (an empty link, a nameless product) are dropped BEFORE the plan limit, so they
   // never use up one of the owner's visible slots (see lib/publicContent.ts). Display only; nothing is changed.
@@ -83,9 +131,7 @@ export default async function PublicProfilePage({
   // live view (see that component's comment) — this page is already
   // force-dynamic (see above), so one extra auth read costs nothing this
   // route doesn't already pay for a signed-in visitor's cookies.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = authResult.data.user;
   const isOwner = user?.id === profile.user_id;
 
   const { referrer, country, city } = extractRequestContext(headers());
@@ -148,46 +194,7 @@ export default async function PublicProfilePage({
   // dashboard/page.tsx) — CatalogSection resolves each product's own CTA button text/destination
   // (Buy Now / Book Now / Shop Now / etc., matching the item's own detail page) from this plus each
   // product's own fields, entirely client-side, no per-product server round trip.
-  (publicProfile as any).commerceCheckoutAvailable = await computeProfileCheckoutAvailability(profile);
-
-  // Public "current role" badge(s) — e.g. "Chef at Mama's Kitchen" — live-
-  // derived from active organization_members rows every render (never a
-  // stored copy, so being removed from a team makes the badge disappear
-  // automatically). Governed by one global opt-out
-  // (profiles.team_badges_enabled, default true — see AvatarMenu.tsx).
-  //
-  // Fetched with the admin client: an anonymous visitor has no RLS access
-  // to organization_members/organization_roles at all ("staff.view or
-  // your own row" — a public visitor is neither), the same posture every
-  // other public-page read of cross-tenant data in this app already uses
-  // (see /r/[username]/page.tsx for the identical createAdminClient()
-  // pattern). Only ever returns non-sensitive, already-public fields
-  // (an org's own name/username/avatar, a role's own name).
-  let staffBadges: { orgUsername: string; orgName: string; orgAvatarUrl: string | null; roleName: string }[] = [];
-  if (profile.team_badges_enabled !== false) {
-    const admin = createAdminClient();
-    const { data: memberships } = await admin
-      .from("organization_members")
-      .select("organization_roles(name), profiles(username, name, avatar_url, published)")
-      .eq("user_id", profile.user_id)
-      .eq("status", "active");
-
-    staffBadges = (memberships || [])
-      .map((m: any) => ({
-        orgUsername: m.profiles?.username as string | undefined,
-        orgName: (m.profiles?.name || m.profiles?.username) as string | undefined,
-        orgAvatarUrl: (m.profiles?.avatar_url ?? null) as string | null,
-        roleName: m.organization_roles?.name as string | undefined,
-        published: m.profiles?.published as boolean | undefined,
-      }))
-      // Only a badge that can actually be clicked through to a real,
-      // reachable page — an org profile that isn't published 404s on
-      // /[username] itself, so no point linking to it.
-      .filter((b): b is { orgUsername: string; orgName: string; orgAvatarUrl: string | null; roleName: string; published: boolean } =>
-        !!b.orgUsername && !!b.roleName && b.published !== false
-      )
-      .map(({ orgUsername, orgName, orgAvatarUrl, roleName }) => ({ orgUsername, orgName: orgName!, orgAvatarUrl, roleName }));
-  }
+  (publicProfile as any).commerceCheckoutAvailable = commerceCheckoutAvailable;
 
   // Structured data for search engines: only public, displayed fields (see lib/seo.ts); null for a demo profile.
   const jsonLd = buildProfileJsonLd(publicProfile as any);

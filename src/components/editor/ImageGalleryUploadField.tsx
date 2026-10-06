@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Loader2, ImagePlus, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { downscaleImage } from "@/lib/imageDownscale";
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -50,9 +51,10 @@ export default function ImageGalleryUploadField({
     try {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${userId}/${folder}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("uploads").upload(path, file, {
+      const { error: uploadError } = await supabase.storage.from("uploads").upload(path, await downscaleImage(file), {
         upsert: true,
-        cacheControl: "3600",
+        // the name is a fresh random id, so this object never changes: let browsers and the CDN keep it for a year
+        cacheControl: "31536000",
       });
       if (uploadError) throw uploadError;
 
