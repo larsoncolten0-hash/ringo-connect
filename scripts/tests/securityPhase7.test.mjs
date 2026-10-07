@@ -183,7 +183,7 @@ await test("nothing in the observability code touches amounts, eligibility, the 
   const code = read("src/lib/payoutAudit.ts") + read("src/lib/adminAudit.ts");
   assert.ok(!/fapshiPayout|fapshiDirectPay|\.rpc\(|\.update\(|\.delete\(/.test(code.replace(/\/\/[^\n]*/g, "")));
   assert.ok(!/^\s*(create|alter)\s+(policy|table|function)/im.test(code));
-  assert.ok(!fs.readdirSync(path.join(REPO, "supabase/migrations")).some((f) => /^2026-10-07d/.test(f)), "no migration is part of this change");
+  assert.ok(!fs.readdirSync(path.join(REPO, "supabase/migrations")).some((f) => /^2026-10-07d/.test(f) && f !== "2026-10-07d_watchdog_events.sql"), "no migration is part of the Phase 7 change (the only 07d migration is the later, separate Watchdog one)");
 });
 
 // ----------------------------------------------------------------------------------------------------------------- 4. fail closed + the aggregator

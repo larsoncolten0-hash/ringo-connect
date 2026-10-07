@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { recordAudit } from "@/lib/adminAudit";
+import { createAdminClient } from "@/lib/supabase/server";
 import { requireOrgAccessJson, getOrgMaxSeats, countActiveOrgMembers } from "@/lib/team/access";
 import { generateInvitationToken, invitationExpiryDate, buildInvitationUrl, DEFAULT_INVITATION_TTL_DAYS } from "@/lib/team/invitations";
 import { logOrgActivity } from "@/lib/team/activity";
@@ -109,6 +111,8 @@ export async function POST(request: Request) {
   if (!access.isOwner && !access.isAdmin) {
     const disallowed = (role.permissions || []).filter((p: string) => !access.hasPermission(p as any));
     if (disallowed.length > 0) {
+      // A refused escalation: the caller tried to grant permissions they do not hold. Recorded (ids only, no permission names) so Watchdog can alert the owner.
+      await recordAudit(createAdminClient(), { actorId: user.id, action: "team_permission_escalation_blocked", details: { site: "invitation_create", profileId } });
       return NextResponse.json({ error: `You can't grant permissions you don't have: ${disallowed.join(", ")}` }, { status: 403 });
     }
   }

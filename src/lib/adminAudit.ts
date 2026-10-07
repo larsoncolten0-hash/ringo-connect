@@ -2,8 +2,10 @@
 // rows added after the audit. It is the SAME table and the SAME row shape every older route writes inline; this only adds the error handling those inline inserts lack.
 //
 // Rules for callers: `details` carries object ids and field NAMES, never a secret, a token, a destination value, a phone number, an email or a provider payload.
-// Never throws: an audit problem must not change the result of the action it records (the same posture as the notification helpers). `actorId` is the signed-in
+// Never throws: an audit problem (or a Watchdog problem) must not change the result of the action it records (the same posture as the notification helpers). `actorId` is the signed-in
 // user who performed the action (an admin for admin routes; the earner themselves for a self-service event such as a payout-destination change).
+import { observeAuditEvent } from "@/lib/watchdog";
+
 export type AuditRow = {
   actorId: string;
   action: string;
@@ -19,7 +21,12 @@ export async function recordAudit(admin: any, row: AuditRow): Promise<void> {
       target_user_id: row.targetUserId ?? null,
       details: row.details ?? null,
     });
-    if (error) console.error(`audit write failed (${row.action}):`, error.code ?? "unknown");
+    if (error) {
+      console.error(`audit write failed (${row.action}):`, error.code ?? "unknown");
+      return;
+    }
+    // Ringo Watchdog: let the observer look at the row that was just written. It only ever alerts, never throws and never changes the outcome of this call.
+    await observeAuditEvent(admin, row);
   } catch (err) {
     console.error(`audit write threw (${row.action}):`, (err as Error)?.name ?? "unknown");
   }

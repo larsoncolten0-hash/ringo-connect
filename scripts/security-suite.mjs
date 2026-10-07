@@ -10,6 +10,8 @@
 //   node scripts/security-suite.mjs            run everything
 //   node scripts/security-suite.mjs --list     print the suites and exit
 //   node scripts/security-suite.mjs phase3     run only suites whose id or name contains "phase3"
+//   node scripts/security-suite.mjs --report   on a FAILURE, also tell Ringo Watchdog (rule WD-005). Needs WATCHDOG_REPORT_URL (https://<site>/api/watchdog/security-suite)
+//                                              and WATCHDOG_INGEST_TOKEN in the environment. Reporting never changes the exit code and prints no secret.
 import fs from "fs";
 import path from "path";
 import { spawnSync } from "child_process";
@@ -18,6 +20,20 @@ import { fileURLToPath } from "url";
 
 const REPO = fileURLToPath(new URL("../", import.meta.url));
 const require = createRequire(import.meta.url);
+
+// WD-005: tell Ringo Watchdog the suite failed. Best effort; the exit code is decided by the suites alone, and nothing secret is ever printed.
+async function reportFailure(failedIds) {
+  const url = process.env.WATCHDOG_REPORT_URL;
+  const token = process.env.WATCHDOG_INGEST_TOKEN;
+  if (!url || !token) { console.log("Watchdog report NOT sent: set WATCHDOG_REPORT_URL and WATCHDOG_INGEST_TOKEN to enable --report."); return; }
+  const ref = String(process.env.WATCHDOG_REF || process.env.GITHUB_SHA || process.env.VERCEL_GIT_COMMIT_SHA || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40) || undefined;
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify({ status: "fail", failed: failedIds, ref }), signal: AbortSignal.timeout(15000) });
+    console.log(`Watchdog report sent: HTTP ${res.status}`);
+  } catch (err) {
+    console.log(`Watchdog report FAILED to send (${err?.name || "error"}); the security failure above still stands.`);
+  }
+}
 
 // sql: true = the suite itself runs database-level attacks on PGlite (or spawns a script that does)
 const SUITES = [
@@ -32,6 +48,8 @@ const SUITES = [
   { id: "phase6", name: "Phase 6  payout request concurrency", file: "scripts/tests/securityPhase6.test.mjs", sql: true },
   { id: "phase6-sql", name: "Phase 6  adversarial SQL: payout concurrency", file: "supabase/support/tests/payout_concurrency.adversarial.mjs", sql: true },
   { id: "phase7", name: "Phase 7  audit trail, payout destination / failure events", file: "scripts/tests/securityPhase7.test.mjs", sql: false },
+  { id: "watchdog", name: "Watchdog V1  rules, deduplication, alerts, safety, reliability", file: "scripts/tests/watchdog.test.mjs", sql: true },
+  { id: "watchdog-sql", name: "Watchdog V1  adversarial SQL: incident table RLS, append-only, dedupe", file: "supabase/support/tests/watchdog.adversarial.mjs", sql: true },
   { id: "demo-flag-sql", name: "Earlier  adversarial SQL: profiles demo flag guard", file: "supabase/support/tests/profiles_demo_flag_guard.adversarial.mjs", sql: true },
   { id: "partner-demo", name: "Earlier  partner / demo route security", file: "supabase/support/tests/partner_demo_security.mjs", sql: true },
   { id: "fapshi", name: "Earlier  Fapshi payment safety", file: "scripts/tests/fapshiSafety.test.mjs", sql: false },
@@ -44,6 +62,7 @@ if (args.includes("--list")) {
   for (const s of SUITES) console.log(`${s.id.padEnd(14)} ${s.sql ? "[sql] " : "      "}${s.file}  -  ${s.name}`);
   process.exit(0);
 }
+const reportToWatchdog = args.includes("--report");
 const filters = args.filter((a) => !a.startsWith("--")).map((a) => a.toLowerCase());
 const selected = filters.length ? SUITES.filter((s) => filters.some((f) => s.id.includes(f) || s.name.toLowerCase().includes(f))) : SUITES;
 if (selected.length === 0) { console.error(`No suite matches: ${filters.join(", ")}  (try --list)`); process.exit(2); }
@@ -91,7 +110,9 @@ console.log("\n" + "=".repeat(78));
 console.log(`PASS ${count("PASS")}   FAIL ${count("FAIL")}   SKIPPED ${count("SKIPPED")}   of ${rows.length}`);
 if (count("SKIPPED") > 0) console.log("SKIPPED suites did NOT run: this result is not a full security pass.");
 if (count("FAIL") > 0) {
-  console.log("FAILED: " + rows.filter((r) => r.status === "FAIL").map((r) => r.id).join(", "));
+  const failedIds = rows.filter((r) => r.status === "FAIL").map((r) => r.id);
+  console.log("FAILED: " + failedIds.join(", "));
+  if (reportToWatchdog) await reportFailure(failedIds);
   process.exit(1);
 }
 console.log(count("SKIPPED") > 0 ? "No failures, but incomplete (SKIP_SQL=1)." : "Security suite passed.");

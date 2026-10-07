@@ -4325,6 +4325,66 @@ export const translations = {
         },
       },
     },
+    // Ringo Watchdog V1: owner alerts (one bilingual notification) and the /admin/watchdog feed. Alert text is rendered from the rule code + a few safe values
+    // (counts, program, category, window); it never carries a phone number, an email, a destination, a token or a provider message.
+    watchdog: {
+      navLabel: "Watchdog",
+      alertTitle: (severity: string) => `Watchdog Alert — ${severity}`,
+      severity: { medium: "Medium", high: "High" },
+      programs: { affiliate: "affiliate", music: "music", shop: "shop" },
+      categories: {
+        provider_rejected: "rejected by the payment provider",
+        provider_uncertain: "outcome uncertain at the payment provider",
+        sent_but_not_recorded: "accepted by the provider but not recorded by Ringo",
+      },
+      rules: {
+        "WD-001": {
+          title: "Payout destination changed",
+          body: (_p: Record<string, any>) =>
+            "A payout destination was added or changed on an account (affiliate, music and shop payouts share it). No destination details are shown. The account holder has been notified; review the account if this looks unexpected.",
+        },
+        "WD-002": {
+          title: "Repeated payout failures",
+          body: (p: Record<string, any>) =>
+            `Watchdog detected ${p.count} failed ${p.program} payout attempts within ${p.windowMinutes} minutes${p.scope === "account" ? " for the same account" : ""} (${p.category}). Human review recommended.`,
+        },
+        "WD-003": {
+          title: "Payout outcome uncertain",
+          body: (p: Record<string, any>) =>
+            `A ${p.program} payout may have been accepted by the payment provider but was not fully recorded by Ringo (${p.category}). Immediate review is recommended. Nothing was retried or changed automatically.`,
+        },
+        "WD-004": {
+          title: "Repeated payout request refusals",
+          body: (p: Record<string, any>) =>
+            `Watchdog detected ${p.count} ${p.program} payout requests refused for exceeding the available balance within ${p.windowMinutes} minutes on the same account. This can indicate abuse, automation or an application problem. No action was taken on the account.`,
+        },
+        "WD-005": {
+          title: "Security suite regression",
+          body: (p: Record<string, any>) =>
+            `Ringo security suite reported a regression${p.failedCount ? ` (${p.failedCount} suite${p.failedCount === 1 ? "" : "s"} failed)` : ""}. Production security checks require review.`,
+        },
+        "WD-006": {
+          title: "Blocked team permission escalation",
+          body: (_p: Record<string, any>) => "Watchdog detected a blocked team permission escalation attempt. The change was refused.",
+        },
+      },
+      feed: {
+        title: "Watchdog",
+        subtitle: "Security and financial incidents Ringo detected on its own audit trail. Watchdog only alerts: it never blocks, retries or changes anything.",
+        empty: "No incidents. Nothing suspicious has been detected.",
+        open: "Open",
+        acknowledged: "Acknowledged",
+        resolved: "Resolved",
+        acknowledge: "Acknowledge",
+        resolve: "Resolve",
+        account: "Account",
+        reference: "Reference",
+        acknowledgedAt: "Acknowledged",
+        resolvedAt: "Resolved",
+        actionFailed: "Could not update this incident. Try again.",
+        showing: (n: number) => `Showing the latest ${n} incidents.`,
+      },
+    },
     // Owner notification when the payout destination shared by the affiliate, music and shop payouts is added or changed. Carries no destination detail.
     payoutDestinationNotifications: {
       added: {
@@ -10556,6 +10616,64 @@ export const translations = {
           failed: "L'action a échoué. Veuillez réessayer.",
           network: "Erreur réseau. Veuillez réessayer.",
         },
+      },
+    },
+    watchdog: {
+      navLabel: "Watchdog",
+      alertTitle: (severity: string) => `Alerte Watchdog — ${severity}`,
+      severity: { medium: "Moyenne", high: "Élevée" },
+      programs: { affiliate: "d'affiliation", music: "de musique", shop: "de boutique" },
+      categories: {
+        provider_rejected: "refusé par le prestataire de paiement",
+        provider_uncertain: "résultat incertain chez le prestataire de paiement",
+        sent_but_not_recorded: "accepté par le prestataire mais non enregistré par Ringo",
+      },
+      rules: {
+        "WD-001": {
+          title: "Destination de paiement modifiée",
+          body: (_p: Record<string, any>) =>
+            "Une destination de paiement a été ajoutée ou modifiée sur un compte (les paiements d'affiliation, de musique et de boutique la partagent). Aucun détail de la destination n'est affiché. Le titulaire du compte a été prévenu ; vérifiez le compte si cela vous semble inattendu.",
+        },
+        "WD-002": {
+          title: "Échecs de paiement répétés",
+          body: (p: Record<string, any>) =>
+            `Watchdog a détecté ${p.count} échecs d'envoi de paiement ${p.program} en ${p.windowMinutes} minutes${p.scope === "account" ? " pour le même compte" : ""} (${p.category}). Une vérification humaine est recommandée.`,
+        },
+        "WD-003": {
+          title: "Résultat de paiement incertain",
+          body: (p: Record<string, any>) =>
+            `Un paiement ${p.program} a peut-être été accepté par le prestataire de paiement mais n'a pas été entièrement enregistré par Ringo (${p.category}). Une vérification immédiate est recommandée. Rien n'a été relancé ni modifié automatiquement.`,
+        },
+        "WD-004": {
+          title: "Demandes de paiement refusées en série",
+          body: (p: Record<string, any>) =>
+            `Watchdog a détecté ${p.count} demandes de paiement ${p.program} refusées car supérieures au solde disponible en ${p.windowMinutes} minutes sur le même compte. Cela peut indiquer un abus, une automatisation ou un problème d'application. Aucune action n'a été prise sur le compte.`,
+        },
+        "WD-005": {
+          title: "Régression de la suite de sécurité",
+          body: (p: Record<string, any>) =>
+            `La suite de sécurité de Ringo a signalé une régression${p.failedCount ? ` (${p.failedCount} suite${p.failedCount === 1 ? "" : "s"} en échec)` : ""}. Les contrôles de sécurité de production doivent être vérifiés.`,
+        },
+        "WD-006": {
+          title: "Élévation de permissions d'équipe bloquée",
+          body: (_p: Record<string, any>) => "Watchdog a détecté une tentative bloquée d'élévation de permissions d'équipe. La modification a été refusée.",
+        },
+      },
+      feed: {
+        title: "Watchdog",
+        subtitle: "Incidents de sécurité et financiers détectés par Ringo dans son propre journal d'audit. Watchdog alerte seulement : il ne bloque, ne relance et ne modifie rien.",
+        empty: "Aucun incident. Rien de suspect n'a été détecté.",
+        open: "Ouvert",
+        acknowledged: "Pris en compte",
+        resolved: "Résolu",
+        acknowledge: "Prendre en compte",
+        resolve: "Résoudre",
+        account: "Compte",
+        reference: "Référence",
+        acknowledgedAt: "Pris en compte",
+        resolvedAt: "Résolu",
+        actionFailed: "Impossible de mettre à jour cet incident. Réessayez.",
+        showing: (n: number) => `Affichage des ${n} derniers incidents.`,
       },
     },
     payoutDestinationNotifications: {
