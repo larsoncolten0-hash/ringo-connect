@@ -5,6 +5,7 @@ import { PHASE16_FILES } from "./phase16Files.mjs"; // the security remediation 
 import { PHASE17_FILES } from "./phase17Files.mjs"; // the Phase 2 authN/authZ audit (team permission ceiling guard): likewise
 import { PHASE18_FILES } from "./phase18Files.mjs"; // the Phase 3 database / data security audit (private file path guard): likewise
 import { PHASE19_FILES } from "./phase19Files.mjs"; // the Phase 4 API / input security audit (music order payment binding): likewise
+import { PHASE20_FILES } from "./phase20Files.mjs"; // the Phase 5 infrastructure / secrets audit (image optimizer off): likewise
 import { SCALABILITY_PHASE0_FILES } from "./scalabilityPhase0Files.mjs"; // scalability and reliability Phase 0: likewise
 import { SCALABILITY_PHASE1TO5_FILES } from "./scalabilityPhase1to5Files.mjs"; // scalability and reliability Phases 1-5: likewise
 
@@ -21,6 +22,7 @@ export const OWNER_WORKSPACE_FILES = new Set([
   ...PHASE17_FILES,
   ...PHASE18_FILES,
   ...PHASE19_FILES,
+  ...PHASE20_FILES,
   ...SCALABILITY_PHASE0_FILES,
   ...SCALABILITY_PHASE1TO5_FILES,
   "scripts/tests/aiBusinessDrafts.test.mjs", // scope guard: exempts this list
