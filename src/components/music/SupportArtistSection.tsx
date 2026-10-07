@@ -7,7 +7,9 @@ import { formatPrice } from "@/lib/currency";
 import { readableOn } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
 
-const PRESET_AMOUNTS = [500, 1000, 2500, 5000];
+// The configured Gift the Artist amounts (FCFA). Exported so the Music profile's own Gift card offers exactly the same choices.
+export const SUPPORT_PRESET_AMOUNTS = [500, 1000, 2500, 5000];
+const PRESET_AMOUNTS = SUPPORT_PRESET_AMOUNTS;
 
 // Routes into the real Buy Now storefront/checkout (/m/[username]?support=
 // <amount>) rather than a WhatsApp message — a support contribution is now

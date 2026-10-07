@@ -16,6 +16,7 @@ import { PHASE12_FILES } from "./phase12Files.mjs";
 import { PHASE13_FILES } from "./phase13Files.mjs";
 import { PHASE14_FILES } from "./phase14Files.mjs";
 import { PHASE15_FILES } from "./phase15Files.mjs";
+import { PHASE24_FILES } from "./phase24Files.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -300,6 +301,7 @@ await test("compatibility: apart from the landing hero (Phase 2A), no foundation
         const rel = path.relative(REPO, f).replace(/\\/g, "/");
         // Phase 2A: the landing hero is the one approved first adopter of the foundation.
         if (rel.startsWith("src/components/landing/")) continue; // Phase 2A/2: the landing page is the approved adopter (checked in landingHero / landingStory tests)
+        if (PHASE24_FILES.has(rel)) continue; // Music Artist Profile redesign: the Music-only palette/typography module and view (exact files, phase24Files.mjs)
         if (PHASE15_FILES.has(rel)) continue; // UX refinement phase: music latest release / store entry, plan button, AI limit and locked panels
         if (PHASE14_FILES.has(rel)) continue; // commercial destinations phase: the still rail, the shop page, the preview scroll fix, locked business tools
         if (PHASE13_FILES.has(rel)) continue; // visual / UX refinement phase: Ring (Ringo AI avatar) and the Ringo Card world on the dashboard

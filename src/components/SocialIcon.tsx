@@ -57,14 +57,32 @@ export default function SocialIcon({
   platform,
   url,
   themed = false,
+  ghost = false,
 }: {
   platform: string;
   url: string;
   themed?: boolean;
+  // The Music profile's quiet treatment: an outlined 48px circle in the surrounding text colour (the page decides the colours), instead of the brand-coloured chip.
+  ghost?: boolean;
 }) {
   const key = platform?.toLowerCase();
   const Icon = ICONS[key] || FaLink;
   const brand = BRAND_STYLES[key];
+
+  if (ghost) {
+    const ghostHref = displayHref(url);
+    return (
+      <a
+        href={ghostHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={platform}
+        className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-current/20 transition hover:border-current/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+      >
+        <Icon size={18} aria-hidden="true" />
+      </a>
+    );
+  }
 
   // Public page (themed=true) with a recognized platform: real brand
   // color, always on. Editor use (themed=false), or an unrecognized

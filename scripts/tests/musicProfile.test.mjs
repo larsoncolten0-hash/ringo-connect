@@ -1,4 +1,4 @@
-// Phase 3A: the public profile foundation and the Music pilot.
+// Phase 3A: the public profile foundation and the Music pilot; since the Music Artist Profile redesign (phase24Files.mjs) the Music page's design contract is asserted below.
 // A creator's saved theme stays authoritative; a Music profile gets a Ringo stage (a light Paper panel, Ink player cards, the Ring in the
 // creator's own accent) built only from foundation tokens; the product behavior (10-second preview, Buy Now, prices, commissions, routes)
 // is exactly what it was. Real components are server-rendered in EN and FR; layout, motion and pixels are verified in the browser harness.
@@ -59,6 +59,9 @@ const stubs = {
   "@/components/LanguageProvider": { useLanguage: () => ({ locale: LOCALE, t: translations[LOCALE], setLocale() {} }), LanguageProvider: ({ children }) => children },
   "next/link": { __esModule: true, default: ({ href, children, ...p }) => React.createElement("a", { href, ...p }, children) },
   "next/script": { __esModule: true, default: () => null },
+  // The Music artist view is code-split with next/dynamic and uses next/font; the harness resolves both eagerly so the real component is what gets rendered.
+  "next/dynamic": { __esModule: true, default: (loader) => { let C = null; loader().then((m) => { C = m.default || m; }); return (p) => (C ? React.createElement(C, p) : null); } },
+  "next/font/google": new Proxy({ __esModule: true }, { get: (t, k) => (k === "__esModule" ? true : (o) => ({ variable: o && o.variable ? "font-var" + o.variable : "", className: "", style: {} })) }),
   "next/image": { __esModule: true, default: (p) => React.createElement("img", { src: p.src, alt: p.alt }) },
 };
 function load(file) {
@@ -193,152 +196,172 @@ await test("theme safety: ProfileView only READS the creator's theme fields; not
   assert.match(v, /const bgColor = profile\.background_color \|\| "#0A0A0A";/);
   assert.equal(phase3Diff("--name-only", `-- "src/app/[username]/page.tsx" src/lib/categories.ts src/components/editor src/components/dashboard src/app/api`).trim(), "", "the theme sources, the editor and the APIs are untouched");
 });
-await test("theme safety (rendered): a saved creator theme reaches the page exactly as saved, in every theme and every theme field", () => {
+// ===== Music Artist Profile redesign (phase24Files.mjs): the design contract, rendered through the real ProfileView -> MusicArtistView =====
+const MUSIC_GROUND = "#120B10";
+const MUSIC_TEXT = "#F3E9DC";
+const visible = (h) => h.replace(/<[^>]*>/g, "\n").split("\n").map((x) => x.trim()).filter(Boolean);
+await new Promise((r) => setTimeout(r, 100)); // the code-split Music view resolves before the first render
+await test("theme contract (rendered): the Music page keeps its fixed plum-black ground and warm text whatever the creator saved; only the ACCENT is the creator's", () => {
   for (const t of [
     { theme_color: "#F5E3A1", background_style: "solid", background_color: "#101820", text_color: "#F5F5F5", button_style: "soft", button_radius: "square" },
     { theme_color: "#1F9D55", background_style: "solid", background_color: "#FFFFFF", text_color: "#14202B", button_style: "fill", button_radius: "rounded" },
     { theme_color: "#F2B705", background_style: "gradient", background_color: "#0B0B12", background_gradient_end: "#1A1220", text_color: "#FAFAFA", button_style: "outline", button_radius: "pill" },
   ]) {
     const h = render(music(t));
-    assert.ok(h.includes(t.background_style === "gradient" ? `linear-gradient(135deg, ${t.background_color}, ${t.background_gradient_end})` : `background-color:${t.background_color}`), "background " + t.background_color);
-    assert.ok(h.includes(`color:${t.text_color}`), "text");
-    assert.ok(h.includes(`--theme:${t.theme_color}`), "the accent variable");
-    assert.ok(h.includes(`background-color:${t.theme_color}`), "the accent fill (Buy Now)");
+    assert.ok(h.includes(`background-color:${MUSIC_GROUND}`) && h.includes(`color:${MUSIC_TEXT}`), "the fixed Music ground and text");
+    for (const needle of [`background-color:${t.background_color}`, `;color:${t.text_color}`, `linear-gradient(135deg, ${t.background_color}`]) assert.ok(!h.includes(needle), "not applied: " + needle); assert.ok(true, "the creator's saved background / text are not applied on a Music page");
+    assert.ok(h.includes(`--theme:${t.theme_color}`) && h.includes(`--mp-accent:${t.theme_color}`), "the creator's accent drives the page");
+    assert.ok(h.includes(`stroke="${t.theme_color}"`) || h.includes(`background-color:${t.theme_color}`) || h.includes(`color:${t.theme_color}`), "and is what the actions and the Ring are drawn in");
+    assert.ok(h.includes(`--mp-on-accent:${color.readableOn(t.theme_color)}`), "text on the accent is whichever of ink / white reads");
   }
   const input = music();
   const before = JSON.stringify(input);
   render(input);
   assert.equal(JSON.stringify(input), before, "the profile object is never mutated by rendering");
+  const pal = jiti(path.join(SRC, "components/music/profile/musicTheme.ts")).MP;
+  assert.equal(pal.bg.toUpperCase(), MUSIC_GROUND);
+  assert.equal(pal.fg.toUpperCase(), MUSIC_TEXT);
+  assert.ok(color.contrastRatio(pal.bg, pal.fg) >= 12, "warm paper on plum-black");
+  assert.ok(color.contrastRatio(pal.bg, pal.muted) >= 4.5, "the muted text still reads on the ground");
 });
-await test("every theme property still drives the page: the hero uses the creator's background and text, buttons keep their radius", () => {
-  const h = render(music({ background_color: "#101820", text_color: "#F5F5F5", button_radius: "square" }));
-  assert.ok(h.includes("background-color:#101820") && h.includes("color:#F5F5F5"));
-  assert.ok(h.includes("rounded-md"), "a square-radius profile keeps square link buttons");
-  assert.ok(render(music({ button_radius: "pill" })).includes("rounded-full"));
+await test("theme contract: the accent stays legible on every creator accent (Buy / Gift text uses readableOn), the platform gold is only the default", () => {
+  for (const accent of ["#D4A954", "#F5E3A1", "#1F9D55", "#4F46E5", "#E11D48"]) {
+    const h = render(music({ theme_color: accent }));
+    assert.ok(h.includes(`--mp-on-accent:${color.readableOn(accent)}`));
+    assert.ok(color.contrastRatio(accent, color.readableOn(accent)) >= 4.5, accent);
+  }
+  assert.ok(render(music({ theme_color: null })).includes("--mp-accent:#D4A954"), "no saved accent falls back to the platform gold");
+  const v = strip(raw("src/components/ProfileView.tsx"));
+  assert.match(v, /\.\.\.\(isMusic \? \{ backgroundImage: "none", background: "#120B10", backgroundColor: "#120B10", color: "#F3E9DC" \} : \{\}\)/, "only the Music category overrides the ground");
 });
-
-// ------------------------------------------------------------------ the Music experience (rendered, EN and FR)
-const stageMarks = (h) => ({
-  panel: h.includes("rounded-ringo-xl") && h.includes("background-color:rgb(var(--rc-paper))"),
-  ring: (h.match(/<svg[^>]*aria-hidden="true"/g) || []).length,
-  pulses: (h.match(/animate-ring-pulse/g) || []).length,
-});
-await test("Music renders the stage: Paper panel, the open Ring in the creator's accent around the avatar (no looping pulse), a closing Ring", () => {
+await test("Music renders its own composition: dark ground, the open Ring in the creator's accent around the avatar (no looping pulse), the connection path and the Ringo footer", () => {
   const h = render(music({ theme_color: "#F5E3A1" }));
-  const m = stageMarks(h);
-  assert.ok(m.panel, "Paper panel");
-  assert.equal(m.pulses, 0, "no looping pulse on a Music avatar");
-  assert.ok(h.includes('stroke="#F5E3A1"') && h.includes('stroke-width="2.5"'), "a fine Ring in the creator's accent, not the platform gold");
-  assert.ok(!h.includes("ring-4"), "the avatar's own thick ring is replaced by the Ring");
-  assert.equal((h.match(/<svg[^>]*viewBox="0 0 100 100"[^>]*aria-hidden="true"/g) || []).length, 2, "two Rings: around the avatar and in the footer");
-  assert.ok((h.match(/stroke="#F5E3A1"/g) || []).length >= 2, "both in the same creator accent");
-  assert.ok(h.includes('<footer role="contentinfo"'));
-  assert.ok(h.indexOf("<svg", h.indexOf('<footer role="contentinfo"')) > 0, "the closing Ring sits in the footer");
-  assert.ok(!h.includes("rgb(var(--rc-signal))"), "teal appears only for a real connected state (none is shown on the page)");
+  assert.equal((h.match(/animate-ring-pulse/g) || []).length, 0, "no looping pulse");
+  assert.ok(h.includes('stroke="#F5E3A1"'), "a Ring in the creator's accent, not the platform gold");
+  assert.ok(!h.includes("--rc-paper") && !h.includes("rounded-ringo-xl"), "no light Paper panel: the old stage is not used on the Music profile");
+  assert.ok(h.includes('<footer role="contentinfo"') && h.includes("Powered by"), "the Ringo footer");
+  assert.ok(h.includes('aria-label="Connection journey"'), "the connection journey");
+  assert.ok(h.includes("#profile-content"), "skip link");
+  for (const bad of ["undefined", "NaN", "[object Object]", "GH₵", "GHS"]) assert.ok(!h.includes(bad), "no " + bad);
 });
-await test("every other category is byte-for-byte the old structure: no panel, the two pulse rings, the thick avatar ring, no Ring", () => {
+await test("every other category is byte-for-byte the old structure: no Music view, no panel, the two pulse rings, the thick avatar ring, no Ring", () => {
   const h = render(generic());
-  assert.ok(!h.includes("rounded-ringo-xl") && !h.includes("--rc-paper"));
+  assert.ok(!h.includes("rounded-ringo-xl") && !h.includes("--rc-paper") && !h.includes("--mp-accent") && !h.includes("#120B10"));
   assert.equal((h.match(/animate-ring-pulse-[12]/g) || []).length, 2);
   assert.ok(h.includes("ring-4"));
   assert.equal((h.match(/<svg[^>]*stroke-width="(2\.5|6)"/g) || []).length, 0, "no Ring on a generic profile");
+  assert.ok(h.includes("background-color:#0A0A0A") && h.includes("color:#FAFAFA"), "a generic profile still gets the creator's saved background and text");
 });
-await test("Music behavior is preserved: Buy Now, Book, the 10-second preview, prices, purchase and detail routes, WhatsApp and social links", () => {
+await test("Music behavior is preserved: Buy, Book, the 10-second preview, prices in XAF / FCFA, purchase and detail routes, WhatsApp and social links", () => {
   const h = render(music());
-  assert.ok(h.includes('href="/m/jaykay"') && h.includes(">Buy Now<"), "Buy Now goes to the storefront");
+  assert.ok(h.includes('href="/m/jaykay"') && h.includes(translations.en.musicProfile.buyMusic || "Buy music"), "Buy music goes to the storefront");
   assert.ok(h.includes('href="/jaykay/book"'), "Book goes to the booking page");
   assert.ok(h.includes("/m/jaykay/track/t1") && h.includes("/m/jaykay/track/t2"), "track detail pages");
   assert.ok(h.includes("/m/jaykay/release/r1") && h.includes("/m/jaykay/release/r3"), "release pages");
   assert.ok(h.includes("/m/jaykay/merch/m1"), "merch detail");
   assert.ok(h.includes("/m/jaykay/ticket/e1"), "ticket detail");
-  assert.ok(h.includes("FCFA 500") && h.includes("FCFA 3,000") && h.includes("FCFA 1,500"), "prices as saved");
-  assert.ok(h.includes(translations.en.music.previewButtonLabel), "protected tracks still say Preview");
-  assert.ok(h.includes('href="https://instagram.com/jaykay"') && h.includes("wa.me/237677123456"), "social and WhatsApp");
+  assert.ok(h.includes("500 FCFA") && h.includes("3,000 FCFA") && h.includes("1,500 FCFA") && h.includes("12,000 FCFA"), "prices exactly as saved, in FCFA");
+  assert.ok(/Preview 10s/.test(h) && h.includes('aria-label="Play preview: My Era"'), "a protected track still offers the 10-second preview");
+  assert.ok(h.includes('aria-label="Buy My Era, 500 FCFA"'), "and the full song is bought, at its real price");
+  assert.ok(h.includes('aria-label="Play: Ndole"'), "an unprotected track just plays");
+  assert.ok(h.includes('href="https://instagram.com/jaykay"') && h.includes("wa.me/237677123456") && h.includes('href="tel:+237677123456"'), "social, WhatsApp and call");
+  assert.ok(h.includes("data:text/vcard"), "save contact");
   assert.ok(!/Listen Now|Écouter maintenant/i.test(h), "no streaming 'Listen Now' replaced the purchase flow");
   assert.ok(h.includes("/m/jaykay?support=1000"), "the gift / support checkout route is unchanged");
+});
+await test("Music data is never invented: a profile with no songs, releases, events, merch, links or about shows none of those sections", () => {
+  const h = render(music({ pinned_type: null, pinned_id: null, tracks: [], music_releases: [], events: [], products: [], links: [], hub_support_enabled: false, about_position: null, about_email: null, about_long_bio: null }));
+  const text = visible(h).join("|");
+  for (const k of ["songsTitle", "releasesTitle", "upcomingTitle", "merchTitle"]) {
+    const label = translations.en.music[k] || translations.en.musicProfile[k];
+    if (label) assert.ok(!text.includes(label), "hidden when empty: " + k);
+  }
+  assert.ok(!h.includes('aria-label="Featured"'), "nothing is pinned or released, so no featured card is invented");
+  assert.ok(!h.includes("FCFA"), "and no price appears");
+  assert.ok(!h.includes("undefined") && !h.includes("GH₵"));
 });
 await test("a protected track is still sold only through its detail page and a preview clip: no direct audio on a protected row", () => {
   const h = render(music());
   assert.ok(!h.includes('src="/p.mp3"') && !/<audio/.test(h), "the page ships no <audio> element or source in the HTML (the single audio element is created on play by useTrackPlayback)");
-  assert.equal(phase3Diff("--name-only", "-- src/components/music/useTrackPlayback.ts src/components/music/ItemDetailPage.tsx src/components/music/MusicStorePage.tsx src/lib src/app/api").split("\n").filter(Boolean).filter((f) => !PHASE11_FILES.has(f)).join(","), "", "playback, storefront and every API are untouched");
+  assert.ok(!h.includes("protected_audio_path") && !h.includes('"x"'), "the protected path never reaches the page");
+  assert.equal(git(`diff --name-only HEAD -- src/components/music/useTrackPlayback.ts src/components/music/ItemDetailPage.tsx src/components/music/MusicStorePage.tsx src/lib/music/previewLimit.ts src/lib/music/currency.ts src/lib/currency.ts src/app/api`).trim(), "", "playback, storefront, preview limit, currency and every API route are untouched by the redesign");
 });
-await test("latest release: the creator's pinned item leads, as an artwork-led card with an accent edge and a readable badge; nothing is invented", () => {
+await test("10-second preview: the shared playback hook still enforces MAX_PREVIEW_SECONDS and the redesign only calls it", () => {
+  const hook = strip(raw("src/components/music/useTrackPlayback.ts"));
+  assert.match(hook, /MAX_PREVIEW_SECONDS/);
+  const view = strip(raw("src/components/ProfileView.tsx"));
+  assert.match(view, /useTrackPlayback\(/, "ProfileView still owns the one playback");
+  const mine = strip(raw("src/components/music/profile/MusicSections.tsx")) + strip(raw("src/components/music/profile/MusicArtistView.tsx"));
+  assert.ok(!/new Audio\(|<audio|\.play\(\)|currentTime\s*=/.test(mine), "the redesign never touches an audio element or the clock");
+  assert.ok(!/fapshi|checkout\/|\/api\/(payments|music|webhooks)|fetch\(/i.test(mine), "and no payment or API call is made from the Music profile components");
+});
+await test("featured card: the creator's pinned item leads with its real artwork and title; with nothing pinned the newest real release leads; nothing is invented", () => {
   const h = render(music());
-  const badgeAt = h.indexOf(translations.en.music.spotlightBadge);
-  const spot = h.slice(h.lastIndexOf('rounded-ringo-xl animate-fade-up', badgeAt), badgeAt + 900);
-  assert.ok(spot.includes("/t1.png") && spot.includes("My Era"), "the real artwork and title");
-  assert.ok(spot.includes("rounded-ringo-xl") && spot.includes("inset 0 0 0 1px rgba(212, 169, 84, 0.4)"), "a 32px object with an inner edge in the creator's accent");
-  assert.ok(/color:#14110A/.test(spot), "the badge text is ink on the gold accent, not white");
-  assert.ok(!render(music({ pinned_type: null, pinned_id: null })).includes(translations.en.music.spotlightBadge), "nothing is pinned, so nothing is invented");
+  const at = h.indexOf('aria-label="Featured"');
+  assert.ok(at > 0, "a featured section");
+  const spot = h.slice(at, at + 2500);
+  assert.ok(spot.includes("/t1.png") && spot.includes("My Era") && spot.includes("500 FCFA"), "the pinned track: real artwork, title and price");
+  const none = render(music({ pinned_type: null, pinned_id: null, tracks: [], music_releases: [], products: [], events: [], hub_support_enabled: false }));
+  assert.ok(!none.includes('aria-label="Featured"'), "nothing pinned and nothing released: no featured card");
   assert.ok(!render(music({ cover_image_url: null, tracks: [{ ...music().tracks[0], cover_image_url: null }, music().tracks[1]] })).includes("undefined"), "no cover art means no fake art");
 });
-await test("releases: with an odd count the first leads full width (an editorial grid that always fills); with an even count it is the old 2-up grid", () => {
-  const odd = render(music({ products: [] })); // no catalog: a lone product is featured full width too, which is not what this counts
-  // UX refinement phase: three or more releases are a horizontal rail with a "View music" link to the storefront; the editorial grid below is for one or two
-  assert.equal(music().music_releases.length >= 3, true);
-  assert.equal((odd.match(/col-span-2/g) || []).length, 0);
-  assert.ok(odd.includes('aria-label="' + translations.en.music.releasesTitle + '"') && odd.includes(translations.en.music.viewMusic), "the rail and its storefront link");
-  assert.ok(/href="\/m\/[^"/]+\/release\//.test(odd), "every release keeps its own link");
-  const even = render(music({ products: [], music_releases: music().music_releases.slice(0, 2) }));
-  assert.equal((even.match(/col-span-2/g) || []).length, 0);
-  const one = render(music({ products: [], music_releases: music().music_releases.slice(0, 1) }));
-  assert.equal((one.match(/col-span-2/g) || []).length, 1);
-  assert.ok(!render(music({ music_releases: [] })).includes(translations.en.music.releasesTitle));
+await test("releases: one rail with a link to the storefront and one link per real release; hidden when there are none", () => {
+  const h = render(music({ products: [] }));
+  assert.ok(h.includes('aria-label="' + translations.en.music.releasesTitle + '"') || visible(h).includes(translations.en.music.releasesTitle), "the releases section");
+  assert.ok(visible(h).includes(translations.en.musicProfile.seeAll) || h.includes('href="/m/jaykay"'), "a way to the storefront");
+  for (const id of ["r1", "r2", "r3"]) assert.ok(h.includes(`/m/jaykay/release/${id}`), "every release keeps its own link " + id);
+  assert.ok(!render(music({ music_releases: [] })).includes("/m/jaykay/release/"));
+  assert.ok(!render(music({ music_releases: music().music_releases.map((r) => ({ ...r, available: false })) })).includes("/m/jaykay/release/"), "unavailable releases are not shown");
 });
 
 // ------------------------------------------------------------------ Gift the Artist (and no leakage between languages)
-await test("Gift the Artist: the approved wording replaces 'Support' on the public Music profile (EN and FR), with no emoji and the same checkout route", () => {
-  const en = render(music({ pinned_type: "support", pinned_id: null }), "en");
-  const fr = render(music({ pinned_type: "support", pinned_id: null }), "fr");
-  assert.equal(translations.en.music.supportTitle, "Gift the Artist");
-  assert.equal(translations.en.music.sendSupportButton, "Gift the Artist");
-  assert.equal(translations.en.music.pinnedSupportCta, "Gift");
-  assert.equal(translations.fr.music.supportTitle, "Offrir un cadeau à l'artiste");
-  assert.equal(translations.fr.music.sendSupportButton, "Offrir un cadeau");
-  assert.equal(translations.fr.music.pinnedSupportCta, "Offrir");
-  assert.ok(en.includes("Gift the Artist") && fr.includes("Offrir un cadeau à l'artiste"));
-  assert.ok(!/Support the Artist|Soutenir l'artiste|>Support<|>Soutenir</.test(en + fr), "no 'Support' wording on the public Music profile in either language");
-  assert.ok(!/gift|Gift/.test(translations.en.music.sendSupportButton + "") || !/❤/.test(translations.en.music.sendSupportButton + translations.fr.music.sendSupportButton), "no emoji in the button");
-  assert.ok(en.includes("/m/jaykay?support=1000") && fr.includes("/m/jaykay?support=1000"));
-  for (const k of ["supportTitle", "supportHint", "sendSupportButton", "pinnedSupportCta"]) assert.notEqual(translations.en.music[k], translations.fr.music[k], k);
-});
-await test("no language leakage: the French Music profile has no English UI text (play and pause labels included), and the English one has no French", () => {
-  const fr = render(music(), "fr");
+await test("Gift the Artist: the approved wording on the public Music profile (EN and FR), no 'Support' wording, no emoji, the same checkout route", () => {
   const en = render(music(), "en");
-  for (const k of ["buyNowButton", "spotlightBadge", "releasesTitle", "upcomingTitle", "supportTitle", "customAmountLabel", "playLabel"]) {
-    assert.ok(fr.includes(translations.fr.music[k].replace(/'/g, "'")) || k === "releasesTitle", "FR has " + k);
-    if (translations.en.music[k] !== translations.fr.music[k]) assert.ok(!fr.includes(`>${translations.en.music[k]}<`) && !fr.includes(`aria-label="${translations.en.music[k]}"`), "FR does not show the English " + k + ": " + translations.en.music[k]);
+  const fr = render(music(), "fr");
+  assert.equal(translations.en.music.supportTitle, "Gift the Artist");
+  assert.equal(translations.fr.music.supportTitle, "Offrir un cadeau à l'artiste");
+  assert.equal(translations.en.musicProfile.giftEyebrow, "Gift the Artist");
+  assert.equal(translations.fr.musicProfile.giftEyebrow, "Offrir un cadeau à l'artiste");
+  assert.ok(en.includes("Gift the Artist") && fr.includes("Offrir un cadeau à l'artiste"));
+  assert.ok(!/Support the Artist|Soutenir l'artiste|>Support<|>Soutenir</.test(en + fr), "no 'Support' wording in either language");
+  assert.ok(!/[❤♥\u{1F300}-\u{1FAFF}]/u.test(visible(en).join(" ") + visible(fr).join(" ")), "no emoji");
+  assert.ok(en.includes("/m/jaykay?support=1000") && fr.includes("/m/jaykay?support=1000"));
+  assert.ok(en.includes("1,000 FCFA") && fr.includes("1 000 FCFA"), "gift amounts in FCFA, formatted per language");
+  assert.ok(!/GH₵|GHS|\$|€/.test(visible(en).join(" ") + visible(fr).join(" ")), "no foreign currency");
+  const s = render(music({ pinned_type: "support", pinned_id: null }), "en");
+  assert.ok(s.includes('aria-label="Featured"') && s.includes("Gift"), "a pinned Gift leads the page");
+});
+await test("no language leakage: the French Music profile has no English UI text, and the English one has no French; musicProfile has the same keys in both", () => {
+  const fr = visible(render(music(), "fr"));
+  const en = visible(render(music(), "en"));
+  const enOnly = (k) => translations.en.musicProfile[k] && typeof translations.en.musicProfile[k] === "string" && translations.en.musicProfile[k] !== translations.fr.musicProfile[k] && translations.en.musicProfile[k] !== "Artist"; // "Artist" is also the fixture's saved position text (data, not UI)
+  for (const k of Object.keys(translations.en.musicProfile).filter(enOnly)) {
+    assert.ok(!fr.includes(translations.en.musicProfile[k]), "FR shows the English " + k + ": " + translations.en.musicProfile[k]);
+    assert.ok(!en.includes(translations.fr.musicProfile[k]), "EN shows the French " + k + ": " + translations.fr.musicProfile[k]);
   }
-  assert.ok(!/aria-label="(Play|Pause)"/.test(fr), "no hard-coded English Play / Pause");
-  assert.ok(/aria-label="Lecture"/.test(fr) && /aria-label="Play"/.test(en));
-  assert.ok(!/Lecture|Offrir|Acheter/.test(en));
-  assert.equal(translations.fr.music.playLabel, "Lecture");
-  assert.equal(translations.fr.music.pauseLabel, "Pause");
-  assert.equal(JSON.stringify(Object.keys(translations.en.music).sort()), JSON.stringify(Object.keys(translations.fr.music).sort()), "the same keys in both languages");
+  for (const word of ["Preview 10s", "Buy music", "Book Artist", "Save", "Call", "Songs", "Tickets"]) assert.ok(!fr.some((x) => x === word), "FR shows the English '" + word + "'");
+  for (const word of ["Extrait 10 s", "Acheter la musique", "Réserver l'artiste", "Enregistrer", "Appeler", "Billets"]) assert.ok(!en.some((x) => x === word), "EN shows the French '" + word + "'");
+  assert.ok(!/aria-label="(Play|Pause|Share)"/.test(render(music(), "fr")), "no hard-coded English Play / Pause / Share in French");
+  assert.equal(JSON.stringify(Object.keys(translations.en.musicProfile).sort()), JSON.stringify(Object.keys(translations.fr.musicProfile).sort()), "musicProfile: the same keys in both languages");
+  assert.equal(JSON.stringify(Object.keys(translations.en.music).sort()), JSON.stringify(Object.keys(translations.fr.music).sort()), "music: the same keys in both languages");
 });
-await test("translations: only the eight Gift wording lines were rewritten; the two new aria keys exist in both languages; nothing else moved", () => {
-  const removed = phase3Diff("-U0", "-- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("-") && !l.startsWith("---"));
-  assert.equal(removed.length, 8, removed.join(" | "));
-  assert.ok(removed.every((l) => /(pinnedSupportCta|supportTitle|supportHint|sendSupportButton):/.test(l)));
-  const added = phase3Diff("-U0", "-- src/lib/i18n/translations.ts").split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++"));
-  assert.equal(added.length, 12, "8 rewritten + playLabel / pauseLabel in two languages");
+await test("translations: the redesign only ADDS the musicProfile namespace; no existing translation line is rewritten", () => {
+  const diff = git("diff -U0 HEAD -- src/lib/i18n/translations.ts").split("\n");
+  assert.deepEqual(diff.filter((l) => l.startsWith("-") && !l.startsWith("---")), [], "nothing removed or rewritten");
+  const added = diff.filter((l) => l.startsWith("+") && !l.startsWith("+++"));
+  assert.ok(added.length > 0 && added.some((l) => /musicProfile:/.test(l)), "the musicProfile namespace is added");
 });
-
+await test("accessibility (source): every interactive control in the redesign is named, ghost social icons are 48px with a visible focus ring, the page respects reduced motion", () => {
+  const s = strip(raw("src/components/music/profile/MusicSections.tsx"));
+  assert.match(s, /focus-visible:outline-\[var\(--mp-accent\)\]/, "a visible accent focus ring");
+  assert.match(s, /aria-label=\{/, "named controls");
+  assert.match(strip(raw("src/components/SocialIcon.tsx")), /h-12 w-12/, "48px ghost social icons");
+  assert.match(strip(raw("src/components/ProfileView.tsx")), /<MotionConfig reducedMotion="user">/);
+  assert.ok(!/animate-ring-pulse|infinite/.test(strip(raw("src/components/music/profile/MusicArtistView.tsx"))), "no looping animation on the Music page");
+});
+// ------------------------------------------------------------------ the Music experience (rendered, EN and FR)
+// ------------------------------------------------------------------ Gift the Artist (and no leakage between languages)
 // ------------------------------------------------------------------ accessibility and responsive source guards
-await test("accessibility: play / pause are named and translated, the Ring is hidden from assistive tech, the spotlight keeps its labelled link, targets stay 44px", () => {
-  const pin = strip(raw("src/components/music/PinnedSpotlight.tsx"));
-  assert.match(pin, /aria-label=\{isPlaying \? pauseLabel : playLabel\}/);
-  assert.match(strip(raw("src/components/music/MusicSection.tsx")), /aria-label=\{isPlaying \? t\.music\.pauseLabel : t\.music\.playLabel\}/);
-  assert.match(pin, /<a href=\{detailPageHref\} className="absolute inset-0" aria-label=\{title\} \/>/);
-  assert.match(pin, /w-12 h-12 rounded-full/, "the play button is 48px");
-  assert.match(strip(raw("src/components/music/MusicSection.tsx")), /w-11 h-11 rounded-full/);
-  assert.equal((strip(raw("src/components/music/SupportArtistSection.tsx")).match(/min-h-\[44px\]/g) || []).length >= 4, true);
-  const ring = strip(raw("src/components/ProfileView.tsx"));
-  assert.equal((ring.match(/<Ring\b/g) || []).length, 1, "the avatar Ring is the only Ring ProfileView draws itself (the closing seal is its own component)");
-  assert.match(strip(raw("src/components/profile/ConnectionSeal.tsx")), /aria-hidden="true"/, "and the closing seal is hidden from assistive tech");
-  assert.match(strip(raw("src/components/brand/Ring.tsx")), /\{ "aria-hidden": true \}/, "decorative by default");
-  assert.ok(!/text-\[10px\]/.test(pin), "the spotlight badge is no longer 10px");
-});
 await test("motion: a Music profile adds no looping animation (the avatar pulse is gone for Music, the equalizer is the existing playing-only indicator), reduced motion is kept", () => {
   const v = strip(raw("src/components/ProfileView.tsx"));
   assert.match(v, /<MotionConfig reducedMotion="user">/);

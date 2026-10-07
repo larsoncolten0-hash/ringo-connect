@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { cookies, headers } from "next/headers";
+import { opensDashboardFromOutside } from "@/lib/dashboardEntry";
+import { ACTIVE_ORG_COOKIE } from "@/lib/team/access";
 import Editor from "@/components/Editor";
 import { computeProfileCheckoutAvailability } from "@/lib/productCheckout/availability";
 
@@ -13,6 +16,15 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
+
+  // Opening the dashboard (an address typed or bookmarked, the installed app, a link from elsewhere) starts on Ringo Home. Moving around inside the app keeps /dashboard as the
+  // Editor, exactly as before. Someone acting inside another organization (staff) has no Home in their menu, so they are never sent there.
+  const h = headers();
+  if (opensDashboardFromOutside({ secFetchSite: h.get("sec-fetch-site"), secFetchMode: h.get("sec-fetch-mode"), referer: h.get("referer"), host: h.get("host"), rsc: h.get("rsc") })) {
+    const activeOrg = cookies().get(ACTIVE_ORG_COOKIE)?.value ?? null;
+    const { data: own } = await supabase.from("profiles").select("id").eq("user_id", user.id).maybeSingle();
+    if (own && (!activeOrg || activeOrg === own.id)) redirect("/dashboard/home");
+  }
 
   const { data: userRow } = await supabase
     .from("users")

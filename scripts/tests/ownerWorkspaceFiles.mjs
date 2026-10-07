@@ -9,6 +9,7 @@ import { PHASE20_FILES } from "./phase20Files.mjs"; // the Phase 5 infrastructur
 import { PHASE21_FILES } from "./phase21Files.mjs"; // the Phase 6 payments / financial security audit (payout concurrency guard): likewise
 import { PHASE22_FILES } from "./phase22Files.mjs"; // the Phase 7 security testing & observability hardening: likewise
 import { PHASE23_FILES } from "./phase23Files.mjs"; // Ringo Watchdog V1 (incident feed + rules): likewise
+import { PHASE24_FILES } from "./phase24Files.mjs"; // the Music Artist Profile redesign: likewise
 import { SCALABILITY_PHASE0_FILES } from "./scalabilityPhase0Files.mjs"; // scalability and reliability Phase 0: likewise
 import { SCALABILITY_PHASE1TO5_FILES } from "./scalabilityPhase1to5Files.mjs"; // scalability and reliability Phases 1-5: likewise
 
@@ -29,6 +30,7 @@ export const OWNER_WORKSPACE_FILES = new Set([
   ...PHASE21_FILES,
   ...PHASE22_FILES,
   ...PHASE23_FILES,
+  ...PHASE24_FILES,
   ...SCALABILITY_PHASE0_FILES,
   ...SCALABILITY_PHASE1TO5_FILES,
   "scripts/tests/aiBusinessDrafts.test.mjs", // scope guard: exempts this list

@@ -2,6 +2,7 @@ import { isPhase19ProtectedFile } from "./phase19Files.mjs";
 import { isPhase20ProtectedFile } from "./phase20Files.mjs";
 import { isPhase22ProtectedFile } from "./phase22Files.mjs";
 import { isPhase23ProtectedFile } from "./phase23Files.mjs";
+import { isPhase24ProtectedFile } from "./phase24Files.mjs";
 // The EXACT files the security remediation (Phase 1) changes or adds: privileged-column guards for users / profiles, executable-URL
 // schemes, the avatar SSRF, Stripe webhook idempotency, the disabled free-upgrade endpoint, the example secret, SECURITY DEFINER
 // hardening, the next / sharp upgrade. Every SQL file is a migration that REQUIRES OWNER APPROVAL and is not applied by this change.
@@ -69,7 +70,7 @@ export const PHASE16_PROTECTED_FILES = new Set([
   "supabase/migrations/2026-10-06d_payment_transactions_idempotency.sql",
   "supabase/support/2026-10-06d_payment_transactions_idempotency.rollback.sql",
 ]);
-export const isPhase16ProtectedFile = (f) => PHASE16_PROTECTED_FILES.has(String(f).replace(/\\/g, "/")) || isPhase19ProtectedFile(f) || isPhase20ProtectedFile(f) || isPhase22ProtectedFile(f) || isPhase23ProtectedFile(f); // + the Phase 5 next.config.js (phase20Files.mjs) + the Phase 4 music-order payment binding (exact paths, phase19Files.mjs)
+export const isPhase16ProtectedFile = (f) => PHASE16_PROTECTED_FILES.has(String(f).replace(/\\/g, "/")) || isPhase19ProtectedFile(f) || isPhase20ProtectedFile(f) || isPhase22ProtectedFile(f) || isPhase23ProtectedFile(f) || isPhase24ProtectedFile(f); // + the Phase 5 next.config.js (phase20Files.mjs) + the Phase 4 music-order payment binding (exact paths, phase19Files.mjs)
 
 // The five security migrations, dated 2026-10-06 on the owner's instruction (today's date). Older guards that require "any new migration is dated AFTER
 // the latest existing one" (receivables.test.mjs) exempt exactly these five paths and nothing else. NOTE for the owner: because their dates are earlier than

@@ -43,6 +43,11 @@ import ConnectButton from "./connect/ConnectButton";
 import RegisterServiceWorker from "./RegisterServiceWorker";
 import CatalogSection from "@/components/catalog/CatalogSection";
 import AppBadgeReset from "./AppBadgeReset";
+import dynamic from "next/dynamic";
+
+// The Music artist profile has its own composition (components/music/profile). Loaded only for the music_entertainment category, so every other profile keeps its
+// bundle exactly as before.
+const MusicArtistView = dynamic(() => import("./music/profile/MusicArtistView"));
 
 // What a stage's choices look like (lib/profileStage.ts holds the choices; these are only their classes).
 const AVATAR_IMAGE: Record<AvatarMark, string> = { pulse: "rounded-full ring-4", ring: "rounded-full", still: "rounded-full ring-4", tile: "rounded-ringo-lg ring-4" };
@@ -264,6 +269,8 @@ export default function ProfileView({
     ...getBackgroundStyle(profile.background_style || "solid", bgColor, profile.background_gradient_end),
     color: textColor,
     ["--theme" as any]: accent,
+    // The Music profile paints its own ground (its view is a full-bleed composition); the artist's accent still drives every action in it.
+    ...(isMusic ? { backgroundImage: "none", background: "#120B10", backgroundColor: "#120B10", color: "#F3E9DC" } : {}),
   };
 
   // First word gets the page's default text color, the rest picks up the
@@ -597,6 +604,31 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
         />
       )}
 
+      {isMusic ? (
+        <MusicArtistView
+          profile={profile}
+          accent={accent}
+          preview={preview}
+          isOwner={isOwner}
+          staffBadges={staffBadges}
+          playback={{ playingId, progress, togglePlay }}
+          logClick={logClick}
+          data={{
+            tracks: musicTracks,
+            releases,
+            events: musicEvents,
+            products: catalogProducts,
+            links: publicLinks,
+            socials: socialLinks,
+            hasTicketing,
+            supportEnabled,
+            pinnedItem,
+            showPinnedSupport,
+            latestRelease,
+          }}
+        />
+      ) : (
+      <>
       {/* Cover photo — falls back to a soft accent-tinted gradient when
           the creator hasn't uploaded one, rather than an empty/broken area.
           The image/gradient sit in their own clipped inner layer so the
@@ -971,6 +1003,8 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           <PoweredByRingo className="mt-1" />
         </footer>
       </div>
+      </>
+      )}
     </main>
     </MotionConfig>
   );
