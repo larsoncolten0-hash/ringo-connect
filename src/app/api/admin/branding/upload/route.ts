@@ -1,5 +1,6 @@
 import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
+import { recordAudit } from "@/lib/adminAudit";
 import { NextResponse } from "next/server";
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024;
@@ -40,5 +41,6 @@ export async function POST(request: Request) {
   }
 
   const { data } = supabase.storage.from("uploads").getPublicUrl(path);
+  await recordAudit(supabase, { actorId: admin.id, action: "branding_asset_uploaded", details: { kind: label, path, sizeBytes: file.size } });
   return NextResponse.json({ url: data.publicUrl });
 }

@@ -2,6 +2,7 @@ import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiDirectPay } from "@/lib/fapshi";
 import { getPlatformSettings } from "@/lib/platformSettings";
+import { recordAudit } from "@/lib/adminAudit";
 import { NextResponse } from "next/server";
 
 // Admin-only, deliberately not assertCanApproveRequests — a super
@@ -67,6 +68,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
       .from("signup_requests")
       .update({ pending_fapshi_trans_id: result.transId })
       .eq("id", params.id);
+
+    // An admin started an online charge for a signup request: who, which request, which Fapshi transaction and how much. Never the customer's phone number.
+    await recordAudit(adminClient, { actorId: admin.id, action: "request_charge_started", details: { requestId: params.id, transId: result.transId, amount, medium, planId } });
 
     return NextResponse.json({ transId: result.transId });
   } catch (err: any) {

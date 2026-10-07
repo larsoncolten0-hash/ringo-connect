@@ -1,5 +1,6 @@
 import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
+import { recordAudit } from "@/lib/adminAudit";
 import { NextResponse } from "next/server";
 
 // Admin-only, deliberately not assertCanApproveRequests — a super
@@ -13,7 +14,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { reason } = await request.json().catch(() => ({}));
   const adminClient = createAdminClient();
 
-  const { error } = await adminClient
+  const { data: updated, error } = await adminClient
     .from("signup_requests")
     .update({
       status: "rejected",
@@ -22,9 +23,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
       reviewed_at: new Date().toISOString(),
     })
     .eq("id", params.id)
-    .eq("status", "pending"); // don't reject something already processed
+    .eq("status", "pending") // don't reject something already processed
+    .select("id");
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // Only when a pending request was actually rejected. The free-text reason can hold personal details, so only whether one was given is recorded.
+  if (updated && updated.length > 0) {
+    await recordAudit(adminClient, { actorId: admin.id, action: "request_rejected", details: { requestId: params.id, hasReason: !!reason } });
+  }
 
   return NextResponse.json({ ok: true });
 }

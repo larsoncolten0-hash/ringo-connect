@@ -354,7 +354,11 @@ await test("dependencies: package.json differs from HEAD only in the versions of
     assert.deepEqual(Object.keys(now[group] || {}).sort(), Object.keys(before[group] || {}).sort(), `${group}: the set of packages is unchanged`);
     for (const [name, ver] of Object.entries(now[group] || {})) if (ver !== before[group][name]) assert.ok(name === "next" || name === "sharp", `${name} changed: ${before[group][name]} -> ${ver}`);
   }
-  assert.deepEqual(now.scripts, before.scripts);
+  // The ONLY script added since is the security-suite entry point (Phase 7 hardening); every other script is unchanged.
+  const { "security:test": securityScript, ...otherScripts } = now.scripts;
+  const { "security:test": _before, ...otherBefore } = before.scripts;
+  assert.deepEqual(otherScripts, otherBefore);
+  assert.ok(securityScript === undefined || securityScript === "node scripts/security-suite.mjs", `unexpected security:test script: ${securityScript}`);
   const [maj, min] = now.dependencies.next.split(".");
   assert.equal(`${maj}.${min}`, "14.2", "stays on the 14.2 line: no major migration");
   assert.equal(now.dependencies.react, before.dependencies.react);
@@ -475,7 +479,11 @@ function gitHeadEquals(rel) {
 await test("sql: the Phase 1 migrations behave as claimed on a real PostgreSQL (127+ adversarial checks: privilege escalation, staff takeover, URL schemes, idempotency, search_path hijack, rollback, verify)", () => {
   let hasPglite = true;
   try { require.resolve("@electric-sql/pglite"); } catch { hasPglite = false; }
-  if (!hasPglite) { console.log("  (skipped: @electric-sql/pglite is not installed; run `npm install --no-save @electric-sql/pglite`)"); return; }
+  if (!hasPglite) {
+    // Fail closed: a machine without PGlite must NOT report this suite green while the database-level attack tests did not run. Opt out explicitly with SKIP_SQL=1.
+    if (process.env.SKIP_SQL === "1") { console.log("  (SKIPPED by SKIP_SQL=1: @electric-sql/pglite is not installed, the database-level adversarial tests did NOT run)"); return; }
+    throw new Error("@electric-sql/pglite is not installed, so the database-level adversarial tests cannot run. Run `npm install --no-save @electric-sql/pglite`, or set SKIP_SQL=1 to skip them explicitly.");
+  }
   const r = spawnSync(process.execPath, ["supabase/support/tests/security_phase1.adversarial.mjs"], { cwd: REPO, encoding: "utf8", timeout: 240000 });
   const tail = (r.stdout || "").trim().split("\n").slice(-3).join(" | ");
   assert.equal(r.status, 0, tail + (r.stderr || "").slice(0, 400));

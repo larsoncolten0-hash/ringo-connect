@@ -1,6 +1,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { requestShopPayout } from "@/lib/shopPayouts";
 import { sendPushAndBellToAdmins } from "@/lib/push/withBell";
+import { recordPayoutRequestRefusal } from "@/lib/payoutAudit";
 import { formatPrice } from "@/lib/currency";
 import { NextResponse } from "next/server";
 
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ ok: true, payout });
   } catch (err: any) {
+    await recordPayoutRequestRefusal(createAdminClient(), { userId: user.id, program: "shop", err }); // metadata-only audit row for the over-balance refusal; the answer below is unchanged
     // The RPC's own exceptions (below minimum, no payout method set) are meant to be shown to
     // the seller as-is.
     return NextResponse.json({ error: err.message || "Could not request a payout." }, { status: 400 });

@@ -1,5 +1,7 @@
 import { assertAdmin } from "@/lib/assertAdmin";
 import { updateBrandingSettings, getBrandingSettings } from "@/lib/branding";
+import { createAdminClient } from "@/lib/supabase/server";
+import { recordAudit } from "@/lib/adminAudit";
 import { NextResponse } from "next/server";
 
 export async function PATCH(request: Request) {
@@ -14,6 +16,9 @@ export async function PATCH(request: Request) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
+
+  // Which platform branding fields were changed, by whom (names only; the values are public branding but are not needed to investigate).
+  await recordAudit(createAdminClient(), { actorId: admin.id, action: "branding_updated", details: { fields: Object.keys(body) } });
 
   return NextResponse.json({ branding: await getBrandingSettings() });
 }

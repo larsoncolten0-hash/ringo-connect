@@ -32,8 +32,11 @@ check("migration is not one of the committed migrations (it is new and un-applie
 
 const r = spawnSync(process.execPath, ["supabase/support/tests/team_permission_ceiling.adversarial.mjs"], { cwd: REPO, encoding: "utf8", timeout: 240000 });
 const out = (r.stdout || "") + (r.stderr || "");
-if (/Cannot find package|ERR_MODULE_NOT_FOUND/.test(out)) console.log("SKIPPED SQL run: PGlite not installed (npm install --no-save @electric-sql/pglite)");
-else check("adversarial SQL run on in-memory PostgreSQL: all checks pass (" + (out.match(/(\d+\/\d+) checks passed/) || [])[1] + ")", r.status === 0 && /checks passed/.test(out));
+if (/Cannot find package|ERR_MODULE_NOT_FOUND/.test(out)) {
+  // Fail closed: without PGlite the database-level attack tests did not run, so this suite must not pass. Opt out explicitly with SKIP_SQL=1.
+  if (process.env.SKIP_SQL === "1") console.log("SKIPPED SQL run by SKIP_SQL=1: PGlite is not installed, the database-level adversarial tests did NOT run");
+  else check("adversarial SQL run: PGlite is not installed (npm install --no-save @electric-sql/pglite, or set SKIP_SQL=1 to skip explicitly)", false);
+} else check("adversarial SQL run on in-memory PostgreSQL: all checks pass (" + (out.match(/(\d+\/\d+) checks passed/) || [])[1] + ")", r.status === 0 && /checks passed/.test(out));
 
 console.log(`securityPhase2: ${passed} checks passed`);
 if (failures.length) { console.log("FAILURES:\n - " + failures.join("\n - ")); process.exit(1); }

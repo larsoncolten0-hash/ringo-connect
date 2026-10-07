@@ -2,6 +2,7 @@ import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiPayout } from "@/lib/fapshi";
 import { markShopPayoutProcessing } from "@/lib/shopPayouts";
+import { recordPayoutSendFailure } from "@/lib/payoutAudit";
 import { NextResponse } from "next/server";
 
 // Mirrors /api/admin/music/payouts/[id]/send/route.ts exactly. Initiates a real Fapshi Mobile
@@ -39,6 +40,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const medium = details.provider === "orange" ? "orange money" : "mobile money";
 
+  let sentTransId: string | null = null; // set the moment Fapshi accepts the money, so a LATER failure is reported as 'sent but not recorded'
   try {
     const result = await fapshiPayout({
       amount: Math.round(Number(payout.amount)),
@@ -49,6 +51,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       message: "Ringo Connect — Shop sales payout",
     });
 
+    sentTransId = result.transId;
     await markShopPayoutProcessing(payout.id, result.transId);
 
     await adminClient.from("admin_audit_log").insert({
@@ -59,6 +62,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     return NextResponse.json({ ok: true, transId: result.transId });
   } catch (err: any) {
+    await recordPayoutSendFailure(adminClient, { adminId: admin.id, program: "shop", payoutId: payout.id, earnerUserId: payout.creator_user_id, err, transId: sentTransId }); // category only, never the provider text
     // Nothing was written — the payout stays 'requested' and can be retried (or sent manually)
     // once whatever's wrong is fixed.
     return NextResponse.json({ error: err.message || "Could not start the Fapshi disbursement." }, { status: 502 });

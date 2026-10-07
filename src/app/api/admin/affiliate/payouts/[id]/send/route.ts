@@ -2,6 +2,7 @@ import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiPayout } from "@/lib/fapshi";
 import { markPayoutProcessing } from "@/lib/affiliate";
+import { recordPayoutSendFailure } from "@/lib/payoutAudit";
 import { NextResponse } from "next/server";
 
 // Initiates a real Fapshi Mobile Money disbursement for one payout
@@ -38,6 +39,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const medium = details.provider === "orange" ? "orange money" : "mobile money";
 
+  let sentTransId: string | null = null; // set the moment Fapshi accepts the money, so a LATER failure is reported as 'sent but not recorded'
   try {
     const result = await fapshiPayout({
       amount: Math.round(Number(payout.amount)),
@@ -48,6 +50,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       message: "Ringo Connect — affiliate commission payout",
     });
 
+    sentTransId = result.transId;
     await markPayoutProcessing(payout.id, result.transId);
 
     await adminClient.from("admin_audit_log").insert({
@@ -58,6 +61,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     return NextResponse.json({ ok: true, transId: result.transId });
   } catch (err: any) {
+    await recordPayoutSendFailure(adminClient, { adminId: admin.id, program: "affiliate", payoutId: payout.id, earnerUserId: payout.affiliate_user_id, err, transId: sentTransId }); // category only, never the provider text
     // Nothing was written — the payout stays 'requested' and can be
     // retried (or sent manually) once whatever's wrong is fixed (bad
     // phone number, insufficient service balance, IP not whitelisted…).

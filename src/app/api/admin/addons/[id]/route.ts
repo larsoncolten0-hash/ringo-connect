@@ -1,5 +1,6 @@
 import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
+import { recordAudit } from "@/lib/adminAudit";
 import { NextResponse } from "next/server";
 
 const EDITABLE_FIELDS = ["name", "price_xaf", "price_usd", "required", "active", "show_on_affiliate_page", "bundle_features"];
@@ -30,8 +31,23 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   const adminClient = createAdminClient();
+  // The values being replaced, for the audit row (price / availability only). A failed read just means no "before" in the row.
+  const { data: before } = await adminClient.from("addons").select("price_xaf, price_usd, required, active").eq("id", params.id).maybeSingle();
   const { error } = await adminClient.from("addons").update(patch).eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // Who changed which add-on (card price), what changed, from what. Field names for everything; values only for price / required / active.
+  const SCALAR = ["price_xaf", "price_usd", "required", "active"] as const;
+  await recordAudit(adminClient, {
+    actorId: admin.id,
+    action: "addon_updated",
+    details: {
+      addonId: params.id,
+      fields: Object.keys(patch),
+      before: before ? Object.fromEntries(SCALAR.filter((k) => k in patch).map((k) => [k, (before as any)[k]])) : null,
+      after: Object.fromEntries(SCALAR.filter((k) => k in patch).map((k) => [k, patch[k]])),
+    },
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -4325,6 +4325,17 @@ export const translations = {
         },
       },
     },
+    // Owner notification when the payout destination shared by the affiliate, music and shop payouts is added or changed. Carries no destination detail.
+    payoutDestinationNotifications: {
+      added: {
+        title: "Payout destination added",
+        body: "A payout destination was added to your account. If this was not you, contact Ringo Connect right away.",
+      },
+      changed: {
+        title: "Payout destination changed",
+        body: "Your payout destination was changed. If this was not you, contact Ringo Connect right away.",
+      },
+    },
     ambassadorNotifications: {
       admin: {
         pendingAmbassador: {
@@ -10545,6 +10556,16 @@ export const translations = {
           failed: "L'action a échoué. Veuillez réessayer.",
           network: "Erreur réseau. Veuillez réessayer.",
         },
+      },
+    },
+    payoutDestinationNotifications: {
+      added: {
+        title: "Destination de paiement ajoutée",
+        body: "Une destination de paiement a été ajoutée à votre compte. Si ce n'était pas vous, contactez Ringo Connect immédiatement.",
+      },
+      changed: {
+        title: "Destination de paiement modifiée",
+        body: "Votre destination de paiement a été modifiée. Si ce n'était pas vous, contactez Ringo Connect immédiatement.",
       },
     },
     ambassadorNotifications: {

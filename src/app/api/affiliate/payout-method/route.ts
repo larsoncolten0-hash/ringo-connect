@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { recordPayoutDestinationChange } from "@/lib/payoutAudit";
 import { saveAffiliatePayoutMethod } from "@/lib/affiliate";
 import { NextResponse } from "next/server";
 
@@ -30,11 +31,23 @@ export async function POST(request: Request) {
     }
   }
 
+  // What the destination was BEFORE this save, so a real change (not a re-save of the same value) can be audited and the owner told. The one destination serves
+  // the affiliate, music and shop payouts. Read failure never blocks the save: it is treated as "no previous destination".
+  const admin = createAdminClient();
+  const { data: before } = await admin.from("users").select("affiliate_payout_method, affiliate_payout_details").eq("id", user.id).maybeSingle();
+
   try {
     await saveAffiliatePayoutMethod(user.id, method, details);
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Could not save payout method." }, { status: 400 });
   }
+
+  // Audit row + owner notification, metadata only (never the phone / email / account number). Best effort; cannot change the response.
+  await recordPayoutDestinationChange(admin, {
+    userId: user.id,
+    previous: { method: before?.affiliate_payout_method ?? null, details: before?.affiliate_payout_details ?? null },
+    next: { method, details },
+  });
 
   return NextResponse.json({ ok: true });
 }
