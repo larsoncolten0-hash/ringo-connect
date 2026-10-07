@@ -9,6 +9,8 @@ export const MP = {
   muted: "#B9A99C",
   line: "rgba(243,233,220,0.08)",
   lineStrong: "rgba(243,233,220,0.16)",
+  /** The one border every contained card uses (song, release, ticket, merch, link, gift, about). Dividers keep `line`. */
+  border: "rgba(243,233,220,0.13)",
   cream: "#F3E9DC",
   ink: "#1A0F0A",
   coral: "#E2553A",

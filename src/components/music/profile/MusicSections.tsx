@@ -12,7 +12,6 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { hexToRgba } from "@/lib/color";
 import { displayHref } from "@/lib/linkUrl";
 import { publicLinkTitle } from "@/lib/publicContent";
-import { MAX_PREVIEW_SECONDS } from "@/lib/previewLimit";
 import { primaryTicketType } from "@/lib/ticketTypes";
 import { eventDateParts, firstName, formatMusicPrice, trackActions, type TrackAction } from "@/lib/music/profileMusic";
 import { DISPLAY, MICRO, MP } from "./musicTheme";
@@ -60,7 +59,7 @@ function Cover({ src, size, rounded = "rounded-[10px]", icon }: { src?: string |
 function ListenButton({ action, track, playing, onToggle, size = 44 }: { action: TrackAction; track: any; playing: boolean; onToggle: (track: any) => void; size?: number }) {
   const { t } = useLanguage();
   if (!action.listen) return null;
-  const label = action.listen === "external" ? t.music.playLabel : playing ? t.music.pauseLabel : action.isProtected ? t.musicProfile.playPreview : t.music.playLabel;
+  const label = action.listen === "external" ? t.music.playLabel : playing ? t.music.pauseLabel : t.music.playLabel;
   return (
     <button
       type="button"
@@ -139,7 +138,6 @@ export function FeaturedCard({ featured, username, currency, whatsappNumber, art
     actions = (
       <div className="flex flex-wrap items-center gap-3">
         <ListenButton action={a} track={track} playing={playback.playingId === track.id} onToggle={playback.togglePlay} size={48} />
-        {a.listen === "preview" && <span className={`${MICRO} text-[12px]`} style={{ color: MP.muted }}>{t.musicProfile.preview(MAX_PREVIEW_SECONDS)}</span>}
         <BuyAction action={a} track={track} whatsappNumber={whatsappNumber} />
       </div>
     );
@@ -195,7 +193,7 @@ export function FeaturedCard({ featured, username, currency, whatsappNumber, art
 
   return (
     <section aria-label={eyebrow} className="px-5">
-      <div className="overflow-hidden rounded-[22px] border" style={{ background: MP.surface, borderColor: MP.line }}>
+      <div className="overflow-hidden rounded-[22px] border" style={{ background: MP.surface, borderColor: MP.border }}>
         {href && (
           <Link href={href} className={`relative block aspect-square w-full overflow-hidden ${RING}`} aria-label={title} tabIndex={-1}>
             {image ? (
@@ -222,24 +220,22 @@ export function FeaturedCard({ featured, username, currency, whatsappNumber, art
 
 // ---------------------------------------------------------------------------------------------------------------- songs
 
-export function SongList({ tracks, username, currency, whatsappNumber, artistName, playback, moreHref, totalCount }: {
-  tracks: any[]; username: string; currency: string; whatsappNumber?: string | null; artistName: string; playback: Playback; moreHref: string; totalCount: number;
+export function SongList({ tracks, username, currency, whatsappNumber, artistName, playback, moreHref, totalCount, heading }: {
+  tracks: any[]; username: string; currency: string; whatsappNumber?: string | null; artistName: string; playback: Playback; moreHref?: string; totalCount: number; heading?: string;
 }) {
   const { t, locale } = useLanguage();
   const ctx = { username, currency, locale, hasWhatsapp: !!whatsappNumber };
-  const anyPreview = tracks.some((tr) => trackActions(tr, ctx).isProtected);
   return (
     <section aria-labelledby="mp-songs" className="flex flex-col gap-1.5 px-5">
-      <SectionHead id="mp-songs" eyebrow={t.musicProfile.songsEyebrow} title={t.musicProfile.songsHeading} href={totalCount > tracks.length ? moreHref : undefined} linkLabel={totalCount > tracks.length ? t.musicProfile.seeAll(totalCount) : undefined} />
-      {anyPreview && <p className="mt-2 text-[12.5px]" style={{ color: MP.muted }}>{t.musicProfile.previewHint(MAX_PREVIEW_SECONDS)}</p>}
-      <ol className="mt-2 flex flex-col">
+      <SectionHead id="mp-songs" eyebrow={t.musicProfile.songsEyebrow} title={heading || t.musicProfile.songsHeading} href={moreHref && totalCount > tracks.length ? moreHref : undefined} linkLabel={totalCount > tracks.length ? t.musicProfile.seeAll(totalCount) : undefined} />
+      <ol className="mt-3 flex flex-col gap-2.5">
         {tracks.map((track, index) => {
           const a = trackActions(track, ctx);
           const playing = playback.playingId === track.id;
           const album = track.release_title || "";
           const meta = [track.artist_name && track.artist_name !== artistName ? track.artist_name : "", album, track.duration].filter(Boolean).join(" · ");
           return (
-            <li key={track.id} className="border-b py-3" style={{ borderColor: MP.line }}>
+            <li key={track.id} className="rounded-[18px] border p-3" style={{ background: MP.surface, borderColor: MP.border }}>
               <div className="grid grid-cols-[22px_52px_minmax(0,1fr)] items-center gap-3">
                 <span className="flex items-center justify-center" style={{ color: MP.muted }}>
                   {playing ? <EqualizerBars color="var(--mp-accent)" /> : <span className={`${MICRO} text-[13px]`}>{String(index + 1).padStart(2, "0")}</span>}
@@ -261,12 +257,12 @@ export function SongList({ tracks, username, currency, whatsappNumber, artistNam
                       type="button"
                       onClick={() => playback.togglePlay(track)}
                       aria-pressed={a.listen === "external" ? undefined : playing}
-                      aria-label={`${playing ? t.music.pauseLabel : a.isProtected ? t.musicProfile.playPreview : t.music.playLabel}: ${track.title}`}
+                      aria-label={`${playing ? t.music.pauseLabel : t.music.playLabel}: ${track.title}`}
                       className={`ringo-tactile inline-flex min-h-[44px] items-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold transition active:scale-[.97] ${RING}`}
                       style={{ borderColor: MP.lineStrong, background: playing ? hexToRgba("#E8B04B", 0.12) : "transparent", color: MP.fg }}
                     >
                       {a.listen === "external" ? <ExternalLink size={14} aria-hidden="true" /> : playing ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
-                      <span className={a.isProtected ? MICRO : ""}>{a.isProtected ? t.musicProfile.preview(MAX_PREVIEW_SECONDS) : playing ? t.music.pauseLabel : t.musicProfile.playFull}</span>
+                      <span>{playing ? t.music.pauseLabel : t.music.playLabel}</span>
                     </button>
                   )}
                   <span className="ml-auto" />
@@ -288,52 +284,59 @@ export function SongList({ tracks, username, currency, whatsappNumber, artistNam
 
 // ---------------------------------------------------------------------------------------------------------------- releases
 
-export function ReleasesRail({ releases, username, currency, trackCounts, storeHref }: { releases: any[]; username: string; currency: string; trackCounts: Record<string, number>; storeHref: string }) {
+export function ReleasesRail({ releases, username, currency, trackCounts, storeHref, layout = "rail", heading }: { releases: any[]; username: string; currency: string; trackCounts: Record<string, number>; storeHref?: string; layout?: "rail" | "grid"; heading?: string }) {
   const { t, locale } = useLanguage();
+  const title = heading || t.musicProfile.releasesHeading;
+  const grid = layout === "grid";
+  const cards = releases.map((r) => {
+    const n = trackCounts[r.id] || 0;
+    const price = r.price && Number(r.price) > 0 ? formatMusicPrice(r.price, currency, locale) : "";
+    return (
+      <Link key={r.id} href={`/m/${username}/release/${r.id}`} className={`flex shrink-0 flex-col gap-2.5 rounded-[18px] border p-2 ${grid ? "w-full" : "w-[188px]"} ${RING}`} style={{ color: MP.fg, background: MP.surface, borderColor: MP.border }}>
+        <span className="relative block aspect-square w-full overflow-hidden rounded-[11px]">
+          {r.cover_image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={r.cover_image_url} alt="" loading="lazy" decoding="async" className="block h-full w-full object-cover" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center" style={{ background: hexToRgba("#E8B04B", 0.12), color: "var(--mp-accent)" }} aria-hidden="true"><Disc3 size={34} /></span>
+          )}
+          <span className={`${MICRO} absolute left-2 top-2 rounded-full px-2 py-1 text-[10px] tracking-[.12em]`} style={{ background: "rgba(18,11,16,.78)", color: MP.fg }}>
+            {(r.release_type === "album" ? t.music.typeAlbum : t.music.typeEp).toUpperCase()}
+          </span>
+        </span>
+        <span className="flex flex-col px-1 pb-1">
+          <span className="truncate text-[15px] font-semibold">{r.title || t.music.untitledRelease}</span>
+          <span className={`${MICRO} truncate text-[11.5px]`} style={{ color: MP.muted }} suppressHydrationWarning>
+            {[n > 0 ? t.musicProfile.trackCount(n) : "", price].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+      </Link>
+    );
+  });
   return (
     <section aria-labelledby="mp-releases" className="flex flex-col gap-4">
       <div className="px-5">
-        <SectionHead id="mp-releases" eyebrow={t.musicProfile.releasesEyebrow} title={t.musicProfile.releasesHeading} href={storeHref} linkLabel={t.musicProfile.shopAll} />
+        <SectionHead id="mp-releases" eyebrow={t.musicProfile.releasesEyebrow} title={title} href={storeHref} linkLabel={storeHref ? t.musicProfile.shopAll : undefined} />
       </div>
-      <Rail label={t.musicProfile.releasesHeading} prevLabel={t.profilePage.railPrev} nextLabel={t.profilePage.railNext} fade={MP.bg} className="px-5">
-        {releases.map((r) => {
-          const n = trackCounts[r.id] || 0;
-          const price = r.price && Number(r.price) > 0 ? formatMusicPrice(r.price, currency, locale) : "";
-          return (
-            <Link key={r.id} href={`/m/${username}/release/${r.id}`} className={`flex w-[176px] shrink-0 flex-col gap-2.5 ${RING}`} style={{ color: MP.fg }}>
-              <span className="relative block">
-                {r.cover_image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.cover_image_url} alt="" width={176} height={176} loading="lazy" decoding="async" className="block h-[176px] w-[176px] rounded-[10px] object-cover" style={{ boxShadow: "0 18px 30px -18px rgba(0,0,0,.8)" }} />
-                ) : (
-                  <span className="flex h-[176px] w-[176px] items-center justify-center rounded-[10px]" style={{ background: hexToRgba("#E8B04B", 0.12), color: "var(--mp-accent)" }} aria-hidden="true"><Disc3 size={34} /></span>
-                )}
-                <span className={`${MICRO} absolute left-2 top-2 rounded-full px-2 py-1 text-[10px] tracking-[.12em]`} style={{ background: "rgba(18,11,16,.78)", color: MP.fg }}>
-                  {(r.release_type === "album" ? t.music.typeAlbum : t.music.typeEp).toUpperCase()}
-                </span>
-              </span>
-              <span className="flex flex-col">
-                <span className="truncate text-[15px] font-semibold">{r.title || t.music.untitledRelease}</span>
-                <span className={`${MICRO} truncate text-[11.5px]`} style={{ color: MP.muted }}>
-                  {[n > 0 ? t.musicProfile.trackCount(n) : "", price].filter(Boolean).join(" · ")}
-                </span>
-              </span>
-            </Link>
-          );
-        })}
-      </Rail>
+      {grid ? (
+        <div className="grid grid-cols-2 gap-3 px-5">{cards}</div>
+      ) : (
+        <Rail label={title} prevLabel={t.profilePage.railPrev} nextLabel={t.profilePage.railNext} fade={MP.bg} className="px-5">
+          {cards}
+        </Rail>
+      )}
     </section>
   );
 }
 
 // ---------------------------------------------------------------------------------------------------------------- events
 
-export function TicketStubs({ events, username, currency, whatsappNumber, moreHref, totalCount }: { events: any[]; username: string; currency: string; whatsappNumber?: string | null; moreHref: string; totalCount: number }) {
+export function TicketStubs({ events, username, currency, whatsappNumber, moreHref, totalCount, heading, eyebrow }: { events: any[]; username: string; currency: string; whatsappNumber?: string | null; moreHref?: string; totalCount: number; heading?: string; eyebrow?: string }) {
   const { t, locale } = useLanguage();
   const cleanNumber = (whatsappNumber || "").replace(/[^0-9]/g, "");
   return (
     <section aria-labelledby="mp-events" className="flex flex-col gap-4 px-5">
-      <SectionHead id="mp-events" eyebrow={t.musicProfile.eventsEyebrow} title={t.musicProfile.eventsHeading} href={totalCount > events.length ? moreHref : undefined} linkLabel={totalCount > events.length ? t.music.viewEvents : undefined} />
+      <SectionHead id="mp-events" eyebrow={eyebrow || t.musicProfile.eventsEyebrow} title={heading || t.musicProfile.eventsHeading} href={moreHref && totalCount > events.length ? moreHref : undefined} linkLabel={totalCount > events.length ? t.music.viewEvents : undefined} />
       <ul className="flex flex-col gap-3.5">
         {events.map((event) => {
           const parts = eventDateParts(event.event_date, locale);
@@ -343,7 +346,7 @@ export function TicketStubs({ events, username, currency, whatsappNumber, moreHr
           const priceLabel = primary ? formatMusicPrice(primary.price, currency, locale) : event.price ? formatMusicPrice(event.price, currency, locale) : "";
           const detail = `/m/${username}/ticket/${event.id}`;
           return (
-            <li key={event.id} className="relative grid grid-cols-[76px_minmax(0,1fr)] rounded-[14px]" style={{ background: MP.cream, color: MP.ink, opacity: dead ? 0.6 : 1 }}>
+            <li key={event.id} className="relative grid grid-cols-[76px_minmax(0,1fr)] rounded-[14px]" style={{ background: MP.cream, color: MP.ink, opacity: dead ? 0.6 : 1, boxShadow: "0 0 0 1px rgba(243,233,220,.22)" }}>
               <span aria-hidden="true" className="absolute -top-2 h-4 w-4 rounded-full" style={{ left: 69, background: MP.bg }} />
               <span aria-hidden="true" className="absolute -bottom-2 h-4 w-4 rounded-full" style={{ left: 69, background: MP.bg }} />
               <Link href={detail} aria-label={event.title} tabIndex={-1} className="flex flex-col items-center justify-center gap-0.5 border-r-2 border-dashed py-3.5" style={{ borderColor: "rgba(26,15,10,.25)" }}>
@@ -387,24 +390,24 @@ export function TicketStubs({ events, username, currency, whatsappNumber, moreHr
 
 // ---------------------------------------------------------------------------------------------------------------- merch
 
-export function MerchGrid({ products, username, currency, storeHref, totalCount, logClick }: { products: any[]; username: string; currency: string; storeHref: string; totalCount: number; logClick: ClickLogger }) {
+export function MerchGrid({ products, username, currency, storeHref, totalCount, logClick, heading }: { products: any[]; username: string; currency: string; storeHref?: string; totalCount: number; logClick: ClickLogger; heading?: string }) {
   const { t, locale } = useLanguage();
   return (
     <section aria-labelledby="mp-merch" className="flex flex-col gap-4 px-5">
-      <SectionHead id="mp-merch" eyebrow={t.musicProfile.merchEyebrow} title={t.musicProfile.merchHeading} href={totalCount > products.length ? storeHref : undefined} linkLabel={totalCount > products.length ? t.musicProfile.shopAll : undefined} />
-      <ul className="grid grid-cols-2 gap-x-3 gap-y-4">
+      <SectionHead id="mp-merch" eyebrow={t.musicProfile.merchEyebrow} title={heading || t.musicProfile.merchHeading} href={storeHref && totalCount > products.length ? storeHref : undefined} linkLabel={totalCount > products.length ? t.musicProfile.shopAll : undefined} />
+      <ul className="grid grid-cols-2 gap-3">
         {products.map((p) => {
           const img = productImages(p)[0];
           const soldOut = p.inventory_count === 0;
           return (
-            <li key={p.id}>
+            <li key={p.id} className={products.length === 1 ? "col-span-2" : undefined}>
               <Link
                 href={productHref(username, p.id, true)}
                 onClick={() => logClick("product", p.id, { name: p.name, price: p.price ? Number(p.price) : null, currency })}
-                className={`flex flex-col gap-2 ${RING}`}
-                style={{ color: MP.fg }}
+                className={`flex flex-col gap-2 rounded-[18px] border p-2 ${RING}`}
+                style={{ color: MP.fg, background: MP.surface, borderColor: MP.border }}
               >
-                <span className="relative block aspect-square w-full overflow-hidden rounded-[14px]" style={{ background: MP.surface }}>
+                <span className="relative block aspect-square w-full overflow-hidden rounded-[11px]" style={{ background: MP.raised }}>
                   {img ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
@@ -413,7 +416,7 @@ export function MerchGrid({ products, username, currency, storeHref, totalCount,
                   )}
                   {soldOut && <span className={`${MICRO} absolute left-2 top-2 rounded-full px-2 py-1 text-[10px] tracking-[.1em]`} style={{ background: "rgba(18,11,16,.82)" }}>{t.music.soldOut.toUpperCase()}</span>}
                 </span>
-                <span className="flex flex-col">
+                <span className="flex flex-col px-1 pb-1">
                   <span className="truncate text-[14px] font-semibold">{p.name}</span>
                   {p.price ? <span className={`${MICRO} text-[12.5px]`} style={{ color: "var(--mp-accent)" }} suppressHydrationWarning>{formatMusicPrice(p.price, currency, locale)}</span> : null}
                 </span>
@@ -450,7 +453,7 @@ export function LinkRows({ links, name, logClick }: { links: any[]; name: string
                 rel="noopener noreferrer"
                 onClick={() => logClick("link", link.id, { name: link.title })}
                 className={`grid min-h-[64px] grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3.5 rounded-2xl border py-2.5 pl-3 pr-3.5 ${RING}`}
-                style={{ background: MP.surface, borderColor: MP.line, color: MP.fg }}
+                style={{ background: MP.surface, borderColor: MP.border, color: MP.fg }}
                 aria-label={`${publicLinkTitle(link)} (${t.musicProfile.openLink})`}
               >
                 {link.image_url ? (
@@ -484,7 +487,7 @@ export function GiftCard({ name, username, message }: { name: string; username: 
   const chip = () => `${MICRO} ringo-tactile inline-flex min-h-[44px] items-center rounded-full border-[1.5px] px-4 text-[13px] font-medium transition ${RING}`;
   return (
     <section id="gift" aria-labelledby="mp-gift" className="scroll-mt-6 px-5">
-      <div className="relative flex flex-col gap-4 overflow-hidden rounded-[22px] px-5 pb-5 pt-6" style={{ background: "var(--mp-accent)", color: "var(--mp-on-accent)" }}>
+      <div className="relative flex flex-col gap-4 overflow-hidden rounded-[22px] border px-5 pb-5 pt-6" style={{ background: "var(--mp-accent)", color: "var(--mp-on-accent)", borderColor: "color-mix(in srgb, var(--mp-on-accent) 22%, transparent)" }}>
         <svg viewBox="0 0 200 200" aria-hidden="true" className="pointer-events-none absolute -right-11 -top-11 h-[190px] w-[190px] opacity-20">
           <circle cx="100" cy="100" r="96" fill="none" stroke="currentColor" strokeWidth="2" />
           <circle cx="100" cy="100" r="74" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -547,7 +550,7 @@ export function AboutBlock({ name, avatar, longBio, facts }: { name: string; ava
         </div>
       )}
       {facts.length > 0 && (
-        <dl className="grid grid-cols-[100px_minmax(0,1fr)] gap-x-3.5 gap-y-1 text-[14px]">
+        <dl className="grid grid-cols-[100px_minmax(0,1fr)] gap-x-3.5 gap-y-1 rounded-[18px] border px-4 py-3 text-[14px]" style={{ background: MP.surface, borderColor: MP.border }}>
           {facts.map((f) => (
             <div key={`${f.label}-${f.value}`} className="col-span-2 grid grid-cols-subgrid items-center">
               <dt className={`${MICRO} text-[11px] uppercase tracking-[.14em]`} style={{ color: MP.muted }}>{f.label}</dt>
@@ -576,7 +579,7 @@ export function MiniPlayer({ tracks, username, currency, whatsappNumber, artistN
         <Link href={a.detailHref} tabIndex={-1} aria-hidden="true"><Cover src={track.cover_image_url} size={44} rounded="rounded-[8px]" /></Link>
         <Link href={a.detailHref} className={`flex min-w-0 flex-col ${RING}`}>
           <span className="truncate text-[14px] font-semibold">{track.title}</span>
-          <span className="truncate text-[12px]" style={{ color: MP.muted }}>{track.artist_name || artistName}{a.isProtected ? ` · ${t.musicProfile.preview(MAX_PREVIEW_SECONDS)}` : ""}</span>
+          <span className="truncate text-[12px]" style={{ color: MP.muted }}>{track.artist_name || artistName}</span>
         </Link>
         {a.buy?.kind === "detail" ? (
           <Link href={a.buy.href} className={`${MICRO} inline-flex min-h-[44px] items-center rounded-full border px-3 text-[12.5px] font-bold ${RING}`} style={{ borderColor: "var(--mp-accent)", color: "var(--mp-accent)" }} aria-label={`${t.musicProfile.buy} ${track.title}${a.priceLabel ? `, ${a.priceLabel}` : ""}`} suppressHydrationWarning>

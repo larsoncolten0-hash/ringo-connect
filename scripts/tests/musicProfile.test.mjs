@@ -65,6 +65,7 @@ const stubs = {
   "next/image": { __esModule: true, default: (p) => React.createElement("img", { src: p.src, alt: p.alt }) },
 };
 function load(file) {
+  if (file.endsWith("musicFont.ts")) return { display: { variable: "font-mp-display" } }; // next/font only exists inside the Next build
   if (!file.endsWith(".tsx")) return jiti(file);
   if (cache.has(file)) return cache.get(file).exports;
   const mod = { exports: {} };
@@ -254,14 +255,15 @@ await test("every other category is byte-for-byte the old structure: no Music vi
 });
 await test("Music behavior is preserved: Buy, Book, the 10-second preview, prices in XAF / FCFA, purchase and detail routes, WhatsApp and social links", () => {
   const h = render(music());
-  assert.ok(h.includes('href="/m/jaykay"') && h.includes(translations.en.musicProfile.buyMusic || "Buy music"), "Buy music goes to the storefront");
+  assert.ok(h.includes('href="/m/jaykay/music"') && h.includes(translations.en.musicProfile.buyMusic || "Buy music"), "Buy music opens the artist's Music page (whose items lead to the one storefront checkout)");
   assert.ok(h.includes('href="/jaykay/book"'), "Book goes to the booking page");
   assert.ok(h.includes("/m/jaykay/track/t1") && h.includes("/m/jaykay/track/t2"), "track detail pages");
   assert.ok(h.includes("/m/jaykay/release/r1") && h.includes("/m/jaykay/release/r3"), "release pages");
   assert.ok(h.includes("/m/jaykay/merch/m1"), "merch detail");
   assert.ok(h.includes("/m/jaykay/ticket/e1"), "ticket detail");
   assert.ok(h.includes("500 FCFA") && h.includes("3,000 FCFA") && h.includes("1,500 FCFA") && h.includes("12,000 FCFA"), "prices exactly as saved, in FCFA");
-  assert.ok(/Preview 10s/.test(h) && h.includes('aria-label="Play preview: My Era"'), "a protected track still offers the 10-second preview");
+  assert.ok(h.includes('aria-label="Play: My Era"') && !h.includes("preview_audio_url"), "a protected track shows a plain Play (the 10-second limit is enforced by the playback hook, not announced in the UI)");
+  assert.ok(!/Preview 10|Preview \d+\s?s|Aperçu|Extrait \d+|10 seconds|10 secondes/i.test(visible(h).join("|") + visible(render(music(), "fr")).join("|")), "no 'Preview 10 sec' wording anywhere on the Music profile (EN or FR)");
   assert.ok(h.includes('aria-label="Buy My Era, 500 FCFA"'), "and the full song is bought, at its real price");
   assert.ok(h.includes('aria-label="Play: Ndole"'), "an unprotected track just plays");
   assert.ok(h.includes('href="https://instagram.com/jaykay"') && h.includes("wa.me/237677123456") && h.includes('href="tel:+237677123456"'), "social, WhatsApp and call");
@@ -308,10 +310,128 @@ await test("featured card: the creator's pinned item leads with its real artwork
 await test("releases: one rail with a link to the storefront and one link per real release; hidden when there are none", () => {
   const h = render(music({ products: [] }));
   assert.ok(h.includes('aria-label="' + translations.en.music.releasesTitle + '"') || visible(h).includes(translations.en.music.releasesTitle), "the releases section");
-  assert.ok(visible(h).includes(translations.en.musicProfile.seeAll) || h.includes('href="/m/jaykay"'), "a way to the storefront");
+  assert.ok(visible(h).includes("View all") && !visible(h).some((x) => /^shop (now|all)$/i.test(x)), "the releases section says View all (not Shop now / Shop all)");
+  assert.ok(h.includes('href="/m/jaykay/music"'), "and it opens the Music page");
   for (const id of ["r1", "r2", "r3"]) assert.ok(h.includes(`/m/jaykay/release/${id}`), "every release keeps its own link " + id);
   assert.ok(!render(music({ music_releases: [] })).includes("/m/jaykay/release/"));
   assert.ok(!render(music({ music_releases: music().music_releases.map((r) => ({ ...r, available: false })) })).includes("/m/jaykay/release/"), "unavailable releases are not shown");
+});
+
+// ===== Music Artist Profile refinement: identity header, coloured socials, borders, and the Music / Merch / Tickets destinations =====
+const Destination = load(path.join(SRC, "components/music/profile/MusicDestinationView.tsx")).default;
+const MPH = jiti(path.join(SRC, "lib/music/profileMusic.ts"));
+const dest = (kind, over = {}, lang = "en") => html(Destination, { kind, profile: music(over) }, lang);
+await test("identity header: the artist name is a normal heading, the avatar and the cover are two separate images, the location sits above the name", () => {
+  assert.ok(MPH.profileNameSize("Jay Kay") <= 40 && MPH.profileNameSize("A Very Long Artist Name Indeed And More") <= 28 && MPH.profileNameSize("Jay Kay") >= MPH.profileNameSize("A Very Long Artist Name Indeed And More"), "responsive, never a poster headline");
+  const h = render(music({ avatar_url: "/avatar.png", cover_image_url: "/cover.png", about_location: "Douala" }));
+  assert.ok(h.includes('src="/cover.png"') && h.includes('src="/avatar.png"'), "both images are used, each in its own place");
+  assert.ok(h.indexOf('src="/cover.png"') < h.indexOf('src="/avatar.png"'), "the cover first, the avatar hanging off it");
+  assert.ok(/font-size:(40|36|32|28)px/.test(h), "the name is 28-40px");
+  assert.ok(h.indexOf("Douala") < h.indexOf("<h1"), "the location line sits above the name");
+  assert.ok(!render(music({ avatar_url: null, cover_image_url: null })).includes("undefined"), "no images: no broken markup");
+  assert.ok(render(music({ avatar_url: null })).includes('src="/default-avatar.png"'), "no avatar falls back to Ringo's own default avatar");
+  assert.ok(!render(music({ cover_image_url: null, avatar_url: "/avatar.png" })).includes('object-[50%_30%]'), "no cover: the avatar is NOT stretched into a hero (a tinted ground is shown)");
+});
+await test("social icons are recognisable: each platform keeps its own colour (restrained tint + hairline), not a monochrome placeholder", () => {
+  const h = render(music({ social_links: ["instagram", "facebook", "tiktok", "youtube", "x"].map((p, i) => ({ id: "s" + i, platform: p, url: `https://${p}.com/jaykay` })) }));
+  for (const c of ["#F2557F", "#4C97FF", "#25F4EE", "#FF3B3B", "#F5F5F5"]) assert.ok(h.includes(`color:${c}`), "brand colour " + c);
+  assert.ok(h.includes("color-mix(in srgb, #4C97FF 13%, transparent)") && h.includes("color-mix(in srgb, #4C97FF 42%, transparent)"), "a faint tint and a hairline of the same colour");
+  assert.ok(h.includes('aria-label="facebook"') && h.includes('href="https://facebook.com/jaykay"'), "named, real links");
+});
+await test("Play: songs say Play / Lecture (an icon button), never 'Preview 10 sec'; the price and Buy sit beside it in FCFA", () => {
+  const en = visible(render(music()));
+  const fr = visible(render(music(), "fr"));
+  assert.ok(en.includes("Play") && en.includes("500 FCFA"), "EN: Play and the real price");
+  assert.ok(fr.includes("Lecture") && fr.includes("500 FCFA"), "FR: Lecture and the real price");
+  assert.ok(!en.concat(fr).some((x) => /preview|aperçu|extrait|10 ?s/i.test(x)), "no preview wording in the UI text");
+  const sections = strip(raw("src/components/music/profile/MusicSections.tsx"));
+  assert.ok(!/MAX_PREVIEW_SECONDS|previewHint|musicProfile\.preview\(|playPreview/.test(sections), "the sections no longer explain the restriction");
+  assert.ok(/MAX_PREVIEW_SECONDS/.test(strip(raw("src/components/music/useTrackPlayback.ts"))), "the limit itself still lives in the playback hook");
+});
+await test("borders: one border token, applied to song, release, merch, link, gift, about and ticket cards", () => {
+  const theme = strip(raw("src/components/music/profile/musicTheme.ts"));
+  assert.match(theme, /border: "rgba\(243,233,220,0\.13\)"/);
+  const sec = strip(raw("src/components/music/profile/MusicSections.tsx"));
+  assert.ok((sec.match(/borderColor: MP\.border/g) || []).length >= 6, "the one token is what the cards use");
+  const h = render(music());
+  assert.ok((h.match(/border-color:rgba\(243,233,220,0\.13\)/g) || []).length >= 6, "rendered on the cards");
+  assert.ok(h.includes("box-shadow:0 0 0 1px rgba(243,233,220,.22)"), "the ticket stubs carry a hairline too");
+  assert.ok(!/border-b py-3/.test(sec), "the floating divider rows are gone");
+});
+await test("destinations: the profile offers Music / Merch / Tickets as links to their own pages (never an in-page scroll), and only for what exists", () => {
+  const h = render(music());
+  for (const href of ["/m/jaykay/music", "/m/jaykay/merch", "/m/jaykay/tickets"]) assert.ok(h.includes(`href="${href}"`), href);
+  assert.ok(h.includes('aria-label="Artist pages"'), "a named navigation");
+  assert.ok(!h.includes("#tickets") && !h.includes('href="#music"') && !h.includes('href="#merch"'), "no scroll anchors");
+  const bare = render(music({ products: [], events: [], tracks: [], music_releases: [] }));
+  assert.ok(!bare.includes("/m/jaykay/merch") && !bare.includes("/m/jaykay/tickets") && !bare.includes("/m/jaykay/music"), "nothing to show means no link");
+  const fr = render(music(), "fr");
+  assert.ok(fr.includes(">Musique<") && fr.includes(">Billets<"), "FR labels");
+  for (const k of ["music", "merch", "tickets"]) {
+    const f = path.join(SRC, `app/m/[username]/${k}/page.tsx`);
+    assert.ok(fs.existsSync(f), `route ${k} exists`);
+    const src = strip(fs.readFileSync(f, "utf8"));
+    assert.match(src, /loadMusicDestination\(params\.username\)/);
+    assert.match(src, /export \{ generateMetadata, generateViewport \} from "@\/lib\/profileMetadata"/, "SEO / PWA metadata like every public profile route");
+  }
+});
+await test("Music page: artwork, albums & EPs, singles / songs with Play and Buy in FCFA, links into the existing item pages and checkout", () => {
+  const h = dest("music");
+  const t = visible(h);
+  assert.ok(t.includes("Music") && t.includes("Albums & EPs") && t.includes("All songs"), "its own structure");
+  assert.ok(h.includes("/m/jaykay/release/r1") && h.includes("/m/jaykay/track/t1") && h.includes("/m/jaykay/track/t2"), "item pages");
+  assert.ok(h.includes('aria-label="Play: Ndole"') && h.includes('aria-label="Buy My Era, 500 FCFA"'), "Play and Buy");
+  assert.ok(h.includes("3,000 FCFA") && h.includes("1,500 FCFA") && !/GH₵|GHS/.test(h), "XAF / FCFA only");
+  assert.ok(h.includes('href="/jaykay"') && h.includes('aria-label="Artist pages"') && h.includes('aria-current="page"'), "the way back to the profile, and where you are");
+  assert.ok(!/<audio|protected_audio_path/.test(h), "no audio is shipped in the page");
+  assert.ok(h.includes("--mp-accent:#D4A954") && h.includes("background:#120B10"), "same palette and the creator's accent");
+});
+await test("Merch page: products with images, prices and availability, linking to the existing merch pages; a calm empty state", () => {
+  const h = dest("merch");
+  assert.ok(visible(h).includes("Merch") && visible(h).includes("1 item"), "header and count");
+  assert.ok(h.includes("/m/jaykay/merch/m1") && h.includes('src="/h.png"') && h.includes("12,000 FCFA") && visible(h).includes("AVAILABLE"), "product, image, price, availability");
+  const sold = dest("merch", { products: [{ id: "m1", profile_id: "p1", name: "Hoodie", price: 12000, image_url: "/h.png", available: true, inventory_count: 0 }] });
+  assert.ok(visible(sold).some((x) => /^sold out$/i.test(x)), "sold out is said");
+  const none = dest("merch", { products: [] });
+  assert.ok(visible(none).includes(translations.en.musicProfile.emptyMerch) && none.includes('href="/jaykay"'), "empty state, with the way back");
+  assert.ok(!/cart|checkout|fapshi/i.test(strip(raw("src/components/music/profile/MusicDestinationView.tsx"))), "no second checkout: purchases open the existing item pages");
+});
+await test("Merch page analytics: a product tap goes through the existing /api/track mechanism (same body as the profile and the product page), not a second system", () => {
+  const v = strip(raw("src/components/music/profile/MusicDestinationView.tsx"));
+  assert.match(v, /fetch\("\/api\/track"/, "the existing endpoint");
+  assert.match(v, /import \{ newEventId \} from "@\/lib\/pixelClient"/, "the existing event-id helper");
+  assert.match(v, /profileId: profile\.id,\s*targetType,\s*targetId: targetId \?\? null,\s*eventId: newEventId\(\),\s*contentName: content\?\.name \?\? null,/, "the same payload ProfileView sends");
+  assert.ok(!/noClick|fbq|ttq|click_events|supabase/.test(v), "no no-op logger, no private pixel code, no direct database write");
+  assert.equal((v.match(/logClick=\{logClick\}/g) || []).length, 2, "both the lead product and the grid are tracked");
+  assert.match(v, /logClick\("product", product\.id, \{ name: product\.name/, "the lead card logs a product click");
+  assert.match(strip(raw("src/components/music/profile/MusicSections.tsx")), /onClick=\{\(\) => logClick\("product", p\.id/, "and so does every grid card");
+  const before = strip(raw("src/components/ProfileView.tsx"));
+  assert.match(before, /fetch\("\/api\/track"/, "ProfileView's own tracking is untouched");
+  assert.equal(git("diff --name-only HEAD -- src/app/api src/lib/pixelClient.ts src/lib/pixelEvents.ts src/lib/pixelTracking.ts").trim(), "", "the analytics implementation itself is unchanged");
+});
+await test("Tickets page: the next event leads with its artwork, date, venue and price; the rest follow; past events are separated; empty state", () => {
+  const two = [
+    { id: "e1", title: "Release party", event_date: "2099-12-05", event_time: "20:00", location: "Douala", price: 3000, status: "published", cover_image_url: "/e1.png", event_ticket_types: [] },
+    { id: "e2", title: "Open stage", event_date: "2099-12-20", event_time: "19:00", location: "Yaoundé", price: 2000, status: "published", event_ticket_types: [] },
+    { id: "e3", title: "Old gig", event_date: "2020-01-01", location: "Kribi", price: 1000, status: "completed", event_ticket_types: [] },
+  ];
+  const h = dest("tickets", { events: two });
+  const t = visible(h);
+  assert.ok(t.includes("Tickets") && t.includes("Next up") && t.includes("Upcoming") && t.includes("Past and cancelled"), "its own structure");
+  assert.ok(h.includes('src="/e1.png"') && h.includes("/m/jaykay/ticket/e1") && t.includes("Douala") && h.includes("3,000 FCFA"), "artwork, route, venue, price");
+  assert.ok(h.indexOf("Release party") < h.indexOf("Open stage") && h.indexOf("Open stage") < h.indexOf("Old gig"), "soonest first, past last");
+  assert.ok(visible(dest("tickets", { events: [] })).includes(translations.en.musicProfile.emptyTickets), "empty state");
+  assert.ok(!dest("tickets", { events: [{ ...two[0], status: "draft" }] }).includes("Release party"), "a draft is never shown");
+});
+await test("destinations: EN/FR, the same keys in both languages, and only the artist's own data (no hard-coded artist, song, price or event)", () => {
+  const fr = visible(dest("music", {}, "fr")).concat(visible(dest("merch", {}, "fr")), visible(dest("tickets", {}, "fr")));
+  for (const w of ["The catalog", "Albums & EPs", "All songs", "Official store", "Next up", "Back to profile", "Upcoming"]) assert.ok(!fr.includes(w), "FR shows English: " + w);
+  assert.ok(fr.includes("Musique") && fr.includes("Tous les titres") && fr.includes("Retour au profil"));
+  const src = strip(raw("src/components/music/profile/MusicDestinationView.tsx")) + strip(raw("src/components/music/profile/MusicNav.tsx")) + strip(raw("src/lib/music/loadDestination.ts"));
+  assert.ok(!/GH₵|GHS|Jay Kay|Afrobeat|\b\d{3,}\s?(FCFA|XAF)/.test(src), "no reference data in production code");
+  assert.match(strip(raw("src/lib/music/loadDestination.ts")), /\.eq\("published", true\)/, "only published profiles");
+  assert.match(strip(raw("src/lib/music/loadDestination.ts")), /isPublicProfileSuspended/, "a suspended owner stays hidden");
+  assert.match(strip(raw("src/lib/music/loadDestination.ts")), /music_entertainment/, "Music category only");
 });
 
 // ------------------------------------------------------------------ Gift the Artist (and no leakage between languages)
@@ -346,7 +466,7 @@ await test("no language leakage: the French Music profile has no English UI text
   assert.equal(JSON.stringify(Object.keys(translations.en.music).sort()), JSON.stringify(Object.keys(translations.fr.music).sort()), "music: the same keys in both languages");
 });
 await test("translations: the redesign only ADDS the musicProfile namespace; no existing translation line is rewritten", () => {
-  const diff = git("diff -U0 HEAD -- src/lib/i18n/translations.ts").split("\n");
+  const diff = git("diff -U0 5a5f8bc -- src/lib/i18n/translations.ts").split("\n"); // everything since the Phase 24 base commit
   assert.deepEqual(diff.filter((l) => l.startsWith("-") && !l.startsWith("---")), [], "nothing removed or rewritten");
   const added = diff.filter((l) => l.startsWith("+") && !l.startsWith("+++"));
   assert.ok(added.length > 0 && added.some((l) => /musicProfile:/.test(l)), "the musicProfile namespace is added");

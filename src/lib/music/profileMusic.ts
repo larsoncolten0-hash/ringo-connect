@@ -54,6 +54,17 @@ export function heroNameLines(name: string | null | undefined): string[] {
   return lines;
 }
 
+/** The artist name as a normal profile heading (px): a touch larger for short names, never a poster headline. */
+export function profileNameSize(name: string | null | undefined): number {
+  const len = (name || "").trim().length;
+  return len <= 12 ? 40 : len <= 20 ? 36 : len <= 30 ? 32 : 28;
+}
+
+/** The artist's own cover photo (NOT the avatar: the two are separate images). Null when there is none (the header then shows a plain accent-tinted ground, never a stock photo). */
+export function coverImage(profile: { cover_image_url?: string | null }): string | null {
+  return profile.cover_image_url || null;
+}
+
 /** A font size (px) that lets the longest line fit a ~350px column in the condensed display face, clamped so short names are large but never absurd. */
 export function heroFontSize(lines: string[]): number {
   const longest = Math.max(1, ...lines.map((l) => l.length));

@@ -53,6 +53,24 @@ const BRAND_STYLES: Record<string, { background: string; color: string }> = {
   github: { background: "#181717", color: "#fff" },
 };
 
+// The Music profile's quiet treatment keeps each platform recognisable without turning the page into a rainbow: the glyph in the platform's own colour, on a faint tint of
+// that colour with a hairline of it. (Colours that vanish on a dark ground are lifted a little: X and TikTok read as white with TikTok's cyan / pink edge.)
+const GHOST_COLORS: Record<string, string> = {
+  instagram: "#F2557F",
+  tiktok: "#25F4EE",
+  x: "#F5F5F5",
+  twitter: "#F5F5F5",
+  youtube: "#FF3B3B",
+  facebook: "#4C97FF",
+  linkedin: "#4A9BE8",
+  whatsapp: "#25D366",
+  threads: "#F5F5F5",
+  pinterest: "#F0384F",
+  snapchat: "#FFFC00",
+  telegram: "#3DB4F0",
+  github: "#F5F5F5",
+};
+
 export default function SocialIcon({
   platform,
   url,
@@ -71,15 +89,17 @@ export default function SocialIcon({
 
   if (ghost) {
     const ghostHref = displayHref(url);
+    const tint = GHOST_COLORS[key] || "currentColor";
     return (
       <a
         href={ghostHref}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={platform}
-        className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-current/20 transition hover:border-current/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="inline-flex h-12 w-12 items-center justify-center rounded-full border transition hover:brightness-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        style={{ color: tint, background: `color-mix(in srgb, ${tint} 13%, transparent)`, borderColor: `color-mix(in srgb, ${tint} 42%, transparent)` }}
       >
-        <Icon size={18} aria-hidden="true" />
+        <Icon size={19} aria-hidden="true" style={key === "tiktok" ? { filter: "drop-shadow(1px 1px 0 rgba(254,44,85,.85))" } : undefined} />
       </a>
     );
   }
