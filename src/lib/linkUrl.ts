@@ -59,3 +59,28 @@ export function displayHref(stored: unknown): string {
   const check = normalizeLinkUrl(stored);
   return check.ok ? check.url : "#";
 }
+
+/**
+ * The address to use for a creator-supplied outbound link (a product's own link, a track's buy / external link, an event's
+ * ticket link) in an href or window.open(): the normalised address, or null when the stored value is not a safe link. Same
+ * rules as the editor (normalizeLinkUrl): only http, https, mailto, tel, sms and whatsapp are ever passed through, so
+ * javascript:, data:, vbscript: and obfuscated forms of them ("java<TAB>script:") yield null. Callers render NO link for null.
+ * Use this at render time as well as on save: stored values can predate any save-time rule, and the dashboard saves straight
+ * to the database from the browser.
+ */
+export function safeExternalUrl(stored: unknown): string | null {
+  const check = normalizeLinkUrl(stored);
+  return check.ok ? check.url : null;
+}
+
+/**
+ * What to do with an address typed into one of those fields when it is SAVED: an empty box clears the link (value null), a usable
+ * address is saved in its normalised form (a bare "example.com" becomes https://example.com, as for the Links section), anything
+ * else is refused so it is never stored. The database refuses executable schemes as well (2026-10-06e_unsafe_url_scheme_guard.sql);
+ * this is the friendly, translated half of the same rule.
+ */
+export function linkForSave(raw: unknown): { ok: true; value: string | null } | { ok: false } {
+  if (typeof raw !== "string" || raw.trim() === "") return { ok: true, value: null };
+  const check = normalizeLinkUrl(raw);
+  return check.ok ? { ok: true, value: check.url } : { ok: false };
+}

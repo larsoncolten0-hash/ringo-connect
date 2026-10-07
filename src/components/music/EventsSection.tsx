@@ -8,6 +8,7 @@ import { MUSIC } from "@/lib/profileStage";
 import { formatPrice } from "@/lib/currency";
 import { primaryTicketType } from "@/lib/ticketTypes";
 import type { Translations } from "@/lib/i18n/translations";
+import { safeExternalUrl } from "@/lib/linkUrl";
 
 // Same fixed near-black "player card" treatment as MusicSection — see the
 // comment there. "Get Ticket"/"View Tickets" opens the event's own detail
@@ -91,7 +92,7 @@ export default function EventsSection({
             // multi-tier event always qualifies (the selector shows real
             // sold-out/not-yet-open state per tier rather than hiding the
             // whole card).
-            const canGetTicket = !!primary || !!(event.ticket_url || event.price || cleanNumber);
+            const canGetTicket = !!primary || !!(safeExternalUrl(event.ticket_url) || event.price || cleanNumber);
             const href = canGetTicket ? `/m/${username}/ticket/${event.id}` : null;
 
             return (

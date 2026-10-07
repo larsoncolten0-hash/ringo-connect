@@ -9,6 +9,7 @@ import path from "path";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { isPhase8AuthFile } from "./phase8Files.mjs"; // Phase 8: the exact auth / env files of "Continue with Google / Apple" (see phase8Files.mjs)
+import { isPhase16ProtectedFile } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
 import { fileURLToPath } from "url";
 import { OWNER_WORKSPACE_FILES } from "./ownerWorkspaceFiles.mjs"; // Owner Workspace UX pass: the exact files it changes on purpose
 // Record Sale (standalone receipts, branding, payment details, print, footer, navigation): the files that release changes on purpose. See recordSaleUnit.test.mjs / recordSaleSql.test.mjs.
@@ -225,7 +226,7 @@ const mkOwner = (responses = {}) => ({ userId: OWNER.userId, profile: { id: OWNE
   const protectedRe = /^(supabase\/migrations\/(?!2026-12-04_inventory)|src\/lib\/(productCheckout|payments|fapshi|documents|receivables|bookkeeping)\/|src\/middleware|src\/app\/api\/(documents|receivables|bookkeeping|payments|fapshi|music|restaurant|tickets|webhooks|cron)|src\/app\/auth|src\/lib\/supabase\/)/;
   const touched = changed.filter((f) => protectedRe.test(f) && !isPhase8AuthFile(f) && !RECORD_SALE_FILES.test(f) && !OWNER_WORKSPACE_FILES.has(f) && !["src/app/api/bookkeeping/entries/route.ts", "src/lib/bookkeeping/recordEntry.ts", "src/lib/bookkeeping/decision.ts", "src/lib/inventory/access.ts", "supabase/migrations/2026-12-05_ringo_ai_business_drafts.sql", "supabase/support/2026-12-05_ringo_ai_business_drafts.rollback.sql"].includes(f)); // Phase 7: the invoice-payment replace guard on the entries route (tested in bookkeeping.test.mjs)
   check("no protected path (earlier migrations, checkout, payments, documents, receivables, bookkeeping, auth, middleware, music, restaurant, tickets, crons) is modified", touched.length === 0, touched.join(", "));
-  check("package files untouched", !changed.some((f) => /^(package\.json|package-lock\.json)$/.test(f)));
+  check("package files untouched", !changed.some((f) => /^(package\.json|package-lock\.json)$/.test(f) && !isPhase16ProtectedFile(f)));
   const mig = read("supabase/migrations/2026-12-04_inventory_stock_control.sql");
   check("the migration never writes orders, payments, bookkeeping or invoices (code outside comments)", !/(insert into|update|delete from)\s+(product_orders|product_order_items|customer_payments|bk_entries|bk_documents|bk_document_payments)\b/i.test(mig.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n")));
 }

@@ -3,6 +3,7 @@ import { renderAnnouncementEmail } from "@/lib/email/renderAnnouncementEmail";
 import { sendPushToSubscriber } from "@/lib/push/send";
 import { notifyCustomer } from "@/lib/customer/inbox";
 import { itemPath } from "@/lib/deepLinks";
+import { safeExternalUrl } from "@/lib/linkUrl";
 
 // Shared by both send paths — the owner's manual "Send Announcement" and
 // the one-shot /api/community/notify product action — so there is exactly
@@ -77,7 +78,7 @@ export async function sendAnnouncementToSubscribers(
     announcement.link_ref_id ? `${siteUrl()}${itemPath(profile, kind, announcement.link_ref_id)}` : null;
   const ctaUrl =
     announcement.link_type === "custom"
-      ? announcement.link_url
+      ? safeExternalUrl(announcement.link_url) // creator-typed: only a safe web address becomes the email / push link (lib/linkUrl.ts)
       : announcement.link_type === "product" && announcement.link_ref_id
       ? deepLink("product") ?? `${siteUrl()}/${profile.username}#merch`
       : announcement.link_type === "booking"

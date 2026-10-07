@@ -16,6 +16,7 @@ import { newEventId } from "@/lib/pixelClient";
 import { productHref, productImages } from "./productHref";
 import PublicLanguageSelector from "@/components/PublicLanguageSelector";
 import PoweredByRingo from "@/components/PoweredByRingo";
+import { safeExternalUrl } from "@/lib/linkUrl";
 
 // The page a customer lands on from a catalog / merch / service card.
 // Mobile-first, editorial: a full-bleed swipeable photo hero with floating
@@ -98,7 +99,7 @@ export default function ProductDetailView({
   const cta = resolveProductCta({
     category: profile.category,
     isMusic,
-    hasLandingUrl: !!product.landing_url,
+    hasLandingUrl: !!safeExternalUrl(product.landing_url),
     bookingEnabled: !!profile.bookings_enabled,
     restaurantOrdering: profileHasCategory(profile, "restaurant_food") && profile.ordering_enabled !== false,
     checkoutAvailable,
@@ -112,7 +113,7 @@ export default function ProductDetailView({
 
   // The resolved destination decides where a tap goes (see customerActionRoutes.ts):
   // only existing Ringo workflows, never a fallback. Sold out is checked first.
-  const route = soldOut ? null : customerActionRoute(cta.destination, { username, productId: product.id, landingUrl: product.landing_url });
+  const route = soldOut ? null : customerActionRoute(cta.destination, { username, productId: product.id, landingUrl: safeExternalUrl(product.landing_url) });
   const primary: { label: string; href: string; external: boolean; icon: any; onClick?: () => void } | null = !route
     ? null
     : cta.destination === "external"

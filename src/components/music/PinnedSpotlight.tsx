@@ -6,6 +6,7 @@ import { hexToRgba, readableOn } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import { primaryTicketType } from "@/lib/ticketTypes";
 import type { Translations } from "@/lib/i18n/translations";
+import { safeExternalUrl } from "@/lib/linkUrl";
 
 // The one thing a fan sees first — replaces the old "Artist Hub" nav grid
 // with a single big, visual pick the creator makes themselves (see
@@ -134,7 +135,7 @@ export default function PinnedSpotlight({
     type === "product"
       ? `/m/${username}/merch/${item.id}`
       : type === "event"
-      ? eventPrimaryTicket || item.ticket_url || item.price || cleanNumber
+      ? eventPrimaryTicket || safeExternalUrl(item.ticket_url) || item.price || cleanNumber
         ? `/m/${username}/ticket/${item.id}`
         : undefined
       : undefined; // track's CTA is the play button, handled separately
@@ -203,7 +204,7 @@ export default function PinnedSpotlight({
                   {formatPrice(item.price, currency)}
                 </a>
               )}
-              {(isProtectedTrack ? item.preview_audio_url : item.audio_url || item.external_url) && (
+              {(isProtectedTrack ? item.preview_audio_url : item.audio_url || safeExternalUrl(item.external_url)) && (
                 <button
                   onClick={() => onTogglePlay(item)}
                   aria-label={isPlaying ? pauseLabel : playLabel}

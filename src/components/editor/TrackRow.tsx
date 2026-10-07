@@ -9,6 +9,7 @@ import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import ImageUploadField from "./ImageUploadField";
 import AudioUploadField from "./AudioUploadField";
 import ProtectedAudioUploadField from "./ProtectedAudioUploadField";
+import { linkForSave } from "@/lib/linkUrl";
 
 export default function TrackRow({
   track,
@@ -33,6 +34,18 @@ export default function TrackRow({
   const dur = useMotionDuration();
   const controls = useDragControls();
   const [expanded, setExpanded] = useState(!!startExpanded);
+  // A link box that holds something that cannot be a link is not saved (see lib/linkUrl.ts linkForSave).
+  const [linkError, setLinkError] = useState<"external_url" | "buy_url" | null>(null);
+  const persistLink = (key: "external_url" | "buy_url", raw: string) => {
+    const r = linkForSave(raw);
+    if (!r.ok) {
+      setLinkError(key);
+      return;
+    }
+    setLinkError(null);
+    if ((r.value ?? "") !== raw) onChange({ [key]: r.value ?? "" });
+    onPersist({ [key]: r.value ?? "" });
+  };
   const titleRef = useRef<HTMLInputElement>(null);
   const isProtected = !!track.protected_audio_path;
 
@@ -176,11 +189,12 @@ export default function TrackRow({
                     <input
                       value={track.external_url ?? ""}
                       onChange={(e) => onChange({ external_url: e.target.value })}
-                      onBlur={(e) => onPersist({ external_url: e.target.value })}
+                      onBlur={(e) => persistLink("external_url", e.target.value)}
                       placeholder={t.music.externalLinkPlaceholder}
                       inputMode="url"
                       className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
                     />
+                    {linkError === "external_url" && <p className="mt-1 text-xs text-ringo-coral">{t.editor.validation.urlInvalid}</p>}
                   </div>
 
                   <div className="flex gap-2">
@@ -195,12 +209,13 @@ export default function TrackRow({
                     <input
                       value={track.buy_url ?? ""}
                       onChange={(e) => onChange({ buy_url: e.target.value })}
-                      onBlur={(e) => onPersist({ buy_url: e.target.value })}
+                      onBlur={(e) => persistLink("buy_url", e.target.value)}
                       placeholder={t.music.buyUrlPlaceholder}
                       inputMode="url"
                       className="flex-1 min-w-0 text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-surface text-ringo-text"
                     />
                   </div>
+                  {linkError === "buy_url" && <p className="-mt-1 text-xs text-ringo-coral">{t.editor.validation.urlInvalid}</p>}
 
                   <div>
                     <p className="text-xs text-ringo-muted mb-1">{t.music.protectedAudioLabel}</p>

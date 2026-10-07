@@ -11,6 +11,7 @@ import { sortedTicketTypes, isTicketTypeOnSale, isSoldOut, remainingForTicketTyp
 import { useTrackPlayback } from "./useTrackPlayback";
 import PublicLanguageSelector from "@/components/PublicLanguageSelector";
 import PoweredByRingo from "@/components/PoweredByRingo";
+import { safeExternalUrl } from "@/lib/linkUrl";
 
 // The "more about it before you buy" page a fan lands on from the public
 // profile's song/EP/album/merch/ticket cards — see the route at
@@ -145,9 +146,9 @@ function TrackDetail({ item, accent, currency, locale, username, t, playingId, t
           <ShoppingCart size={15} />
           {t.music.buySong} · <span suppressHydrationWarning>{formatPrice(item.price, currency, locale)}</span>
         </Link>
-      ) : item.buy_url ? (
+      ) : safeExternalUrl(item.buy_url) ? (
         <a
-          href={item.buy_url}
+          href={safeExternalUrl(item.buy_url) as string}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white"
@@ -448,9 +449,9 @@ function LegacyTicketCta({ item, accent, currency, locale, username, t, whatsapp
         <p className="text-sm text-center py-2" style={{ opacity: 0.5 }}>
           {t.music.detailNotForSale}
         </p>
-      ) : item.ticket_url ? (
+      ) : safeExternalUrl(item.ticket_url) ? (
         <a
-          href={item.ticket_url}
+          href={safeExternalUrl(item.ticket_url) as string}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white"

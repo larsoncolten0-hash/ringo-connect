@@ -8,6 +8,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { createClient } from "@/lib/supabase/client";
 import ImageUploadField from "@/components/editor/ImageUploadField";
 import SavedPulse, { useSavedPulse } from "@/components/editor/SavedPulse";
+import { linkForSave } from "@/lib/linkUrl";
 
 // Draft save/edit goes straight through the authenticated browser client
 // (RLS: "community_announcements owner all" already scopes this, same
@@ -122,6 +123,12 @@ export default function CommunityAnnouncementComposer({
       setError(t.community.channelRequired);
       return null;
     }
+    // A custom link must be a usable web address: it becomes the button in the email and the push link (lib/linkUrl.ts).
+    const customLink = linkType === "custom" ? linkForSave(linkUrl) : ({ ok: true, value: null } as const);
+    if (!customLink.ok) {
+      setError(t.editor.validation.urlInvalid);
+      return null;
+    }
     setSaving(true);
     const payload = {
       profile_id: profileId,
@@ -129,7 +136,7 @@ export default function CommunityAnnouncementComposer({
       message: message.trim(),
       image_url: imageUrl,
       link_type: linkType,
-      link_url: linkType === "custom" ? linkUrl.trim() || null : null,
+      link_url: customLink.value,
       link_ref_id: ["product", "music", "event"].includes(linkType) ? linkRefId || null : null,
       audience: "all",
       channels,

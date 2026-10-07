@@ -11,6 +11,7 @@ import { formatPrice } from "@/lib/currency";
 import { resolveProductCta, resolveDisplayCtaLabel } from "@/lib/cta";
 import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import { productHref, productImages } from "@/components/catalog/productHref";
+import { safeExternalUrl } from "@/lib/linkUrl";
 
 // The dedicated commercial page of a profile's catalog (/[username]/shop): a storefront, not a dashboard screen. Ringo's own foundation (Indigo on
 // Paper) rather than the creator's theme, so every shop and services page reads as one calm, confident product; the creator's identity leads the
@@ -265,7 +266,7 @@ function Tile({
   const cta = resolveProductCta({
     category,
     isMusic: false,
-    hasLandingUrl: !!product.landing_url,
+    hasLandingUrl: !!safeExternalUrl(product.landing_url),
     bookingEnabled,
     restaurantOrdering,
     checkoutAvailable: checkoutAvailable && checkProductEligibility({ product, profileId: product.profile_id, quantity: 1 }) === null,

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getPlatformSettings } from "@/lib/platformSettings";
 import { sendPushAndBellToAdmins } from "@/lib/push/withBell";
 import { notifyAffiliateCommissionIfAny } from "@/lib/push/notifyAffiliateCommission";
+import { recordStripePayment, stripePaymentAlreadyRecorded } from "@/lib/stripeIdempotency";
 import { NextResponse } from "next/server";
 
 // Configure this URL in the Stripe dashboard (Developers → Webhooks),
@@ -76,6 +77,10 @@ export async function POST(request: Request) {
       const { data: plan } = await admin.from("plans").select("id, display_name, name").eq("name", planName).single();
       if (!plan) break;
 
+      // Stripe delivers events at least once. A session that already has its payment row was fully handled by an earlier delivery:
+      // do nothing, so a redelivery cannot repeat the notifications or credit a second affiliate commission (see stripeIdempotency.ts).
+      if (await stripePaymentAlreadyRecorded(admin, session.id)) break;
+
       await admin
         .from("users")
         .update({
@@ -88,20 +93,19 @@ export async function POST(request: Request) {
         })
         .eq("id", userId);
 
-      const { data: txRow } = await admin
-        .from("payment_transactions")
-        .insert({
-          user_id: userId,
-          provider: "stripe",
-          provider_transaction_id: session.id,
-          plan_name: planName,
-          billing_interval: interval,
-          amount: (session.amount_total || 0) / 100,
-          currency: (session.currency || "usd").toUpperCase(),
-          status: "success",
-        })
-        .select("id")
-        .single();
+      const recorded = await recordStripePayment(admin, {
+        user_id: userId,
+        provider: "stripe",
+        provider_transaction_id: session.id,
+        plan_name: planName,
+        billing_interval: interval,
+        amount: (session.amount_total || 0) / 100,
+        currency: (session.currency || "usd").toUpperCase(),
+        status: "success",
+      });
+      // Two deliveries racing past the check above: the database refused the second row, the first one handles the notifications.
+      if (recorded.duplicate) break;
+      const txRow = { id: recorded.id };
 
       // checkout.session.completed only ever fires once per new Checkout
       // session — unlike customer.subscription.updated (a renewal signal

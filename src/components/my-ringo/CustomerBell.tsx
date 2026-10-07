@@ -93,6 +93,8 @@ export function CustomerBellPanel({ state, onClose }: { state: CustomerNotificat
     if (!url) return;
     try {
       const target = new URL(url, window.location.origin);
+      // Defence in depth: a notification may only ever take the customer to a web page, never run a javascript: / data: URL.
+      if (target.protocol !== "https:" && target.protocol !== "http:") return;
       if (target.origin === window.location.origin) router.push(`${target.pathname}${target.search}${target.hash}`);
       else window.location.assign(target.href);
     } catch {

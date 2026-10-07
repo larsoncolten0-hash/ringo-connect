@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import { createClient } from "@/lib/supabase/server";
+import { avatarSourceUrl, readAvatarSource } from "@/lib/safeAvatarSource";
 import { NextResponse } from "next/server";
 
 // Generates the three PWA icon derivatives for a fan-facing profile's
@@ -17,6 +18,13 @@ import { NextResponse } from "next/server";
 // Auth: the caller's own session only — userId is taken from the
 // authenticated user, never trusted from the request body, since this
 // writes into that user's own storage folder.
+//
+// SSRF: avatarUrl comes from the browser, so it is NOT fetched as given. Only an image in this project's own public "uploads"
+// bucket is accepted (lib/safeAvatarSource.ts: exact origin, path confined to the bucket, no redirects, timeout, size cap,
+// magic-byte check that excludes SVG / HEIC / AVIF). Anything else is refused before any request is made.
+
+// sharp reads untrusted bytes: refuse an image whose decoded size is absurd (a small file that expands to a huge bitmap).
+const SHARP_INPUT = { limitInputPixels: 36_000_000, failOn: "error" as const };
 export async function POST(request: Request) {
   const supabase = createClient();
   const {
@@ -29,21 +37,22 @@ export async function POST(request: Request) {
   if (!avatarUrl || typeof avatarUrl !== "string") {
     return NextResponse.json({ error: "Missing avatarUrl." }, { status: 400 });
   }
+  const sourceUrl = avatarSourceUrl(avatarUrl);
+  if (!sourceUrl) {
+    return NextResponse.json({ error: "Invalid avatarUrl." }, { status: 400 });
+  }
 
-  let sourceBuffer: Buffer;
-  try {
-    const res = await fetch(avatarUrl);
-    if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
-    sourceBuffer = Buffer.from(await res.arrayBuffer());
-  } catch (err: any) {
-    console.error("avatar-icons: could not fetch source avatar:", err?.message);
+  const source = await readAvatarSource(sourceUrl);
+  if (!source.ok) {
+    console.error("avatar-icons: could not read source avatar:", source.reason);
     return NextResponse.json({ error: "Could not read the uploaded avatar." }, { status: 400 });
   }
+  const sourceBuffer = source.bytes;
 
   try {
     const [icon192, icon512, maskable512] = await Promise.all([
-      sharp(sourceBuffer).resize(192, 192, { fit: "cover" }).png().toBuffer(),
-      sharp(sourceBuffer).resize(512, 512, { fit: "cover" }).png().toBuffer(),
+      sharp(sourceBuffer, SHARP_INPUT).resize(192, 192, { fit: "cover" }).png().toBuffer(),
+      sharp(sourceBuffer, SHARP_INPUT).resize(512, 512, { fit: "cover" }).png().toBuffer(),
       renderMaskableIcon(sourceBuffer),
     ]);
 
@@ -88,7 +97,7 @@ async function renderMaskableIcon(sourceBuffer: Buffer): Promise<Buffer> {
   const innerSize = Math.round(size * 0.7);
   const offset = Math.round((size - innerSize) / 2);
 
-  const resized = await sharp(sourceBuffer).resize(innerSize, innerSize, { fit: "cover" }).toBuffer();
+  const resized = await sharp(sourceBuffer, SHARP_INPUT).resize(innerSize, innerSize, { fit: "cover" }).toBuffer();
 
   return sharp({
     create: { width: size, height: size, channels: 4, background: "#FFFFFF" },

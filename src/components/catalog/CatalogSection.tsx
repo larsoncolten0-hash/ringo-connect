@@ -10,6 +10,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { resolveProductCta, resolveDisplayCtaLabel, sectionCtaKind } from "@/lib/cta";
 import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import { productHref, productImages } from "./productHref";
+import { safeExternalUrl } from "@/lib/linkUrl";
 
 // The public profile's Catalog / Merch / Services section: the DISCOVERY layer, kept short. With four or more items it is a still
 // horizontal RAIL of the first eight (the next card always peeking in; nothing about a card moves while it scrolls), and one button,
@@ -245,7 +246,7 @@ function ProductCard({
   const cta = resolveProductCta({
     category,
     isMusic,
-    hasLandingUrl: !!product.landing_url,
+    hasLandingUrl: !!safeExternalUrl(product.landing_url),
     bookingEnabled: !!bookingEnabled,
     restaurantOrdering: !!restaurantOrdering,
     checkoutAvailable: !!checkoutAvailable && checkProductEligibility({ product, profileId: product.profile_id, quantity: 1 }) === null,

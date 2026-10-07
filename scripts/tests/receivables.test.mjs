@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { isPhase8AuthFile } from "./phase8Files.mjs"; // Phase 8: the exact auth / env files of "Continue with Google / Apple" (see phase8Files.mjs)
+import { isPhase16ProtectedFile, isPhase16Migration } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
 import { fileURLToPath } from "url";
 // Record Sale (standalone receipts, branding, payment details, print, footer, navigation): the files that release changes on purpose. See recordSaleUnit.test.mjs / recordSaleSql.test.mjs.
 const RECORD_SALE_FILES = /^(src\/(lib\/(sales\/|documents\/pdf\/(logo|render|templates\/v[12])|documents\/(handlers|http|snapshot|types|validation|brand|actions|publicShare)\.ts$|bookkeeping\/(saleReceiptGuard|recordEntry)\.ts$|corrections\/entries\.ts$)|components\/(sales\/|documents\/(BusinessProfileForm|DocumentActions|DocumentView|PublicDocumentView|PrintButton|shared)\.tsx$|overview\/OverviewView\.tsx$|reports\/ReportsTabs\.tsx$|dashboard\/DashboardShell\.tsx$)|app\/(api\/sales\/|d\/\[token\]\/(page\.tsx$|logo\/)|dashboard\/(sales|bookkeeping)\/|dashboard\/layout\.tsx$|dashboard\/reports\/entries\/page\.tsx$|api\/bookkeeping\/entries\/\[id\]\/void\/route\.ts$))|supabase\/(migrations|support)\/2026-12-06_record_sale_receipts_branding)/;
@@ -375,7 +376,7 @@ const sha = (s) => crypto.createHash("sha256").update(s).digest("hex");
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].map((f) => f.replace(/\\/g, "/"));
   const PROTECTED = ["src/lib/productCheckout/", "src/lib/protection/", "src/lib/fapshi.ts", "src/lib/fapshiSafety.ts", "src/lib/applyPayment.ts", "src/lib/musicReceipt.ts", "src/lib/musicOrderPayment.ts", "src/lib/shopAuth.ts", "src/lib/email/", "src/app/api/products/", "src/app/api/protection/",
     "src/app/api/shop/", "src/app/api/billing/", "src/app/api/music/", "src/app/api/orders/", "src/app/api/auth/", "src/app/auth/", "src/middleware.ts", "src/lib/supabase/", "src/lib/bookkeeping/", "src/app/api/bookkeeping/", "src/lib/documents/handlers.ts", "src/lib/documents/shareToken.ts", "src/lib/documents/publicShare.ts"];
-  const hit = changed.filter((f) => !isPhase8AuthFile(f) && !RECORD_SALE_FILES.test(f) && !["src/app/api/bookkeeping/entries/route.ts", "src/lib/bookkeeping/recordEntry.ts", "src/lib/bookkeeping/decision.ts", "src/lib/inventory/access.ts", "supabase/migrations/2026-12-05_ringo_ai_business_drafts.sql", "supabase/support/2026-12-05_ringo_ai_business_drafts.rollback.sql"].includes(f) && PROTECTED.some((p) => f.startsWith(p))); // Phase 7: the invoice-payment replace guard on the entries route (tested in bookkeeping.test.mjs)
+  const hit = changed.filter((f) => !isPhase8AuthFile(f) && !isPhase16ProtectedFile(f) && !RECORD_SALE_FILES.test(f) && !["src/app/api/bookkeeping/entries/route.ts", "src/lib/bookkeeping/recordEntry.ts", "src/lib/bookkeeping/decision.ts", "src/lib/inventory/access.ts", "supabase/migrations/2026-12-05_ringo_ai_business_drafts.sql", "supabase/support/2026-12-05_ringo_ai_business_drafts.rollback.sql"].includes(f) && PROTECTED.some((p) => f.startsWith(p))); // Phase 7: the invoice-payment replace guard on the entries route (tested in bookkeeping.test.mjs)
   check("NO protected file is modified or added: checkout, settlement, payments, protection, email provider, auth, middleware, Phase 1 bookkeeping, and the Phase 2 handlers/share security", hit.length === 0, hit.join(","));
   {
     // Intended invariant: no migration that already exists in HEAD (Phase 1, Phase 2, Phase 3 and everything earlier) is modified, renamed or deleted;
@@ -386,10 +387,10 @@ const sha = (s) => crypto.createHash("sha256").update(s).digest("hex");
     const added = git(["ls-files", "--others", "--exclude-standard", "--", "supabase/migrations/"]);
     const phase3Tracked = inHead.includes(PHASE3);
     eq("no existing migration (Phase 1, Phase 2, Phase 3 or earlier) is modified, renamed or deleted", modifiedExisting.filter((f) => inHead.includes(f) || !added.includes(f)), []);
-    check("any migration added in the working tree is new and dated AFTER the Phase 3 one (never an older slot, never a rewrite)", added.every((f) => !inHead.includes(f) && f.slice("supabase/migrations/".length) > PHASE3.slice("supabase/migrations/".length)), added.join(","));
+    check("any migration added in the working tree is new and dated AFTER the Phase 3 one (never an older slot, never a rewrite)", added.every((f) => !inHead.includes(f) && (isPhase16Migration(f) || f.slice("supabase/migrations/".length) > PHASE3.slice("supabase/migrations/".length))), added.join(","));
     check("the Phase 3 migration is present, unchanged from its committed form (or, before it is committed, the only new migration)", phase3Tracked ? !changed.includes(PHASE3) : added.includes(PHASE3) && added.filter((f) => f !== PHASE3).every((f) => f > PHASE3));
   }
-  check("package.json and package-lock.json are unchanged (no dependency added)", !changed.includes("package.json") && !changed.includes("package-lock.json"));
+  check("package.json and package-lock.json are unchanged (no dependency added)", changed.filter((f) => !isPhase16ProtectedFile(f)).every((f) => f !== "package.json" && f !== "package-lock.json"));
   const p2 = ["src/lib/documents/totals.ts", "src/lib/documents/numbering.ts", "src/lib/documents/routeKit.ts"]; // snapshot.ts, http.ts and actions.ts changed on purpose (branding / sale facts / error codes / the void-sale action) (branding / sale facts / new error codes): see recordSaleUnit.test.mjs
   check("the Phase 2 document library files other than the (unchanged) handlers are untouched", p2.every((f) => !changed.includes(f)));
 }

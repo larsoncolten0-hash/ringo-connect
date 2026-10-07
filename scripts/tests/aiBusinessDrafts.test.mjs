@@ -8,6 +8,7 @@ import path from "path";
 import { createRequire } from "module";
 import { OWNER_WORKSPACE_FILES } from "./ownerWorkspaceFiles.mjs"; // Owner Workspace UX pass: the exact files it changes on purpose
 import { isPhase8AuthFile } from "./phase8Files.mjs"; // Phase 8: the exact auth / env files of "Continue with Google / Apple" (see phase8Files.mjs)
+import { isPhase16ProtectedFile } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
 import { SRC, REPO, PROFILE, OTHER, makeDb, counters } from "./phase7Harness.mjs";
 
 const require = createRequire(import.meta.url);
@@ -224,8 +225,8 @@ check("read tools: category notes are attached to the summary and sales answers,
 const git = (args) => require("child_process").execFileSync("git", args, { cwd: REPO, encoding: "utf8" }).split("\n").filter(Boolean).map((f) => f.replace(/\\/g, "/"));
 let changed = [];
 try { changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])]; } catch { /* not a git checkout */ }
-check("scope: no payments, checkout, auth, middleware, music, restaurant, ticketing or webhook code is changed", !changed.filter((f) => !isPhase8AuthFile(f)).some((f) => /^src\/(lib\/(productCheckout|payments|fapshi|protection|music|restaurant|tickets)|middleware|app\/auth|app\/api\/(payments|fapshi|music|restaurant|tickets|webhooks|cron|auth|shop|orders|products|billing|protection))/.test(f)), changed.filter((f) => /payments|checkout|auth|middleware|music|restaurant|tickets|webhooks/.test(f)).join());
-check("scope: no package file, no schema.sql and no existing migration is changed; the only new SQL is the un-applied draft-type migration and its rollback", !changed.some((f) => /^(package(-lock)?\.json|supabase\/schema\.sql|tsconfig\.tsbuildinfo)$/.test(f)) && changed.filter((f) => /^supabase\//.test(f)).every((f) => /2026-12-05_ringo_ai_business_drafts|2026-12-06_record_sale_receipts_branding/.test(f) || OWNER_WORKSPACE_FILES.has(f)), changed.filter((f) => /^supabase\//.test(f)).join());
+check("scope: no payments, checkout, auth, middleware, music, restaurant, ticketing or webhook code is changed", !changed.filter((f) => !isPhase8AuthFile(f) && !isPhase16ProtectedFile(f)).some((f) => /^src\/(lib\/(productCheckout|payments|fapshi|protection|music|restaurant|tickets)|middleware|app\/auth|app\/api\/(payments|fapshi|music|restaurant|tickets|webhooks|cron|auth|shop|orders|products|billing|protection))/.test(f)), changed.filter((f) => /payments|checkout|auth|middleware|music|restaurant|tickets|webhooks/.test(f)).join());
+check("scope: no package file, no schema.sql and no existing migration is changed; the only new SQL is the un-applied draft-type migration and its rollback", !changed.some((f) => /^(package(-lock)?\.json|supabase\/schema\.sql|tsconfig\.tsbuildinfo)$/.test(f) && !isPhase16ProtectedFile(f)) && changed.filter((f) => /^supabase\//.test(f)).every((f) => /2026-12-05_ringo_ai_business_drafts|2026-12-06_record_sale_receipts_branding/.test(f) || OWNER_WORKSPACE_FILES.has(f)), changed.filter((f) => /^supabase\//.test(f)).join());
 check("scope: no scratch, secret or environment file is part of the change", !changed.filter((f) => !isPhase8AuthFile(f)).some((f) => /(^|\/)\.env|\.pem$|\.key$|scratch|_probe|\.log$/.test(f)));
 check("scope: no production URL, key or token is embedded in the new or changed code and tests", ![...changed.filter((f) => /\.(ts|tsx|mjs|sql)$/.test(f) && fs.existsSync(path.join(REPO, f)))].some((f) => /sk-[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{30,}\.|service_role_key\s*[:=]\s*["'][^"']{20,}|supabase\.co\/rest/.test(read(f))), "");
 

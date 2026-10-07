@@ -7,6 +7,7 @@ import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import EqualizerBars from "./EqualizerBars";
+import { safeExternalUrl } from "@/lib/linkUrl";
 
 // Fixed Ink "player card" — deliberately not theme-driven (unlike the rest of the page, which respects the creator's own colors): this is
 // what gives Latest Music its own visual identity sitting inside the lighter content area, regardless of which accent color is chosen.
@@ -69,7 +70,7 @@ export default function MusicSection({
             // that old flow had no way to actually deliver a purchased
             // file, this one does.
             const isProtected = !!track.protected_audio_path;
-            const canBuy = isProtected ? !!track.price : track.buy_url || track.price;
+            const canBuy = isProtected ? !!track.price : safeExternalUrl(track.buy_url) || track.price;
             // Any priced track (protected or not — the editor only ever
             // lets a track carry both a release assignment or a price,
             // never both, see TrackRow.tsx) is a real in-house sale, so it
@@ -127,7 +128,7 @@ export default function MusicSection({
                   </div>
                 </div>
 
-                {(isProtected ? track.preview_audio_url : track.audio_url || track.external_url) && (
+                {(isProtected ? track.preview_audio_url : track.audio_url || safeExternalUrl(track.external_url)) && (
                   <button
                     onClick={() => onTogglePlay(track)}
                     aria-label={isPlaying ? t.music.pauseLabel : t.music.playLabel}
@@ -151,11 +152,11 @@ export default function MusicSection({
                     >
                       {formatPrice(track.price, currency)}
                     </a>
-                  ) : track.buy_url ? (
+                  ) : safeExternalUrl(track.buy_url) ? (
                     // No price set (detailHref above already handles every
                     // priced track) — just the creator's own outbound link.
                     <a
-                      href={track.buy_url}
+                      href={safeExternalUrl(track.buy_url) as string}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="shrink-0 inline-flex items-center min-h-[44px] text-xs font-semibold px-3 py-2 rounded-full"

@@ -21,6 +21,7 @@ import { useAutosavedRows } from "./useAutosavedRows";
 import { planProductsSave } from "./productsSave";
 import { countHidden } from "@/lib/planEntitlements";
 import PlanCta from "@/components/ui/PlanCta";
+import { linkForSave } from "@/lib/linkUrl";
 
 export default function CatalogCard({
   profileId,
@@ -112,13 +113,17 @@ export default function CatalogCard({
   // preview) above, nothing reaches Supabase until this is clicked. Adding,
   // deleting, and reordering products stay immediate since those are
   // structural actions, not field edits.
+  const landingUrlForSave = (v: unknown) => {
+    const r = linkForSave(v);
+    return r.ok ? r.value : null;
+  };
   const productPayload = (p: any) => ({
             name: typeof p.name === "string" ? p.name.trim() : p.name,
             price: p.price === "" || p.price == null ? null : p.price,
             description: p.description,
             image_url: p.image_url,
             image_urls: p.image_urls,
-            landing_url: p.landing_url,
+            landing_url: landingUrlForSave(p.landing_url),
             whatsapp_message: p.whatsapp_message,
             available: p.available !== false,
             // A tracked product's count belongs to Inventory: it is left out of this save entirely.
@@ -148,6 +153,10 @@ export default function CatalogCard({
     const plan = planProductsSave(products);
     const messages: Record<string, string> = {};
     for (const id of Object.keys(plan.errors)) messages[id] = t.editor.validation.nameRequired;
+    // A product's own link must be a safe web address: the public page would not show anything else and the database refuses it.
+    for (const row of [...plan.updates.map((u) => u.row), ...plan.inserts.map((i) => i.row)]) {
+      if (!linkForSave((row as any).landing_url).ok) messages[row.id] = t.editor.validation.urlInvalid;
+    }
     setRowErrors(messages);
     if (Object.keys(messages).length > 0) return false;
 

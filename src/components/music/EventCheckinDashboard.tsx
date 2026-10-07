@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
 import ImageUploadField from "@/components/editor/ImageUploadField";
 import EventTicketTypesEditor from "@/components/editor/EventTicketTypesEditor";
+import { linkForSave } from "@/lib/linkUrl";
 
 // Gate Access + Check-in — organizer-facing. Scanner session rows are
 // created/deactivated straight against scanner_sessions via the regular
@@ -57,10 +58,19 @@ export default function EventCheckinDashboard({
   });
   const [ticketTypesState, setTicketTypesState] = useState(ticketTypes);
   const [deleting, setDeleting] = useState(false);
+  const [ticketUrlInvalid, setTicketUrlInvalid] = useState(false);
 
   const patchField = (key: keyof typeof fields, value: any) => setFields((prev) => ({ ...prev, [key]: value }));
   const persistField = async (key: string, value: any) => {
     await supabase.from("events").update({ [key]: value }).eq("id", event.id);
+  };
+  // The ticket link must be a usable web address (lib/linkUrl.ts linkForSave); an unsafe one is never saved.
+  const persistTicketUrl = (raw: string) => {
+    const r = linkForSave(raw);
+    setTicketUrlInvalid(!r.ok);
+    if (!r.ok) return;
+    if ((r.value ?? "") !== raw) patchField("ticket_url", r.value ?? "");
+    void persistField("ticket_url", r.value);
   };
 
   const deleteEvent = async () => {
@@ -341,11 +351,12 @@ export default function EventCheckinDashboard({
         <input
           value={fields.ticket_url}
           onChange={(e) => patchField("ticket_url", e.target.value)}
-          onBlur={(e) => persistField("ticket_url", e.target.value)}
+          onBlur={(e) => persistTicketUrl(e.target.value)}
           placeholder={t.music.ticketUrlPlaceholder}
           inputMode="url"
           className="w-full text-sm border border-ringo-border rounded-card px-3 py-2 bg-ringo-bg text-ringo-text"
         />
+        {ticketUrlInvalid && <p className="text-xs text-ringo-coral">{t.editor.validation.urlInvalid}</p>}
       </div>
 
       {/* Live check-in stats — real digital_tickets counts only. */}

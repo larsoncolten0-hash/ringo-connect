@@ -12,6 +12,7 @@ import { fileURLToPath } from "url";
 import { PHASE11_FILES } from "./phase11Files.mjs";
 import { PHASE12_FILES } from "./phase12Files.mjs";
 import { isPhase2File } from "./phase2Files.mjs";
+import { isPhase16ProtectedFile } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -383,7 +384,8 @@ await test("scope: no auth, payment, commission, payout, inventory, booking, tic
   assert.deepEqual(changed.filter((f) => !PHASE11_FILES.has(f)), [], "and every changed file belongs to Phase 3A (3B has its own list)");
 });
 await test("no dependency, no image payload, no canvas / WebGL / video, no new package: the profile stays light", () => {
-  assert.equal(git(`diff --stat ${PHASE3_BASE} -- package.json package-lock.json tsconfig.tsbuildinfo`).trim(), "");
+  const touchedPackageFiles = git(`diff --name-only ${PHASE3_BASE} -- package.json package-lock.json tsconfig.tsbuildinfo`).split("\n").map((x) => x.trim()).filter(Boolean);
+  assert.deepEqual(touchedPackageFiles.filter((f) => !isPhase16ProtectedFile(f)), []); // the security phase's next / sharp bump is proven separately (securityPhase1.test.mjs)
   const all = ["components/ProfileView.tsx", "components/music/PinnedSpotlight.tsx", "components/music/ReleasesSection.tsx", "lib/profileStage.ts"].map((f) => strip(raw("src/" + f))).join("\n");
   assert.ok(!/<canvas|webgl|three|\.mp4|<video|lottie|requestAnimationFrame|setInterval/i.test(all));
   assert.ok(!/ReleasesSection[\s\S]*<img[^>]*loading="eager"/.test(all));

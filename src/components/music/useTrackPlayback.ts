@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MAX_PREVIEW_SECONDS } from "@/lib/previewLimit";
+import { safeExternalUrl } from "@/lib/linkUrl";
 
 // Shared by MusicSection and PinnedSpotlight, both of which can show a
 // track's Play button — lifted up to ProfileView so only one instance of
@@ -33,7 +34,8 @@ export function useTrackPlayback() {
     const isProtected = !!track.protected_audio_path;
     const src = isProtected ? track.preview_audio_url : track.audio_url;
     if (!src) {
-      if (!isProtected && track.external_url) window.open(track.external_url, "_blank", "noopener,noreferrer");
+      const external = isProtected ? null : safeExternalUrl(track.external_url);
+      if (external) window.open(external, "_blank", "noopener,noreferrer");
       return;
     }
     if (playingId === track.id) {
