@@ -434,6 +434,24 @@ await test("destinations: EN/FR, the same keys in both languages, and only the a
   assert.match(strip(raw("src/lib/music/loadDestination.ts")), /music_entertainment/, "Music category only");
 });
 
+await test("profile picture shape: round by default everywhere; a profile that chose square gets a soft rounded square (Ringo radius tokens) on the public page, the Music profile and the Music pages", () => {
+  const sq = { avatar_shape: "square" };
+  const gen = render(generic());
+  assert.ok(gen.includes("rounded-full ring-4") && gen.includes("animate-ring-pulse-1"), "no choice: round, exactly as before");
+  assert.ok(render(generic({ avatar_shape: "round" })) === gen, "an explicit 'round' renders byte-for-byte like no choice");
+  for (const bad of ["nonsense", "", null, "SQUARE", 7]) assert.ok(render(generic({ avatar_shape: bad })) === gen, "invalid value falls back to round: " + String(bad));
+  const gsq = render(generic(sq));
+  assert.ok(gsq.includes("rounded-ringo-lg ring-4"), "a square picture on any other category: soft square, not sharp");
+  assert.ok(!gsq.includes("rounded-full ring-4") && !/<span[^>]*rounded-full[^>]*animate-ring-pulse/.test(gsq), "and no circle is drawn around it");
+  assert.ok(/<span[^>]*rounded-ringo-lg[^>]*animate-ring-pulse-1/.test(gsq) && /<span[^>]*rounded-ringo-lg[^>]*animate-ring-pulse-2/.test(gsq), "the pulse keeps its motion, now shaped to the square");
+  const img = (h) => (h.match(/<img[^>]*src="\/a\.png"[^>]*>/) || [""])[0];
+  assert.ok(/rounded-ringo-lg/.test(img(render(music(sq)))) && !/rounded-full/.test(img(render(music(sq)))), "Music profile: soft square");
+  assert.ok(/rounded-full/.test(img(render(music()))), "Music profile: round by default");
+  assert.ok(/rounded-ringo-sm/.test(img(dest("music", sq))) && /rounded-full/.test(img(dest("music"))), "Music page");
+  assert.ok(/rounded-ringo-sm/.test(img(dest("merch", sq))) && /rounded-ringo-sm/.test(img(dest("tickets", sq))), "Merch and Tickets pages");
+  const portrait = (h) => (h.match(/<img[^>]*width="112"[^>]*>/) || [""])[0];
+  assert.ok(portrait(render(music({ about_long_bio: "Bio", ...sq }))) !== "" && portrait(render(music({ about_long_bio: "Bio", ...sq }))) === portrait(render(music({ about_long_bio: "Bio" }))), "the Music About portrait is unaffected by the choice");
+});
 // ------------------------------------------------------------------ Gift the Artist (and no leakage between languages)
 await test("Gift the Artist: the approved wording on the public Music profile (EN and FR), no 'Support' wording, no emoji, the same checkout route", () => {
   const en = render(music(), "en");

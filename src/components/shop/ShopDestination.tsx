@@ -12,6 +12,7 @@ import { resolveProductCta, resolveDisplayCtaLabel } from "@/lib/cta";
 import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import { productHref, productImages } from "@/components/catalog/productHref";
 import { safeExternalUrl } from "@/lib/linkUrl";
+import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 
 // The dedicated commercial page of a profile's catalog (/[username]/shop): a storefront, not a dashboard screen. Ringo's own foundation (Indigo on
 // Paper) rather than the creator's theme, so every shop and services page reads as one calm, confident product; the creator's identity leads the
@@ -29,6 +30,7 @@ type ShopProfile = {
   name: string | null;
   bio: string | null;
   avatar_url: string | null;
+  avatar_shape?: string | null;
   cover_image_url: string | null;
   about_location: string | null;
   category: string | null;
@@ -102,7 +104,7 @@ export default function ShopDestination({ profile, products }: { profile: ShopPr
             </div>
             <div className="flex flex-col gap-4 px-5 pb-6 sm:px-8 sm:pb-8">
               <div className="relative z-10 -mt-9 flex items-end justify-between gap-3 sm:-mt-11">
-                <span className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-ringo-indigo/10 text-2xl font-bold text-ringo-indigo shadow-sm sm:h-24 sm:w-24">
+                <span className={`flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "medium")} border-4 border-white bg-ringo-indigo/10 text-2xl font-bold text-ringo-indigo shadow-sm sm:h-24 sm:w-24`}>
                   {profile.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />

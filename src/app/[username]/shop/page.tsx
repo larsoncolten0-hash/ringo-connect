@@ -71,6 +71,7 @@ export default async function ShopRoute({ params }: { params: { username: string
     name: profile.name,
     bio: profile.bio,
     avatar_url: profile.avatar_url,
+    avatar_shape: profile.avatar_shape ?? null,
     cover_image_url: profile.cover_image_url ?? null,
     about_location: profile.about_location ?? null,
     verified: !!profile.verified,

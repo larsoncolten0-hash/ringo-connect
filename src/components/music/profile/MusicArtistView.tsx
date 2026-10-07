@@ -19,6 +19,7 @@ import AddToHomeScreen from "@/components/AddToHomeScreen";
 import PoweredByRingo from "@/components/PoweredByRingo";
 import { DISPLAY, MICRO, MP } from "./musicTheme";
 import { display } from "./musicFont";
+import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 import { DestinationPills } from "./MusicNav";
 import { AboutBlock, FeaturedCard, GiftCard, LinkRows, MerchGrid, MiniPlayer, ReleasesRail, SongList, TicketStubs, type FeaturedItem } from "./MusicSections";
 
@@ -214,7 +215,7 @@ export default function MusicArtistView({
               width={96}
               height={96}
               decoding="async"
-              className="-mt-12 h-24 w-24 rounded-full object-cover"
+              className={`-mt-12 h-24 w-24 object-cover ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "large")}`}
               style={{ border: `3px solid ${MP.bg}`, boxShadow: `0 0 0 1.5px ${accent}, 0 14px 26px -12px rgba(0,0,0,.75)`, background: MP.raised }}
             />
             <div className="flex min-w-0 flex-col gap-1.5 pt-3">

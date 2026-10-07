@@ -44,6 +44,7 @@ import RegisterServiceWorker from "./RegisterServiceWorker";
 import CatalogSection from "@/components/catalog/CatalogSection";
 import AppBadgeReset from "./AppBadgeReset";
 import dynamic from "next/dynamic";
+import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 
 // The Music artist profile has its own composition (components/music/profile). Loaded only for the music_entertainment category, so every other profile keeps its
 // bundle exactly as before.
@@ -146,6 +147,8 @@ export default function ProfileView({
   // The artist's own pin always leads. With nothing pinned, the newest REAL release or single leads instead (never invented: none means nothing).
   const latestRelease = isMusic && !pinnedItem && !showPinnedSupport ? pickLatestRelease(releases, musicTracks) : null;
   const isVerified = !!profile.verified;
+  const avatarShape = normalizeAvatarShape(profile.avatar_shape);
+  const squareAvatar = avatarShape === "square";
   // Restaurant and Music keep their own hero buttons (branch order below is unchanged); only a generic
   // profile gets the single-primary-action hero. Pure and synchronous: see lib/heroAction.ts.
   const genericHero = !isRestaurant && !isMusic ? resolveHeroAction(profile, locale) : null;
@@ -696,7 +699,11 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
 
       <div className="relative z-10 flex flex-col items-center px-4 -mt-16 w-full">
         <div className={`relative animate-fade-up ${stage.avatar === "ring" ? "mb-4" : ""}`}>
-          {stage.avatar === "ring" && (
+          {squareAvatar && stage.avatar === "ring" && (
+            // A square picture gets a soft square halo in the creator's accent in place of the circular Ring (which only belongs around a circle).
+            <span aria-hidden="true" className={`pointer-events-none absolute -inset-3 border-[1.5px] opacity-80 ${avatarRadius("square", "hero")}`} style={{ borderColor: accent }} />
+          )}
+          {!squareAvatar && stage.avatar === "ring" && (
             // The Ringo ring, open with its node, in the creator's own accent: a still signature of connection around who they are
             // (decorative, hidden from assistive technology).
             <Ring
@@ -712,11 +719,11 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             // accent color rather than the fixed brand palette.
             <>
               <span
-                className="absolute inset-0 rounded-full animate-ring-pulse-1 motion-reduce:animate-none pointer-events-none"
+                className={`absolute inset-0 ${avatarRadius(avatarShape, "hero")} animate-ring-pulse-1 motion-reduce:animate-none pointer-events-none`}
                 style={{ border: `2px solid ${accent}` }}
               />
               <span
-                className="absolute inset-0 rounded-full animate-ring-pulse-2 motion-reduce:animate-none pointer-events-none"
+                className={`absolute inset-0 ${avatarRadius(avatarShape, "hero")} animate-ring-pulse-2 motion-reduce:animate-none pointer-events-none`}
                 style={{ border: `2px solid ${accent}` }}
               />
             </>
@@ -724,7 +731,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           <img
             src={profile.avatar_url || "/default-avatar.png"}
             alt={profile.name}
-            className={`relative w-36 h-36 sm:w-40 sm:h-40 object-cover ${AVATAR_IMAGE[stage.avatar]}`}
+            className={`relative w-36 h-36 sm:w-40 sm:h-40 object-cover ${squareAvatar ? AVATAR_IMAGE[stage.avatar].replace(/rounded-(full|ringo-lg)/, avatarRadius("square", "hero")) : AVATAR_IMAGE[stage.avatar]}`}
             style={{ ["--tw-ring-color" as any]: hexToRgba(accent, 0.85), backgroundColor: bgColor }}
           />
         </div>

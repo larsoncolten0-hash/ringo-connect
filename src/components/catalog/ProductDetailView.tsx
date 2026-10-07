@@ -13,6 +13,7 @@ import { getCategory, profileHasCategory } from "@/lib/categories";
 import { resolveProductCta, resolveDisplayCtaLabel } from "@/lib/cta";
 import { customerActionRoute } from "@/lib/customerActionRoutes";
 import { newEventId } from "@/lib/pixelClient";
+import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 import { productHref, productImages } from "./productHref";
 import PublicLanguageSelector from "@/components/PublicLanguageSelector";
 import PoweredByRingo from "@/components/PoweredByRingo";
@@ -230,10 +231,10 @@ export default function ProductDetailView({
           >
             {profile.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
+              <img src={profile.avatar_url} alt="" className={`h-11 w-11 shrink-0 object-cover ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "small")}`} />
             ) : (
               <span
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+                className={`flex h-11 w-11 shrink-0 items-center justify-center text-sm font-semibold ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "small")}`}
                 style={{ backgroundColor: hexToRgba(accent, 0.16), color: accent }}
               >
                 {(profile.name || username)[0]?.toUpperCase()}

@@ -10,6 +10,7 @@ import ImageUploadField from "./ImageUploadField";
 import AvatarCropperField from "./AvatarCropperField";
 import SavedPulse, { useSavedPulse } from "./SavedPulse";
 import { useEditorPreview } from "./EditorPreviewContext";
+import { avatarRadius, normalizeAvatarShape, type AvatarShape } from "@/lib/avatarShape";
 
 export default function ProfileHeaderCard({
   profileId,
@@ -21,6 +22,7 @@ export default function ProfileHeaderCard({
   initialIcon192Url,
   initialIcon512Url,
   initialIconMaskable512Url,
+  initialAvatarShape,
 }: {
   profileId: string;
   userId: string;
@@ -35,6 +37,7 @@ export default function ProfileHeaderCard({
   initialIcon192Url?: string | null;
   initialIcon512Url?: string | null;
   initialIconMaskable512Url?: string | null;
+  initialAvatarShape?: string | null;
 }) {
   const supabase = createClient();
   const { t } = useLanguage();
@@ -46,6 +49,8 @@ export default function ProfileHeaderCard({
   const [icon512Url, setIcon512Url] = useState(initialIcon512Url || "");
   const [iconMaskable512Url, setIconMaskable512Url] = useState(initialIconMaskable512Url || "");
   const [generatingIcons, setGeneratingIcons] = useState(false);
+  const savedShape = normalizeAvatarShape(initialAvatarShape);
+  const [avatarShape, setAvatarShape] = useState<AvatarShape>(savedShape);
   const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
 
@@ -94,6 +99,8 @@ export default function ProfileHeaderCard({
         avatar_icon_192_url: icon192Url || null,
         avatar_icon_512_url: icon512Url || null,
         avatar_icon_maskable_512_url: iconMaskable512Url || null,
+        // Only sent when it was changed, so a save that never touches the picture shape cannot depend on the column existing.
+        ...(avatarShape !== savedShape ? { avatar_shape: avatarShape } : {}),
       })
       .eq("id", profileId);
     if (error) return false;
@@ -139,6 +146,36 @@ export default function ProfileHeaderCard({
           errorText={t.editor.upload}
         />
         <div className="flex-1 w-full flex flex-col gap-3">
+          <div>
+            <p id="avatar-shape-label" className="text-xs font-medium text-ringo-text mb-2 text-left">{t.editor.profile.photoShape}</p>
+            <div className="grid grid-cols-2 gap-2" role="group" aria-labelledby="avatar-shape-label">
+              {(["round", "square"] as AvatarShape[]).map((shape) => (
+                <button
+                  key={shape}
+                  type="button"
+                  aria-pressed={avatarShape === shape}
+                  onClick={() => {
+                    setAvatarShape(shape);
+                    updateDraft({ avatar_shape: shape });
+                  }}
+                  className={`flex items-center gap-3 text-left text-xs px-3 py-2.5 min-h-[56px] rounded-card border transition ${
+                    avatarShape === shape ? "border-ringo-indigo text-ringo-indigo bg-ringo-indigo/5" : "border-ringo-border text-ringo-muted"
+                  }`}
+                >
+                  {/* A small preview of the shape, using the person's own picture when there is one */}
+                  <span aria-hidden="true" className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden border border-ringo-border bg-ringo-muted/10 ${avatarRadius(shape, "small")}`}>
+                    {avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <User size={16} />
+                    )}
+                  </span>
+                  <span className="font-medium">{shape === "round" ? t.editor.profile.photoRound : t.editor.profile.photoSquare}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <input
             value={name}
             onChange={(e) => {

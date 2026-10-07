@@ -15,6 +15,7 @@ import { useTrackPlayback } from "@/components/music/useTrackPlayback";
 import PoweredByRingo from "@/components/PoweredByRingo";
 import { DISPLAY, MICRO, MP } from "./musicTheme";
 import { display } from "./musicFont";
+import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 import { DestinationBar } from "./MusicNav";
 import { FeaturedCard, MerchGrid, MiniPlayer, ReleasesRail, SongList, TicketStubs, type FeaturedItem } from "./MusicSections";
 
@@ -53,7 +54,7 @@ function DestinationHeader({ kind, profile, title, eyebrow, count, art }: { kind
       <div className="relative flex flex-col gap-5">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={profile.avatar_url || "/default-avatar.png"} alt="" width={44} height={44} decoding="async" className="h-11 w-11 rounded-full object-cover" style={{ border: `2px solid ${MP.bg}`, boxShadow: "0 0 0 1.5px var(--mp-accent)", background: MP.raised }} />
+          <img src={profile.avatar_url || "/default-avatar.png"} alt="" width={44} height={44} decoding="async" className={`h-11 w-11 object-cover ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "small")}`} style={{ border: `2px solid ${MP.bg}`, boxShadow: "0 0 0 1.5px var(--mp-accent)", background: MP.raised }} />
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-[15px] font-semibold">{name}</span>
             {(role || profile.about_location) && (
