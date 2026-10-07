@@ -10,6 +10,7 @@ import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { isPhase16ProtectedFile } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
+import { isPhase17Migration } from "./phase17Files.mjs"; // Phase 2 security: the one un-applied team-ceiling migration (exact path)
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -204,7 +205,7 @@ const receipt = (o = {}) => ({
   const APPROVED_METADATA_ONLY = new Set(["src/app/order/[id]/page.tsx"]);
   const hit = changed.filter((f) => !APPROVED_METADATA_ONLY.has(f.replace(/\\/g, "/")) && !isPhase16ProtectedFile(f) && PROTECTED.some((p) => f.replace(/\\/g, "/").startsWith(p)));
   check("NO protected checkout / settlement / payment / protection / receipt-reader / email / music file is modified or added", hit.length === 0, hit.join(","));
-  const migrations = changed.filter((f) => /^supabase\/migrations\//.test(f));
+  const migrations = changed.filter((f) => /^supabase\/migrations\//.test(f) && !isPhase17Migration(f));
   eq("the only migration in the working tree is the Phase 3 one (Phase 1, Phase 2 and every earlier migration are untouched)", migrations, ["supabase/migrations/2026-12-03_debtors_reminders.sql"]);
 }
 
