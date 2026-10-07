@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { fapshiGetStatus, type FapshiStatus } from "@/lib/fapshi";
+import { fapshiTxMatchesMusicOrder } from "@/lib/musicOrderPaymentBinding";
 import { getMusicPayoutSettings, getEffectiveMusicCommissionRate } from "@/lib/musicPayoutSettings";
 import { sendMusicOrderReceiptEmail } from "@/lib/email/sendMusicOrderReceipt";
 import { sendPushAndBellToUser } from "@/lib/push/withBell";
@@ -38,6 +39,13 @@ export async function checkAndConfirmFapshiOrder(
   if (order.payment_status === "paid") return "SUCCESSFUL";
 
   const tx = await fapshiGetStatus(order.pending_fapshi_trans_id);
+
+  // The stored transaction id is writable by the artist (RLS), so "a successful transaction" proves nothing by itself: it must be THIS order's own
+  // transaction, for THIS order's amount, or no sale and no earnings row are created (see musicOrderPaymentBinding.ts).
+  if (tx.status === "SUCCESSFUL" && !fapshiTxMatchesMusicOrder(tx, order)) {
+    console.error(`music order ${order.id}: Fapshi transaction does not belong to this order or its amount differs; not confirming`);
+    return "FAILED";
+  }
 
   if (tx.status === "SUCCESSFUL") {
     const profile = order.profiles;
