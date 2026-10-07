@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { isPhase8AuthFile } from "./phase8Files.mjs"; // Phase 8: the exact auth / env files of "Continue with Google / Apple" (see phase8Files.mjs)
+import { isPhase18Migration } from "./phase18Files.mjs"; // Phase 3 security: the one un-applied private-file-path migration (exact path)
 import { isPhase17Migration } from "./phase17Files.mjs"; // Phase 2 security: the one un-applied team-ceiling migration (exact path)
 import { isPhase16ProtectedFile, isPhase16Migration } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
 import { fileURLToPath } from "url";
@@ -388,7 +389,7 @@ const sha = (s) => crypto.createHash("sha256").update(s).digest("hex");
     const added = git(["ls-files", "--others", "--exclude-standard", "--", "supabase/migrations/"]);
     const phase3Tracked = inHead.includes(PHASE3);
     eq("no existing migration (Phase 1, Phase 2, Phase 3 or earlier) is modified, renamed or deleted", modifiedExisting.filter((f) => inHead.includes(f) || !added.includes(f)), []);
-    check("any migration added in the working tree is new and dated AFTER the Phase 3 one (never an older slot, never a rewrite)", added.every((f) => !inHead.includes(f) && (isPhase16Migration(f) || isPhase17Migration(f) || f.slice("supabase/migrations/".length) > PHASE3.slice("supabase/migrations/".length))), added.join(","));
+    check("any migration added in the working tree is new and dated AFTER the Phase 3 one (never an older slot, never a rewrite)", added.every((f) => !inHead.includes(f) && (isPhase16Migration(f) || isPhase17Migration(f) || isPhase18Migration(f) || f.slice("supabase/migrations/".length) > PHASE3.slice("supabase/migrations/".length))), added.join(","));
     check("the Phase 3 migration is present, unchanged from its committed form (or, before it is committed, the only new migration)", phase3Tracked ? !changed.includes(PHASE3) : added.includes(PHASE3) && added.filter((f) => f !== PHASE3).every((f) => f > PHASE3));
   }
   check("package.json and package-lock.json are unchanged (no dependency added)", changed.filter((f) => !isPhase16ProtectedFile(f)).every((f) => f !== "package.json" && f !== "package-lock.json"));
