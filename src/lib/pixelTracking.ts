@@ -2,6 +2,7 @@ import { createAdminClient } from "./supabase/server";
 import { decryptSecret } from "./crypto";
 import { sendMetaEvent } from "./metaConversions";
 import { sendTikTokEvent } from "./tiktokEvents";
+import { OPTIONAL_TRACKING_ENABLED } from "./optionalTracking";
 import {
   metaEventName,
   tiktokEventName,
@@ -85,6 +86,7 @@ type RequestSignals = {
  *  public profile page on every load — TikTok has no server-side
  *  "PageView" standard event, so that side stays browser-only (ttq.page()). */
 export async function sendMetaPageView(config: ProfilePixelConfig, signals: RequestSignals): Promise<void> {
+  if (!OPTIONAL_TRACKING_ENABLED) return; // optional advertising tracking is off (lib/optionalTracking.ts): nothing is sent to Meta
   if (!config.facebookPixelId || !config.facebookToken || !isValidFacebookPixelId(config.facebookPixelId)) return;
   await sendMetaEvent({
     pixelId: config.facebookPixelId,
@@ -110,6 +112,7 @@ export async function dispatchServerPixelEvents(
   signals: RequestSignals,
   content?: PixelContentData
 ): Promise<void> {
+  if (!OPTIONAL_TRACKING_ENABLED) return; // optional advertising tracking is off (lib/optionalTracking.ts): nothing is sent to Meta or TikTok
   const result = await getProfilePixelConfig(profileId);
   if (!result) return;
   if (!(await isPixelsEnabledForUser(result.userId))) return;

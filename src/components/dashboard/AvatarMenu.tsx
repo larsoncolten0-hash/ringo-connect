@@ -12,6 +12,7 @@ import AddToHomeScreenMenuItem from "@/components/dashboard/AddToHomeScreenMenuI
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
 import VerificationRequestModal from "@/components/dashboard/VerificationRequestModal";
 import ChangePasswordModal from "@/components/dashboard/ChangePasswordModal";
+import LegalLinks from "@/components/legal/LegalLinks";
 
 export default function AvatarMenu({
   email,
@@ -265,6 +266,7 @@ export default function AvatarMenu({
             <KeyRound size={14} />
             {t.account.changePassword}
           </button>
+          <LegalLinks className="px-3.5 border-t border-ringo-border" />
           <Link
             href="/auth/logout"
             className="flex items-center gap-2 min-h-[44px] px-3.5 py-2.5 text-sm text-ringo-coral hover:bg-ringo-coral/10 transition-colors"

@@ -413,7 +413,10 @@ await test("Merch page analytics: a product tap goes through the existing /api/t
   assert.match(strip(raw("src/components/music/profile/MusicSections.tsx")), /onClick=\{\(\) => logClick\("product", p\.id/, "and so does every grid card");
   const before = strip(raw("src/components/ProfileView.tsx"));
   assert.match(before, /fetch\("\/api\/track"/, "ProfileView's own tracking is untouched");
-  assert.equal(git("diff --name-only HEAD -- src/app/api src/lib/pixelClient.ts src/lib/pixelEvents.ts src/lib/pixelTracking.ts").split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts").join(","), "", "the analytics implementation itself is unchanged");
+  assert.equal(git("diff --name-only HEAD -- src/app/api src/lib/pixelClient.ts src/lib/pixelEvents.ts src/lib/pixelTracking.ts").split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts" && f.trim() !== "src/lib/pixelTracking.ts").join(","), "", "the analytics implementation itself is unchanged");
+  // the product-completeness phase (phase27Files.mjs) adds ONE switch to pixelTracking.ts so optional Meta / TikTok sending can be turned off; nothing else in that file may change
+  const ptChanged = git("diff -U0 HEAD -- src/lib/pixelTracking.ts").split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
+  assert.ok(ptChanged.every((l) => /^\+/.test(l) && /OPTIONAL_TRACKING_ENABLED/.test(l)), "pixelTracking.ts: only the optional-tracking switch was added: " + ptChanged.join(" | "));
 });
 await test("Tickets page: the next event leads with its artwork, date, venue and price; the rest follow; past events are separated; empty state", () => {
   const two = [

@@ -4778,6 +4778,25 @@ export const en = {
     // reset link /auth/forgot-password already sends (a signed-in
     // account and a "forgot" one use the exact same recovery email),
     // rather than an inline current/new-password form.
+    // The eye button on every account password field (components/auth/FormField.tsx).
+    // The Privacy Policy / Terms of Service pages (components/legal/*) and the two legal links shown at sign-in, signup payment and in the account menu.
+    legalPage: {
+      lastUpdated: "Last updated",
+      contents: "Contents",
+      reviewLabel: "To be confirmed",
+      backHome: "Back to Ringo Connect",
+    },
+    legalLinks: {
+      terms: "Terms of Service",
+      privacy: "Privacy Policy",
+      cookies: "Cookie Policy",
+      agreeLead: "By continuing, you agree to the",
+      agreeMid: "and acknowledge the",
+    },
+    passwordField: {
+      show: "Show password",
+      hide: "Hide password",
+    },
     changePassword: {
       title: "Change your password",
       subtitle: "For your security, we'll email a link to set a new password rather than changing it here directly.",

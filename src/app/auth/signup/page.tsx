@@ -220,6 +220,7 @@ function SignupForm() {
 
   return (
     <AuthShell
+      showLegalLinks={false}
       eyebrow="Get started"
       title="Create your page"
       subtitle="Free to start — upgrade any time as you grow."

@@ -9,6 +9,7 @@ import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { PHASE25_FILES } from "./phase25Files.mjs";
 import { PHASE26_FILES } from "./phase26Files.mjs";
+import { PHASE27_FILES } from "./phase27Files.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -43,6 +44,8 @@ test("helper: round is always rounded-full; square is a soft Ringo-token radius 
 });
 test("editor: Round / Square with a live preview of each, in the profile card, saved by its one Save button, and sent only when changed", () => {
   const c = raw("src/components/editor/ProfileHeaderCard.tsx");
+  assert.match(c, /const \[savedShape, setSavedShape\] = useState<AvatarShape>/, "the stored shape is state, not the value the page loaded with");
+  assert.match(c, /if \(error\) return false;\s*setSavedShape\(avatarShape\);/, "and it follows every successful save, so choosing the other shape again after a save is saved too");
   assert.match(c, /aria-pressed=\{avatarShape === shape\}/);
   assert.match(c, /updateDraft\(\{ avatar_shape: shape \}\)/, "the live preview follows the choice");
   assert.match(c, /\.\.\.\(avatarShape !== savedShape \? \{ avatar_shape: avatarShape \} : \{\}\)/, "a save that never touches the shape never mentions the new column");
@@ -99,7 +102,7 @@ test("EN / FR: the label and both options exist, are translated, and the editor 
 });
 test("scope: every changed file is on this phase's list, nothing sensitive is on it, and no foreign currency crept in", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
-  assert.deepEqual(changed.filter((f) => !PHASE25_FILES.has(f) && !PHASE26_FILES.has(f)), [], "only the registered files changed (this phase, or the performance project that sits on top of it)");
+  assert.deepEqual(changed.filter((f) => !PHASE25_FILES.has(f) && !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f)), [], "only the registered files changed (this phase, the performance project, or the product-completeness phase that sit on top of it)");
   assert.deepEqual([...PHASE25_FILES].filter((f) => /payment|fapshi|stripe|webhook|\/auth|whatsapp|track|pixel|useTrackPlayback|previewLimit|middleware|\/api\//i.test(f)), []);
   for (const f of changed.filter((x) => /\.(tsx?|mjs|sql)$/.test(x) && !x.startsWith("scripts/tests/") && fs.existsSync(path.join(REPO, x)))) {
     assert.ok(!/GH₵|GHS/.test(fs.readFileSync(path.join(REPO, f), "utf8")), "foreign currency in " + f);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { DEFAULT_BRANDING } from "@/lib/brandingDefaults";
+import LegalLinks from "@/components/legal/LegalLinks";
 
 // Every page that renders this has "use client" at the top (login,
 // signup, forgot/reset password, confirm, confirmed, logout) — so unlike
@@ -20,11 +21,14 @@ export default function AuthShell({
   title,
   subtitle,
   children,
+  showLegalLinks = true,
 }: {
   eyebrow: string;
   title: string;
   subtitle: string;
   children: React.ReactNode;
+  /** The sign-up page already shows the Terms / Privacy links inside its agreement checkbox, so it turns this off rather than showing two sets. */
+  showLegalLinks?: boolean;
 }) {
   const [{ appName, logoUrl }, setBranding] = useState(DEFAULT_BRANDING);
 
@@ -110,6 +114,7 @@ export default function AuthShell({
           <h1 className="font-display text-2xl font-medium text-ringo-text mb-1">{title}</h1>
           <p className="text-sm text-ringo-muted mb-8">{subtitle}</p>
           {children}
+          {showLegalLinks && <LegalLinks className="mt-8" />}
         </div>
       </div>
     </div>

@@ -49,7 +49,8 @@ export default function ProfileHeaderCard({
   const [icon512Url, setIcon512Url] = useState(initialIcon512Url || "");
   const [iconMaskable512Url, setIconMaskable512Url] = useState(initialIconMaskable512Url || "");
   const [generatingIcons, setGeneratingIcons] = useState(false);
-  const savedShape = normalizeAvatarShape(initialAvatarShape);
+  // What is stored right now: starts as what the page loaded with and follows every successful save, so choosing the other shape again after a save is a change again.
+  const [savedShape, setSavedShape] = useState<AvatarShape>(normalizeAvatarShape(initialAvatarShape));
   const [avatarShape, setAvatarShape] = useState<AvatarShape>(savedShape);
   const pulse = useSavedPulse();
   const { updateDraft } = useEditorPreview();
@@ -104,6 +105,7 @@ export default function ProfileHeaderCard({
       })
       .eq("id", profileId);
     if (error) return false;
+    setSavedShape(avatarShape);
     pulse.show();
     return true;
   };

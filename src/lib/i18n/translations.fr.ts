@@ -4577,6 +4577,23 @@ export const fr: Translations = {
       resubmit: "Réessayer",
       close: "Fermer",
     },
+    legalPage: {
+      lastUpdated: "Dernière mise à jour",
+      contents: "Sommaire",
+      reviewLabel: "À confirmer",
+      backHome: "Retour à Ringo Connect",
+    },
+    legalLinks: {
+      terms: "Conditions d'utilisation",
+      privacy: "Politique de confidentialité",
+      cookies: "Politique relative aux cookies",
+      agreeLead: "En continuant, vous acceptez les",
+      agreeMid: "et reconnaissez la",
+    },
+    passwordField: {
+      show: "Afficher le mot de passe",
+      hide: "Masquer le mot de passe",
+    },
     changePassword: {
       title: "Changer votre mot de passe",
       subtitle: "Pour votre sécurité, nous vous envoyons un lien par e-mail pour définir un nouveau mot de passe plutôt que de le changer ici directement.",

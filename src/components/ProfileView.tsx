@@ -13,6 +13,7 @@ import { getProfileStage, type AvatarMark, type ProfileStage } from "@/lib/profi
 import Ring from "@/components/brand/Ring";
 import ConnectionPath from "@/components/profile/ConnectionPath";
 import { ensureVisitorId, captureTtclid, newEventId } from "@/lib/pixelClient";
+import { OPTIONAL_TRACKING_ENABLED, clearOptionalTrackingCookies } from "@/lib/optionalTracking";
 import { metaEventName, tiktokEventName, isValidFacebookPixelId, isValidTiktokPixelId } from "@/lib/pixelEvents";
 import SocialIcon from "./SocialIcon";
 import MusicSection from "./music/MusicSection";
@@ -160,8 +161,13 @@ export default function ProfileView({
   // rather than trickling in on a later event.
   const [visitorId, setVisitorId] = useState<string | null>(null);
   useEffect(() => {
-    setVisitorId(ensureVisitorId());
-    captureTtclid();
+    // Optional advertising tracking (the visitor id, the TikTok click id and the Meta / TikTok pixels) only runs when lib/optionalTracking.ts allows it; otherwise any such cookie left from an earlier visit is removed.
+    if (OPTIONAL_TRACKING_ENABLED) {
+      setVisitorId(ensureVisitorId());
+      captureTtclid();
+    } else {
+      clearOptionalTrackingCookies();
+    }
   }, []);
 
   const fbPixelId = !preview && pixelsEnabled && profile.facebook_pixel_id && isValidFacebookPixelId(profile.facebook_pixel_id)

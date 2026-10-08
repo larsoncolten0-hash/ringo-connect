@@ -26,6 +26,7 @@ import PhoneCountryInput from "@/components/editor/PhoneCountryInput";
 import SocialIcon from "@/components/SocialIcon";
 import CategoryPicker from "@/components/CategoryPicker";
 import { getCategory, type CategoryId } from "@/lib/categories";
+import LegalLinks from "@/components/legal/LegalLinks";
 
 type Step = "cardQuestion" | "bundlePicker" | "accountType" | "category" | "plan" | "info" | "payChoice" | "paying" | "success";
 type AccountType = "personal" | "enterprise";
@@ -1311,6 +1312,7 @@ export default function GetStartedFlow({
                   ? t.getStarted.continueButton
                   : t.getStarted.submitButton}
               </button>
+              <LegalLinks variant="agree" className="text-center" />
             </div>
           </>
         )}
@@ -1431,6 +1433,7 @@ export default function GetStartedFlow({
                 >
                   {t.getStarted.paySendButton}
                 </button>
+                <LegalLinks variant="agree" className="text-center" />
               </div>
             )}
 

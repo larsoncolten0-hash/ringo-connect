@@ -7,6 +7,7 @@ import { Check, Award } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { formatPrice } from "@/lib/currency";
 import AssociationPaymentModal from "./AssociationPaymentModal";
+import LegalLinks from "@/components/legal/LegalLinks";
 
 const ORDER = ["association_basic", "association_pro", "association_premium"];
 
@@ -130,6 +131,8 @@ export default function AssociationGetStartedFlow({
             {a.contactUsCta}
           </a>
         </div>
+
+        <LegalLinks variant="agree" className="mt-6 text-center" />
       </div>
 
       {modalPlan && fapshiEnabled && (
