@@ -8,14 +8,20 @@ import { sendReply, type SendDeps, type SendResult } from "@/lib/inbox/send";
 //     12-hour acknowledgement claim, "is this really a new conversation", "was there a human reply". This module only ACTS on the answer.
 //   * the only message ever sent to a customer is the owner's own acknowledgement text, through the existing audited text sender (sendReply):
 //     same ownership check, 24-hour window check, idempotency and "unknown outcome is never re-sent" rules as a human reply.
-//   * everything else is an in-app notification to the OWNER (reusing the existing notifications table). No push, no email, no AI.
+//   * everything else is an in-app notification to the OWNER (reusing the existing notifications table). No email, no AI. The one push is
+//     pushForInbound below: a generic, throttled "new message" push for every stored inbound message.
 //   * nothing here can block or fail the webhook: callers wrap it, and every step swallows its own errors after logging a category.
 // Logs carry ids, categories and counts only: never message text, names, numbers, the token or database error text.
 
 export interface NotifyInput { type: string; title: string; body?: string | null; link?: string | null }
+/** What a push carries: a category, generic text and the conversation URL. Never message text, a name, a number or an id other than the one inside the URL. */
+export interface InboxPushPayload { category: string; title: string; body: string; url: string }
+/** `bell: false` = push only (the in-app notice for this message was already raised). The webhook wires this to src/lib/push/withBell.ts and send.ts. */
+export type InboxPushSender = (userId: string, payload: InboxPushPayload, opts: { bell: boolean }) => Promise<void>;
 export interface AutomationDeps {
   admin: RpcClient;
   notify: (userId: string, input: NotifyInput) => Promise<void>;
+  push?: InboxPushSender;
   send?: (deps: SendDeps, input: Parameters<typeof sendReply>[1]) => Promise<SendResult>;
   fetchImpl?: typeof fetch;
   env?: NodeJS.ProcessEnv;
@@ -51,11 +57,53 @@ const clip = (s: string | null | undefined, max: number): string => {
 };
 const link = (conversationId: string) => `/dashboard/inbox/${conversationId}`;
 
-export interface InboundReport { ack: "none" | "sent" | "attempted"; notified: boolean }
+export interface InboundReport { ack: "none" | "sent" | "attempted"; notified: boolean; push: "none" | "sent" | "throttled" | "failed" }
+
+/** A push may never hold the webhook answer up: Meta retries a slow delivery, and every message is already stored by now. */
+export const PUSH_TIMEOUT_MS = 4000;
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timeout")), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (err) => { clearTimeout(t); reject(err); });
+  });
+}
+
+/**
+ * Push for EVERY newly stored inbound message (not only the first of a conversation), at most one per conversation per 60 seconds. The database decides
+ * both who to tell (the owner derived from the phone number's account, never from the request) and whether the 60-second slot is free
+ * (inbox_push_claim, one atomic upsert). The payload is generic on purpose: no message text and no customer name reach the push service.
+ * Best effort: a missing function, a database error, a failed or slow push is logged by category and never changes the webhook answer.
+ */
+async function pushForInbound(deps: AutomationDeps, e: { phoneNumberId: string; messageId: string }, bellAlreadyRaised: boolean): Promise<InboundReport["push"]> {
+  if (!deps.push) return "none";
+  const claim = await rpc(deps.admin, "inbox_push_claim", { p_phone_number_id: e.phoneNumberId, p_provider_message_id: e.messageId });
+  if (!claim.ok) {
+    log({ result: "push_claim_failed", code: claim.code });
+    return "failed";
+  }
+  const c = obj(claim.data);
+  if (c.result === "throttled") {
+    log({ result: "push_throttled" });
+    return "throttled";
+  }
+  const userId = str(c.owner_user_id);
+  const conversationId = str(c.conversation_id);
+  if (c.result !== "ok" || !userId || !conversationId) return "none";
+  const n = translations[isLocale(c.locale) ? c.locale : "fr"].inbox.notify;
+  try {
+    // When the "new conversation" notice just wrote this message's bell row, only the OS push is added: no second bell row for the same message.
+    await withTimeout(deps.push(userId, { category: "inbox_new_message", title: n.pushTitle, body: n.pushBody, url: link(conversationId) }, { bell: !bellAlreadyRaised }), PUSH_TIMEOUT_MS);
+    log({ result: "push_sent", conversation_id: conversationId });
+    return "sent";
+  } catch (err) {
+    log({ result: "push_failed", reason: err instanceof Error && err.message === "timeout" ? "timeout" : "error" });
+    return "failed";
+  }
+}
 
 /** A NEW inbound customer message was stored. Sends the owner's acknowledgement (when due) and raises the new-conversation notice (when due). */
 export async function onInboundMessage(deps: AutomationDeps, e: { phoneNumberId: string; messageId: string }): Promise<InboundReport> {
-  const report: InboundReport = { ack: "none", notified: false };
+  const report: InboundReport = { ack: "none", notified: false, push: "none" };
   const ctx = await rpc(deps.admin, "inbox_automation_inbound", { p_phone_number_id: e.phoneNumberId, p_provider_message_id: e.messageId });
   if (!ctx.ok) {
     log({ result: "inbound_failed", code: ctx.code });
@@ -99,6 +147,13 @@ export async function onInboundMessage(deps: AutomationDeps, e: { phoneNumberId:
     } catch {
       log({ result: "notify_exception", kind: "new" });
     }
+  }
+
+  try {
+    report.push = await pushForInbound(deps, e, report.notified);
+  } catch {
+    log({ result: "push_exception" });
+    report.push = "failed";
   }
   return report;
 }

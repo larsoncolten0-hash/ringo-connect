@@ -1375,6 +1375,9 @@ export const fr: Translations = {
         followTitle: "Un client attend votre réponse",
         followBodyOpen: (name: string) => `${name} n’a pas encore reçu de réponse. Vous pouvez encore répondre librement.`,
         followBodyClosed: (name: string) => `${name} n’a pas encore reçu de réponse. La fenêtre de 24 heures est fermée : un modèle de message serait nécessaire.`,
+        // Notification push + cloche pour chaque nouveau message entrant. Volontairement générique : ni nom de client ni texte du message ne transite par le service push.
+        pushTitle: "Nouveau message WhatsApp",
+        pushBody: "Nouveau message dans votre boîte WhatsApp",
       },
       settings: {
         title: "Automatisation de la boîte de réception",

@@ -10,6 +10,7 @@ import { fileURLToPath } from "url";
 import { PHASE25_FILES } from "./phase25Files.mjs";
 import { PHASE26_FILES } from "./phase26Files.mjs";
 import { PHASE27_FILES } from "./phase27Files.mjs";
+import { PHASE28_FILES } from "./phase28Files.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -102,7 +103,7 @@ test("EN / FR: the label and both options exist, are translated, and the editor 
 });
 test("scope: every changed file is on this phase's list, nothing sensitive is on it, and no foreign currency crept in", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
-  assert.deepEqual(changed.filter((f) => !PHASE25_FILES.has(f) && !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f)), [], "only the registered files changed (this phase, the performance project, or the product-completeness phase that sit on top of it)");
+  assert.deepEqual(changed.filter((f) => !PHASE25_FILES.has(f) && !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f)), [], "only the registered files changed (this phase, the performance project, the product-completeness phase or the Inbox push phase that sit on top of it)");
   assert.deepEqual([...PHASE25_FILES].filter((f) => /payment|fapshi|stripe|webhook|\/auth|whatsapp|track|pixel|useTrackPlayback|previewLimit|middleware|\/api\//i.test(f)), []);
   for (const f of changed.filter((x) => /\.(tsx?|mjs|sql)$/.test(x) && !x.startsWith("scripts/tests/") && fs.existsSync(path.join(REPO, x)))) {
     assert.ok(!/GH₵|GHS/.test(fs.readFileSync(path.join(REPO, f), "utf8")), "foreign currency in " + f);

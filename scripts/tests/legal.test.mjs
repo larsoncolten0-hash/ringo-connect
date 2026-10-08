@@ -202,11 +202,12 @@ await test("the cookie / tracking statements in the policy match the code (they 
   assert.ok(raw("src/lib/pixelTracking.ts").includes("pixels_enabled"), "pixels are plan-gated");
   assert.ok(raw("src/lib/ai/providers/index.ts").includes("anthropicProvider") && raw("src/lib/ai/providers/index.ts").includes("openaiProvider"), "AI providers named in the policy");
 });
-await test("scope: authentication, payments, RLS and the database are untouched by this change", () => {
+await test("scope: authentication, payments, RLS and the database are untouched by this change", async () => {
   const { execFileSync } = require("child_process");
   const git = (a) => execFileSync("git", a, { cwd: REPO, encoding: "utf8" }).split("\n").filter(Boolean);
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
-  assert.deepEqual(changed.filter((f) => /^(supabase\/|src\/middleware|src\/app\/api\/|src\/lib\/(auth|supabase|fapshi|payments|productCheckout|protection))/.test(f)), [], "no API route, migration, auth, payment or database file changed");
+  const { PHASE28_FILES } = await import("./phase28Files.mjs"); // the Inbox push phase: its exact files (webhook wiring + one additive migration) belong to its own scope guard
+  assert.deepEqual(changed.filter((f) => /^(supabase\/|src\/middleware|src\/app\/api\/|src\/lib\/(auth|supabase|fapshi|payments|productCheckout|protection))/.test(f) && !PHASE28_FILES.has(f)), [], "no API route, migration, auth, payment or database file changed");
   assert.ok(!/GH₵|GHS/.test(JSON.stringify(docs)));
 });
 

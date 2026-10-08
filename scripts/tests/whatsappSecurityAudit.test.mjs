@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import { execFileSync } from "child_process";
 import { fileURLToPath } from "url";
+import { PHASE28_FILES } from "./phase28Files.mjs";
 import { isPhase8AuthFile } from "./phase8Files.mjs"; // the exact auth files (login landing, logout push cleanup, sign-out bounce) changed on purpose, never a pattern
 import { isPhase16ProtectedFile } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
 import { OWNER_WORKSPACE_FILES } from "./ownerWorkspaceFiles.mjs"; // Owner Workspace UX pass: the exact files it changes on purpose
@@ -95,7 +96,9 @@ check("SQL: the support scripts are read-only (preflight and verify contain no w
 const status = git("status", "--porcelain", "-uall");
 const changed = status === null ? null : status.split("\n").filter(Boolean).map((l) => l.slice(3).replace(/^"|"$/g, ""));
 const FROZEN = ["supabase/migrations/2026-12-10_whatsapp_outbound_media.sql", "supabase/migrations/2026-12-11_whatsapp_inbox_automation.sql", "supabase/migrations/2026-12-12_whatsapp_inbox_mark_read.sql", "src/lib/inbox/sendMedia.ts", "src/lib/inbox/automation.ts", "src/lib/inbox/aiAssist.ts", "supabase/migrations/2026-12-07_whatsapp_inbox_foundation.sql", "supabase/migrations/2026-12-08_whatsapp_outbound_replies.sql", "supabase/migrations/2026-12-09_whatsapp_inbox_tools.sql", "src/lib/whatsapp/ingest.ts", "src/lib/whatsapp/parseWebhook.ts", "src/lib/whatsapp/signature.ts", "src/lib/whatsapp/config.ts", "src/lib/inbox/send.ts", "src/lib/inbox/tools.ts", "src/lib/inbox/route.ts", "src/lib/inbox/access.ts", "src/lib/inbox/data.ts"];
-check("preserved: the audited Phase 4/7/8 migrations and the ingest, parse, signature, config, text-send, tools, route, access and data modules are byte-for-byte unchanged", changed === null || FROZEN.every((f) => !changed.includes(f)), (changed || []).filter((f) => FROZEN.includes(f)).join());
+// The Inbox push phase (phase28Files.mjs) deliberately extends automation.ts (one generic, throttled push step after the stored message); whatsappInboxPush.test.mjs pins that change.
+const FROZEN_NOW = FROZEN.filter((f) => !PHASE28_FILES.has(f));
+check("preserved: the audited Phase 4/7/8 migrations and the ingest, parse, signature, config, text-send, tools, route, access and data modules are byte-for-byte unchanged", changed === null || FROZEN_NOW.every((f) => !changed.includes(f)), (changed || []).filter((f) => FROZEN_NOW.includes(f)).join());
 const num = git("diff", "--numstat", "--", "src/lib/whatsapp/outbound.ts");
 check("preserved: the Phase 7 text sender changed by exactly one line (exporting its error classifier)", num === null || num.trim() === "" || num.trim().startsWith("1\t1\t"), num);
 const ALLOWED = [/^src\/(lib|components|app)\/.*inbox/i, /^src\/lib\/whatsapp\//, /^src\/app\/api\/(inbox|cron\/inbox-follow-ups|integrations\/whatsapp)\//, /^src\/app\/dashboard\/inbox\//, /^src\/lib\/(i18n\/translations|notificationCategories)\.ts$/, /^src\/lib\/ai\/knowledge\//, /^vercel\.json$/, /^src\/lib\/team\/(permissions|activity|inboxOwnerOnly)\.ts$/, /^src\/app\/api\/team\/(roles|members|invitations)\//, /^src\/components\/team\/RolesPanel\.tsx$/, /^src\/components\/dashboard\/DashboardShell\.tsx$/, /^src\/app\/dashboard\/layout\.tsx$/, /^src\/lib\/ai\/inboxStaffAccess\.ts$/, /^scripts\/tests\/(inbox|whatsapp|documentsAi\.test)/, /^supabase\/(migrations|support)\/.*(whatsapp)/, /^supabase\/support\/tests\/whatsapp_/];

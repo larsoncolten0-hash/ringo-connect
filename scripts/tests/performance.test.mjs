@@ -9,6 +9,7 @@ import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { PHASE26_FILES } from "./phase26Files.mjs";
 import { PHASE27_FILES } from "./phase27Files.mjs";
+import { PHASE28_FILES } from "./phase28Files.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -341,7 +342,7 @@ await test("mobile: the connection to the storage host (where every picture come
 // =============================================================================== scope
 await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, orders, payouts, commissions and the 10-second preview are not touched", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].filter((f) => !f.startsWith("scripts/tests/_"));
-  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f)), [], "only the registered files changed");
   // Files whose NAME looks sensitive but whose change is a read-only performance edit, listed one by one (never by pattern): the public item checkout PAGE's profile read (the checkout flow itself,
   // the payment calls and the order logic are not in it), the shop page, the supabase proposal files and the admin branding save's cache refresh.
   const ALLOWED = new Set([
@@ -351,6 +352,11 @@ await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, ord
     "supabase/migrations/2026-12-17_profile_avatar_shape.sql",
     "supabase/support/2026-12-17_profile_avatar_shape.rollback.sql",
     "supabase/support/2026-12-17_profile_avatar_shape.verify.sql",
+    // The WhatsApp Inbox push phase (phase28Files.mjs): the webhook wiring and its one additive, un-applied migration with its rollback and verify scripts.
+    "src/app/api/integrations/whatsapp/webhook/route.ts",
+    "supabase/migrations/2026-12-18_whatsapp_inbox_push_claim.sql",
+    "supabase/support/2026-12-18_whatsapp_inbox_push_claim.rollback.sql",
+    "supabase/support/2026-12-18_whatsapp_inbox_push_claim.verify.sql",
   ]);
   const forbidden = /(^|\/)(middleware|fapshi|stripe|webhook|payout|commission|inventory|checkout|orders?|billing|protection|useTrackPlayback|previewLimit)|\/api\/|^supabase\//i;
   assert.deepEqual(changed.filter((f) => forbidden.test(f) && !ALLOWED.has(f) && !/phase2[0-9]Files|\.test\.mjs$/.test(f)), [], "no sensitive file is among the changed ones");

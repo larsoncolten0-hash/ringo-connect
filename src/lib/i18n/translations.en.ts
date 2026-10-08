@@ -1382,6 +1382,9 @@ export const en = {
         followTitle: "A customer is waiting for your reply",
         followBodyOpen: (name: string) => `${name} has not had a reply yet. You can still answer freely.`,
         followBodyClosed: (name: string) => `${name} has not had a reply yet. The 24-hour window is closed, so a template message would be needed.`,
+        // Push + bell for every new inbound message. Deliberately generic: no customer name and no message text ever travels through the push service.
+        pushTitle: "New WhatsApp message",
+        pushBody: "New message in your WhatsApp Inbox",
       },
       settings: {
         title: "Inbox automation",

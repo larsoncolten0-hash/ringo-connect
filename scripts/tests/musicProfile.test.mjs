@@ -288,7 +288,7 @@ await test("a protected track is still sold only through its detail page and a p
   const h = render(music());
   assert.ok(!h.includes('src="/p.mp3"') && !/<audio/.test(h), "the page ships no <audio> element or source in the HTML (the single audio element is created on play by useTrackPlayback)");
   assert.ok(!h.includes("protected_audio_path") && !h.includes('"x"'), "the protected path never reaches the page");
-  assert.equal(git(`diff --name-only HEAD -- src/components/music/useTrackPlayback.ts src/lib/music/previewLimit.ts src/lib/music/currency.ts src/lib/currency.ts src/app/api`).split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts").join(","), "", "playback, preview limit, currency and every API route are untouched by the redesign (the performance project only adds a cache refresh to the admin branding save, proven in performance.test.mjs)");
+  assert.equal(git(`diff --name-only HEAD -- src/components/music/useTrackPlayback.ts src/lib/music/previewLimit.ts src/lib/music/currency.ts src/lib/currency.ts src/app/api`).split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts" && f.trim() !== "src/app/api/integrations/whatsapp/webhook/route.ts").join(","), "", "playback, preview limit, currency and every API route are untouched by the redesign (the performance project only adds a cache refresh to the admin branding save, proven in performance.test.mjs)");
   for (const f of ["src/components/music/ItemDetailPage.tsx", "src/components/music/MusicStorePage.tsx"]) {
     const changed = git(`diff -U0 HEAD -- ${f}`).split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
     assert.ok(changed.every((l) => /OptImg|<img|no-img-element|^[-+]import /.test(l)), `${f}: only image tags changed (the storefront, purchase and playback code is untouched)`);
@@ -413,7 +413,7 @@ await test("Merch page analytics: a product tap goes through the existing /api/t
   assert.match(strip(raw("src/components/music/profile/MusicSections.tsx")), /onClick=\{\(\) => logClick\("product", p\.id/, "and so does every grid card");
   const before = strip(raw("src/components/ProfileView.tsx"));
   assert.match(before, /fetch\("\/api\/track"/, "ProfileView's own tracking is untouched");
-  assert.equal(git("diff --name-only HEAD -- src/app/api src/lib/pixelClient.ts src/lib/pixelEvents.ts src/lib/pixelTracking.ts").split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts" && f.trim() !== "src/lib/pixelTracking.ts").join(","), "", "the analytics implementation itself is unchanged");
+  assert.equal(git("diff --name-only HEAD -- src/app/api src/lib/pixelClient.ts src/lib/pixelEvents.ts src/lib/pixelTracking.ts").split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts" && f.trim() !== "src/app/api/integrations/whatsapp/webhook/route.ts" && f.trim() !== "src/lib/pixelTracking.ts").join(","), "", "the analytics implementation itself is unchanged");
   // the product-completeness phase (phase27Files.mjs) adds ONE switch to pixelTracking.ts so optional Meta / TikTok sending can be turned off; nothing else in that file may change
   const ptChanged = git("diff -U0 HEAD -- src/lib/pixelTracking.ts").split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
   assert.ok(ptChanged.every((l) => /^\+/.test(l) && /OPTIONAL_TRACKING_ENABLED/.test(l)), "pixelTracking.ts: only the optional-tracking switch was added: " + ptChanged.join(" | "));

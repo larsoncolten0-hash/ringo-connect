@@ -5,8 +5,10 @@ import { dedupeEvents } from "@/lib/whatsapp/idempotency";
 import { parseWhatsAppWebhook } from "@/lib/whatsapp/parseWebhook";
 import { IngestFailure, ingestEvent } from "@/lib/whatsapp/ingest";
 import { getWhatsAppAppSecret, verifyWhatsAppSignature } from "@/lib/whatsapp/signature";
-import { runWebhookAutomation } from "@/lib/inbox/automation";
+import { runWebhookAutomation, type InboxPushPayload } from "@/lib/inbox/automation";
 import { notifyUser } from "@/lib/notifications";
+import { sendPushToUser } from "@/lib/push/send";
+import { sendPushAndBellToUser } from "@/lib/push/withBell";
 
 // Meta WhatsApp Cloud API webhook: signature verification, event normalization and (Phase 4) persistence.
 // Public callback URL: https://www.ringoconnectltd.com/api/integrations/whatsapp/webhook
@@ -113,8 +115,11 @@ export async function POST(request: Request) {
     if (failed > 0) return NextResponse.json({ error: "ingest_failed" }, { status: 500 });
     // Best effort, after everything is stored: an automation problem is logged inside and never changes the answer to Meta.
     if (client && created.length > 0) {
+      const admin = client;
+      // Phase A push: a generic push (plus bell) for each stored inbound message, throttled by the database. The owner comes from the database, never the payload.
+      const push = (userId: string, payload: InboxPushPayload, opts: { bell: boolean }) => (opts.bell ? sendPushAndBellToUser(admin, userId, payload) : sendPushToUser(admin, userId, payload));
       try {
-        await runWebhookAutomation({ admin: client, notify: notifyUser }, created);
+        await runWebhookAutomation({ admin, notify: notifyUser, push }, created);
       } catch {
         log({ result: "automation_failed" });
       }
