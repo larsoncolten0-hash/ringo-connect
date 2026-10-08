@@ -15,6 +15,7 @@ import { publicLinkTitle } from "@/lib/publicContent";
 import { primaryTicketType } from "@/lib/ticketTypes";
 import { eventDateParts, firstName, formatMusicPrice, trackActions, type TrackAction } from "@/lib/music/profileMusic";
 import { DISPLAY, MICRO, MP } from "./musicTheme";
+import OptImg from "@/components/ui/OptImg";
 
 type Playback = { playingId: string | null; progress: number; togglePlay: (track: any) => void };
 type ClickLogger = (targetType: "link" | "product" | "whatsapp", targetId?: string, content?: { name?: string; price?: number | null; currency?: string | null }) => void;
@@ -47,7 +48,7 @@ export function SectionHead({ eyebrow, title, href, linkLabel, id }: { eyebrow: 
 function Cover({ src, size, rounded = "rounded-[10px]", icon }: { src?: string | null; size: number; rounded?: string; icon?: ReactNode }) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" width={size} height={size} loading="lazy" decoding="async" className={`block shrink-0 object-cover ${rounded}`} style={{ width: size, height: size }} />
+    <OptImg src={src} width={size} height={size} cssWidth={size} className={`block shrink-0 object-cover ${rounded}`} style={{ width: size, height: size }} />
   ) : (
     <span className={`flex shrink-0 items-center justify-center ${rounded}`} style={{ width: size, height: size, background: hexToRgba("#E8B04B", 0.12), color: "var(--mp-accent)" }} aria-hidden="true">
       {icon ?? <Music size={Math.round(size / 3)} />}
@@ -198,7 +199,7 @@ export function FeaturedCard({ featured, username, currency, whatsappNumber, art
           <Link href={href} className={`relative block aspect-square w-full overflow-hidden ${RING}`} aria-label={title} tabIndex={-1}>
             {image ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={image} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+              <OptImg src={image} widths={[360, 480, 720]} sizes="(min-width: 480px) 440px, 90vw" className="absolute inset-0 h-full w-full object-cover" />
             ) : (
               <span className="absolute inset-0 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${hexToRgba("#E8B04B", 0.3)}, ${MP.surface})`, color: "var(--mp-accent)" }} aria-hidden="true">
                 <Disc3 size={56} strokeWidth={1.3} />
@@ -296,7 +297,7 @@ export function ReleasesRail({ releases, username, currency, trackCounts, storeH
         <span className="relative block aspect-square w-full overflow-hidden rounded-[11px]">
           {r.cover_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={r.cover_image_url} alt="" loading="lazy" decoding="async" className="block h-full w-full object-cover" />
+            <OptImg src={r.cover_image_url} widths={[200, 360, 540]} sizes={grid ? "(min-width: 480px) 220px, 44vw" : "172px"} className="block h-full w-full object-cover" />
           ) : (
             <span className="flex h-full w-full items-center justify-center" style={{ background: hexToRgba("#E8B04B", 0.12), color: "var(--mp-accent)" }} aria-hidden="true"><Disc3 size={34} /></span>
           )}
@@ -410,7 +411,7 @@ export function MerchGrid({ products, username, currency, storeHref, totalCount,
                 <span className="relative block aspect-square w-full overflow-hidden rounded-[11px]" style={{ background: MP.raised }}>
                   {img ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                    <OptImg src={img} widths={[200, 360, 540]} sizes="(min-width: 480px) 220px, 44vw" className="h-full w-full object-cover" />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center" style={{ color: "var(--mp-accent)" }} aria-hidden="true"><ShoppingBag size={28} /></span>
                   )}
@@ -458,7 +459,7 @@ export function LinkRows({ links, name, logClick }: { links: any[]; name: string
               >
                 {link.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={link.image_url} alt="" loading="lazy" decoding="async" width={44} height={44} className="h-11 w-11 rounded-[10px] object-cover" />
+                  <OptImg src={link.image_url} width={44} height={44} cssWidth={44} className="h-11 w-11 rounded-[10px] object-cover" />
                 ) : (
                   <span className="flex h-11 w-11 items-center justify-center rounded-[12px]" style={{ background: hexToRgba("#E8B04B", 0.12), color: "var(--mp-accent)" }} aria-hidden="true"><ArrowUpRight size={18} /></span>
                 )}

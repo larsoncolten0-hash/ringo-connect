@@ -1,4 +1,4 @@
-import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
+import { getPublicOwnerAccount, isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import { randomUUID } from "crypto";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
@@ -72,29 +72,64 @@ export default async function PublicProfilePage({
 }) {
   const supabase = createClient();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_items(*), music_releases(*), booking_services(*)`
-    )
-    .eq("username", params.username)
-    .eq("published", true)
-    .single();
-
-  if (!profile) return notFound();
-  if (await isPublicProfileSuspended(params.username)) return notFound();
-
-  // What follows that only needs the profile row runs TOGETHER: the owner's plan, the signed-in user, the checkout capability and the staff
-  // badges used to be awaited one after another (four extra round trips in a row on the busiest page). They are reads with no effect on each
-  // other. The suspension gate above stays first and sequential (it is also request-cached), and the visit is only recorded, and the Pixel
-  // event only sent, after it.
-  const [ownerPlanResult, authResult, commerceCheckoutAvailable, staffBadges] = await Promise.all([
-    createAdminClient().from("users").select("plans(max_links, max_products, custom_theme_enabled)").eq("id", profile.user_id).maybeSingle(),
+  // Stage 1: everything that needs only the username or the request's cookies runs TOGETHER: the profile read, the suspension check (one query, see
+  // lib/publicProfileVisibility.ts) and the signed-in visitor. They used to be awaited one after another.
+  const [{ data: profile }, suspended, authResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_items(*), music_releases(*), booking_services(*)`
+      )
+      .eq("username", params.username)
+      .eq("published", true)
+      .single(),
+    isPublicProfileSuspended(params.username),
     supabase.auth.getUser(),
+  ]);
+
+  // The gates are exactly what they were: an unknown / unpublished profile and a suspended owner both get the same 404, and nothing below (no read that
+  // depends on the profile, no page-view record, no Pixel call) happens before this point.
+  if (!profile) return notFound();
+  if (suspended) return notFound();
+
+  // The signed-in visitor is only used to suppress FanRecognitionHeader and our own page-view row for the owner's own live view; known here, before the
+  // page view is recorded, so the record can be written alongside the other reads instead of after them.
+  const user = authResult.data.user;
+  const isOwner = user?.id === profile.user_id;
+
+  const { referrer, country, city } = extractRequestContext(headers());
+  const clientIp = extractClientIp(headers());
+  const userAgent = headers().get("user-agent");
+  const host = headers().get("host");
+  const eventSourceUrl = referrer || (host ? `https://${host}/${params.username}` : `/${params.username}`);
+  // One event id, shared with the browser Pixel's own PageView call (see ProfileView.tsx) — Meta dedupes the two into a single event instead of counting a
+  // page view twice, while combining both signals into one higher Event Match Quality entry.
+  const pageViewEventId = randomUUID();
+  const cookieStore = cookies();
+  const pixelConfig = buildPixelConfigFromRow(profile);
+
+  // Stage 2: what needs the profile row runs TOGETHER: the checkout capability, the staff badges, whether this owner's Pixels are active, and the
+  // page-view row (RLS allows anonymous inserts; the owner previewing their own page is not a visit, so no row for them, and the click tracking in /api/track
+  // is untouched). The page view is only ever recorded after the suspension check above.
+  const [commerceCheckoutAvailable, staffBadges, pixelsEnabled, trackSettled] = await Promise.all([
     computeProfileCheckoutAvailability(profile),
     loadStaffBadges(profile),
+    pixelConfig.facebookPixelId || pixelConfig.tiktokPixelId ? isPixelsEnabledForUser(profile.user_id) : Promise.resolve(false),
+    Promise.allSettled([
+      isOwner
+        ? Promise.resolve({ error: null })
+        : supabase.from("click_events").insert({
+            profile_id: profile.id,
+            target_type: "page",
+            referrer,
+            country,
+            city,
+          }),
+    ]),
   ]);
-  const ownerPlanRow = ownerPlanResult.data;
+  const trackResult = trackSettled[0];
+  if (trackResult.status === "rejected") console.error("Page view tracking failed:", trackResult.reason);
+  else if ((trackResult.value as any)?.error) console.error("Page view tracking failed:", (trackResult.value as any).error.message);
 
   // Subscription controls ACCESS, never data retention (see planEntitlements.ts): a downgraded
   // creator's extra links/products/theme customization stay fully intact in the database — only
@@ -107,7 +142,8 @@ export default async function PublicProfilePage({
   // anon-key query above would silently resolve to null for every real visitor (confirmed live —
   // RLS filters an embedded to-one relation to null rather than erroring, so this failure mode is
   // completely silent unless checked against the anon key specifically, not just the service role).
-  const ownerPlan = (ownerPlanRow as any)?.plans ?? null;
+  // The owner's plan came back with the suspension check (one memoised query, see lib/publicProfileVisibility.ts): no separate read.
+  const ownerPlan = (await getPublicOwnerAccount(params.username)).plan;
   // Rows with nothing to show (an empty link, a nameless product) are dropped BEFORE the plan limit, so they
   // never use up one of the owner's visible slots (see lib/publicContent.ts). Display only; nothing is changed.
   const { visible: visibleLinks } = limitPublicRows<any>(profile.links, isPublicLink, ownerPlan?.max_links ?? null);
@@ -127,47 +163,8 @@ export default async function PublicProfilePage({
     profile.button_radius = "rounded";
   }
 
-  // Only ever used to suppress FanRecognitionHeader for the owner's own
-  // live view (see that component's comment) — this page is already
-  // force-dynamic (see above), so one extra auth read costs nothing this
-  // route doesn't already pay for a signed-in visitor's cookies.
-  const user = authResult.data.user;
-  const isOwner = user?.id === profile.user_id;
-
-  const { referrer, country, city } = extractRequestContext(headers());
-  const clientIp = extractClientIp(headers());
-  const userAgent = headers().get("user-agent");
-  const host = headers().get("host");
-  const eventSourceUrl = referrer || (host ? `https://${host}/${params.username}` : `/${params.username}`);
-
-  // One event id, shared with the browser Pixel's own PageView call (see
-  // ProfileView.tsx) — Meta dedupes the two into a single event instead
-  // of counting a page view twice, while combining both signals into one
-  // higher Event Match Quality entry.
-  const pageViewEventId = randomUUID();
-  const cookieStore = cookies();
-  const pixelConfig = buildPixelConfigFromRow(profile);
-  const pixelsEnabled = pixelConfig.facebookPixelId || pixelConfig.tiktokPixelId
-    ? await isPixelsEnabledForUser(profile.user_id)
-    : false;
-
-  // Fire-and-forget page view event (RLS allows anonymous inserts) +
-  // the Meta Conversions API PageView, run together so the CAPI call
-  // (a network hop to graph.facebook.com) doesn't add its latency on
-  // top of the DB insert's.
-  // The owner previewing their own page is not a visit: skip OUR page-view row for them (isOwner comes
-  // from the signed-in session above). Anonymous and other signed-in visitors are still recorded, and
-  // the click tracking in /api/track is untouched.
-  const [trackResult] = await Promise.allSettled([
-    isOwner
-      ? Promise.resolve({ error: null })
-      : supabase.from("click_events").insert({
-          profile_id: profile.id,
-          target_type: "page",
-          referrer,
-          country,
-          city,
-        }),
+  // The Meta Conversions API PageView (a network hop to graph.facebook.com), only for an owner whose Pixels are active.
+  await Promise.allSettled([
     pixelsEnabled
       ? sendMetaPageView(pixelConfig, {
           eventId: pageViewEventId,
@@ -182,8 +179,6 @@ export default async function PublicProfilePage({
         })
       : Promise.resolve(),
   ]);
-  if (trackResult.status === "rejected") console.error("Page view tracking failed:", trackResult.reason);
-  else if (trackResult.value?.error) console.error("Page view tracking failed:", trackResult.value.error.message);
 
   // Never let the encrypted CAPI/Events API tokens reach the browser —
   // Server Components serialize every prop passed to a "use client"

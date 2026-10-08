@@ -1,7 +1,8 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
+import MotionScope from "@/components/ui/MotionScope";
 
 // A dimmed + blurred layer shown behind an open menu/dropdown/panel —
 // darkens and softly blurs the body content so the open menu reads as
@@ -41,15 +42,17 @@ export default function MenuBackdrop({
   portal?: boolean;
 }) {
   const node = (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
-      onClick={onClose}
-      aria-hidden="true"
-      className={`fixed inset-x-0 bottom-0 ${topClassName} bg-slate-950/35 backdrop-blur-sm ${className}`}
-    />
+    <MotionScope>
+      <m.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        onClick={onClose}
+        aria-hidden="true"
+        className={`fixed inset-x-0 bottom-0 ${topClassName} bg-slate-950/35 backdrop-blur-sm ${className}`}
+      />
+    </MotionScope>
   );
 
   return portal ? createPortal(node, document.body) : node;

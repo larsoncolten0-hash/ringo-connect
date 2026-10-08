@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/currency";
 import { primaryTicketType } from "@/lib/ticketTypes";
 import type { Translations } from "@/lib/i18n/translations";
 import { safeExternalUrl } from "@/lib/linkUrl";
+import OptImg from "@/components/ui/OptImg";
 
 // Same fixed near-black "player card" treatment as MusicSection — see the
 // comment there. "Get Ticket"/"View Tickets" opens the event's own detail
@@ -129,7 +130,7 @@ export default function EventsSection({
                   className="relative w-16 h-16 shrink-0 rounded-ringo-md overflow-hidden block"
                 >
                   {event.cover_image_url ? (
-                    <img src={event.cover_image_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    <OptImg src={event.cover_image_url} cssWidth={64} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: hexToRgba(accent, 0.18) }}>
                       <Ticket size={20} style={{ color: accent }} />

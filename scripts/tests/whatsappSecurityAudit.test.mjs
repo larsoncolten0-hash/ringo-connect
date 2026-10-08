@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import { isPhase8AuthFile } from "./phase8Files.mjs"; // the exact auth files (login landing, logout push cleanup, sign-out bounce) changed on purpose, never a pattern
 import { isPhase16ProtectedFile } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
 import { OWNER_WORKSPACE_FILES } from "./ownerWorkspaceFiles.mjs"; // Owner Workspace UX pass: the exact files it changes on purpose
+import { legacyTranslationsSource } from "./i18nSource.mjs"; // the dictionaries are two modules now; this rebuilds the old single-file text byte for byte
 
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
 const results = [];
@@ -103,7 +104,7 @@ check("scope: no package, lockfile, config, middleware, billing, payment or auth
 check("preserved: Phase 8 and 9 behaviour is covered by suites that still exist (saved replies, status, media, AI)", ["scripts/tests/whatsappInboxTools.test.mjs", "scripts/tests/whatsappMedia.test.mjs", "scripts/tests/whatsappInboxAi.test.mjs", "scripts/tests/whatsappInboxAutomation.test.mjs", "scripts/tests/whatsappReply.test.mjs", "scripts/tests/whatsappIngest.test.mjs", "scripts/tests/whatsappWebhook.test.mjs", "scripts/tests/inbox.test.mjs"].every((f) => fs.existsSync(path.join(REPO, f))));
 
 // ============================================================ 6. bilingual coverage
-const tr = read("src/lib/i18n/translations.ts");
+const tr = legacyTranslationsSource().replace(/\r\n/g, "\n");
 const inboxKeys = (loc) => { const i = tr.indexOf(loc === "en" ? "    inbox: {\n      title: \"Inbox\"" : "    inbox: {\n      title: \"Boîte de réception\""); return i; };
 check("i18n: every user-facing string added by Phases 9-10 sits in the shared translations file in both languages, and no component hard-codes visible text", inboxKeys("en") > 0 && COMPONENTS.filter((f) => /(InboxAiPanel|InboxSettingsForm)\.tsx$/.test(f)).every((f) => !/>\s*[A-Z][a-z]+(\s+[a-z]+)+[.!?]?\s*</.test(code(f).replace(/\{[^}]*\}/g, ""))));
 

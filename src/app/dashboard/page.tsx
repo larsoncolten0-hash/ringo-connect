@@ -26,19 +26,17 @@ export default async function DashboardPage() {
     if (own && (!activeOrg || activeOrg === own.id)) redirect("/dashboard/home");
   }
 
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("*, plans(*)")
-    .eq("id", user.id)
-    .single();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_categories(*), menu_items(*), restaurant_tables(*), music_releases(*), booking_services(*)`
-    )
-    .eq("user_id", user.id)
-    .single();
+  // The account row and the profile are independent reads (both keyed by the signed-in user's id): they run together instead of one after the other.
+  const [{ data: userRow }, { data: profile }] = await Promise.all([
+    supabase.from("users").select("*, plans(*)").eq("id", user.id).single(),
+    supabase
+      .from("profiles")
+      .select(
+        `*, social_links(*), links(*), products(*), profile_phone_numbers(*), tracks(*), events(*, event_ticket_types(*)), menu_categories(*), menu_items(*), restaurant_tables(*), music_releases(*), booking_services(*)`
+      )
+      .eq("user_id", user.id)
+      .single(),
+  ]);
 
   if (!profile) redirect("/auth/login?error=profile_missing");
 

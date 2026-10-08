@@ -30,7 +30,9 @@ const FULL_ASPECT = 1908 / 356;
 
 const LIGHT_SRC = "/brand/ringo-logo-light.png";
 const DARK_SRC = "/brand/ringo-logo-dark.png";
-const SYMBOL_SRC = "/brand/ringo-symbol.png";
+const SYMBOL_FULL_SRC = "/brand/ringo-symbol.png";
+// The same symbol at 96 px (about 3 KB instead of 55 KB), used wherever it is shown at 32 px or smaller (3x is still sharp): the landing nav, auth screens and public pages.
+const SYMBOL_SMALL_SRC = "/brand/ringo-symbol-96.png";
 
 export default function BrandLogo({
   logoUrl,
@@ -67,6 +69,7 @@ export default function BrandLogo({
     );
   }
 
+  const SYMBOL_SRC = height <= 32 ? SYMBOL_SMALL_SRC : SYMBOL_FULL_SRC;
   const symbolClass = variant === "responsive" ? "sm:hidden" : "";
   const symbol = (
     <Image src={SYMBOL_SRC} alt={appName} width={height} height={height} className={`shrink-0 ${symbolClass}`} style={{ width: height, height }} />

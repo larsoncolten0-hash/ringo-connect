@@ -90,10 +90,19 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const { primaryColor } = await getBrandingSettings();
+  // Every profile picture, cover and artwork comes from the project's own storage host. Opening that connection (DNS + TLS, several round trips on a mobile network) while the HTML is
+  // still being read, instead of when the first image is discovered, brings the main image in sooner. Images are anonymous requests, so no `crossorigin`.
+  let storageOrigin: string | null = null;
+  try {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) storageOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin;
+  } catch {
+    storageOrigin = null;
+  }
 
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <head>
+        {storageOrigin && <link rel="preconnect" href={storageOrigin} />}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         {/* Overrides --ringo-indigo (defined in globals.css) with the
             admin's configured primary brand color — every `ringo-indigo`

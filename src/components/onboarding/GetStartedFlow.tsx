@@ -1008,7 +1008,7 @@ export default function GetStartedFlow({
 
             <div className="flex flex-col gap-4">
               <div className="flex justify-center">
-                <ImageUploadField value={avatarUrl} onChange={setAvatarUrl} pathPrefix={pathPrefix} shape="circle" size={88} />
+                <ImageUploadField value={avatarUrl} onChange={setAvatarUrl} pathPrefix={pathPrefix} shape="circle" size={88} optimizeFor="avatar" />
               </div>
 
               <label className="flex flex-col gap-1.5">

@@ -8,6 +8,7 @@ import assert from "assert";
 import { execSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { legacyTranslationsSource } from "./i18nSource.mjs"; // the dictionaries are two modules now; this rebuilds the old single-file text byte for byte
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -82,7 +83,7 @@ await test("headline: EN 'One Ringo. Everything you do.' and FR 'Un seul Ringo. 
 });
 await test("copy: only the headline strings changed in translations; the hero subtitle and CTA labels are byte-identical to HEAD (nothing invented)", () => {
   const before = gitShow("src/lib/i18n/translations.ts");
-  const after = raw("src/lib/i18n/translations.ts");
+  const after = legacyTranslationsSource().replace(/\r\n/g, "\n");
   for (const key of ["heroSubtitle", "heroCtaPrimary", "heroCtaSecondary", "heroEyebrow"]) {
     const pick = (s) => [...s.matchAll(new RegExp(`${key}:\\s*\\n?\\s*("[^"\\n]*")`, "g"))].map((m) => m[1]);
     assert.deepEqual(pick(after), pick(before), key);

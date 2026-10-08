@@ -161,7 +161,8 @@ await test("3G the profile not-found page is bilingual, branded, has a 44px way 
 await test("3G the routes still answer 404 through notFound(); suspension handling is untouched", () => {
   const page = src("app/[username]/page.tsx");
   assert.match(page, /if \(!profile\) return notFound\(\);/);
-  assert.match(page, /if \(await isPublicProfileSuspended\(params\.username\)\) return notFound\(\);/);
+  assert.match(page, /isPublicProfileSuspended\(params\.username\),/); // the check runs together with the profile read...
+  assert.match(page, /if \(!profile\) return notFound\(\);\s*if \(suspended\) return notFound\(\);/); // ...and is acted on before anything else
 });
 
 // ------------------------------------------------------------------ 3D: public accessibility

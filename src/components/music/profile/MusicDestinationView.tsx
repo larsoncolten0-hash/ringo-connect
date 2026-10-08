@@ -18,6 +18,7 @@ import { display } from "./musicFont";
 import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 import { DestinationBar } from "./MusicNav";
 import { FeaturedCard, MerchGrid, MiniPlayer, ReleasesRail, SongList, TicketStubs, type FeaturedItem } from "./MusicSections";
+import OptImg from "@/components/ui/OptImg";
 
 // The artist's Music, Merch and Tickets pages. One identity (the profile's plum-black ground, type, borders and the creator's accent), three destinations, each with its own
 // character: Music is the editorial catalog, Merch the shop window, Tickets the night out. Everything is the artist's own data; nothing is invented, empty parts are hidden, and
@@ -41,7 +42,7 @@ function DestinationHeader({ kind, profile, title, eyebrow, count, art }: { kind
     <header className="relative overflow-hidden px-5 pb-8 pt-6" style={{ background: bg }}>
       {kind === "music" && art && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={art} alt="" aria-hidden="true" decoding="async" className="pointer-events-none absolute -right-10 -top-6 h-[210px] w-[210px] rotate-6 rounded-[18px] object-cover opacity-30" style={{ maskImage: "linear-gradient(225deg, #000 20%, transparent 78%)", WebkitMaskImage: "linear-gradient(225deg, #000 20%, transparent 78%)" }} />
+        <OptImg src={art} aria-hidden="true" cssWidth={210} className="pointer-events-none absolute -right-10 -top-6 h-[210px] w-[210px] rotate-6 rounded-[18px] object-cover opacity-30" style={{ maskImage: "linear-gradient(225deg, #000 20%, transparent 78%)", WebkitMaskImage: "linear-gradient(225deg, #000 20%, transparent 78%)" }} />
       )}
       {kind === "music" && !art && (
         <svg viewBox="0 0 200 200" aria-hidden="true" className="pointer-events-none absolute -right-14 -top-14 h-[220px] w-[220px] opacity-[.14]" style={{ color: "var(--mp-accent)" }}>
@@ -54,7 +55,7 @@ function DestinationHeader({ kind, profile, title, eyebrow, count, art }: { kind
       <div className="relative flex flex-col gap-5">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={profile.avatar_url || "/default-avatar.png"} alt="" width={44} height={44} decoding="async" className={`h-11 w-11 object-cover ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "small")}`} style={{ border: `2px solid ${MP.bg}`, boxShadow: "0 0 0 1.5px var(--mp-accent)", background: MP.raised }} />
+          <OptImg src={profile.avatar_url || "/default-avatar.png"} width={44} height={44} cssWidth={44} square priority className={`h-11 w-11 object-cover ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "small")}`} style={{ border: `2px solid ${MP.bg}`, boxShadow: "0 0 0 1.5px var(--mp-accent)", background: MP.raised }} />
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-[15px] font-semibold">{name}</span>
             {(role || profile.about_location) && (
@@ -104,7 +105,7 @@ function MerchFeature({ product, username, currency, logClick }: { product: any;
         <span className="relative block aspect-[4/5] w-full overflow-hidden" style={{ background: MP.raised }}>
           {img ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={img} alt="" loading="eager" decoding="async" className="h-full w-full object-cover" />
+            <OptImg src={img} widths={[360, 480, 720]} sizes="(min-width: 480px) 440px, 90vw" priority className="h-full w-full object-cover" />
           ) : (
             <span className="flex h-full w-full items-center justify-center" style={{ color: "var(--mp-accent)" }} aria-hidden="true"><ShoppingBag size={44} strokeWidth={1.3} /></span>
           )}
@@ -139,7 +140,7 @@ function EventPoster({ event, username, currency }: { event: any; username: stri
         <Link href={detail} className={`relative block aspect-[4/5] w-full overflow-hidden ${RING}`} aria-label={event.title} tabIndex={-1}>
           {event.cover_image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={event.cover_image_url} alt="" loading="eager" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+            <OptImg src={event.cover_image_url} widths={[360, 480, 720]} sizes="(min-width: 480px) 440px, 90vw" priority className="absolute inset-0 h-full w-full object-cover" />
           ) : (
             <span className="absolute inset-0 flex items-center justify-center" style={{ background: `linear-gradient(150deg, ${hexToRgba("#E8B04B", 0.28)}, ${MP.raised})`, color: "var(--mp-accent)" }} aria-hidden="true"><Ticket size={52} strokeWidth={1.3} /></span>
           )}

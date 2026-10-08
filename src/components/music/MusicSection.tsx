@@ -8,6 +8,7 @@ import type { Translations } from "@/lib/i18n/translations";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import EqualizerBars from "./EqualizerBars";
 import { safeExternalUrl } from "@/lib/linkUrl";
+import OptImg from "@/components/ui/OptImg";
 
 // Fixed Ink "player card" — deliberately not theme-driven (unlike the rest of the page, which respects the creator's own colors): this is
 // what gives Latest Music its own visual identity sitting inside the lighter content area, regardless of which accent color is chosen.
@@ -92,7 +93,7 @@ export default function MusicSection({
               >
                 <a href={trackDetailHref} className="shrink-0" aria-label={track.title}>
                   {track.cover_image_url ? (
-                    <img src={track.cover_image_url} alt="" className="w-16 h-16 rounded-ringo-md object-cover" />
+                    <OptImg src={track.cover_image_url} cssWidth={64} className="w-16 h-16 rounded-ringo-md object-cover" />
                   ) : (
                     <div
                       className="w-16 h-16 rounded-ringo-md flex items-center justify-center"

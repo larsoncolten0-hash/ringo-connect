@@ -12,6 +12,7 @@ import ImageGallery from "@/components/ImageGallery";
 import { useTrackPlayback } from "./useTrackPlayback";
 import PublicLanguageSelector from "@/components/PublicLanguageSelector";
 import PoweredByRingo from "@/components/PoweredByRingo";
+import OptImg from "@/components/ui/OptImg";
 
 type ItemType = "song" | "release" | "merch" | "ticket" | "support";
 type CartLine = {
@@ -506,7 +507,7 @@ export default function MusicStorePage({ profile }: { profile: any }) {
                 const soldOut = !hasTypes && remaining !== null && remaining <= 0;
                 return (
                   <div key={e.id} className="flex items-center gap-3 rounded-2xl p-2.5" style={{ border: "1px solid #E5E7EB", opacity: soldOut ? 0.5 : 1 }}>
-                    {e.cover_image_url ? <img src={e.cover_image_url} alt="" loading="lazy" decoding="async" className="w-14 h-14 rounded-xl object-cover shrink-0" /> : <div className="w-14 h-14 rounded-xl shrink-0" style={{ backgroundColor: "#F3F4F6" }} />}
+                    {e.cover_image_url ? <OptImg src={e.cover_image_url} cssWidth={56} className="w-14 h-14 rounded-xl object-cover shrink-0" /> : <div className="w-14 h-14 rounded-xl shrink-0" style={{ backgroundColor: "#F3F4F6" }} />}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{e.title}</p>
                       <p className="text-xs" style={{ opacity: 0.6 }}>{[e.location, e.event_date].filter(Boolean).join(" · ")}</p>
@@ -747,7 +748,7 @@ function StoreCard({
 }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl p-2.5" style={{ border: "1px solid #E5E7EB" }}>
-      {image ? <img src={image} alt="" loading="lazy" decoding="async" className="w-14 h-14 rounded-xl object-cover shrink-0" /> : <div className="w-14 h-14 rounded-xl shrink-0" style={{ backgroundColor: "#F3F4F6" }} />}
+      {image ? <OptImg src={image} cssWidth={56} className="w-14 h-14 rounded-xl object-cover shrink-0" /> : <div className="w-14 h-14 rounded-xl shrink-0" style={{ backgroundColor: "#F3F4F6" }} />}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">{name}</p>
         <p className="text-sm font-bold" style={{ color: accent }} suppressHydrationWarning>{formatPrice(price, currency, locale)}</p>

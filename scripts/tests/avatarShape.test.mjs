@@ -8,6 +8,7 @@ import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { PHASE25_FILES } from "./phase25Files.mjs";
+import { PHASE26_FILES } from "./phase26Files.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -71,7 +72,14 @@ test("the choice is only READ on public pages; the only writer is the editor car
   }
 });
 test("upload, crop, storage and image generation are untouched", () => {
-  assert.deepEqual(git(["diff", "--name-only", "HEAD", "--", "src/components/editor/AvatarCropperField.tsx", "src/components/editor/ImageUploadField.tsx", "src/app/api/profile", "src/lib/supabase", "next.config.js"]), []);
+  // the avatar-shape work itself never touched them; the performance project (phase26Files.mjs) sizes NEW uploads in the two upload fields and is proven in performance.test.mjs
+  assert.deepEqual(git(["diff", "--name-only", "HEAD", "--", "src/app/api/profile", "src/lib/supabase"]), []);
+});
+test("the crop widget: the performance project only loads it on demand; the crop, the 512 px output, the upload and the storage path are unchanged", () => {
+  const changed = git(["diff", "-U0", "HEAD", "--", "src/components/editor/AvatarCropperField.tsx"]).filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
+  assert.ok(changed.every((l) => /^[-+]\s*$|dynamic|Cropper|import type \{ Area \}|crop widget|react-easy-crop/.test(l)), "only the way the widget is imported changed: " + changed.join(" | "));
+  const c = raw("src/components/editor/AvatarCropperField.tsx");
+  assert.ok(c.includes("const OUTPUT_SIZE = 512;") && c.includes('contentType: "image/jpeg"') && c.includes('cacheControl: "31536000"') && c.includes("${userId}/avatar/${crypto.randomUUID()}.jpg"));
 });
 test("migration: UN-APPLIED, one additive column default 'round' with a round/square check, a rollback and a verify; nothing else", () => {
   const sql = raw("supabase/migrations/2026-12-17_profile_avatar_shape.sql");
@@ -91,7 +99,7 @@ test("EN / FR: the label and both options exist, are translated, and the editor 
 });
 test("scope: every changed file is on this phase's list, nothing sensitive is on it, and no foreign currency crept in", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
-  assert.deepEqual(changed.filter((f) => !PHASE25_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE25_FILES.has(f) && !PHASE26_FILES.has(f)), [], "only the registered files changed (this phase, or the performance project that sits on top of it)");
   assert.deepEqual([...PHASE25_FILES].filter((f) => /payment|fapshi|stripe|webhook|\/auth|whatsapp|track|pixel|useTrackPlayback|previewLimit|middleware|\/api\//i.test(f)), []);
   for (const f of changed.filter((x) => /\.(tsx?|mjs|sql)$/.test(x) && !x.startsWith("scripts/tests/") && fs.existsSync(path.join(REPO, x)))) {
     assert.ok(!/GH₵|GHS/.test(fs.readFileSync(path.join(REPO, f), "utf8")), "foreign currency in " + f);

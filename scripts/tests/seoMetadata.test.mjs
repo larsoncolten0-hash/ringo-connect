@@ -37,7 +37,7 @@ const COVER = "https://abcdefgh.supabase.co/storage/v1/object/public/covers/c.pn
 const stub = (profile) => ({ from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ single: async () => ({ data: profile }) }) }) }) }) });
 const admin = (status) => ({
   from: (table) => ({
-    select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: table === "profiles" ? { user_id: "u1" } : { status } }) }) }),
+    select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: table === "profiles" ? { user_id: "u1", users: { status } } : { status } }) }) }),
   }),
 });
 const BASE = { name: "Ada Mbella", username: "ada", avatar_url: IMG, cover_image_url: null, bio: "Photographer and trainer in Douala.", about_position: null, about_company: null, theme_color: "#111111", category: "creative_media", is_demo: false };

@@ -1,8 +1,8 @@
 import type { Metadata, ResolvingMetadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { memoPerRequest } from "@/lib/requestMemo";
-import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
+import { getPublicOwnerAccount, isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
 import { profileHasCategory, profileHasTicketing, getCategory } from "@/lib/categories";
 import { limitPublicRows, isPublicProduct } from "@/lib/publicContent";
 import { computeProfileCheckoutAvailability } from "@/lib/productCheckout/availability";
@@ -26,14 +26,18 @@ export const dynamic = "force-dynamic";
 // Memoised per request: generateMetadata and the page load the same profile and products.
 const load = memoPerRequest(async function load(username: string) {
   const supabase = createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*, products(*)")
-    .eq("username", username)
-    .eq("published", true)
-    .single();
+  // The profile read and the owner check (status + plan, one query) both start from the username: they run together.
+  const [{ data: profile }, suspended] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("*, products(*)")
+      .eq("username", username)
+      .eq("published", true)
+      .single(),
+    isPublicProfileSuspended(username),
+  ]);
   if (!profile) return null;
-  if (await isPublicProfileSuspended(username)) return null;
+  if (suspended) return null;
   return profile;
 });
 
@@ -61,8 +65,8 @@ export default async function ShopRoute({ params }: { params: { username: string
 
   // Same visibility and plan limit as the profile page (see [username]/page.tsx): fetched with the admin client because an anonymous visitor
   // cannot read the owner's plan row. Hidden or unavailable items are never listed.
-  const { data: ownerPlanRow } = await createAdminClient().from("users").select("plans(max_products)").eq("id", profile.user_id).maybeSingle();
-  const { visible } = limitPublicRows<any>(profile.products, isPublicProduct, (ownerPlanRow as any)?.plans?.max_products ?? null);
+  const ownerPlan = (await getPublicOwnerAccount(params.username)).plan;
+  const { visible } = limitPublicRows<any>(profile.products, isPublicProduct, ownerPlan?.max_products ?? null);
   const products = visible.filter((p: any) => p.available !== false);
 
   // Only what the shop page shows leaves the server: no tracking tokens, no private columns of the profile.

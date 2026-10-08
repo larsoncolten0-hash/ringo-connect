@@ -25,23 +25,37 @@ import { createAdminClient } from "@/lib/supabase/server";
 // isn't (plain Node, tests) this degrades to an uncached call.
 const memo: <T extends (...args: any[]) => any>(fn: T) => T = (React as any).cache ?? ((fn: any) => fn);
 
-export const isPublicProfileSuspended = memo(async (username: string): Promise<boolean> => {
+export type PublicOwnerAccount = {
+  /** The owner's account is suspended (users.status). Fails OPEN: false when the lookup fails or the profile has no owner. */
+  suspended: boolean;
+  /** The owner's CURRENT plan limits (max_links, max_products, custom_theme_enabled), or null when unknown. Used only to limit what a public page shows. */
+  plan: { max_links?: number | null; max_products?: number | null; custom_theme_enabled?: boolean | null } | null;
+};
+
+// ONE round trip for what every public page needs to know about the owner by username: the profile's owner row is embedded (profiles.user_id -> users.id) and carries both the
+// account status and the plan (users.plan -> plans). It used to be a profile read, then a users read for the status, then another users read for the plan: three requests in a row.
+// Same questions, same answers, same fail-open rule; the service-role client is unchanged (no RLS to fall back on, `users` is private). Memoised per request, so the status check and
+// the plan lookup on the same page share one query.
+export const getPublicOwnerAccount = memo(async (username: string): Promise<PublicOwnerAccount> => {
   try {
     const admin = createAdminClient();
-    const { data: profile, error: profileError } = await admin.from("profiles").select("user_id").eq("username", username).maybeSingle();
-    if (profileError) {
-      console.error("public profile suspension check failed (profile lookup):", profileError.message);
-      return false;
+    const { data: profile, error: lookupError } = await admin
+      .from("profiles")
+      .select("user_id, users(status, plans(max_links, max_products, custom_theme_enabled))")
+      .eq("username", username)
+      .maybeSingle();
+    if (lookupError) {
+      console.error("public profile suspension check failed (owner lookup):", lookupError.message);
+      return { suspended: false, plan: null };
     }
-    if (!profile?.user_id) return false;
-    const { data: owner, error: ownerError } = await admin.from("users").select("status").eq("id", profile.user_id).maybeSingle();
-    if (ownerError) {
-      console.error("public profile suspension check failed (owner lookup):", ownerError.message);
-      return false;
-    }
-    return owner?.status === "suspended";
+    if (!profile?.user_id) return { suspended: false, plan: null };
+    const owner: any = Array.isArray((profile as any).users) ? (profile as any).users[0] : (profile as any).users;
+    const plan: any = Array.isArray(owner?.plans) ? owner.plans[0] : owner?.plans;
+    return { suspended: owner?.status === "suspended", plan: plan ?? null };
   } catch (err: any) {
     console.error("public profile suspension check threw:", err?.message);
-    return false;
+    return { suspended: false, plan: null };
   }
 });
+
+export const isPublicProfileSuspended = memo(async (username: string): Promise<boolean> => (await getPublicOwnerAccount(username)).suspended);

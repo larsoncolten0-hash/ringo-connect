@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Check, Loader2, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ConnectedNotificationsPrompt from "./ConnectedNotificationsPrompt";
 import { useModalA11y } from "@/components/ui/useModalA11y";
+import MotionScope from "@/components/ui/MotionScope";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^\+?[0-9][0-9\s().-]{5,39}$/;
@@ -19,7 +20,7 @@ type Step = "form" | "code" | "done";
 function DialogPanel({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
   const ref = useModalA11y<HTMLDivElement>(onClose);
   return (
-    <motion.div
+    <m.div
       ref={ref}
       tabIndex={-1}
       initial={{ y: 40, opacity: 0 }}
@@ -33,7 +34,7 @@ function DialogPanel({ label, onClose, children }: { label: string; onClose: () 
       style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -222,9 +223,10 @@ export default function StayConnectedModal({
     "w-full rounded-xl border border-ringo-border bg-ringo-surface px-4 py-3 text-base text-ringo-text placeholder:text-ringo-muted/60 focus:outline-none focus:ring-2";
 
   return createPortal(
+    <MotionScope>
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           key="connect-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -419,9 +421,10 @@ export default function StayConnectedModal({
               </div>
             )}
           </DialogPanel>
-        </motion.div>
+        </m.div>
       )}
-    </AnimatePresence>,
+    </AnimatePresence>
+    </MotionScope>,
     document.body
   );
 }

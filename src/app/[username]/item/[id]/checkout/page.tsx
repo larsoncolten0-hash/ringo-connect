@@ -20,14 +20,18 @@ export const dynamic = "force-dynamic";
 
 async function getItem(username: string, id: string) {
   const supabase = createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*, products(*)")
-    .eq("username", username)
-    .eq("published", true)
-    .single();
+  // The profile read and the suspension check both start from the username: they run together.
+  const [{ data: profile }, suspended] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("*, products(*)")
+      .eq("username", username)
+      .eq("published", true)
+      .single(),
+    isPublicProfileSuspended(username),
+  ]);
   if (!profile) return null;
-  if (await isPublicProfileSuspended(username)) return null;
+  if (suspended) return null;
   const product = (profile.products || []).find((p: any) => p.id === id);
   if (!product) return null;
   return { profile, product };

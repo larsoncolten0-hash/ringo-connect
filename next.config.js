@@ -24,6 +24,17 @@ const nextConfig = {
   // set the same themselves; this covers every response beneath /d/.
   async headers() {
     return [
+      // The platform's own brand images and icons (public/): Next serves files from public/ with `max-age=0, must-revalidate`, so every visit asked the server again for
+      // the same unchanged files. One day (with a week of stale-while-revalidate) is plenty for artwork that changes only when the platform ships new artwork. NOT the service worker
+      // (/pwa-sw.js must always be checked), the manifests or any page: those keep their own behaviour.
+      {
+        source: "/brand/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
+      },
+      {
+        source: "/:file(logo\\.png|favicon\\.ico|apple-touch-icon\\.png|icon-192\\.png|icon-512\\.png|icon-maskable-512\\.png)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
+      },
       {
         source: "/d/:path*",
         headers: [

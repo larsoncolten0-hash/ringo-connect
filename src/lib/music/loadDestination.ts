@@ -10,17 +10,23 @@ import { isPublicProduct, limitPublicRows } from "@/lib/publicContent";
 // storefront checkout that already exist.
 export async function loadMusicDestination(username: string) {
   const supabase = createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(`*, social_links(*), tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*))`)
-    .eq("username", username)
-    .eq("published", true)
-    .single();
+  // The profile read and the suspension check both start from the username: they run together (the page used to wait for one, then the other).
+  const [{ data: profile }, suspended] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(`*, social_links(*), tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*))`)
+      .eq("username", username)
+      .eq("published", true)
+      .single(),
+    isPublicProfileSuspended(username),
+  ]);
 
   if (!profile || !profileHasCategory(profile, "music_entertainment")) return notFound();
-  if (await isPublicProfileSuspended(username)) return notFound();
+  if (suspended) return notFound();
 
   const { data: ownerPlanRow } = await createAdminClient().from("users").select("plans(max_products)").eq("id", profile.user_id).maybeSingle();
   const { visible: visibleProducts } = limitPublicRows<any>(profile.products, isPublicProduct, (ownerPlanRow as any)?.plans?.max_products ?? null);
-  return { ...profile, products: visibleProducts };
+  // These pages hand the whole profile to the browser: the encrypted Pixel / Conversions API tokens and the test code are never sent (the main profile page strips them the same way).
+  const { facebook_capi_token_encrypted, tiktok_events_token_encrypted, facebook_test_event_code, ...publicProfile } = profile as any;
+  return { ...publicProfile, products: visibleProducts };
 }

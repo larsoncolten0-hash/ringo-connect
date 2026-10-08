@@ -19,14 +19,18 @@ export const dynamic = "force-dynamic";
 // Memoised per request: generateMetadata and the page both call it with the same arguments and used to run the same profile + menu query twice.
 const getItem = memoPerRequest(async function getItem(username: string, id: string) {
   const supabase = createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*, menu_items(*), menu_categories(*)")
-    .eq("username", username)
-    .eq("published", true)
-    .single();
+  // The profile read and the suspension check both start from the username: they run together.
+  const [{ data: profile }, suspended] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("*, menu_items(*), menu_categories(*)")
+      .eq("username", username)
+      .eq("published", true)
+      .single(),
+    isPublicProfileSuspended(username),
+  ]);
   if (!profile || !profileHasCategory(profile, "restaurant_food")) return null;
-  if (await isPublicProfileSuspended(username)) return null;
+  if (suspended) return null;
   const item = (profile.menu_items || []).find((i: any) => i.id === id);
   return { profile, item: item ?? null };
 });

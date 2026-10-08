@@ -8,8 +8,12 @@ import { useMotionDuration } from "@/components/ui/useMotionDuration";
 import ItemShareButton from "@/components/dashboard/ItemShareButton";
 import ImageUploadField from "./ImageUploadField";
 import AudioUploadField from "./AudioUploadField";
-import ProtectedAudioUploadField from "./ProtectedAudioUploadField";
+import dynamic from "next/dynamic";
 import { linkForSave } from "@/lib/linkUrl";
+
+// The protected-audio control carries the MP3 encoder (about 55 KB gzipped) that cuts the 10-second preview. It is only needed when a track's control is actually shown, so it is loaded then
+// instead of with every dashboard page; it renders exactly as before once loaded.
+const ProtectedAudioUploadField = dynamic(() => import("./ProtectedAudioUploadField"));
 
 export default function TrackRow({
   track,

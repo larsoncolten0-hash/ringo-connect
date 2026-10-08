@@ -22,6 +22,7 @@ import { display } from "./musicFont";
 import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 import { DestinationPills } from "./MusicNav";
 import { AboutBlock, FeaturedCard, GiftCard, LinkRows, MerchGrid, MiniPlayer, ReleasesRail, SongList, TicketStubs, type FeaturedItem } from "./MusicSections";
+import OptImg from "@/components/ui/OptImg";
 
 
 const RING = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[var(--mp-accent)]";
@@ -168,7 +169,7 @@ export default function MusicArtistView({
           <div className="relative h-[270px] w-full overflow-hidden">
             {cover ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={cover} alt="" fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover object-[50%_30%]" />
+              <OptImg src={cover} widths={[480, 768, 960]} sizes="(min-width: 480px) 480px, 100vw" priority className="absolute inset-0 h-full w-full object-cover object-[50%_30%]" />
             ) : (
               <div className="absolute inset-0" style={{ background: `radial-gradient(120% 90% at 20% 0%, ${hexToRgba(accent, 0.34)}, transparent 62%), linear-gradient(170deg, ${hexToRgba(accent, 0.16)}, ${MP.bg} 78%)` }} aria-hidden="true" />
             )}
@@ -208,13 +209,14 @@ export default function MusicArtistView({
 
           {/* The identity: the artist's own portrait (a separate image from the cover) hangs off the cover's lower edge, the name beside it as a normal heading. */}
           <div className="relative z-10 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-4 px-5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <OptImg
               src={profile.avatar_url || "/default-avatar.png"}
               alt={name}
               width={96}
               height={96}
-              decoding="async"
+              cssWidth={96}
+              square
+              priority
               className={`-mt-12 h-24 w-24 object-cover ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "large")}`}
               style={{ border: `3px solid ${MP.bg}`, boxShadow: `0 0 0 1.5px ${accent}, 0 14px 26px -12px rgba(0,0,0,.75)`, background: MP.raised }}
             />

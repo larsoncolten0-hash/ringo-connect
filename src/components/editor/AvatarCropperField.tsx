@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import Cropper, { type Area } from "react-easy-crop";
+import dynamic from "next/dynamic";
+import type { Area } from "react-easy-crop";
 import { Check, ImagePlus, Loader2, X, ZoomIn } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/components/LanguageProvider";
+
+// The crop widget is only needed once a photo has been picked (it is inside the crop dialog), so it is loaded then instead of with the dashboard.
+const Cropper = dynamic(() => import("react-easy-crop"), { ssr: false }) as unknown as typeof import("react-easy-crop").default;
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 // Exported at a fixed square size — plenty for the avatar itself and for

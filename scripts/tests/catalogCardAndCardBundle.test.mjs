@@ -9,6 +9,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { legacyTranslationsSource } from "./i18nSource.mjs"; // the dictionaries are two modules now; this rebuilds the old single-file text byte for byte
 
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
 const read = (f) => fs.readFileSync(path.join(REPO, f), "utf8");
@@ -62,7 +63,7 @@ const check = (name, cond, detail = "") => {
   check("the bundle picker's subtitle is bilingual (t.getStarted.bundlePickerSubtitle)", /t\.getStarted\.bundlePickerSubtitle/.test(flowSrc));
   check("mutual exclusion between bundles is generic over any number of bundles (not hardcoded to 2)", /bundleAddons\.some\(\(b\) => b\.id === id\)/.test(flowSrc));
 
-  const i18nSrc = read("src/lib/i18n/translations.ts");
+  const i18nSrc = legacyTranslationsSource();
   const enBlock = i18nSrc.slice(0, i18nSrc.indexOf("fr:"));
   const frBlock = i18nSrc.slice(i18nSrc.indexOf("fr:"));
   for (const key of ["bundlePickerSubtitle"]) {

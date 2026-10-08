@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Loader2, ImagePlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { downscaleImage } from "@/lib/imageDownscale";
+import { downscaleImage, uploadKindForFolder, type UploadKind } from "@/lib/imageDownscale";
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -16,6 +16,7 @@ export default function ImageUploadField({
   shape = "square",
   size = 64,
   errorText,
+  optimizeFor,
 }: {
   value?: string | null;
   onChange: (url: string) => void;
@@ -29,6 +30,8 @@ export default function ImageUploadField({
   shape?: "circle" | "square";
   size?: number;
   errorText?: { tooLarge: string; wrongType: string; failed: string };
+  // What the picture is for (sizes it for that use); by default taken from the folder (avatar / cover / products / tracks / releases / events).
+  optimizeFor?: UploadKind;
 }) {
   const supabase = createClient();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -49,11 +52,12 @@ export default function ImageUploadField({
 
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || "jpg";
+      const prepared = await downscaleImage(file, optimizeFor ?? uploadKindForFolder(folder));
+      const ext = prepared.name.split(".").pop() || "jpg";
       const path = pathPrefix
         ? `${pathPrefix}/${crypto.randomUUID()}.${ext}`
         : `${userId}/${folder}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("uploads").upload(path, await downscaleImage(file), {
+      const { error: uploadError } = await supabase.storage.from("uploads").upload(path, prepared, {
         upsert: true,
         // the name is a fresh random id, so this object never changes: let browsers and the CDN keep it for a year
         cacheControl: "31536000",

@@ -76,14 +76,14 @@ await test("memoPerRequest: identical to the original function where React.cache
 });
 await test("memoised loaders: the three public loaders and the metadata helper are wrapped, their bodies and the suspension gate are untouched", () => {
   const item = code("src/app/[username]/item/[id]/page.tsx");
-  assert.ok(item.includes("const getItem = memoPerRequest(async function getItem(") && /if \(!profile\) return null;\s*if \(await isPublicProfileSuspended\(username\)\) return null;/.test(item));
+  assert.ok(item.includes("const getItem = memoPerRequest(async function getItem(") && /isPublicProfileSuspended\(username\),\s*\]\);\s*if \(!profile\) return null;\s*if \(suspended\) return null;/.test(item));
   assert.ok(item.includes("eq(\"published\", true)") && item.includes("p.available !== false"), "same visibility rules");
   const rest = code("src/app/r/[username]/item/[id]/page.tsx");
-  assert.ok(rest.includes("const getItem = memoPerRequest(async function getItem(") && /restaurant_food"\)\) return null;\s*if \(await isPublicProfileSuspended\(username\)\) return null;/.test(rest));
+  assert.ok(rest.includes("const getItem = memoPerRequest(async function getItem(") && /isPublicProfileSuspended\(username\),\s*\]\);\s*if \(!profile \|\| !profileHasCategory\(profile, "restaurant_food"\)\) return null;\s*if \(suspended\) return null;/.test(rest));
   const shop = code("src/app/[username]/shop/page.tsx");
-  assert.ok(shop.includes("const load = memoPerRequest(async function load(") && shop.includes("if (await isPublicProfileSuspended(username)) return null;"));
+  assert.ok(shop.includes("const load = memoPerRequest(async function load(") && shop.includes("if (suspended) return null;") && shop.includes("isPublicProfileSuspended(username),"));
   const meta = code("src/lib/profileMetadata.ts");
-  assert.ok(meta.includes("const getProfileForMetadata = memoPerRequest(async function getProfileForMetadata(") && meta.includes("if (data && (await isPublicProfileSuspended(username))) return null;"));
+  assert.ok(meta.includes("const getProfileForMetadata = memoPerRequest(async function getProfileForMetadata(") && meta.includes("if (data && suspended) return null;") && /Promise\.all\(\[[\s\S]*?isPublicProfileSuspended\(username\),\s*\]\)/.test(meta));
   const memo = code("src/lib/requestMemo.ts");
   assert.ok(!/\.(insert|update|upsert|delete|rpc)\(|supabase/.test(memo), "the helper does no data access of its own");
 });
@@ -125,17 +125,21 @@ await test("association roster route: both failure paths now log, with the error
 });
 
 // ---------------------------------------------------------------- 4. media
-await test("images: below-the-fold public images load lazily; the avatar, the cover and the first gallery photo stay eager", () => {
-  const lazy = ['loading="lazy"', 'decoding="async"'];
-  for (const f of ["src/components/restaurant/FeaturedMenuSection.tsx", "src/components/music/EventsSection.tsx", "src/components/music/MusicStorePage.tsx"]) for (const a of lazy) assert.ok(read(f).includes(a), `${f} ${a}`);
+await test("images: below-the-fold public images load lazily; the avatar, the cover and the first gallery photo stay eager (through the one OptImg component)", () => {
+  const img = read("src/components/ui/OptImg.tsx");
+  assert.ok(img.includes('loading={priority ? "eager" : "lazy"}') && img.includes('decoding="async"'), "OptImg: lazy unless it is the priority image");
+  for (const f of ["src/components/restaurant/FeaturedMenuSection.tsx", "src/components/music/EventsSection.tsx", "src/components/music/MusicStorePage.tsx"]) {
+    const s = read(f);
+    assert.ok(s.includes("<OptImg") && !/<OptImg[^>]*priority/.test(s), `${f}: below the fold, lazy by default`);
+  }
   const rel = read("src/components/music/ReleasesSection.tsx");
-  assert.ok(rel.includes('loading={leadFirst && index === 0 ? undefined : "lazy"}') && rel.includes('decoding="async"'), "the large lead release cover stays eager; the rest wait");
+  assert.ok(rel.includes("priority={leadFirst && index === 0}"), "the large lead release cover stays eager; the rest wait");
   const pv = read("src/components/ProfileView.tsx");
-  assert.ok(pv.includes('<img src={link.image_url} alt="" loading="lazy" decoding="async"'));
-  assert.ok(pv.includes('<img src={profile.cover_image_url} alt="" className="w-full h-full object-cover" />'), "the cover is not lazy");
+  assert.ok(/<OptImg src=\{link\.image_url\}[^>]*cssWidth=\{56\}/.test(pv) && !/<OptImg src=\{link\.image_url\}[^>]*priority/.test(pv), "link thumbnails wait");
+  assert.ok(/<OptImg src=\{profile\.cover_image_url\}[^>]*priority/.test(pv), "the cover is not lazy");
   const g = read("src/components/ImageGallery.tsx");
-  assert.ok(g.includes('loading={i === 0 ? undefined : "lazy"}'), "only photos after the first wait");
-  assert.ok(g.includes("return <img src={urls[0]} alt={alt}") && !/urls\[0\][^\n]*loading=/.test(g), "a single photo stays eager");
+  assert.ok(g.includes("priority={i === 0}"), "only photos after the first wait");
+  assert.ok(/<OptImg src=\{urls\[0\]\}[^>]*priority/.test(g), "a single photo stays eager");
 });
 await test("audio previews: the public preview clips are cached for a year because every upload gets a fresh random name; nothing else about the upload changed", () => {
   for (const f of ["src/components/editor/AudioUploadField.tsx", "src/components/editor/ProtectedAudioUploadField.tsx"]) {

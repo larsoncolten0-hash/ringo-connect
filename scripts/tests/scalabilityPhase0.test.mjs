@@ -108,7 +108,7 @@ await test("downscale: on any problem the original file is uploaded (no document
 await test("uploads: random names mean the file never changes, so it is cached for a year; oversized photos go through the downscaler; storage paths are unchanged", () => {
   for (const f of ["src/components/editor/ImageUploadField.tsx", "src/components/editor/ImageGalleryUploadField.tsx"]) {
     const s = code(f);
-    assert.ok(s.includes('cacheControl: "31536000"') && s.includes("await downscaleImage(file)"), f);
+    assert.ok(s.includes('cacheControl: "31536000"') && /await downscaleImage\(file[,)]/.test(s) /* the performance phase adds the optional target kind: downscaleImage(file, kind) */, f);
     assert.ok(s.includes("crypto.randomUUID()") && s.includes('.from("uploads")'), f);
     assert.ok(/MAX_SIZE_BYTES = 5 \* 1024 \* 1024/.test(s) && s.includes("file.size > MAX_SIZE_BYTES"), "the 5 MB limit still applies to the file the person chose");
   }
@@ -119,14 +119,19 @@ await test("uploads: random names mean the file never changes, so it is cached f
 });
 
 // ---------------------------------------------------------------- 4. the public profile read
-await test("public profile: the independent reads run together, and nothing is recorded or sent before the suspension check", () => {
+await test("public profile: the independent reads run together in two stages, and nothing is recorded or sent before the suspension check", () => {
   const s = code("src/app/[username]/page.tsx");
-  assert.match(s, /await Promise\.all\(\[\s*createAdminClient\(\)\.from\("users"\)[\s\S]*?supabase\.auth\.getUser\(\),[\s\S]*?computeProfileCheckoutAvailability\(profile\),[\s\S]*?loadStaffBadges\(profile\),\s*\]\)/);
-  // the suspension gate is exactly as it was: immediately after the not-found check, before any other read, record or Pixel call
-  assert.match(s, /if \(!profile\) return notFound\(\);\s*if \(await isPublicProfileSuspended\(params\.username\)\) return notFound\(\);/);
-  const iSusp = s.indexOf("if (await isPublicProfileSuspended(params.username)) return notFound();");
-  assert.ok(iSusp > 0 && iSusp < s.indexOf("Promise.all(["));
-  for (const effect of ['from("click_events").insert', "sendMetaPageView(", "isPixelsEnabledForUser("]) assert.ok(s.indexOf(effect) > iSusp, `${effect} must come after the suspension check`);
+  // stage 1: the profile, the suspension check and the signed-in visitor together
+  assert.match(s, /await Promise\.all\(\[\s*supabase\s*\.from\("profiles"\)[\s\S]*?isPublicProfileSuspended\(params\.username\),\s*supabase\.auth\.getUser\(\),\s*\]\)/);
+  // the gates are exactly what they were: not found, then suspended, before any other read that needs the profile, any record or any Pixel call
+  assert.match(s, /if \(!profile\) return notFound\(\);\s*if \(suspended\) return notFound\(\);/);
+  const iGate = s.indexOf("if (suspended) return notFound();");
+  // stage 2: the profile-dependent reads together (the owner's plan, the checkout capability, the staff badges, whether Pixels are active, the page-view row)
+  assert.match(s, /await Promise\.all\(\[\s*computeProfileCheckoutAvailability\(profile\),[\s\S]*?loadStaffBadges\(profile\),[\s\S]*?isPixelsEnabledForUser\(profile\.user_id\)[\s\S]*?from\("click_events"\)\.insert/);
+  assert.ok(s.includes("const ownerPlan = (await getPublicOwnerAccount(params.username)).plan;"), "the owner's plan comes from the same single owner read as the suspension check (no separate query)");
+  assert.ok(iGate > 0 && iGate < s.indexOf("computeProfileCheckoutAvailability(profile),"));
+  for (const effect of ['from("click_events").insert', "sendMetaPageView(", "isPixelsEnabledForUser(", "loadStaffBadges(profile),"]) assert.ok(s.indexOf(effect, iGate) > iGate && s.lastIndexOf(effect) > iGate, `${effect} must come after the suspension check`);
+  assert.ok(/isOwner\s*\?\s*Promise\.resolve\(\{ error: null \}\)/.test(s), "the owner's own view is still not recorded as a visit");
   // behaviour that must not move
   assert.ok(s.includes("isCustomThemeAllowed(ownerPlan)") && s.includes("limitPublicRows<any>(profile.products, isPublicProduct, ownerPlan?.max_products ?? null)"));
   assert.ok(s.includes("facebook_capi_token_encrypted, tiktok_events_token_encrypted, ...publicProfile"), "private tokens still never reach the browser");

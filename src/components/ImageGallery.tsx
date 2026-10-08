@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import OptImg from "@/components/ui/OptImg";
 
 // A small horizontal, swipeable image gallery for anything that can carry
 // up to 3 photos (products/menu items — see the image_urls column added in
@@ -30,8 +31,7 @@ export default function ImageGallery({
   if (urls.length === 0) return null;
 
   if (urls.length === 1) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={urls[0]} alt={alt} className={`${className} ${imgClassName}`} />;
+    return <OptImg src={urls[0]} alt={alt} widths={[480, 800, 1200]} sizes="(min-width: 768px) 640px, 100vw" priority className={`${className} ${imgClassName}`} />;
   }
 
   const onScroll = () => {
@@ -48,14 +48,14 @@ export default function ImageGallery({
         className="no-scrollbar w-full h-full flex overflow-x-auto snap-x snap-mandatory scroll-smooth"
       >
         {urls.map((url, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          // the first photo is what the visitor sees on arrival (eager, high priority); the others wait until the gallery is near them
+          <OptImg
             key={url + i}
             src={url}
             alt={i === 0 ? alt : ""}
-            // the first photo is what the visitor sees on arrival; the others wait until the gallery is near them
-            loading={i === 0 ? undefined : "lazy"}
-            decoding="async"
+            widths={[480, 800, 1200]}
+            sizes="(min-width: 768px) 640px, 100vw"
+            priority={i === 0}
             className={`w-full h-full shrink-0 snap-center ${imgClassName}`}
           />
         ))}

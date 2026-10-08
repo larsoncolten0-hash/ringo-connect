@@ -8,6 +8,7 @@ import fs from "fs";
 import path from "path";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { legacyTranslationsSource } from "./i18nSource.mjs"; // the dictionaries are two modules now; this rebuilds the old single-file text byte for byte
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -1057,7 +1058,7 @@ function clock0(w) { return w.clock.t; }
   check("reconcile: contains no settlement logic of its own (delegates to checkProductPayment)", /checkProductPayment/.test(reconSrc) && !/settleProductPayment|insertEarning|computeEarnings|updateOrder|releaseOrder/.test(reconSrc.replace(/\/\/.*$/gm, "")));
   const settleSrc = fs.readFileSync(path.join(REPO, "src/lib/productCheckout/settlement.ts"), "utf8");
   check("settlement, commission and amount verification are untouched by this increment (still gated by VERIFY_PROVIDER_AMOUNT; commission from computeEarnings)", /VERIFY_PROVIDER_AMOUNT/.test(settleSrc) && /computeEarnings\(payment\.amount, settings\.commissionRate\)/.test(settleSrc) && C.VERIFY_PROVIDER_AMOUNT === true);
-  const tr = fs.readFileSync(path.join(REPO, "src/lib/i18n/translations.ts"), "utf8");
+  const tr = legacyTranslationsSource();
   check("i18n: rate_limited has an English and a French message", /rate_limited: "Too many requests/.test(tr) && /rate_limited: "Trop de demandes/.test(tr));
 }
 

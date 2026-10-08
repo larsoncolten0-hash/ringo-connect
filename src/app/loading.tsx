@@ -9,14 +9,15 @@ import { LoadingLabel } from "@/components/public/PublicStates";
 // approximate; everywhere else's shape varies too much for a skeleton to
 // help, so this is a small branded loader instead — the same pulsing
 // "ring" signal as the auth pages' brand panel (see AuthShell.tsx), just
-// scaled down for a brief in-between-pages moment rather than a hero.
+// scaled down for a brief in-between-pages moment rather than a hero. The symbol is shown at 30px, so it uses the 96px copy of the same
+// logo (about 3 KB) rather than the 320px original (55 KB): this loader is part of every public page's first response.
 export default function RootLoading() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-ringo-bg" role="status" aria-busy="true">
       <div className="relative w-16 h-16 flex items-center justify-center animate-fade-in">
         <span className="absolute inset-0 rounded-full border border-ringo-indigo animate-ring-pulse-1" />
         <span className="absolute inset-0 rounded-full border border-ringo-teal animate-ring-pulse-2" />
-        <Image src="/logo.png" alt="" width={30} height={30} className="rounded-[9px] relative z-10" />
+        <Image src="/brand/ringo-symbol-96.png" alt="" width={30} height={30} className="rounded-[9px] relative z-10" />
       </div>
       {/* Short and quiet on purpose — this screen only shows for a real
           app-level boot (see the file comment above), so it should read

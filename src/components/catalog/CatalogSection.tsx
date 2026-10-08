@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 import Rail from "@/components/ui/Rail";
 import { formatPrice } from "@/lib/currency";
@@ -11,6 +11,8 @@ import { resolveProductCta, resolveDisplayCtaLabel, sectionCtaKind } from "@/lib
 import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import { productHref, productImages } from "./productHref";
 import { safeExternalUrl } from "@/lib/linkUrl";
+import OptImg from "@/components/ui/OptImg";
+import MotionScope from "@/components/ui/MotionScope";
 
 // The public profile's Catalog / Merch / Services section: the DISCOVERY layer, kept short. With four or more items it is a still
 // horizontal RAIL of the first eight (the next card always peeking in; nothing about a card moves while it scrolls), and one button,
@@ -264,11 +266,11 @@ function ProductCard({
         style={{ backgroundColor: hexToRgba(textColor, 0.06) }}
       >
         {images[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <OptImg
             src={images[0]}
             alt={product.name}
-            loading="lazy"
+            widths={featured ? [480, 768, 1024] : [240, 400, 640]}
+            sizes={featured ? "(min-width: 640px) 480px, 100vw" : "(min-width: 640px) 260px, 50vw"}
             className={`h-full w-full object-cover ${inRail ? "" : "transition-transform duration-700 ease-out group-hover:scale-[1.04]"} ${soldOut ? "opacity-60" : ""}`}
           />
         ) : (
@@ -347,13 +349,17 @@ function ProductCard({
 
   const cls = `group block ${featured ? "col-span-2" : ""}`;
 
-  return preview ? (
-    <motion.div className={cls} {...motionProps}>
-      {body}
-    </motion.div>
-  ) : (
-    <motion.a href={href} onClick={onOpen} className={cls} aria-label={accessibleName} {...motionProps}>
-      {body}
-    </motion.a>
+  return (
+    <MotionScope>
+      {preview ? (
+        <m.div className={cls} {...motionProps}>
+          {body}
+        </m.div>
+      ) : (
+        <m.a href={href} onClick={onOpen} className={cls} aria-label={accessibleName} {...motionProps}>
+          {body}
+        </m.a>
+      )}
+    </MotionScope>
   );
 }

@@ -10,6 +10,7 @@ import fs from "fs";
 import path from "path";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { legacyTranslationsSource } from "./i18nSource.mjs"; // the dictionaries are two modules now; this rebuilds the old single-file text byte for byte
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -143,7 +144,7 @@ const {
 
 // ---------------------------------------------------------------- 9. i18n — both languages define every new key
 {
-  const src = read("src/lib/i18n/translations.ts");
+  const src = legacyTranslationsSource();
   const enBlock = src.slice(0, src.indexOf("fr:"));
   const frBlock = src.slice(src.indexOf("fr:"));
   const newKeys = ["contactPreviewTitle", "contactPreviewHint", "contactNameLabel", "contactProfileLabel", "rewriteContactReminder", "verifyContactFound", "verifyContactNotFound"];

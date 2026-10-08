@@ -1,4 +1,4 @@
-import { getBrandingSettings } from "@/lib/branding";
+import { getBrandingSettingsFresh } from "@/lib/branding";
 import BrandingSettingsForm from "@/components/admin/BrandingSettingsForm";
 
 // See src/app/admin/settings/page.tsx for why this is needed on every
@@ -7,6 +7,6 @@ import BrandingSettingsForm from "@/components/admin/BrandingSettingsForm";
 export const dynamic = "force-dynamic";
 
 export default async function AdminBrandingPage() {
-  const branding = await getBrandingSettings();
+  const branding = await getBrandingSettingsFresh();
   return <BrandingSettingsForm initial={branding} />;
 }

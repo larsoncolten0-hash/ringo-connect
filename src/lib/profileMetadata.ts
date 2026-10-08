@@ -21,15 +21,20 @@ import { buildProfileSeo, NOINDEX, profileDisplayName, safePublicImageUrl } from
 // generateMetadata calls the shared one again), and each used to run the same query. The result is shared inside one render only, never across visitors.
 const getProfileForMetadata = memoPerRequest(async function getProfileForMetadata(username: string) {
   const supabase = createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("name, username, avatar_url, cover_image_url, bio, about_position, about_company, theme_color, category, is_demo")
-    .eq("username", username)
-    .eq("published", true)
-    .single();
+  // The profile read and the suspension check do not depend on each other (both start from the username), so they run together: the head of every public page used to wait for
+  // them one after the other.
+  const [{ data }, suspended] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("name, username, avatar_url, cover_image_url, bio, about_position, about_company, theme_color, category, is_demo")
+      .eq("username", username)
+      .eq("published", true)
+      .single(),
+    isPublicProfileSuspended(username),
+  ]);
   // A suspended owner's profile is unavailable: no title, description, icons or theme
   // may leak through <head> (this also feeds generateViewport).
-  if (data && (await isPublicProfileSuspended(username))) return null;
+  if (data && suspended) return null;
   return data;
 });
 

@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { Share, Link2, Check, Share2, QrCode, X, Download, Loader2 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaXTwitter } from "react-icons/fa6";
-import { drawQrCodeWithLogo, downloadCanvas } from "@/lib/qrCode";
+// The QR renderer (and the qrcode library behind it) is only needed when someone opens "Show QR code": it is loaded then, not with every public page.
+const loadQr = () => import("@/lib/qrCode");
 import { cleanShareUrl } from "@/lib/shareUrl";
 import { useLanguage } from "@/components/LanguageProvider";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
 import { useModalA11y } from "@/components/ui/useModalA11y";
 import { nextMenuIndex, TAP_AREA_36 } from "@/components/ui/menuNav";
+import MotionScope from "@/components/ui/MotionScope";
 
 // The QR sheet's dialog frame: a real modal (role, aria-modal, name, focus moves in and is trapped,
 // Escape closes, focus returns when it goes away). A component of its own so useModalA11y mounts exactly
@@ -194,7 +196,8 @@ export default function ShareButton({
 
     let cancelled = false;
     setQrStatus("generating");
-    drawQrCodeWithLogo(canvas, getUrl(), 512)
+    loadQr()
+      .then(({ drawQrCodeWithLogo }) => drawQrCodeWithLogo(canvas, getUrl(), 512))
       .then(() => {
         if (!cancelled) setQrStatus("ready");
       })
@@ -212,10 +215,11 @@ export default function ShareButton({
     const canvas = qrCanvasRef.current;
     if (!canvas || qrStatus !== "ready") return;
     const filename = title.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || "ringo-connect";
-    downloadCanvas(canvas, `${filename}-qr`, "png");
+    loadQr().then(({ downloadCanvas }) => downloadCanvas(canvas, `${filename}-qr`, "png"));
   };
 
   return (
+    <MotionScope>
     <div className="relative" ref={menuRef}>
       <button
         ref={triggerRef}
@@ -235,7 +239,7 @@ export default function ShareButton({
         {open && (
           <>
             <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-10" topClassName={backdropTop} />
-            <motion.div
+            <m.div
               key="panel"
               ref={panelRef}
               id={menuId}
@@ -308,7 +312,7 @@ export default function ShareButton({
                 {strings.moreOptions}
               </button>
             )}
-            </motion.div>
+            </m.div>
           </>
         )}
       </AnimatePresence>
@@ -364,5 +368,6 @@ export default function ShareButton({
         </QrDialogShell>
       )}
     </div>
+    </MotionScope>
   );
 }

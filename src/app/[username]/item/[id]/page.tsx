@@ -23,14 +23,18 @@ export const dynamic = "force-dynamic";
 // Memoised per request: generateMetadata and the page both call it with the same arguments and used to run the same profile + products query twice.
 const getItem = memoPerRequest(async function getItem(username: string, id: string) {
   const supabase = createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*, products(*)")
-    .eq("username", username)
-    .eq("published", true)
-    .single();
+  // The profile read and the suspension check both start from the username: they run together.
+  const [{ data: profile }, suspended] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("*, products(*)")
+      .eq("username", username)
+      .eq("published", true)
+      .single(),
+    isPublicProfileSuspended(username),
+  ]);
   if (!profile) return null;
-  if (await isPublicProfileSuspended(username)) return null;
+  if (suspended) return null;
   // An item the creator marked unavailable is hidden from the profile, so a
   // direct link to it 404s too (same rule as every other public listing).
   const product = (profile.products || []).find((p: any) => p.id === id && p.available !== false);

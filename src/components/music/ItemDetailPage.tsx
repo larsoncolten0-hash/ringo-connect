@@ -12,6 +12,7 @@ import { useTrackPlayback } from "./useTrackPlayback";
 import PublicLanguageSelector from "@/components/PublicLanguageSelector";
 import PoweredByRingo from "@/components/PoweredByRingo";
 import { safeExternalUrl } from "@/lib/linkUrl";
+import OptImg from "@/components/ui/OptImg";
 
 // The "more about it before you buy" page a fan lands on from the public
 // profile's song/EP/album/merch/ticket cards — see the route at
@@ -92,7 +93,7 @@ export default function ItemDetailPage({
 
 function CoverImage({ src, icon: Icon, accent }: { src?: string | null; icon: any; accent: string }) {
   return src ? (
-    <img src={src} alt="" className="w-full aspect-square rounded-2xl object-cover" />
+    <OptImg src={src} widths={[480, 720, 1000]} sizes="(min-width: 768px) 480px, 100vw" priority className="w-full aspect-square rounded-2xl object-cover" />
   ) : (
     <div className="w-full aspect-square rounded-2xl flex items-center justify-center" style={{ backgroundColor: "#F3F4F6" }}>
       <Icon size={40} style={{ color: accent }} />

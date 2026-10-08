@@ -68,15 +68,19 @@ export default async function ItemDetailRoute({
   const type = params.type as ItemType;
 
   const supabase = createClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(`*, tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*))`)
-    .eq("username", params.username)
-    .eq("published", true)
-    .single();
+  // The profile read and the suspension check both start from the username: they run together.
+  const [{ data: profile }, suspended] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(`*, tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*))`)
+      .eq("username", params.username)
+      .eq("published", true)
+      .single(),
+    isPublicProfileSuspended(params.username),
+  ]);
 
   if (!profile || !profileHasTicketing(profile)) return notFound();
-  if (await isPublicProfileSuspended(params.username)) return notFound();
+  if (suspended) return notFound();
 
   const item =
     type === "track"

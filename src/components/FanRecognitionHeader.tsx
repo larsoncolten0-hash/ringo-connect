@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { User, Check, BellRing, Loader2, Settings } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getPushStatus, subscribeToPush } from "@/lib/push/subscribeClient";
 import MenuBackdrop from "@/components/ui/MenuBackdrop";
 import ShareButton from "@/components/ShareButton";
 import { TAP_AREA_36 } from "@/components/ui/menuNav";
+import MotionScope from "@/components/ui/MotionScope";
 
 // Purely client-side recognition of a returning community member — no
 // server round trip just to decide whether to render this at all. Backed
@@ -114,6 +115,7 @@ export default function FanRecognitionHeader({
   if (isOwner || !membership) return null;
 
   return (
+    <MotionScope>
     <div className="relative" ref={ref} onKeyDown={onKeyDown}>
       <button
         ref={triggerRef}
@@ -137,7 +139,7 @@ export default function FanRecognitionHeader({
         {open && (
           <>
             <MenuBackdrop key="backdrop" onClose={() => setOpen(false)} className="z-10" />
-            <motion.div
+            <m.div
               key="panel"
               ref={panelRef}
               id={panelId}
@@ -221,10 +223,11 @@ export default function FanRecognitionHeader({
                 <Settings size={15} style={{ color: "#6B7280" }} />
                 {t.communityJoin.managePreferences}
               </a>
-            </motion.div>
+            </m.div>
           </>
         )}
       </AnimatePresence>
     </div>
+    </MotionScope>
   );
 }

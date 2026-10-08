@@ -13,6 +13,7 @@ import { checkProductEligibility } from "@/lib/productCheckout/eligibility";
 import { productHref, productImages } from "@/components/catalog/productHref";
 import { safeExternalUrl } from "@/lib/linkUrl";
 import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
+import OptImg from "@/components/ui/OptImg";
 
 // The dedicated commercial page of a profile's catalog (/[username]/shop): a storefront, not a dashboard screen. Ringo's own foundation (Indigo on
 // Paper) rather than the creator's theme, so every shop and services page reads as one calm, confident product; the creator's identity leads the
@@ -97,7 +98,7 @@ export default function ShopDestination({ profile, products }: { profile: ShopPr
             <div className="relative h-32 w-full sm:h-44" aria-hidden="true">
               {profile.cover_image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={profile.cover_image_url} alt="" className="h-full w-full object-cover" />
+                <OptImg src={profile.cover_image_url} widths={[480, 768, 1280]} sizes="100vw" priority className="h-full w-full object-cover" />
               ) : (
                 <div className="h-full w-full" style={{ background: "linear-gradient(135deg, rgb(var(--ringo-indigo) / 0.16), rgb(var(--ringo-indigo) / 0.04) 60%, transparent)" }} />
               )}
@@ -107,7 +108,7 @@ export default function ShopDestination({ profile, products }: { profile: ShopPr
                 <span className={`flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "medium")} border-4 border-white bg-ringo-indigo/10 text-2xl font-bold text-ringo-indigo shadow-sm sm:h-24 sm:w-24`}>
                   {profile.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                    <OptImg src={profile.avatar_url} cssWidth={96} square priority className="h-full w-full object-cover" />
                   ) : (
                     <span aria-hidden="true">{name.charAt(0).toUpperCase()}</span>
                   )}
@@ -285,8 +286,7 @@ function Tile({
   const photo = (
     <div className={`relative w-full overflow-hidden rounded-[20px] bg-ringo-stone-100 ${featured ? "aspect-[4/3] md:aspect-auto md:h-full md:min-h-[280px]" : "aspect-[4/5]"}`}>
       {images[0] ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={images[0]} alt="" loading={featured ? "eager" : "lazy"} className={`absolute inset-0 h-full w-full object-cover ${soldOut ? "opacity-60" : ""}`} />
+        <OptImg src={images[0]} widths={featured ? [480, 768, 1024] : [240, 400, 640]} sizes={featured ? "(min-width: 768px) 50vw, 100vw" : "(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"} priority={featured} className={`absolute inset-0 h-full w-full object-cover ${soldOut ? "opacity-60" : ""}`} />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(145deg, rgb(var(--ringo-indigo) / 0.14), rgb(var(--ringo-indigo) / 0.04))" }}>
           <ShoppingBag size={featured ? 40 : 28} strokeWidth={1.5} className="text-ringo-indigo opacity-70" aria-hidden="true" />

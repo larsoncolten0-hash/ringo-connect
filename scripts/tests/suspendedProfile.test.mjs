@@ -39,17 +39,24 @@ function fakeAdmin({ profiles = [], users = [], failOn = null } = {}) {
     _calls: calls,
     from(table) {
       const filters = [];
+      let selected = "";
       const q = {
-        select: () => q,
+        select: (cols) => {
+          selected = String(cols || "");
+          return q;
+        },
         eq(k, v) {
           filters.push((r) => r[k] === v);
           return q;
         },
         maybeSingle: async () => {
           calls.push(table);
-          if (failOn === table) return { data: null, error: { message: `${table} down` } };
+          // the suspension helper reads the profile with its owner embedded in ONE query ("user_id, users(status)"): an owner-lookup error is an error of that query
+          if (failOn === table || (failOn === "users" && /users\(/.test(selected))) return { data: null, error: { message: `${table} down` } };
           if (failOn === "throw") throw new Error("boom");
-          return { data: tables[table].find((r) => filters.every((f) => f(r))) ?? null, error: null };
+          const row = tables[table].find((r) => filters.every((f) => f(r))) ?? null;
+          if (row && table === "profiles" && /users\(/.test(selected)) return { data: { ...row, users: tables.users.find((u) => u.id === row.user_id) ?? null }, error: null };
+          return { data: row, error: null };
         },
       };
       return q;
@@ -139,21 +146,23 @@ const USERS = [
 // ================================================================== every public profile route is gated
 {
   const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  // The profile read and the suspension check run together (one Promise.all); the answer is acted on straight after, before anything else uses the profile.
+  const together = (u, cond, ret) => new RegExp("isPublicProfileSuspended\\(" + u + "\\),\\s*\\]\\);\\s*" + cond + "\\s*if \\(suspended\\) return " + ret + ";");
   const routes = {
-    "src/app/[username]/page.tsx": /if \(!profile\) return notFound\(\);\s*if \(await isPublicProfileSuspended\(params\.username\)\) return notFound\(\);/,
-    "src/app/[username]/item/[id]/page.tsx": /if \(!profile\) return null;\s*if \(await isPublicProfileSuspended\(username\)\) return null;/,
-    "src/app/[username]/item/[id]/checkout/page.tsx": /if \(!profile\) return null;\s*if \(await isPublicProfileSuspended\(username\)\) return null;/,
+    "src/app/[username]/page.tsx": /isPublicProfileSuspended\(params\.username\),[\s\S]*?if \(!profile\) return notFound\(\);\s*if \(suspended\) return notFound\(\);/, // the check runs together with the profile read, and its answer is acted on before anything else happens
+    "src/app/[username]/item/[id]/page.tsx": together("username", "if \\(!profile\\) return null;", "null"),
+    "src/app/[username]/item/[id]/checkout/page.tsx": together("username", "if \\(!profile\\) return null;", "null"),
     "src/app/[username]/book/page.tsx": /bookings_enabled\) return notFound\(\);\s*if \(await isPublicProfileSuspended\(params\.username\)\) return notFound\(\);/,
     "src/app/[username]/community/page.tsx": /isCommunityEnabled\(profile\)\) return notFound\(\);\s*if \(await isPublicProfileSuspended\(params\.username\)\) return notFound\(\);/,
     "src/app/[username]/manifest.webmanifest/route.ts": /isPublicProfileSuspended\(params\.username\)/,
-    "src/app/r/[username]/page.tsx": /restaurant_food"\)\) return notFound\(\);\s*if \(await isPublicProfileSuspended\(params\.username\)\) return notFound\(\);/,
-    "src/app/r/[username]/item/[id]/page.tsx": /restaurant_food"\)\) return null;\s*if \(await isPublicProfileSuspended\(username\)\) return null;/,
-    "src/app/m/[username]/page.tsx": /profileHasTicketing\(profile\)\) return notFound\(\);\s*if \(await isPublicProfileSuspended\(params\.username\)\) return notFound\(\);/,
-    "src/app/m/[username]/[type]/[id]/page.tsx": /profileHasTicketing\(profile\)\) return notFound\(\);\s*if \(await isPublicProfileSuspended\(params\.username\)\) return notFound\(\);/,
+    "src/app/r/[username]/page.tsx": together("params\\.username", "if \\(!profile \\|\\| !profileHasCategory\\(profile, \"restaurant_food\"\\)\\) return notFound\\(\\);", "notFound\\(\\)"),
+    "src/app/r/[username]/item/[id]/page.tsx": together("username", "if \\(!profile \\|\\| !profileHasCategory\\(profile, \"restaurant_food\"\\)\\) return null;", "null"),
+    "src/app/m/[username]/page.tsx": together("params\\.username", "if \\(!profile \\|\\| !profileHasTicketing\\(profile\\)\\) return notFound\\(\\);", "notFound\\(\\)"),
+    "src/app/m/[username]/[type]/[id]/page.tsx": together("params\\.username", "if \\(!profile \\|\\| !profileHasTicketing\\(profile\\)\\) return notFound\\(\\);", "notFound\\(\\)"),
   };
   for (const [file, re] of Object.entries(routes)) {
     const s = strip(read(file));
-    check(`route gated: ${file}`, re.test(s) && /import \{ isPublicProfileSuspended \} from "@\/lib\/publicProfileVisibility"/.test(s));
+    check(`route gated: ${file}`, re.test(s) && /import \{[^}]*isPublicProfileSuspended[^}]*\} from "@\/lib\/publicProfileVisibility"/.test(s));
   }
   check("route gated: book and m/[type]/[id] also gate the extra metadata query that could leak a title", (read("src/app/[username]/book/page.tsx").match(/isPublicProfileSuspended/g) || []).length >= 3 && (read("src/app/m/[username]/[type]/[id]/page.tsx").match(/isPublicProfileSuspended/g) || []).length >= 3);
   check("route gated: the shared metadata helper used by every profile page is gated", /isPublicProfileSuspended\(username\)/.test(strip(read("src/lib/profileMetadata.ts"))));

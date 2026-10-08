@@ -1,5 +1,5 @@
-import { isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { getPublicOwnerAccount, isPublicProfileSuspended } from "@/lib/publicProfileVisibility";
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { profileHasTicketing } from "@/lib/categories";
 import { splitByPlanLimit } from "@/lib/planEntitlements";
@@ -21,27 +21,27 @@ export const dynamic = "force-dynamic";
 export default async function MusicStoreRoute({ params }: { params: { username: string } }) {
   const supabase = createClient();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(`*, tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*))`)
-    .eq("username", params.username)
-    .eq("published", true)
-    .single();
+  // The profile read and the owner check (status + plan, one query) both start from the username: they run together.
+  const [{ data: profile }, suspended] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(`*, tracks(*), music_releases(*), products(*), events(*, event_ticket_types(*))`)
+      .eq("username", params.username)
+      .eq("published", true)
+      .single(),
+    isPublicProfileSuspended(params.username),
+  ]);
 
   if (!profile || !profileHasTicketing(profile)) return notFound();
-  if (await isPublicProfileSuspended(params.username)) return notFound();
+  if (suspended) return notFound();
 
   // Same plan-based visibility limit as the main profile page (see
   // planEntitlements.ts and that page's own comment on why this must go
   // through the admin client) — this storefront reads from the same
   // `products` table, so it must never show more than the creator's current
   // plan allows just because a visitor reached it through a different URL.
-  const { data: ownerPlanRow } = await createAdminClient()
-    .from("users")
-    .select("plans(max_products)")
-    .eq("id", profile.user_id)
-    .maybeSingle();
-  const { visible: visibleProducts } = splitByPlanLimit(profile.products || [], (ownerPlanRow as any)?.plans?.max_products ?? null);
+  const ownerPlan = (await getPublicOwnerAccount(params.username)).plan;
+  const { visible: visibleProducts } = splitByPlanLimit(profile.products || [], ownerPlan?.max_products ?? null);
 
   return <MusicStorePage profile={{ ...profile, products: visibleProducts }} />;
 }

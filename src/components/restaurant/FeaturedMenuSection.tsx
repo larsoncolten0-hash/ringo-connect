@@ -5,6 +5,7 @@ import { formatPrice } from "@/lib/currency";
 import Rail from "@/components/ui/Rail";
 import { readableOn } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
+import OptImg from "@/components/ui/OptImg";
 
 // A teaser, not the ordering surface itself — tapping a dish opens that dish's own page (/r/[username]/item/[id], which adds it to the order),
 // and "View menu" opens the full menu/cart/checkout flow at /r/[username]. Shows
@@ -63,11 +64,11 @@ export default function FeaturedMenuSection({
             style={{ border: `1px solid ${borderTint}` }}
           >
             {item.image_urls?.[0] || item.image_url ? (
-              <img
+              <OptImg
                 src={item.image_urls?.[0] || item.image_url}
                 alt={item.name}
-                loading="lazy"
-                decoding="async"
+                widths={[240, 400, 640]}
+                sizes="(min-width: 640px) 240px, 50vw"
                 className="w-full aspect-square object-cover"
               />
             ) : (

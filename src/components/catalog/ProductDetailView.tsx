@@ -18,6 +18,7 @@ import { productHref, productImages } from "./productHref";
 import PublicLanguageSelector from "@/components/PublicLanguageSelector";
 import PoweredByRingo from "@/components/PoweredByRingo";
 import { safeExternalUrl } from "@/lib/linkUrl";
+import OptImg from "@/components/ui/OptImg";
 
 // The page a customer lands on from a catalog / merch / service card.
 // Mobile-first, editorial: a full-bleed swipeable photo hero with floating
@@ -231,7 +232,7 @@ export default function ProductDetailView({
           >
             {profile.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.avatar_url} alt="" className={`h-11 w-11 shrink-0 object-cover ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "small")}`} />
+              <OptImg src={profile.avatar_url} cssWidth={44} square className={`h-11 w-11 shrink-0 object-cover ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "small")}`} />
             ) : (
               <span
                 className={`flex h-11 w-11 shrink-0 items-center justify-center text-sm font-semibold ${avatarRadius(normalizeAvatarShape(profile.avatar_shape), "small")}`}
@@ -268,8 +269,7 @@ export default function ProductDetailView({
                     >
                       <div className="relative aspect-[4/5] overflow-hidden rounded-[18px]" style={{ backgroundColor: hexToRgba(fg, 0.06) }}>
                         {img ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={img} alt={r.name} loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          <OptImg src={img} alt={r.name} cssWidth={148} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center" style={{ backgroundColor: hexToRgba(accent, 0.1) }}>
                             <ShoppingBag size={22} style={{ color: accent }} strokeWidth={1.5} />
@@ -390,8 +390,7 @@ function HeroGallery({ images, alt, accent, fg }: { images: string[]; alt: strin
     <div className={frame}>
       <div ref={trackRef} onScroll={onScroll} className="no-scrollbar flex h-full w-full snap-x snap-mandatory overflow-x-auto scroll-smooth">
         {images.map((src, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={src + i} src={src} alt={i === 0 ? alt : ""} className="h-full w-full shrink-0 snap-center object-cover" />
+          <OptImg key={src + i} src={src} alt={i === 0 ? alt : ""} widths={[480, 800, 1200]} sizes="(min-width: 1024px) 560px, 100vw" priority={i === 0} className="h-full w-full shrink-0 snap-center object-cover" />
         ))}
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/35 to-transparent" />

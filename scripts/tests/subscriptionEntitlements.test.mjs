@@ -84,7 +84,11 @@ const check = (name, cond, detail = "") => {
   // would silently resolve to null for every real visitor (confirmed live — see
   // subscriptionEntitlementsLiveSchema.test.mjs). This was a real bug caught in this exact
   // production deployment, not a hypothetical.
-  check("the main profile page fetches the OWNER's current plan via the ADMIN client, never embedded in the anon-key profiles query", /createAdminClient\(\)\s*\.from\("users"\)\s*\.select\("plans\(max_links, max_products, custom_theme_enabled\)"\)/.test(mainPageSrc));
+  // The plan is read together with the suspension check by lib/publicProfileVisibility.ts: ONE query by username with the owner's row and plan embedded, made with the ADMIN (service-role) client.
+  // An anonymous visitor has no RLS access to `users`, so this must never be an anon-key read (the original bug); the pages no longer embed it in their own anon-key profiles query.
+  const visibilitySrc = read("src/lib/publicProfileVisibility.ts");
+  const ownerReadIsAdmin = /createAdminClient\(\)/.test(visibilitySrc) && /admin\s*\.from\("profiles"\)\s*\.select\("user_id, users\(status, plans\(max_links, max_products, custom_theme_enabled\)\)"\)/.test(visibilitySrc);
+  check("the main profile page fetches the OWNER's current plan via the ADMIN client, never embedded in the anon-key profiles query", /\(await getPublicOwnerAccount\(params\.username\)\)\.plan/.test(mainPageSrc) && ownerReadIsAdmin);
   check("the main profile page's own anon-key profiles query no longer embeds users!user_id at all (the fixed bug)", !/\.from\("profiles"\)[\s\S]{0,300}users!user_id/.test(mainPageSrc));
   check("links are sliced to the current plan's limit BEFORE being handed to ProfileView (server-side, never just a UI hide)", /profile\.links = visibleLinks/.test(mainPageSrc));
   check("products are sliced the same way", /profile\.products = visibleProducts/.test(mainPageSrc));
@@ -92,7 +96,7 @@ const check = (name, cond, detail = "") => {
   check("nothing here deletes or updates any row — this is read-then-slice-in-memory only", !/\.from\("links"\)\.(update|delete)|\.from\("products"\)\.(update|delete)/.test(mainPageSrc));
 
   const musicStoreSrc = read("src/app/m/[username]/page.tsx");
-  check("the music storefront page also fetches the owner's plan via the ADMIN client (same fixed pattern, not the anon-embed bug)", /createAdminClient\(\)\s*\.from\("users"\)\s*\.select\("plans\(max_products\)"\)/.test(musicStoreSrc));
+  check("the music storefront page also fetches the owner's plan via the ADMIN client (same fixed pattern, not the anon-embed bug)", /\(await getPublicOwnerAccount\(params\.username\)\)\.plan/.test(musicStoreSrc) && ownerReadIsAdmin);
   check("the music storefront's own anon-key profiles query no longer embeds users!user_id either", !/\.from\("profiles"\)[\s\S]{0,300}users!user_id/.test(musicStoreSrc));
 }
 

@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { DEFAULT_BRANDING, type BrandingSettings } from "@/lib/brandingDefaults";
 
@@ -21,9 +22,38 @@ export type { BrandingSettings };
 // 2026-09-29_branding_settings.sql yet (or a row with some columns still
 // null) never breaks anything — every field falls back to today's real
 // value, not a placeholder.
-export async function getBrandingSettings(): Promise<BrandingSettings> {
+//
+// Performance: this ran a database round trip at the start of EVERY page (the root layout reads it for the favicon, the colour and the title). It changes only when an admin
+// saves /admin/branding, so the read is kept in Next's shared Data Cache for BRANDING_REVALIDATE_SECONDS and dropped immediately by revalidateTag(BRANDING_CACHE_TAG) when
+// the admin saves (see api/admin/branding). Public, non-secret platform branding only; nothing per-user is cached. Where the cache is unavailable (tests, plain Node) it
+// reads directly, exactly as before. getBrandingSettingsFresh() always reads the database (the admin editor itself).
+export const BRANDING_CACHE_TAG = "branding";
+export const BRANDING_REVALIDATE_SECONDS = 60;
+
+async function readBrandingRow() {
   const admin = createAdminClient();
   const { data } = await admin.from("branding_settings").select("*").limit(1).maybeSingle();
+  return data ?? null;
+}
+
+const readBrandingRowCached = unstable_cache(readBrandingRow, ["platform-branding-row"], { revalidate: BRANDING_REVALIDATE_SECONDS, tags: [BRANDING_CACHE_TAG] });
+
+export async function getBrandingSettings(): Promise<BrandingSettings> {
+  let data: Awaited<ReturnType<typeof readBrandingRow>>;
+  try {
+    data = await readBrandingRowCached();
+  } catch {
+    data = await readBrandingRow();
+  }
+  return brandingFromRow(data);
+}
+
+/** Always the database (never the shared cache): for the admin editor and the response to a save. */
+export async function getBrandingSettingsFresh(): Promise<BrandingSettings> {
+  return brandingFromRow(await readBrandingRow());
+}
+
+function brandingFromRow(data: any): BrandingSettings {
 
   return {
     appName: data?.app_name || DEFAULT_BRANDING.appName,

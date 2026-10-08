@@ -11,8 +11,10 @@ import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { PHASE11_FILES } from "./phase11Files.mjs";
 import { PHASE12_FILES } from "./phase12Files.mjs";
+import { PHASE26_FILES } from "./phase26Files.mjs";
 import { isPhase2File } from "./phase2Files.mjs";
 import { isPhase16ProtectedFile } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
+import { legacyTranslationsSource } from "./i18nSource.mjs"; // the dictionaries are two modules now; this rebuilds the old single-file text byte for byte
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -286,7 +288,11 @@ await test("a protected track is still sold only through its detail page and a p
   const h = render(music());
   assert.ok(!h.includes('src="/p.mp3"') && !/<audio/.test(h), "the page ships no <audio> element or source in the HTML (the single audio element is created on play by useTrackPlayback)");
   assert.ok(!h.includes("protected_audio_path") && !h.includes('"x"'), "the protected path never reaches the page");
-  assert.equal(git(`diff --name-only HEAD -- src/components/music/useTrackPlayback.ts src/components/music/ItemDetailPage.tsx src/components/music/MusicStorePage.tsx src/lib/music/previewLimit.ts src/lib/music/currency.ts src/lib/currency.ts src/app/api`).trim(), "", "playback, storefront, preview limit, currency and every API route are untouched by the redesign");
+  assert.equal(git(`diff --name-only HEAD -- src/components/music/useTrackPlayback.ts src/lib/music/previewLimit.ts src/lib/music/currency.ts src/lib/currency.ts src/app/api`).split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts").join(","), "", "playback, preview limit, currency and every API route are untouched by the redesign (the performance project only adds a cache refresh to the admin branding save, proven in performance.test.mjs)");
+  for (const f of ["src/components/music/ItemDetailPage.tsx", "src/components/music/MusicStorePage.tsx"]) {
+    const changed = git(`diff -U0 HEAD -- ${f}`).split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
+    assert.ok(changed.every((l) => /OptImg|<img|no-img-element|^[-+]import /.test(l)), `${f}: only image tags changed (the storefront, purchase and playback code is untouched)`);
+  }
 });
 await test("10-second preview: the shared playback hook still enforces MAX_PREVIEW_SECONDS and the redesign only calls it", () => {
   const hook = strip(raw("src/components/music/useTrackPlayback.ts"));
@@ -407,7 +413,7 @@ await test("Merch page analytics: a product tap goes through the existing /api/t
   assert.match(strip(raw("src/components/music/profile/MusicSections.tsx")), /onClick=\{\(\) => logClick\("product", p\.id/, "and so does every grid card");
   const before = strip(raw("src/components/ProfileView.tsx"));
   assert.match(before, /fetch\("\/api\/track"/, "ProfileView's own tracking is untouched");
-  assert.equal(git("diff --name-only HEAD -- src/app/api src/lib/pixelClient.ts src/lib/pixelEvents.ts src/lib/pixelTracking.ts").trim(), "", "the analytics implementation itself is unchanged");
+  assert.equal(git("diff --name-only HEAD -- src/app/api src/lib/pixelClient.ts src/lib/pixelEvents.ts src/lib/pixelTracking.ts").split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts").join(","), "", "the analytics implementation itself is unchanged");
 });
 await test("Tickets page: the next event leads with its artwork, date, venue and price; the rest follow; past events are separated; empty state", () => {
   const two = [
@@ -484,9 +490,15 @@ await test("no language leakage: the French Music profile has no English UI text
   assert.equal(JSON.stringify(Object.keys(translations.en.music).sort()), JSON.stringify(Object.keys(translations.fr.music).sort()), "music: the same keys in both languages");
 });
 await test("translations: the redesign only ADDS the musicProfile namespace; no existing translation line is rewritten", () => {
-  const diff = git("diff -U0 5a5f8bc -- src/lib/i18n/translations.ts").split("\n"); // everything since the Phase 24 base commit
-  assert.deepEqual(diff.filter((l) => l.startsWith("-") && !l.startsWith("---")), [], "nothing removed or rewritten");
-  const added = diff.filter((l) => l.startsWith("+") && !l.startsWith("+++"));
+  // The dictionaries are two modules now (performance project); legacyTranslationsSource() rebuilds the old single file from them, line for line.
+  const base = git("show 5a5f8bc:src/lib/i18n/translations.ts").replace(/\r\n/g, "\n").split("\n");
+  const now = legacyTranslationsSource().replace(/\r\n/g, "\n").split("\n");
+  const count = (lines) => lines.reduce((m, l) => m.set(l, (m.get(l) || 0) + 1), new Map());
+  const have = count(now);
+  const removed = [...count(base)].filter(([l, n]) => (have.get(l) || 0) < n).map(([l]) => l);
+  assert.deepEqual(removed, [], "nothing removed or rewritten");
+  const baseCount = count(base);
+  const added = now.filter((l) => (baseCount.get(l) || 0) === 0);
   assert.ok(added.length > 0 && added.some((l) => /musicProfile:/.test(l)), "the musicProfile namespace is added");
 });
 await test("accessibility (source): every interactive control in the redesign is named, ghost social icons are 48px with a visible focus ring, the page respects reduced motion", () => {
@@ -532,7 +544,7 @@ await test("hero pin: MusicHeroButtons was edited on purpose and carries its new
   assert.ok(!/heroAction|GenericHeroActions|ConnectButton/.test(s));
   assert.match(s, /href=\{`\/m\/\$\{profile\.username\}`\}/);
   assert.match(s, /`\/\$\{profile\.username\}\/book`/);
-  assert.equal(git(`diff --stat ${PHASE3_BASE} -- src/components/connect ":(exclude)src/components/connect/ConnectButton.tsx"`).trim(), "", "Stay Connected is untouched (ConnectButton.tsx only changed look: the UX refinement phase; its behaviour is pinned in heroAction.test.mjs)");
+  assert.equal(git(`diff --stat ${PHASE3_BASE} -- src/components/connect ":(exclude)src/components/connect/ConnectButton.tsx" ":(exclude)src/components/connect/StayConnectedModal.tsx"`).trim(), "", "Stay Connected is untouched (ConnectButton.tsx only changed look: the UX refinement phase; its behaviour is pinned in heroAction.test.mjs)");
   // Phase 3B: the restaurant hero and menu teaser changed ONLY in the text colour on the accent (readableOn instead of fixed white) and an 11px badge.
   const rest = phase3Diff("-U0", "-- src/components/restaurant").split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
   assert.ok(rest.every((l) => /readableOn|#fff|lib\/color|text-\[(9|11)px\]|icon: Phone, label: (\"Call\"|t\.profilePage\.callButton)/.test(l)), "restaurant: colour and size only: " + rest.join(" | "));

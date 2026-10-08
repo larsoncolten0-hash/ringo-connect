@@ -5,6 +5,7 @@ import Rail from "@/components/ui/Rail";
 import { hexToRgba, readableOn } from "@/lib/color";
 import { formatPrice } from "@/lib/currency";
 import type { Translations } from "@/lib/i18n/translations";
+import OptImg from "@/components/ui/OptImg";
 
 // A compact teaser grid for EPs/Albums on the public profile — tapping a
 // release opens its own detail page (tracklist, track count, description)
@@ -65,7 +66,7 @@ export default function ReleasesSection({
             style={{ border: `1px solid ${hexToRgba(accent, 0.15)}` }}
           >
             {release.cover_image_url ? (
-              <img src={release.cover_image_url} alt="" loading={leadFirst && index === 0 ? undefined : "lazy"} decoding="async" className={`w-full object-cover ${leadFirst && index === 0 ? "aspect-[16/10]" : "aspect-square"}`} />
+              <OptImg src={release.cover_image_url} widths={[200, 400, 800]} sizes={leadFirst && index === 0 ? "(min-width: 640px) 480px, 100vw" : "(min-width: 640px) 200px, 44vw"} priority={leadFirst && index === 0} className={`w-full object-cover ${leadFirst && index === 0 ? "aspect-[16/10]" : "aspect-square"}`} />
             ) : (
               <div
                 className={`w-full flex items-center justify-center ${leadFirst && index === 0 ? "aspect-[16/10]" : "aspect-square"}`}

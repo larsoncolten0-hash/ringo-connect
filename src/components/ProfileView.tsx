@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import Script from "next/script";
-import { AnimatePresence, motion, MotionConfig } from "framer-motion";
+import { MotionConfig } from "framer-motion";
 import { ExternalLink, MapPin, ChevronRight, ChevronDown, ShoppingBag, ShoppingCart, Mail, Phone, Clock, BadgeCheck } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { getCategory, getMusicRole, profileHasCategory, profileHasTicketing } from "@/lib/categories";
@@ -45,6 +45,7 @@ import CatalogSection from "@/components/catalog/CatalogSection";
 import AppBadgeReset from "./AppBadgeReset";
 import dynamic from "next/dynamic";
 import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
+import OptImg from "@/components/ui/OptImg";
 
 // The Music artist profile has its own composition (components/music/profile). Loaded only for the music_entertainment category, so every other profile keeps its
 // bundle exactly as before.
@@ -472,7 +473,7 @@ export default function ProfileView({
                     style={panelButtonStyle}
                   >
                     {link.image_url && (
-                      <img src={link.image_url} alt="" loading="lazy" decoding="async" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                      <OptImg src={link.image_url} cssWidth={56} className="w-14 h-14 rounded-lg object-cover shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold [overflow-wrap:anywhere]">{publicLinkTitle(link)}</p>
@@ -640,7 +641,7 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
       <div className={`relative w-full shrink-0 ${COVER_HEIGHT[stage.cover]}`}>
         <div className="absolute inset-0 overflow-hidden">
           {profile.cover_image_url ? (
-            <img src={profile.cover_image_url} alt="" className="w-full h-full object-cover" />
+            <OptImg src={profile.cover_image_url} widths={[480, 768, 1280]} sizes="100vw" priority className="w-full h-full object-cover" />
           ) : (
             <div
               className="w-full h-full"
@@ -728,9 +729,13 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               />
             </>
           )}
-          <img
+          <OptImg
             src={profile.avatar_url || "/default-avatar.png"}
             alt={profile.name}
+            widths={[160, 320, 480]}
+            sizes="(min-width: 640px) 160px, 144px"
+            square
+            priority
             className={`relative w-36 h-36 sm:w-40 sm:h-40 object-cover ${squareAvatar ? AVATAR_IMAGE[stage.avatar].replace(/rounded-(full|ringo-lg)/, avatarRadius("square", "hero")) : AVATAR_IMAGE[stage.avatar]}`}
             style={{ ["--tw-ring-color" as any]: hexToRgba(accent, 0.85), backgroundColor: bgColor }}
           />
