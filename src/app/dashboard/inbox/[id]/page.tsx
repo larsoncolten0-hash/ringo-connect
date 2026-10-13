@@ -4,6 +4,7 @@ import { resolveInboxActor, actorCan } from "@/lib/inbox/actor";
 import { loadSenderLabels } from "@/lib/inbox/senders";
 import { LIST_LIMIT, countUnreadOpen, loadConversationList, loadSavedReplies, loadThread } from "@/lib/inbox/data";
 import { loadAutomationView } from "@/lib/inbox/automationData";
+import { salesBotConfigured } from "@/lib/salesBot/ids";
 import { cleanQueryParam, isStatusFilter, isUuid } from "@/lib/inbox/format";
 
 export const dynamic = "force-dynamic";
@@ -34,5 +35,5 @@ export default async function InboxThreadPage({ params, searchParams }: { params
   ]);
   // lead signals and automation come from owner-only tables: a team member never sees them
   const automation = owner.kind === "owner" ? await loadAutomationView(owner.supabase, owner.profileId, [id, ...(list.ok ? list.items.map((i) => i.id) : [])]) : null;
-  return <InboxView list={list} selectedId={id} thread={thread} filter={{ status, q }} unreadOpen={unreadOpen} savedReplies={savedReplies.ok ? savedReplies.items : null} automation={automation} access={{ kind: owner.kind, permissions: owner.permissions }} senders={senders} />;
+  return <InboxView list={list} selectedId={id} thread={thread} filter={{ status, q }} unreadOpen={unreadOpen} savedReplies={savedReplies.ok ? savedReplies.items : null} automation={automation} access={{ kind: owner.kind, permissions: owner.permissions }} senders={senders} salesBotResume={owner.kind === "owner" && salesBotConfigured()} />;
 }

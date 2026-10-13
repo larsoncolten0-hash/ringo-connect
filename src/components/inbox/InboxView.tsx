@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, FileText, Image as ImageIcon, MessageCircle, MessagesSquare, Mic, Search, Smile, TriangleAlert, Video, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ConversationStatusButton from "@/components/inbox/ConversationStatusButton";
+import ResumeSalesBotButton from "@/components/inbox/ResumeSalesBotButton";
 import ConversationReadMarker from "@/components/inbox/ConversationReadMarker";
 import InboxAiPanel from "@/components/inbox/InboxAiPanel";
 import ReplyComposer, { RetryButton } from "@/components/inbox/ReplyComposer";
@@ -37,6 +38,8 @@ export type InboxViewProps = {
   access?: { kind: "owner" | "staff"; permissions: readonly string[] };
   /** Outbound message id -> the team member who sent it (only for messages sent by someone other than the owner). */
   senders?: Record<string, string>;
+  /** Owner only, and only when the Smart Card sales bot is switched on for this deployment: shows the "Resume sales bot" action in a thread. */
+  salesBotResume?: boolean;
 };
 
 export const INBOX_PATH = "/dashboard/inbox";
@@ -54,7 +57,7 @@ export function filterQuery(filter: InboxFilter, override: Partial<InboxFilter> 
 
 const OWNER_ACCESS = { kind: "owner" as const, permissions: [] as readonly string[] };
 
-export default function InboxView({ list, selectedId, thread, filter = DEFAULT_FILTER, unreadOpen = 0, savedReplies = null, automation = null, access = OWNER_ACCESS, senders = {} }: InboxViewProps) {
+export default function InboxView({ list, selectedId, thread, filter = DEFAULT_FILTER, unreadOpen = 0, savedReplies = null, automation = null, access = OWNER_ACCESS, senders = {}, salesBotResume = false }: InboxViewProps) {
   const { t } = useLanguage();
   const u = t.inbox;
   const hasSelection = selectedId !== null;
@@ -83,7 +86,7 @@ export default function InboxView({ list, selectedId, thread, filter = DEFAULT_F
             {thread === null ? (
               <NoSelection />
             ) : thread.ok ? (
-              <Thread data={thread.thread} filter={filter} savedReplies={savedReplies} automation={automation} access={access} senders={senders} />
+              <Thread data={thread.thread} filter={filter} savedReplies={savedReplies} automation={automation} access={access} senders={senders} salesBotResume={salesBotResume} />
             ) : thread.reason === "not_found" ? (
               <NotFound filter={filter} />
             ) : (
@@ -257,7 +260,7 @@ function ConversationList({ items, selectedId, truncated, filter, signals }: { i
   );
 }
 
-function Thread({ data, filter, savedReplies, automation, access, senders }: { data: ThreadData; filter: InboxFilter; savedReplies: SavedReply[] | null; automation: AutomationView | null; access: NonNullable<InboxViewProps["access"]>; senders: Record<string, string> }) {
+function Thread({ data, filter, savedReplies, automation, access, senders, salesBotResume }: { data: ThreadData; filter: InboxFilter; savedReplies: SavedReply[] | null; automation: AutomationView | null; access: NonNullable<InboxViewProps["access"]>; senders: Record<string, string>; salesBotResume: boolean }) {
   const { t } = useLanguage();
   const u = t.inbox;
   // The owner can do everything (as before). A team member only what their role grants; the server and the database enforce the same rules.
@@ -295,6 +298,7 @@ function Thread({ data, filter, savedReplies, automation, access, senders }: { d
           <span className={`rounded-full px-2 py-0.5 text-[11px] ${data.conversation.status === "open" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-ringo-muted/15 text-ringo-muted"}`}>
             {data.conversation.status === "open" ? u.open : u.closed}
           </span>
+          {salesBotResume && access.kind === "owner" && <ResumeSalesBotButton conversationId={data.conversation.id} />}
           {can("inbox.close") && <ConversationStatusButton conversationId={data.conversation.id} status={data.conversation.status} />}
         </div>
       </header>

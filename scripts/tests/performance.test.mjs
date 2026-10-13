@@ -10,6 +10,7 @@ import { fileURLToPath } from "url";
 import { PHASE26_FILES } from "./phase26Files.mjs";
 import { PHASE27_FILES } from "./phase27Files.mjs";
 import { PHASE28_FILES } from "./phase28Files.mjs";
+import { PHASE29_FILES } from "./phase29Files.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -342,7 +343,7 @@ await test("mobile: the connection to the storage host (where every picture come
 // =============================================================================== scope
 await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, orders, payouts, commissions and the 10-second preview are not touched", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].filter((f) => !f.startsWith("scripts/tests/_"));
-  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f)), [], "only the registered files changed");
   // Files whose NAME looks sensitive but whose change is a read-only performance edit, listed one by one (never by pattern): the public item checkout PAGE's profile read (the checkout flow itself,
   // the payment calls and the order logic are not in it), the shop page, the supabase proposal files and the admin branding save's cache refresh.
   const ALLOWED = new Set([
@@ -357,6 +358,11 @@ await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, ord
     "supabase/migrations/2026-12-18_whatsapp_inbox_push_claim.sql",
     "supabase/support/2026-12-18_whatsapp_inbox_push_claim.rollback.sql",
     "supabase/support/2026-12-18_whatsapp_inbox_push_claim.verify.sql",
+    // The WhatsApp Smart Card sales bot (phase29Files.mjs): its un-applied migration with rollback and verify scripts, and the owner-only resume route.
+    "supabase/migrations/2026-12-19_whatsapp_sales_bot.sql",
+    "supabase/support/2026-12-19_whatsapp_sales_bot.rollback.sql",
+    "supabase/support/2026-12-19_whatsapp_sales_bot.verify.sql",
+    "src/app/api/inbox/conversations/[id]/sales-bot/route.ts",
   ]);
   const forbidden = /(^|\/)(middleware|fapshi|stripe|webhook|payout|commission|inventory|checkout|orders?|billing|protection|useTrackPlayback|previewLimit)|\/api\/|^supabase\//i;
   assert.deepEqual(changed.filter((f) => forbidden.test(f) && !ALLOWED.has(f) && !/phase2[0-9]Files|\.test\.mjs$/.test(f)), [], "no sensitive file is among the changed ones");

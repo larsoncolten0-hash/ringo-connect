@@ -68,6 +68,12 @@ async function notifySignupPaid(admin: any, request: { id: string; full_name: st
       if (lockError) console.error("ambassador_lock_sale failed:", lockError.message);
       else if (lockResult?.ok && lockResult.sale_id) await notifySaleConfirmed(admin, lockResult.sale_id);
     })(),
+    // WhatsApp Smart Card sales bot: when this request came from that conversation, tell the customer there (inside WhatsApp's messaging window). It only READS the fact that
+    // payment was just recorded; it decides nothing, changes nothing here, and cannot fail this fan-out (see src/lib/salesBot/paymentNotice.ts).
+    (async () => {
+      const { notifyWhatsAppOrderPaid } = await import("@/lib/salesBot/paymentNotice");
+      await notifyWhatsAppOrderPaid(admin, request.id);
+    })(),
     notifyAdmins({ type: "signup_request_paid", title: `Payment received — ${request.full_name}`, body: "Ready to review and approve.", link: `/admin/requests/${request.id}` }),
     superCreator
       ? notifyUser(superCreator.id, { type: "signup_request_paid", title: `Payment received — ${request.full_name}`, body: "Ready to review and approve.", link: `/dashboard/requests/${request.id}` })

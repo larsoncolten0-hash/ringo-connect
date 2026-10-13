@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { translations } from "@/lib/i18n/translations";
 import type { RpcClient } from "@/lib/whatsapp/ingest";
 import { sendReply, type SendDeps, type SendResult } from "@/lib/inbox/send";
+import { salesBotEnabledFor } from "@/lib/salesBot/ids";
 
 // Inbox automation, server side. Conservative by construction:
 //   * every DECISION is made by the database (inbox_automation_inbound / _failed / inbox_claim_follow_ups): settings, business hours, the atomic
@@ -204,12 +205,31 @@ export async function runFollowUps(deps: AutomationDeps, limit = 100): Promise<{
   return { claimed: rows.length, notified };
 }
 
+/** The Smart Card sales bot is allowed this long inside one webhook delivery (its payment request can wait on Mobile Money). */
+export const SALES_BOT_TIMEOUT_MS = 25_000;
+
+/**
+ * The Smart Card sales bot (src/lib/salesBot/). Runs AFTER the message is stored, the owner notified and the push sent, only for the one WhatsApp number named in
+ * WHATSAPP_SALES_BOT_PHONE_NUMBER_ID (unset = off), and only for new inbound messages. It is loaded on demand and fully isolated: nothing it does can change the answer to Meta.
+ */
+async function runSalesBot(deps: AutomationDeps, e: { phoneNumberId: string; messageId: string }): Promise<void> {
+  if (!salesBotEnabledFor(e.phoneNumberId, deps.env)) return;
+  try {
+    const { handleSalesBotMessage } = await import("@/lib/salesBot/runner");
+    await withTimeout(handleSalesBotMessage({ admin: deps.admin, push: deps.push, send: deps.send, fetchImpl: deps.fetchImpl, env: deps.env }, e), SALES_BOT_TIMEOUT_MS);
+  } catch (err) {
+    log({ result: "sales_bot_failed", reason: err instanceof Error && err.message === "timeout" ? "timeout" : "error" });
+  }
+}
+
 /** Webhook entry point: the events that were just stored as NEW. Never throws. */
 export async function runWebhookAutomation(deps: AutomationDeps, created: { kind: "message" | "status"; phoneNumberId: string; messageId: string; status?: string }[]): Promise<void> {
   for (const e of created) {
     try {
-      if (e.kind === "message") await onInboundMessage(deps, e);
-      else if (e.status === "failed") await onFailedStatus(deps, e);
+      if (e.kind === "message") {
+        await onInboundMessage(deps, e);
+        await runSalesBot(deps, e);
+      } else if (e.status === "failed") await onFailedStatus(deps, e);
     } catch {
       log({ result: "event_exception", event: e.kind });
     }

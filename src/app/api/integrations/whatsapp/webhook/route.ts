@@ -18,10 +18,13 @@ import { sendPushAndBellToUser } from "@/lib/push/withBell";
 // profile is derived by the database from the phone_number_id; nothing from the request is trusted as an owner.
 // Answers: 200 for stored, duplicate or deliberately ignored events; 5xx ONLY when the database fails, so Meta retries (safe: the
 // unique indexes make redelivery idempotent). After storing, events that were NEW are handed to the Phase 10 automation (lib/inbox/automation.ts):
-// OFF unless the owner enabled it, never able to fail this request, and the only thing it can ever send is the owner's own acknowledgement text.
+// OFF unless the owner enabled it, never able to fail this request, and it only ever sends the owner's own acknowledgement text and, for the one number named in
+// WHATSAPP_SALES_BOT_PHONE_NUMBER_ID, the Smart Card sales bot's fixed replies (src/lib/salesBot/).
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// The Smart Card sales bot (only when switched on for this number) may wait on a Mobile Money request after the message is stored; give the delivery room for it.
+export const maxDuration = 30;
 
 // Metadata-only structured log: never bodies, phone numbers, names or secrets.
 function log(entry: Record<string, unknown>) {

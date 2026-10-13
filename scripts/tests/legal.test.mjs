@@ -206,8 +206,9 @@ await test("scope: authentication, payments, RLS and the database are untouched 
   const { execFileSync } = require("child_process");
   const git = (a) => execFileSync("git", a, { cwd: REPO, encoding: "utf8" }).split("\n").filter(Boolean);
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
-  const { PHASE28_FILES } = await import("./phase28Files.mjs"); // the Inbox push phase: its exact files (webhook wiring + one additive migration) belong to its own scope guard
-  assert.deepEqual(changed.filter((f) => /^(supabase\/|src\/middleware|src\/app\/api\/|src\/lib\/(auth|supabase|fapshi|payments|productCheckout|protection))/.test(f) && !PHASE28_FILES.has(f)), [], "no API route, migration, auth, payment or database file changed");
+  const { PHASE28_FILES } = await import("./phase28Files.mjs");
+  const { PHASE29_FILES } = await import("./phase29Files.mjs"); // the WhatsApp Smart Card sales bot: its exact files (one payment-confirmed hook, one un-applied migration, one owner route) // the Inbox push phase: its exact files (webhook wiring + one additive migration) belong to its own scope guard
+  assert.deepEqual(changed.filter((f) => /^(supabase\/|src\/middleware|src\/app\/api\/|src\/lib\/(auth|supabase|fapshi|payments|productCheckout|protection))/.test(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f)), [], "no API route, migration, auth, payment or database file changed");
   assert.ok(!/GH₵|GHS/.test(JSON.stringify(docs)));
 });
 
