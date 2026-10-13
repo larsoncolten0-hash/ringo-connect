@@ -8,6 +8,7 @@ import path from "path";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { makeClientFactory } from "./pgliteShim.mjs";
+import { mp4Bytes } from "./mp4Fixtures.mjs";
 
 const nodeRequire = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -65,8 +66,8 @@ const FX = {
   pdf: pad(str("%PDF-1.7\n")),
   zip: pad([0x50, 0x4b, 0x03, 0x04, ...str("[Content_Types].xml")]),
   ole: pad([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
-  mp4: pad([0, 0, 0, 0x18, ...str("ftypisom")]),
-  gp3: pad([0, 0, 0, 0x14, ...str("ftyp3gp4")]),
+  mp4: mp4Bytes(), // a valid H.264 + AAC MP4: video uploads are now checked for WhatsApp's codec rules (see mp4Fixtures.mjs)
+  gp3: mp4Bytes({ brand: "3gp4" }),
   m4a: pad([0, 0, 0, 0x18, ...str("ftypM4A ")]),
   qt: pad([0, 0, 0, 0x14, ...str("ftypqt  ")]),
   oggOpus: pad([...str("OggS"), 0, 2, ...Array(20).fill(0), ...str("OpusHead")], 96),
@@ -124,8 +125,11 @@ const BAD = [
   ["non-string name", v(null, "application/pdf", FX.pdf), "bad_filename"],
 ];
 for (const [name, r, expected] of BAD) check(`validate refuses: ${name}`, expected === null ? r.ok : !r.ok && r.error === expected, JSON.stringify(r));
-check("validate: the effective size limit is min(Meta, 4 MB) for every type; exactly at the limit passes, one byte over is too_large", ["image/jpeg", "image/png", "video/mp4", "audio/mpeg", "application/pdf", "text/plain"].every((t) => R.maxBytesFor(t) === R.MEDIA_MAX_BYTES) && R.MEDIA_MAX_BYTES === 4 * 1024 * 1024
-  && (() => { const edge = new Uint8Array(R.MEDIA_MAX_BYTES); edge.set(FX.pdf); const over = new Uint8Array(R.MEDIA_MAX_BYTES + 1); over.set(FX.pdf); return v("a.pdf", "application/pdf", edge).ok && v("a.pdf", "application/pdf", over).error === "too_large"; })());
+check("validate: the effective size limit is min(Meta, 4 MB) for every non-video type; a VIDEO is min(50 MB app limit, Meta's 16 MB) = 16 MB; each exactly at its limit passes and one byte over is too_large", ["image/jpeg", "image/png", "audio/mpeg", "application/pdf", "text/plain"].every((t) => R.maxBytesFor(t) === R.MEDIA_MAX_BYTES) && R.MEDIA_MAX_BYTES === 4 * 1024 * 1024
+  && R.APP_VIDEO_MAX_BYTES === 50 * 1024 * 1024 && R.META_VIDEO_MAX_BYTES === 16 * 1024 * 1024 && R.STAGED_VIDEO_MAX_BYTES === 16 * 1024 * 1024 && R.maxBytesFor("video/mp4") === 16 * 1024 * 1024 && R.maxBytesFor("video/3gpp") === 16 * 1024 * 1024 && R.APP_VIDEO_MAX_BYTES > R.META_VIDEO_MAX_BYTES
+  && (() => { const edge = new Uint8Array(R.MEDIA_MAX_BYTES); edge.set(FX.pdf); const over = new Uint8Array(R.MEDIA_MAX_BYTES + 1); over.set(FX.pdf); return v("a.pdf", "application/pdf", edge).ok && v("a.pdf", "application/pdf", over).error === "too_large"; })()
+  && (() => { const edge = new Uint8Array(16 * 1024 * 1024); edge.set(FX.mp4); const over = new Uint8Array(16 * 1024 * 1024 + 1); over.set(FX.mp4); const fifty = new Uint8Array(50 * 1024 * 1024); fifty.set(FX.mp4); return v("a.mp4", "video/mp4", edge).ok && v("a.mp4", "video/mp4", over).error === "too_large" && v("a.mp4", "video/mp4", fifty).error === "too_large"; })());
+check("video routing: only a video above the direct limit is staged (4 MB direct, 4 MB + 1 byte staged); other kinds never are", R.needsStaging("video/mp4", R.MEDIA_MAX_BYTES) === false && R.needsStaging("video/mp4", R.MEDIA_MAX_BYTES + 1) === true && R.needsStaging("application/pdf", 50 * 1024 * 1024) === false && R.needsStaging("image/png", 6 * 1024 * 1024) === false);
 check("validate: Meta's own limits are recorded (image 5 MB, video/audio 16 MB, document 100 MB) and never exceeded by Ringo's cap", R.MEDIA_TYPES["image/jpeg"].metaMaxBytes === 5 * 1024 * 1024 && R.MEDIA_TYPES["video/mp4"].metaMaxBytes === 16 * 1024 * 1024 && R.MEDIA_TYPES["audio/mpeg"].metaMaxBytes === 16 * 1024 * 1024 && R.MEDIA_TYPES["application/pdf"].metaMaxBytes === 100 * 1024 * 1024 && Object.keys(R.MEDIA_TYPES).every((t) => R.maxBytesFor(t) <= R.MEDIA_TYPES[t].metaMaxBytes));
 check("validate: a missing/octet-stream browser type falls back to the extension, still checked against the real bytes", v("note.amr", "", FX.amr).ok && v("note.amr", "application/octet-stream", FX.amr).ok && !v("note.amr", "", FX.png).ok && !v("photo.jpg", "", FX.png).ok);
 check("filename: directories and traversal are stripped; unsafe characters replaced; control characters removed", M.sanitizeFilename("../../etc/passwd.pdf") === "passwd.pdf" && M.sanitizeFilename("C:\\Users\\x\\inv.pdf") === "inv.pdf" && M.sanitizeFilename("a<b>|c\u0000d.pdf") === "a_b_c_d.pdf" && M.sanitizeFilename("  .hidden.pdf") === "hidden.pdf" && M.sanitizeFilename("été 2026 (final).pdf") === "été 2026 (final).pdf");
@@ -269,7 +273,9 @@ try {
   check("a request without the upload header -> 400 (a cross-site form post cannot set it), nothing happens", r.status === 400 && fetchCalls.length === 0 && rpcCalls.length === 0);
   globalThis.__user = alice.user;
   r = await route.POST(new Request(`http://localhost/api/inbox/conversations/${conv1}/media`, { method: "POST", headers: { "x-ringo-upload": "1", "content-type": "application/json" }, body: "{}" }), { params: { id: conv1 } });
-  check("a non-multipart body -> 415", r.status === 415 && fetchCalls.length === 0);
+  check("a body that is neither multipart nor JSON -> 415; a JSON body without a staged video of this conversation -> 422, nothing sent", r.status === 422 && fetchCalls.length === 0);
+  r = await route.POST(new Request(`http://localhost/api/inbox/conversations/${conv1}/media`, { method: "POST", headers: { "x-ringo-upload": "1", "content-type": "text/plain" }, body: "hello" }), { params: { id: conv1 } });
+  check("a plain-text body -> 415", r.status === 415 && fetchCalls.length === 0);
   r = await route.POST(new Request(`http://localhost/api/inbox/conversations/${conv1}/media`, { method: "POST", headers: { "x-ringo-upload": "1", "content-type": "multipart/form-data; boundary=x" }, body: "not a real multipart body" }), { params: { id: conv1 } });
   check("a malformed multipart body -> 400", r.status === 400 && fetchCalls.length === 0);
   const big = new Uint8Array(R.MEDIA_MAX_BYTES + 1); big.set(FX.pdf);
@@ -424,12 +430,12 @@ check("logs: every line is a structured whatsapp_media entry (ids, categories an
   check("data: a failed or queued outbound media message still shows its caption (it lives in the message row until Meta accepts)", media.some((m) => (m.status === "failed" || m.status === "queued") && m.display.caption !== undefined) && F.messageDisplay({ type: "image", body: "A caption" }, null).caption === "A caption" && F.messageDisplay({ type: "image", body: null }, null).caption === null);
   const list = await D.loadConversationList(own, alice.profile, 40, { status: "all" });
   const html = render("en", React.createElement(InboxView, { list, selectedId: conv1, thread: t, filter: { status: "all", q: "" } }));
-  check("UI: outbound media renders as a distinct metadata card with kind, filename, mime and caption, and the outbound note (Ringo keeps no copy)", /data-media-kind="document"/.test(html) && /invoice\.pdf/.test(html) && /application\/pdf/i.test(html) && /Your invoice/.test(html) && /Attachment sent\. Ringo does not keep a copy\./.test(html));
+  check("UI: a SENT outbound document renders as a document card with its filename, short type, a labelled download action and its caption", /data-media-kind="document"/.test(html) && /invoice\.pdf/.test(html) && />PDF</.test(html) && /aria-label="Download: invoice\.pdf"/.test(html) && /Your invoice/.test(html));
   check("UI: a FAILED outbound attachment says it was not sent and asks to attach the file again; it has no Retry button (the bytes are not kept)", /Attachment not sent\. Attach the file again to retry\./.test(html) && !/>Retry<\/button>[^]{0,120}Attachment not sent/.test(html));
   check("UI: status labels on outbound media (Sent / Delivered / Read / Failed) and the unconfirmed label", /· Sent|· Delivered|· Read/.test(html) && /· Failed/.test(html));
-  check("UI: no <img>, <video>, <audio>, <iframe>, <source>, download link or remote URL is ever rendered for a message (thread view)", !/<(img|video|audio|iframe|source|embed|object)\b/i.test(html) && !/download=/.test(html) && !/https?:\/\//i.test(html.replace(/http:\/\/www\.w3\.org\/2000\/svg/g, "")));
+  check("UI: media elements point only at Ringo's own authenticated route; no remote URL, iframe, source, embed or object is ever rendered for a message", !/<(iframe|source|embed|object)\b/i.test(html) && !/https?:\/\//i.test(html.replace(/http:\/\/www\.w3\.org\/2000\/svg/g, "")) && [...html.matchAll(/<(?:img|audio|video)\b[^>]*\ssrc="([^"]*)"/g)].every((m) => m[1].startsWith("/api/inbox/conversations/")));
   const fr = render("fr", React.createElement(InboxView, { list, selectedId: conv1, thread: t, filter: { status: "all", q: "" } }));
-  check("UI (FR): outbound note and failed note", /Pièce jointe envoyée\. Ringo n’en conserve pas de copie\./.test(fr) && /Pièce jointe non envoyée\./.test(fr));
+  check("UI (FR): the failed note, and French labels for the download action", /Pièce jointe non envoyée\./.test(fr) && /Télécharger/.test(fr));
   const xss = F.messageDisplay({ type: "document", body: "<img src=x onerror=alert(1)>" }, { kind: "document", caption: null, filename: "<b>x</b>.pdf", mimeType: "application/pdf" });
   const tx = JSON.parse(JSON.stringify(t)); tx.thread.messages = [{ id: "m1", direction: "outbound", status: "sent", at: new Date().toISOString(), display: xss, unconfirmed: false }];
   const xh = render("en", React.createElement(InboxView, { list, selectedId: conv1, thread: tx, filter: { status: "all", q: "" } }));
@@ -439,15 +445,15 @@ check("logs: every line is a structured whatsapp_media entry (ids, categories an
 // ============================================================ composer + client helpers
 {
   const comp = render("en", React.createElement(Composer, { conversationId: conv1, open: true, savedReplies: null }));
-  check("composer: an attach button (labelled, with the supported-media hint) and a hidden file input restricted to the supported types; nothing attached at rest", /aria-label="Attach a file"/.test(comp) && /title="Images \(JPEG, PNG\), videos \(MP4\), audio, PDF, Office and text files, up to 4 MB\."/.test(comp) && /<input type="file" hidden=""[^>]*accept="[^"]*image\/jpeg[^"]*application\/pdf[^"]*\.docx/.test(comp) && !/data-attachment-kind/.test(comp) && !/<img/.test(comp));
-  check("composer: the attach button is enabled at rest; Send is still the text Send", !/<button[^>]*aria-label="Attach a file"[^>]* disabled=""/.test(comp) && />Send<\/button>/.test(comp));
+  check("composer: an attach button (labelled, with the supported-media hint incl. the 16 MB video limit) and a hidden file input restricted to the supported types; nothing attached at rest", /aria-label="Attach a file"/.test(comp) && comp.includes(`title="${translations.en.inbox.mediaHintLimits}"`) && /Videos \(MP4, 3GP\) up to 16 MB/.test(comp) && /<input type="file" hidden=""[^>]*accept="[^"]*image\/jpeg[^"]*application\/pdf[^"]*\.docx/.test(comp) && !/data-attachment-kind/.test(comp) && !/<img/.test(comp));
+  check("composer: the attach button is enabled at rest; Send is still the text Send (with an icon and an accessible name)", !/<button[^>]*aria-label="Attach a file"[^>]* disabled=""/.test(comp) && />Send<\/span>/.test(comp) && /aria-label="Send message"/.test(comp));
   const frc = render("fr", React.createElement(Composer, { conversationId: conv1, open: true, savedReplies: null }));
   check("composer (FR): attach label and hint", /aria-label="Joindre un fichier"/.test(frc) && /jusqu’à 4 Mo/.test(frc));
   check("composer: when the 24-hour window is closed there is no attach button either", !/Attach a file/.test(render("en", React.createElement(Composer, { conversationId: conv1, open: false, savedReplies: null }))));
   const csrc = read("src/components/inbox/ReplyComposer.tsx");
   check("composer source: one attachment at a time, shows name + kind + size, a Remove button, locked while sending", /setAttachment\(\{ file, kind:/.test(csrc) && /formatBytes\(attachment\.file\.size\)/.test(csrc) && /aria-label=\{u\.attachmentRemove\}/.test(csrc) && /disabled=\{sending\}/.test(csrc) && /if \(!attachment \|\| inFlight\.current\) return;/.test(csrc));
   check("composer source: the image preview is a local blob: URL of the person's own file, revoked on removal and unmount; no remote URL anywhere", /URL\.createObjectURL\(attachment\.file\)/.test(csrc) && /URL\.revokeObjectURL\(url\)/.test(csrc) && !/https?:\/\//.test(csrc.replace(/\/\/.*$/gm, "")) && (csrc.match(/<img /g) || []).length === 1 && /attachment\.kind !== "image"/.test(csrc));
-  check("composer source: audio has no caption box; a caption is capped at 1024; the media request id is kept across an unknown outcome and reset when the file or caption changes", /attachment\?\.kind === "audio"/.test(csrc) && /MEDIA_CAPTION_MAX\) return setError\("messageTooLong"\)/.test(csrc) && /key !== mediaRequestKey\.current\) mediaRequestId\.current = null/.test(csrc) && /if \(!effect\.keepRequestId\) mediaRequestId\.current = null/.test(csrc));
+  check("composer source: audio has no caption box; a caption is capped at 1024; the media request id is kept across an unknown outcome and reset when the file or caption changes", /attachment\?\.kind === "audio"/.test(csrc) && /MEDIA_CAPTION_MAX\) return setError\("messageTooLong"\)/.test(csrc) && /key !== mediaRequestKey\.current\) \{\s*mediaRequestId\.current = null/.test(csrc) && /if \(!effect\.keepRequestId\) \{\s*mediaRequestId\.current = null/.test(csrc));
   check("composer source: the text path is unchanged (Enter does not send, the same validation and request-id rules)", /e\.key === "Enter" && \(e\.ctrlKey \|\| e\.metaKey\) && !e\.nativeEvent\.isComposing/.test(csrc) && /trimmed === ""\) return setError\("emptyMessage"\)/.test(csrc) && /if \(!requestId\.current\) requestId\.current = newRequestId\(\)/.test(csrc));
   let captured = null;
   const fake = async (url, init) => { captured = { url, init }; return new Response(JSON.stringify({ ok: true, state: "sent" }), { status: 200 }); };

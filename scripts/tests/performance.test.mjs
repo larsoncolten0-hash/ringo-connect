@@ -11,6 +11,7 @@ import { PHASE26_FILES } from "./phase26Files.mjs";
 import { PHASE27_FILES } from "./phase27Files.mjs";
 import { PHASE28_FILES } from "./phase28Files.mjs";
 import { PHASE29_FILES } from "./phase29Files.mjs";
+import { PHASE30_FILES } from "./phase30Files.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -343,7 +344,7 @@ await test("mobile: the connection to the storage host (where every picture come
 // =============================================================================== scope
 await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, orders, payouts, commissions and the 10-second preview are not touched", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].filter((f) => !f.startsWith("scripts/tests/_"));
-  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f)), [], "only the registered files changed");
   // Files whose NAME looks sensitive but whose change is a read-only performance edit, listed one by one (never by pattern): the public item checkout PAGE's profile read (the checkout flow itself,
   // the payment calls and the order logic are not in it), the shop page, the supabase proposal files and the admin branding save's cache refresh.
   const ALLOWED = new Set([
@@ -364,6 +365,13 @@ await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, ord
     "supabase/support/2026-12-19_whatsapp_sales_bot.verify.sql",
     "src/app/api/inbox/conversations/[id]/sales-bot/route.ts",
     "src/app/api/inbox/sales-bot/route.ts",
+    // The WhatsApp Inbox UX and media upgrade (phase30Files.mjs): the authenticated file view, the staging step, the media route, and the un-applied staging-bucket migration with its scripts.
+    "src/app/api/inbox/conversations/[id]/media/[messageId]/route.ts",
+    "src/app/api/inbox/conversations/[id]/media/route.ts",
+    "src/app/api/inbox/conversations/[id]/media/stage/route.ts",
+    "supabase/migrations/2026-12-21_inbox_outbound_media_staging.sql",
+    "supabase/support/2026-12-21_inbox_outbound_media_staging.rollback.sql",
+    "supabase/support/2026-12-21_inbox_outbound_media_staging.verify.sql",
     "supabase/migrations/2026-12-20_whatsapp_sales_bot_owner_switch.sql",
     "supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.rollback.sql",
     "supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.verify.sql",

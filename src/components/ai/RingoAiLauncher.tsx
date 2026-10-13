@@ -81,7 +81,7 @@ export default function RingoAiLauncher() {
             ref={launcherRef}
             onClick={() => setOpen(true)}
             aria-label={`${t.ringoAi.open}. ${t.ringoAi.locked.badge}`}
-            className="ringo-tactile fixed z-30 bottom-[13.5rem] right-4 lg:bottom-[6.25rem] lg:right-6 w-16 h-14 rounded-2xl border border-ringo-indigo/60 bg-ringo-surface text-ringo-indigo flex flex-col items-center justify-center gap-0.5 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 focus-visible:ring-offset-2"
+            className="ringo-float-ai ringo-tactile fixed z-30 bottom-[13.5rem] right-4 lg:bottom-[6.25rem] lg:right-6 w-16 h-14 rounded-2xl border border-ringo-indigo/60 bg-ringo-surface text-ringo-indigo flex flex-col items-center justify-center gap-0.5 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/50 focus-visible:ring-offset-2"
           >
             <span className="relative">
               <Sparkles size={19} aria-hidden="true" />
@@ -126,7 +126,7 @@ export default function RingoAiLauncher() {
           ref={launcherRef}
           onClick={() => setOpen(true)}
           aria-label={t.ringoAi.open}
-          className="ringo-tactile ringo-cta fixed z-30 bottom-[13.5rem] right-4 lg:bottom-[6.25rem] lg:right-6 w-16 h-14 rounded-2xl flex flex-col items-center justify-center gap-0.5"
+          className="ringo-float-ai ringo-tactile ringo-cta fixed z-30 bottom-[13.5rem] right-4 lg:bottom-[6.25rem] lg:right-6 w-16 h-14 rounded-2xl flex flex-col items-center justify-center gap-0.5"
         >
           <Sparkles size={19} />
           <span className="text-[9px] font-semibold leading-none">{t.ringoAi.launcherLabel}</span>

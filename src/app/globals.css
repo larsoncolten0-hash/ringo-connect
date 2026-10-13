@@ -830,3 +830,17 @@ h1, h2, h3, .font-display {
     transition: none !important;
   }
 }
+
+/* WhatsApp Inbox: while a conversation is open, the page's floating Ringo AI and Help buttons must never sit on the reply box or its Send button.
+   On phones and tablets the conversation reserves a docking row above the reply box (ThreadDock publishes where it is); from the lg breakpoint up the Inbox
+   keeps a free column at its right edge, so the buttons stay where they always were. The hooks are the two class names on those buttons. */
+@media (max-width: 1023.98px) {
+  html[data-inbox-thread] .ringo-float-help {
+    bottom: calc(var(--ringo-inbox-dock-bottom, 9rem) + 0.25rem);
+    right: 1rem;
+  }
+  html[data-inbox-thread] .ringo-float-ai {
+    bottom: calc(var(--ringo-inbox-dock-bottom, 9rem) + 0.25rem);
+    right: 5rem;
+  }
+}

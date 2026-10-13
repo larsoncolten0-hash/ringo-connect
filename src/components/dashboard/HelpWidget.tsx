@@ -140,7 +140,7 @@ export default function HelpWidget({ username, email }: { username: string; emai
   };
 
   return (
-    <div className="fixed bottom-36 right-4 lg:bottom-6 lg:right-6 z-40" ref={panelRef}>
+    <div className="ringo-float-help fixed bottom-36 right-4 lg:bottom-6 lg:right-6 z-40" ref={panelRef}>
       <AnimatePresence>
         {open && (
           <>

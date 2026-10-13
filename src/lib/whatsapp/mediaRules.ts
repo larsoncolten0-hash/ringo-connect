@@ -5,7 +5,17 @@
 export const MEDIA_KINDS = ["image", "video", "audio", "document"] as const;
 export type OutboundMediaKind = (typeof MEDIA_KINDS)[number];
 
+// ---- size limits: ONE place, used by the browser check, the upload routes and the validator ---------------------------------------------
+// MEDIA_MAX_BYTES        what Ringo's own upload route can receive in one request (Vercel serverless accepts about 4.5 MB per request).
+// APP_VIDEO_MAX_BYTES    the most Ringo asks of a person who sends a video: 50 MB.
+// META_VIDEO_MAX_BYTES   what WhatsApp Cloud API accepts for a video message (MP4 / 3GPP): 16 MB. THIS is lower than 50 MB, so it wins: a 50 MB video can never be delivered.
+// STAGED_VIDEO_MAX_BYTES the largest video Ringo accepts = min(app limit, Meta's limit) = 16 MB. A video over MEDIA_MAX_BYTES cannot travel through the upload route, so the
+//                        browser first stores it in a private staging bucket (see lib/inbox/stagedMedia.ts) and the server reads it from there.
+// Every other kind stays at min(Meta, 4 MB): documents, images and audio are unchanged.
 export const MEDIA_MAX_BYTES = 4 * 1024 * 1024;
+export const APP_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+export const META_VIDEO_MAX_BYTES = 16 * 1024 * 1024;
+export const STAGED_VIDEO_MAX_BYTES = Math.min(APP_VIDEO_MAX_BYTES, META_VIDEO_MAX_BYTES);
 export const MEDIA_CAPTION_MAX = 1024;
 export const MEDIA_FILENAME_MAX = 100;
 export const UPLOAD_TIMEOUT_MS = 30_000;
@@ -42,8 +52,18 @@ export const MEDIA_TYPES: Record<string, Rule> = {
 export const ALLOWED_MIME_TYPES = Object.keys(MEDIA_TYPES);
 export const ALLOWED_EXTENSIONS = Array.from(new Set(Object.values(MEDIA_TYPES).flatMap((r) => r.extensions)));
 
-/** The effective maximum for a declared MIME type: Meta's limit, but never more than Ringo's upload route can receive. */
-export const maxBytesFor = (mime: string): number => Math.min(MEDIA_TYPES[mime]?.metaMaxBytes ?? 0, MEDIA_MAX_BYTES);
+/**
+ * The effective maximum for a declared MIME type: Meta's limit for that type, and never more than Ringo can actually carry. Video travels through the staging bucket, so its ceiling is
+ * min(50 MB, Meta's 16 MB) = 16 MB; every other kind is min(Meta, 4 MB). The application limit can never exceed the provider's.
+ */
+export const maxBytesFor = (mime: string): number => {
+  const rule = MEDIA_TYPES[mime];
+  if (!rule) return 0;
+  return Math.min(rule.metaMaxBytes, rule.kind === "video" ? STAGED_VIDEO_MAX_BYTES : MEDIA_MAX_BYTES);
+};
+
+/** True when this file is too big for the direct upload route and must go through the staging bucket (only videos can). */
+export const needsStaging = (mime: string, size: number): boolean => MEDIA_TYPES[mime]?.kind === "video" && size > MEDIA_MAX_BYTES;
 
 /** Lower-case, parameters removed: "Audio/OGG; codecs=opus" -> "audio/ogg". */
 export const normalizeMime = (raw: unknown): string => (typeof raw === "string" ? raw.split(";")[0].trim().toLowerCase() : "");

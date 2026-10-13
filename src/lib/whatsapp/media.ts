@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { GRAPH_VERSION, classify, type SendOutcome } from "./outbound";
+import { inspectMp4 } from "./mp4Inspect";
 import { MEDIA_KINDS, MEDIA_MAX_BYTES, MEDIA_TYPES, SEND_TIMEOUT_MS, UPLOAD_TIMEOUT_MS, extensionOf, maxBytesFor, mimeFromExtension, normalizeMime, sanitizeFilename, type OutboundMediaKind } from "./mediaRules";
 
 // Outbound WhatsApp MEDIA (server only: it reads the access token through its callers and talks to Meta).
@@ -84,7 +85,8 @@ const SNIFF_OK: Record<string, readonly Sniffed[]> = {
 };
 
 // ---- validation ---------------------------------------------------------------------------------------------------------------------
-export type MediaProblem = "empty_file" | "too_large" | "unsupported_type" | "type_mismatch" | "bad_filename";
+// unsupported_codec: a video whose codecs WhatsApp does not accept (it takes H.264 video and AAC audio only, at most one audio stream), or whose container cannot be read.
+export type MediaProblem = "empty_file" | "too_large" | "unsupported_type" | "type_mismatch" | "bad_filename" | "unsupported_codec";
 export type ValidatedMedia = { ok: true; kind: OutboundMediaKind; mime: string; filename: string; size: number; sha256: string } | { ok: false; error: MediaProblem };
 
 /** The ONE gate every outbound file passes: size, declared type, actual bytes, extension and name. Pure (no network, no database). */
@@ -107,6 +109,9 @@ export function validateMediaFile(input: { name: unknown; type: unknown; bytes: 
   const ext = extensionOf(safe);
   // the extension must belong to the declared type: "invoice.pdf.exe", "photo.html" or "a.pdf" declared as a video are refused, never renamed
   if (!rule.extensions.includes(ext)) return { ok: false, error: ext ? "type_mismatch" : "bad_filename" };
+
+  // WhatsApp video: H.264 + AAC only, a single audio stream at most. Decided from the container's own header, fail closed when it cannot be read (see mp4Inspect.ts).
+  if (rule.kind === "video" && !inspectMp4(bytes).ok) return { ok: false, error: "unsupported_codec" };
 
   return { ok: true, kind: rule.kind, mime, filename: safe, size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
 }

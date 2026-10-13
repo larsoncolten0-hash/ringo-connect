@@ -1,0 +1,34 @@
+-- ROLLBACK for 2026-12-21_inbox_outbound_media_staging.sql — A MANUAL PROCEDURE. FOR OWNER REVIEW; do not do any of this unless you are rolling the feature back.
+--
+-- DO NOT REMOVE THIS BUCKET WITH SQL. Do not run `delete from storage.objects` or `delete from storage.buckets`.
+--   The rows in storage.objects and storage.buckets are only the INDEX of the files; the files themselves live in Supabase's object store. Deleting the rows with SQL leaves the
+--   physical files behind (orphaned: unreachable, but still stored and still counted against your storage), and the platform may refuse the statement. Supabase's own guidance is to
+--   remove storage content through the Storage API or the Dashboard, which delete the index and the file together.
+--   (https://supabase.com/docs/guides/troubleshooting/storage-unexpectedly-high-usage-or-exceed_storage_size_quota-errors-ae21a5)
+--
+-- WHAT A ROLLBACK REMOVES, AND WHAT IT DOES NOT TOUCH
+--   Removes: the temporary staged copies of videos that were uploaded but never sent (the server deletes a staged copy after every send attempt, so normally there are none or few),
+--            and then the bucket `inbox-outbound-media` itself.
+--   Does NOT touch: any message already sent, any media at Meta, any table, function or policy (the migration created none), or any other bucket.
+--   Effect on the app: none is needed. With the bucket gone, the Inbox keeps sending every file up to 4 MB exactly as before, and a larger video gets the "large uploads haven't been
+--   switched on" message (English and French). Nothing in the code has to be redeployed or reverted for that.
+--
+-- PROCEDURE (do it in STAGING first; repeat in production only if you really are rolling back)
+--   1. Optional, read-only: see what is in the bucket, with the query at the bottom of this file. `staged_objects` should be 0 or a handful of recent uploads.
+--   2. EMPTY the bucket (this removes the files and their index entries together). Either:
+--        a) Dashboard: Storage > inbox-outbound-media > select all files > Delete; or the bucket's "..." menu > Empty bucket.
+--        b) Storage API, from a trusted server-side script with the service-role key (never from a browser, never committed):
+--             supabase.storage.emptyBucket('inbox-outbound-media')
+--             or:  POST {SUPABASE_URL}/storage/v1/bucket/inbox-outbound-media/empty      (header: Authorization: Bearer <service-role key>)
+--   3. DELETE the now-empty bucket (Supabase refuses to delete a bucket that still holds objects, which is why step 2 comes first). Either:
+--        a) Dashboard: Storage > inbox-outbound-media > "..." menu > Delete bucket; or
+--        b) Storage API: supabase.storage.deleteBucket('inbox-outbound-media')
+--             or:  DELETE {SUPABASE_URL}/storage/v1/bucket/inbox-outbound-media         (same header)
+--   4. Confirm with the read-only query below: bucket_exists = false and staged_objects = 0.
+--   5. The verify script (2026-12-21_inbox_outbound_media_staging.verify.sql) is for AFTER the migration was applied. After a rollback it is EXPECTED to fail (the bucket is gone).
+--   To go forward again later, simply re-apply the migration (it is idempotent: `on conflict (id) do nothing`).
+--
+-- READ-ONLY CHECK (the only SQL in this file; it changes nothing and is safe to run at any time, before, during or after the procedure):
+select
+  exists (select 1 from storage.buckets where id = 'inbox-outbound-media') as bucket_exists,
+  (select count(*) from storage.objects where bucket_id = 'inbox-outbound-media') as staged_objects;

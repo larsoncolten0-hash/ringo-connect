@@ -1,22 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, FileText, Image as ImageIcon, MessageCircle, MessagesSquare, Mic, Search, Smile, TriangleAlert, Video, X } from "lucide-react";
+import { ArrowLeft, MessageCircle, MessagesSquare, Search, TriangleAlert, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import ConversationStatusButton from "@/components/inbox/ConversationStatusButton";
 import ResumeSalesBotButton from "@/components/inbox/ResumeSalesBotButton";
 import ConversationReadMarker from "@/components/inbox/ConversationReadMarker";
 import InboxAiPanel from "@/components/inbox/InboxAiPanel";
+import MessageMedia from "@/components/inbox/MessageMedia";
 import ReplyComposer, { RetryButton } from "@/components/inbox/ReplyComposer";
-import type { ConversationItem, SavedReply, ThreadData, ThreadMessage } from "@/lib/inbox/data";
+import ThreadDock from "@/components/inbox/ThreadDock";
+import ThreadScroller from "@/components/inbox/ThreadScroller";
+import { THREAD_LIMIT, type ConversationItem, type SavedReply, type ThreadData, type ThreadMessage } from "@/lib/inbox/data";
+import { THREAD_MAX, THREAD_STEP } from "@/lib/inbox/threadLimit";
 import type { AutomationView } from "@/lib/inbox/automationData";
 import type { LeadSignal } from "@/lib/inbox/leads";
-import { formatBubbleTime, formatListTime, formatWaId, previewText, type InboxStatusFilter, type MediaKind } from "@/lib/inbox/format";
+import { dayKeyOf, formatBubbleTime, formatDayLabel, formatListTime, formatWaId, previewText, type InboxStatusFilter } from "@/lib/inbox/format";
 
 // The Inbox screen. All data arrives as props from the server pages (already scoped to the owner's profile); this component only renders it.
-// Customer text is rendered as plain React text children (escaped), never as HTML. Media is shown as a metadata card: nothing is downloaded and
-// no Meta URL or credential ever reaches the browser.
+// Customer text is rendered as plain React text children (escaped), never as HTML. Media (photos, voice notes, videos, documents) is played or shown inside the
+// message through Ringo's own authenticated route: no Meta URL or credential ever reaches the browser (see MessageMedia and the GET route under /media/<message id>).
 //
 // Responsive: below `lg` it is a single pane. The conversation list is shown on /dashboard/inbox and the thread on
 // /dashboard/inbox/<id> with a back link. From `lg` up both panes show side by side.
@@ -40,6 +44,8 @@ export type InboxViewProps = {
   senders?: Record<string, string>;
   /** Owner only, and only when the Smart Card sales bot is switched on for this deployment: shows the "Resume sales bot" action in a thread. */
   salesBotResume?: boolean;
+  /** How many messages the open conversation was asked to show (100 by default, more after "Load earlier messages"). */
+  threadLimit?: number;
 };
 
 export const INBOX_PATH = "/dashboard/inbox";
@@ -57,14 +63,14 @@ export function filterQuery(filter: InboxFilter, override: Partial<InboxFilter> 
 
 const OWNER_ACCESS = { kind: "owner" as const, permissions: [] as readonly string[] };
 
-export default function InboxView({ list, selectedId, thread, filter = DEFAULT_FILTER, unreadOpen = 0, savedReplies = null, automation = null, access = OWNER_ACCESS, senders = {}, salesBotResume = false }: InboxViewProps) {
+export default function InboxView({ list, selectedId, thread, filter = DEFAULT_FILTER, unreadOpen = 0, savedReplies = null, automation = null, access = OWNER_ACCESS, senders = {}, salesBotResume = false, threadLimit = THREAD_LIMIT }: InboxViewProps) {
   const { t } = useLanguage();
   const u = t.inbox;
   const hasSelection = selectedId !== null;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
+    <div className="flex flex-col gap-4 lg:pr-16">
+      <div className={hasSelection ? "hidden lg:block" : undefined}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="font-display text-xl font-medium text-ringo-text">{u.title}</h1>
           {access.kind === "owner" && (
@@ -80,7 +86,7 @@ export default function InboxView({ list, selectedId, thread, filter = DEFAULT_F
       {!list.ok ? (
         <ErrorPanel />
       ) : (
-        <div className="grid gap-4 lg:h-[calc(100dvh-13rem)] lg:min-h-[480px] lg:grid-cols-[340px_minmax(0,1fr)]">
+        <div className={`grid grid-rows-[minmax(0,1fr)] gap-4 lg:h-[calc(100dvh-13rem)] lg:min-h-[480px] lg:grid-cols-[340px_minmax(0,1fr)] ${hasSelection ? "h-[calc(100dvh-13rem)] min-h-[420px]" : ""}`}>
           <section aria-label={u.conversations} className={`${hasSelection ? "hidden lg:flex" : "flex"} min-h-0 flex-col overflow-hidden rounded-card border border-ringo-border`}>
             <h2 className="border-b border-ringo-border px-4 py-3 text-xs font-semibold uppercase tracking-wider text-ringo-muted">{u.conversations}</h2>
             <ListControls filter={filter} unreadOpen={unreadOpen} />
@@ -91,7 +97,7 @@ export default function InboxView({ list, selectedId, thread, filter = DEFAULT_F
             {thread === null ? (
               <NoSelection />
             ) : thread.ok ? (
-              <Thread data={thread.thread} filter={filter} savedReplies={savedReplies} automation={automation} access={access} senders={senders} salesBotResume={salesBotResume} />
+              <Thread key={thread.thread.conversation.id} data={thread.thread} filter={filter} savedReplies={savedReplies} automation={automation} access={access} senders={senders} salesBotResume={salesBotResume} threadLimit={threadLimit} />
             ) : thread.reason === "not_found" ? (
               <NotFound filter={filter} />
             ) : (
@@ -265,27 +271,32 @@ function ConversationList({ items, selectedId, truncated, filter, signals }: { i
   );
 }
 
-function Thread({ data, filter, savedReplies, automation, access, senders, salesBotResume }: { data: ThreadData; filter: InboxFilter; savedReplies: SavedReply[] | null; automation: AutomationView | null; access: NonNullable<InboxViewProps["access"]>; senders: Record<string, string>; salesBotResume: boolean }) {
-  const { t } = useLanguage();
+function Thread({ data, filter, savedReplies, automation, access, senders, salesBotResume, threadLimit }: { data: ThreadData; filter: InboxFilter; savedReplies: SavedReply[] | null; automation: AutomationView | null; access: NonNullable<InboxViewProps["access"]>; senders: Record<string, string>; salesBotResume: boolean; threadLimit: number }) {
+  const { t, locale } = useLanguage();
   const u = t.inbox;
   // The owner can do everything (as before). A team member only what their role grants; the server and the database enforce the same rules.
   const can = (p: string) => access.kind === "owner" || access.permissions.includes(p);
-  const endRef = useRef<HTMLDivElement | null>(null);
   // text the owner chose to insert from an AI draft; the composer puts it in the box (it is never sent for them)
   const [insert, setInsert] = useState<{ id: number; text: string } | null>(null);
-  // open on the newest message
-  useEffect(() => {
-    endRef.current?.scrollIntoView?.({ block: "end" });
-  }, [data.conversation.id, data.messages.length]);
 
   const name = data.contact.name || u.unknownContact;
+  const first = data.messages[0] ?? null;
+  const last = data.messages[data.messages.length - 1] ?? null;
+  const nextLimit = Math.min(threadLimit + THREAD_STEP, THREAD_MAX);
+  const params = new URLSearchParams();
+  if (filter.status !== "open") params.set("status", filter.status);
+  if (filter.q) params.set("q", filter.q);
+  params.set("n", String(nextLimit));
+  const loadEarlierHref = data.truncated && nextLimit > threadLimit ? `${INBOX_PATH}/${data.conversation.id}?${params.toString()}` : null;
+  const whatsapp = data.conversation.channel === "whatsapp";
   return (
     <>
       {can("inbox.mark_read") && <ConversationReadMarker conversationId={data.conversation.id} />}
-      <header className="flex items-center gap-3 border-b border-ringo-border px-4 py-3">
-        <Link href={`${INBOX_PATH}${filterQuery(filter)}`} aria-label={u.back} className="-ml-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-surface hover:text-ringo-text lg:hidden">
+      <header className="flex shrink-0 items-center gap-3 border-b border-ringo-border bg-ringo-surface/60 px-3 py-2.5 sm:px-4">
+        <Link href={`${INBOX_PATH}${filterQuery(filter)}`} aria-label={u.back} className="-ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ringo-muted hover:bg-ringo-surface hover:text-ringo-text lg:hidden">
           <ArrowLeft size={18} aria-hidden="true" />
         </Link>
+        <span aria-hidden="true" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ringo-indigo/10 text-sm font-semibold text-ringo-indigo">{Array.from(name.trim())[0]?.toUpperCase() ?? "?"}</span>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-medium text-ringo-text">{name}</h2>
           <p className="flex flex-wrap items-center gap-x-2 text-[11px] text-ringo-muted">
@@ -308,31 +319,37 @@ function Thread({ data, filter, savedReplies, automation, access, senders, sales
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4" data-testid="thread-scroll">
-        {data.truncated && <p className="mb-3 text-center text-[11px] text-ringo-muted">{u.threadLimited(data.messages.length)}</p>}
+      {/* the ONLY scrolling part of the conversation: the header above and the reply box below stay put */}
+      <ThreadScroller conversationId={data.conversation.id} firstId={first?.id ?? null} lastId={last?.id ?? null} count={data.messages.length} loadEarlierHref={loadEarlierHref}>
+        {data.truncated && !loadEarlierHref && <p className="mb-3 text-center text-[11px] text-ringo-muted">{u.threadLimited(data.messages.length)}</p>}
         {data.messages.length === 0 ? (
           <p className="py-8 text-center text-xs text-ringo-muted">{u.noMessages}</p>
         ) : (
-          <ol className="flex flex-col gap-2">
-            {data.messages.map((m) => (
-              <Bubble key={m.id} m={m} conversationId={data.conversation.id} automatic={automation?.automaticMessageIds.includes(m.id) === true} sender={senders[m.id] ?? null} canRetry={can("inbox.reply")} />
+          <ol className="flex flex-col gap-1.5">
+            {data.messages.map((m, i) => (
+              <Fragment key={m.id}>
+                {(i === 0 || dayKeyOf(data.messages[i - 1].at) !== dayKeyOf(m.at)) && (
+                  <li role="separator" className="my-2 flex justify-center">
+                    <span suppressHydrationWarning className="rounded-full bg-ringo-muted/15 px-3 py-0.5 text-[11px] font-medium text-ringo-muted">{formatDayLabel(m.at, locale)}</span>
+                  </li>
+                )}
+                <Bubble m={m} conversationId={data.conversation.id} automatic={automation?.automaticMessageIds.includes(m.id) === true} sender={senders[m.id] ?? null} canRetry={can("inbox.reply")} />
+              </Fragment>
             ))}
           </ol>
         )}
-        <div ref={endRef} />
-      </div>
+      </ThreadScroller>
 
-      {data.conversation.channel === "whatsapp" && can("inbox.ai") && (
-        <InboxAiPanel conversationId={data.conversation.id} canSuggest={data.conversation.replyWindowOpen} onInsert={(text) => setInsert((p) => ({ id: (p?.id ?? 0) + 1, text }))} />
+      {whatsapp && (
+        <ThreadDock>
+          {can("inbox.ai") && <InboxAiPanel conversationId={data.conversation.id} canSuggest={data.conversation.replyWindowOpen} onInsert={(text) => setInsert((p) => ({ id: (p?.id ?? 0) + 1, text }))} />}
+        </ThreadDock>
       )}
-      {data.conversation.channel === "whatsapp" && can("inbox.reply") && <ReplyComposer conversationId={data.conversation.id} open={data.conversation.replyWindowOpen} savedReplies={savedReplies} insert={insert} allowMedia={can("inbox.media")} />}
-      {data.conversation.channel === "whatsapp" && !can("inbox.reply") && <p className="border-t border-ringo-border px-4 py-3 text-xs text-ringo-muted" data-testid="staff-read-only">{u.staffReadOnly}</p>}
+      {whatsapp && can("inbox.reply") && <ReplyComposer conversationId={data.conversation.id} open={data.conversation.replyWindowOpen} savedReplies={savedReplies} insert={insert} allowMedia={can("inbox.media")} />}
+      {whatsapp && !can("inbox.reply") && <p className="border-t border-ringo-border px-4 py-3 text-xs text-ringo-muted" data-testid="staff-read-only">{u.staffReadOnly}</p>}
     </>
   );
 }
-
-const MEDIA_ICONS: Record<MediaKind, typeof FileText> = { image: ImageIcon, audio: Mic, video: Video, document: FileText, sticker: Smile };
-
 const LEAD_STYLE: Record<LeadSignal, string> = {
   new_lead: "bg-sky-500/10 text-sky-700 dark:text-sky-400",
   active: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
@@ -354,30 +371,30 @@ function Bubble({ m, conversationId, automatic = false, sender = null, canRetry 
   const d = m.display;
   // A message stuck in 'queued' for minutes is "not confirmed", never shown as sent or delivered.
   const statusLabel = m.unconfirmed ? u.unconfirmed : (u.statuses as Record<string, string>)[m.status];
-  const Icon = d.kind === "media" ? MEDIA_ICONS[d.media] : null;
+  // A file Ringo sent exists at Meta only once Meta accepted the message; until then (or if it failed) there is nothing to show but a note.
+  const mediaAvailable = !out || m.status === "sent" || m.status === "delivered" || m.status === "read";
   return (
-    <li className={`flex ${out ? "justify-end" : "justify-start"}`}>
-      <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm sm:max-w-[75%] ${out ? "rounded-br-md bg-ringo-indigo/10 text-ringo-text" : "rounded-bl-md border border-ringo-border bg-ringo-surface text-ringo-text"}`}>
+    <li className={`flex ${out ? "justify-end" : "justify-start"}`} data-message-id={m.id}>
+      <div className={`min-w-0 max-w-[88%] rounded-2xl px-3 py-1.5 text-sm shadow-[0_1px_0_rgba(15,23,42,0.04)] sm:max-w-[75%] ${out ? "rounded-br-md bg-ringo-indigo/10 text-ringo-text" : "rounded-bl-md border border-ringo-border bg-ringo-surface text-ringo-text"}`}>
         <span className="sr-only">{out ? u.direction.outbound : u.direction.inbound}: </span>
-        {d.kind === "text" && <p className="whitespace-pre-wrap break-words">{d.text}</p>}
-        {d.kind === "media" && Icon && (
+        {d.kind === "text" && <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{d.text}</p>}
+        {d.kind === "media" && (
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2.5 rounded-xl border border-ringo-border/70 bg-ringo-muted/10 p-2.5" data-media-kind={d.media}>
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ringo-indigo/10 text-ringo-indigo">
-                <Icon size={18} aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-medium">{u.mediaKinds[d.media]}</p>
-                {d.filename && <p className="break-all text-[11px] text-ringo-muted">{d.filename}</p>}
-                {d.mimeType && <p className="break-all text-[10px] uppercase tracking-wide text-ringo-muted">{d.mimeType}</p>}
-              </div>
-            </div>
-            {d.caption && <p className="whitespace-pre-wrap break-words">{d.caption}</p>}
-            <p className="text-[11px] italic text-ringo-muted">{out ? (m.status === "failed" ? u.mediaOutboundFailed : u.mediaOutboundNote) : u.mediaNotDownloaded}</p>
+            <MessageMedia
+              conversationId={conversationId}
+              messageId={m.id}
+              media={d.media}
+              mimeType={d.mimeType}
+              filename={d.filename}
+              caption={d.caption}
+              available={mediaAvailable}
+              unavailableNote={out ? (m.status === "failed" ? u.mediaOutboundFailed : u.sending) : null}
+            />
+            {d.caption && <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{d.caption}</p>}
           </div>
         )}
         {d.kind === "unsupported" && <p className="text-xs italic text-ringo-muted">{u.unsupported}</p>}
-        <p className={`mt-1 flex items-center gap-1.5 text-[10px] text-ringo-muted ${out ? "justify-end" : ""}`}>
+        <p className={`mt-1 flex flex-wrap items-center gap-x-1.5 text-[10px] text-ringo-muted ${out ? "justify-end" : ""}`}>
           <time dateTime={m.at} suppressHydrationWarning>{formatBubbleTime(m.at, locale)}</time>
           {out && automatic && <span data-automatic="true">· {u.autoReplyLabel}</span>}
           {out && sender && <span data-sender="true">· {u.sentByLabel(sender)}</span>}

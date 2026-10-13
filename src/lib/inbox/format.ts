@@ -89,6 +89,29 @@ export function formatBubbleTime(iso: string | null | undefined, locale: "en" | 
   return `${new Intl.DateTimeFormat(locale, { timeZone: TZ, day: "numeric", month: "short" }).format(d)}, ${time}`;
 }
 
+/** The calendar day (Douala) a timestamp falls on, as YYYY-MM-DD; "" when invalid. Messages are grouped under a day separator by this key. */
+export function dayKeyOf(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : dayKey(d);
+}
+
+/** The label of a day separator: "Today" / "Yesterday" (localized), otherwise the date (with the year when it is not this year). */
+export function formatDayLabel(iso: string | null | undefined, locale: "en" | "fr", now: Date = new Date()): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const key = dayKey(d);
+  const today = dayKey(now);
+  const yesterday = dayKey(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+  if (key === today || key === yesterday) {
+    const word = new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(key === today ? 0 : -1, "day");
+    return word.charAt(0).toLocaleUpperCase(locale) + word.slice(1);
+  }
+  const sameYear = key.slice(0, 4) === today.slice(0, 4);
+  return new Intl.DateTimeFormat(locale, sameYear ? { timeZone: TZ, weekday: "short", day: "numeric", month: "long" } : { timeZone: TZ, day: "numeric", month: "long", year: "numeric" }).format(d);
+}
+
 /** "+237683163546" from the stored WhatsApp id (digits only). Anything unexpected is shown as stored. */
 export function formatWaId(id: string): string {
   return /^[0-9]{6,20}$/.test(id) ? `+${id}` : id;

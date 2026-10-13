@@ -4,7 +4,7 @@
 export const MAX_REPLY_LENGTH = 4096;
 export const replyUrl = (conversationId: string) => `/api/inbox/conversations/${encodeURIComponent(conversationId)}/messages`;
 
-export type ReplyResponse = { ok: true; state: string; message_id?: string } | { ok: false; error: string; state?: string; message_id?: string };
+export type ReplyResponse = { ok: true; state: string; message_id?: string } | { ok: false; error: string; state?: string; message_id?: string; /** client-side hint: the file was a video (picks the video size message) */ video?: boolean };
 export type PostResult = { kind: "response"; status: number; body: ReplyResponse } | { kind: "network" };
 
 export async function postReply(conversationId: string, text: string, clientRequestId: string, fetchImpl: typeof fetch = fetch): Promise<PostResult> {
@@ -25,7 +25,8 @@ export async function postReply(conversationId: string, text: string, clientRequ
 
 export type ErrorKey =
   | "emptyMessage" | "messageTooLong" | "sendFailedMessage" | "windowClosed" | "notConfigured" | "accountDisabled" | "rateLimited"
-  | "mediaTooLarge" | "mediaUnsupported" | "mediaMismatch" | "mediaEmpty" | "mediaFailed" | "captionNone";
+  | "mediaTooLarge" | "mediaVideoTooLarge" | "mediaUnsupported" | "mediaMismatch" | "mediaEmpty" | "mediaFailed" | "captionNone"
+  | "mediaStagingUnavailable" | "mediaStagedGone" | "mediaUploadFailed" | "mediaCodecUnsupported";
 export interface ReplyEffect {
   /** Empty the text box (the message was stored: sent, pending, unconfirmed or failed-and-visible-in-the-thread). */
   clearText: boolean;
@@ -103,8 +104,15 @@ export function interpretMedia(r: PostResult): MediaEffect {
   if (b.state === "failed") return { clearAttachment: false, keepRequestId: false, error: b.error === "window_closed" ? "windowClosed" : b.error === "rate_limited" ? "rateLimited" : "mediaFailed", refresh: true };
   const keep = (error: ErrorKey): MediaEffect => ({ clearAttachment: false, keepRequestId: false, error, refresh: false });
   switch (b.error) {
-    case "too_large": return keep("mediaTooLarge");
-    case "unsupported_type": return keep("mediaUnsupported");
+    case "too_large": return keep(b.video ? "mediaVideoTooLarge" : "mediaTooLarge");
+    case "unsupported_type":
+    case "not_stageable": return keep("mediaUnsupported");
+    // WhatsApp takes H.264 video and AAC audio only
+    case "unsupported_codec": return keep("mediaCodecUnsupported");
+    // large video staging: not enabled on this deployment yet / the staged copy was already consumed by an earlier attempt that reached the server
+    case "staging_unavailable": return keep("mediaStagingUnavailable");
+    case "staged_missing": return { clearAttachment: true, keepRequestId: false, error: "mediaStagedGone", refresh: true };
+    case "upload_failed_client": return { clearAttachment: false, keepRequestId: true, error: "mediaUploadFailed", refresh: false };
     case "type_mismatch":
     case "bad_filename": return keep("mediaMismatch");
     case "empty_file": return keep("mediaEmpty");
@@ -211,4 +219,117 @@ export function interpretAssist(r: AssistPost): AssistView {
     case "response_blocked": return { state: "error", error: "aiBlocked" };
     default: return { state: "error", error: "aiFailed" };
   }
+}
+
+// ---- sending an attachment WITH progress ----------------------------------------------------------------------------------------------------
+// A file up to what the upload route can receive (about 4 MB) is posted straight to it. A VIDEO above that (up to Meta's 16 MB) is first uploaded to a private staging object
+// with a one-time signed url from /media/stage, then the send route is told which staged object to send. In both cases ONE client_request_id covers the whole send, so a
+// retry after an unknown outcome can never create a second customer message (see interpretMedia), and a staged upload that already succeeded is reused, not repeated.
+export const stageUrl = (conversationId: string) => `${mediaUrl(conversationId)}/stage`;
+/** The URL that serves one stored media file of a message to a signed-in person who may read the conversation (see the GET route). */
+export const messageMediaUrl = (conversationId: string, messageId: string, download = false) => `${mediaUrl(conversationId)}/${encodeURIComponent(messageId)}${download ? "?download=1" : ""}`;
+
+export interface SendProgress {
+  phase: "uploading" | "sending";
+  /** 0..1 while the file is being uploaded; null when unknown (the server is working). */
+  fraction: number | null;
+}
+
+type XhrOutcome = { status: number; body: unknown } | null;
+
+/** One XMLHttpRequest (the only browser API that reports UPLOAD progress). null = a network failure or abort. */
+export function xhrRequest(method: string, url: string, body: XMLHttpRequestBodyInit, headers: Record<string, string>, onUploadProgress?: (fraction: number) => void, XHR: typeof XMLHttpRequest | undefined = typeof XMLHttpRequest === "undefined" ? undefined : XMLHttpRequest): Promise<XhrOutcome> {
+  return new Promise((resolve) => {
+    if (!XHR) return resolve(null);
+    try {
+      const xhr = new XHR();
+      xhr.open(method, url);
+      xhr.withCredentials = false;
+      for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total > 0 && onUploadProgress) onUploadProgress(Math.min(1, e.loaded / e.total)); };
+      xhr.onerror = () => resolve(null);
+      xhr.onabort = () => resolve(null);
+      xhr.ontimeout = () => resolve(null);
+      xhr.onload = () => {
+        let parsed: unknown = null;
+        try { parsed = JSON.parse(xhr.responseText); } catch { parsed = null; }
+        resolve({ status: xhr.status, body: parsed });
+      };
+      xhr.send(body);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+const asReply = (o: XhrOutcome, video: boolean): PostResult => {
+  if (!o || !o.body || typeof o.body !== "object" || typeof (o.body as any).ok !== "boolean") return { kind: "network" };
+  const body = o.body as ReplyResponse;
+  return { kind: "response", status: o.status, body: body.ok ? body : { ...body, video } };
+};
+
+export interface SendAttachmentArgs {
+  conversationId: string;
+  file: File;
+  caption: string;
+  clientRequestId: string;
+  /** A staged copy a previous attempt already uploaded (same file, same request): it is reused instead of uploading again. */
+  staged?: { path: string } | null;
+  onProgress?: (p: SendProgress) => void;
+  onStaged?: (path: string) => void;
+  xhr?: typeof XMLHttpRequest;
+  fetchImpl?: typeof fetch;
+  /** Whether the file must go through staging (a video over the direct limit). */
+  staging: boolean;
+}
+
+export async function sendAttachment(a: SendAttachmentArgs): Promise<PostResult> {
+  const fetchImpl = a.fetchImpl ?? fetch;
+  const isVideo = a.staging || /^video\//i.test(a.file.type);
+  const note = (p: SendProgress) => a.onProgress?.(p);
+  if (!a.staging) {
+    const form = new FormData();
+    form.append("file", a.file, a.file.name);
+    form.append("client_request_id", a.clientRequestId);
+    if (a.caption.trim()) form.append("caption", a.caption.trim());
+    note({ phase: "uploading", fraction: 0 });
+    const out = await xhrRequest("POST", mediaUrl(a.conversationId), form, { "x-ringo-upload": "1" }, (f) => note({ phase: f >= 1 ? "sending" : "uploading", fraction: f >= 1 ? null : f }), a.xhr);
+    return asReply(out, isVideo);
+  }
+
+  // 1. a signed upload url for a private staging object (skipped when an earlier attempt of THIS send already uploaded the file)
+  let path = a.staged?.path ?? null;
+  if (!path) {
+    note({ phase: "uploading", fraction: 0 });
+    let stageRes: Response;
+    try {
+      stageRes = await fetchImpl(stageUrl(a.conversationId), { method: "POST", headers: { "Content-Type": "application/json", "x-ringo-upload": "1" }, body: JSON.stringify({ name: a.file.name, type: a.file.type, size: a.file.size, client_request_id: a.clientRequestId }), credentials: "same-origin" });
+    } catch {
+      return { kind: "network" };
+    }
+    const stage = (await stageRes.json().catch(() => null)) as { ok?: boolean; error?: string; path?: string; upload_url?: string; headers?: Record<string, string> } | null;
+    if (!stage || typeof stage.ok !== "boolean") return { kind: "network" };
+    if (!stage.ok || !stage.path || !stage.upload_url) return { kind: "response", status: stageRes.status, body: { ok: false, error: stage.error || "staging_unavailable", video: true } };
+
+    // 2. the file goes straight to storage (a signed url: no session needed, no size limit of ours in the way)
+    const body = new FormData();
+    body.append("cacheControl", "3600");
+    body.append("", a.file);
+    // the headers the server says the signed upload url needs, forwarded as they are
+    const headers: Record<string, string> = {};
+    for (const [k, v] of Object.entries(stage.headers ?? {})) if (typeof v === "string") headers[k] = v;
+    const up = await xhrRequest("PUT", stage.upload_url, body, headers, (f) => note({ phase: "uploading", fraction: f }), a.xhr);
+    // Supabase answers a second upload to the same path with a "Duplicate" (HTTP 400, statusCode 409): the staged file from an earlier attempt of THIS send is already there, which is what we want
+    const duplicate = !!up && up.status === 400 && !!up.body && typeof up.body === "object" && ((up.body as any).statusCode === "409" || (up.body as any).error === "Duplicate");
+    if (!duplicate && (!up || up.status < 200 || up.status >= 300)) {
+      return { kind: "response", status: up?.status ?? 0, body: { ok: false, error: up && up.status === 413 ? "too_large" : "upload_failed_client", video: true } };
+    }
+    path = stage.path;
+    a.onStaged?.(path);
+  }
+
+  // 3. ask the server to send the staged video
+  note({ phase: "sending", fraction: null });
+  const sent = await xhrRequest("POST", mediaUrl(a.conversationId), JSON.stringify({ staged_path: path, name: a.file.name, type: a.file.type, client_request_id: a.clientRequestId, caption: a.caption.trim() || undefined }), { "Content-Type": "application/json", "x-ringo-upload": "1" }, undefined, a.xhr);
+  return asReply(sent, true);
 }
