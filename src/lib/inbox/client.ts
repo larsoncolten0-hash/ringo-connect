@@ -144,6 +144,7 @@ export async function callInboxTool(method: "POST" | "PATCH" | "DELETE", url: st
 
 export const savedRepliesUrl = (id?: string) => (id ? `/api/inbox/saved-replies/${encodeURIComponent(id)}` : "/api/inbox/saved-replies");
 export const settingsUrl = "/api/inbox/settings";
+export const salesBotSwitchUrl = "/api/inbox/sales-bot";
 export const statusUrl = (conversationId: string) => `/api/inbox/conversations/${encodeURIComponent(conversationId)}/status`;
 
 export type ToolErrorKey = "replyTitleTaken" | "replyLimit" | "replyInvalid" | "savedReplyFailed" | "savedReplyGone" | "statusUpdateFailed";

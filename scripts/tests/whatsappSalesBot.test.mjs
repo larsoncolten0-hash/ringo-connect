@@ -223,6 +223,29 @@ try {
   check("verify script: every row ok", ver.length >= 10 && ver.every((x) => x.ok === true), JSON.stringify(ver.filter((x) => !x.ok)));
   check("privileges: only service_role can execute the functions; no API role can touch either table", (await q1(`select has_function_privilege('anon','public.wa_sales_begin(text,text)','execute') a, has_function_privilege('authenticated','public.wa_sales_save(uuid,integer,text,jsonb,boolean,uuid)','execute') b, has_function_privilege('service_role','public.wa_sales_begin(text,text)','execute') c, has_table_privilege('authenticated','public.wa_sales_sessions','select') d, has_table_privilege('service_role','public.wa_sales_processed','select') e`)).every((r) => r.a === false && r.b === false && r.c === true && r.d === false && r.e === false));
 
+  // ============================================================ the owner's ON/OFF switch: its own additive migration
+  const MIG2 = read("supabase/migrations/2026-12-20_whatsapp_sales_bot_owner_switch.sql"), VERIFY2 = read("supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.verify.sql"), ROLLBACK2 = read("supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.rollback.sql");
+  const before2 = (await q1(OBJ)).map((r) => r.x);
+  const bare2 = MIG2.split("\n").filter((l) => !l.trim().startsWith("--")).join("\n");
+  check("switch migration: no alter/drop/replace of any existing object, no hard-coded ids", !/\balter\s+table\s+public\.(?!wa_sales_)/i.test(bare2) && !/\bdrop\s+(table|function|policy|trigger)/i.test(bare2) && !/[0-9]{12,}/.test(bare2) && !/create or replace function public\.wa_sales_(begin|save|set_handoff|payment_context)/.test(bare2));
+  await db.exec(MIG2);
+  check("switch migration applies and is idempotent", await db.exec(MIG2).then(() => true, () => false));
+  const added2 = (await q1(OBJ)).map((r) => r.x).filter((x) => !before2.includes(x));
+  check("switch migration: exactly two new tables and three new functions, nothing else", added2.filter((x) => x.startsWith("tbl:")).sort().join() === "tbl:wa_sales_settings,tbl:wa_sales_settings_log" && added2.filter((x) => x.startsWith("fn:")).sort().join() === "fn:wa_sales_enabled,fn:wa_sales_settings_get,fn:wa_sales_settings_set" && added2.every((x) => /^(tbl:wa_sales_|fn:wa_sales_|col:wa_sales_|idx:wa_sales_)/.test(x)), added2.join());
+  const ver2 = await q1(firstStatement(VERIFY2));
+  check("switch verify script: every row ok", ver2.length >= 12 && ver2.every((x) => x.ok === true), JSON.stringify(ver2.filter((x) => !x.ok)));
+  const sw = (fn, args) => asService(`select public.${fn}(${Object.entries(args).map(([k, v]) => `${k} => ${sq(v)}`).join(", ")}) as r`).then((x) => x.rows[0].r);
+  check("switch: OFF by default (no row = off; unknown number = off)", (await sw("wa_sales_enabled", { p_phone_number_id: PH_A })) === false && (await sw("wa_sales_enabled", { p_phone_number_id: "0000" })) === false && (await sw("wa_sales_enabled", { p_phone_number_id: null })) === false);
+  check("switch: the owner reads OFF; another owner's or an invalid profile is not_found", (await sw("wa_sales_settings_get", { p_actor_user_id: alice.user, p_profile_id: alice.profile })).enabled === false && (await sw("wa_sales_settings_get", { p_actor_user_id: bob.user, p_profile_id: alice.profile })).result === "not_found" && (await sw("wa_sales_settings_get", { p_actor_user_id: alice.user, p_profile_id: bob.profile })).result === "not_found" && (await sw("wa_sales_settings_get", { p_actor_user_id: null, p_profile_id: alice.profile })).result === "not_found");
+  check("switch: another owner cannot turn alice's switch on (not_found), a profile that is not the actor's is refused, nothing changes, nothing is logged", (await sw("wa_sales_settings_set", { p_actor_user_id: bob.user, p_profile_id: alice.profile, p_enabled: true })) === "not_found" && (await sw("wa_sales_settings_set", { p_actor_user_id: alice.user, p_profile_id: bob.profile, p_enabled: true })) === "not_found" && (await sw("wa_sales_settings_set", { p_actor_user_id: alice.user, p_profile_id: alice.profile, p_enabled: null })) === "invalid" && (await count("wa_sales_settings")) === 0 && (await count("wa_sales_settings_log")) === 0);
+  await db.exec(`insert into public.users values ('c0000000-0000-4000-8000-000000000003','n@x.test'); insert into public.profiles values ('a0000000-0000-4000-8000-000000000003','c0000000-0000-4000-8000-000000000003','nowa')`);
+  check("switch: a profile with no WhatsApp account is not_found for both read and write", (await sw("wa_sales_settings_set", { p_actor_user_id: "c0000000-0000-4000-8000-000000000003", p_profile_id: "a0000000-0000-4000-8000-000000000003", p_enabled: true })) === "not_found" && (await sw("wa_sales_settings_get", { p_actor_user_id: "c0000000-0000-4000-8000-000000000003", p_profile_id: "a0000000-0000-4000-8000-000000000003" })).result === "not_found");
+  check("switch: OFF -> OFF is a no-op and writes nothing", (await sw("wa_sales_settings_set", { p_actor_user_id: alice.user, p_profile_id: alice.profile, p_enabled: false })) === "noop" && (await count("wa_sales_settings_log")) === 0);
+  check("switch: the owner turns it ON: saved, audited with the actor, and the gate opens for her number only", (await sw("wa_sales_settings_set", { p_actor_user_id: alice.user, p_profile_id: alice.profile, p_enabled: true })) === "ok" && (await sw("wa_sales_enabled", { p_phone_number_id: PH_A })) === true && (await sw("wa_sales_enabled", { p_phone_number_id: PH_B })) === false && (await q1("select actor_user_id, enabled, profile_id from public.wa_sales_settings_log"))[0].actor_user_id === alice.user && (await count("wa_sales_settings_log")) === 1);
+  check("switch: ON -> ON is a no-op (no second audit row); reads back ON", (await sw("wa_sales_settings_set", { p_actor_user_id: alice.user, p_profile_id: alice.profile, p_enabled: true })) === "noop" && (await count("wa_sales_settings_log")) === 1 && (await sw("wa_sales_settings_get", { p_actor_user_id: alice.user, p_profile_id: alice.profile })).enabled === true);
+  const priv2 = (await q1("select has_function_privilege('anon','public.wa_sales_enabled(text)','execute') a, has_function_privilege('authenticated','public.wa_sales_settings_set(uuid,uuid,boolean)','execute') b, has_table_privilege('authenticated','public.wa_sales_settings','select') c, has_table_privilege('service_role','public.wa_sales_settings_log','insert') d, has_function_privilege('service_role','public.wa_sales_enabled(text)','execute') e"))[0];
+  check("switch: no API role can reach the tables or functions; only service_role can execute", !priv2.a && !priv2.b && !priv2.c && !priv2.d && priv2.e);
+
   // ============================================================ offers come from the add-on configuration
   const resolved = await Offers.resolveSmartCardOffers(mkAdmin());
   check("offers: the three tiers are resolved from the add-on rows (Standard = Basic 30 days, Pro = Pro 30 days, Premium = Basic 365 days), prices read, the unrelated add-on ignored", resolved.offers.map((o) => `${o.tier}:${o.priceXaf}:${o.planName}:${o.days}`).join() === "standard:3500:basic:30,pro:5000:pro:30,premium:10000:basic:365" && resolved.missing.length === 0 && resolved.offers.every((o) => o.hasQr && o.hasConfig));
@@ -545,6 +568,56 @@ try {
   check("RESUME copy exists in English and French", ["resumeSalesBot", "resumeSalesBotDone", "resumeSalesBotNotPaused", "resumeSalesBotFailed"].every((k) => typeof translations.en.inbox[k] === "string" && typeof translations.fr.inbox[k] === "string" && translations.fr.inbox[k] !== translations.en.inbox[k]));
   check("PAYMENT-SENT copy no longer promises a message 'as soon as' it is confirmed (EN and FR)", !/as soon as/i.test(EN.paymentSent("MTN", "123")) && !/dès (qu|que)/i.test(FR.paymentSent("MTN", "123")) && /try to let you know/.test(EN.paymentSent("MTN", "123")) && /essaierons de vous prévenir/.test(FR.paymentSent("MTN", "123")));
 
+  // --- the owner's switch OFF: silence for everyone, including mid-order, without touching orders, payments, storage, push or the paid notice
+  reset();
+  const WA10 = "237677101010";
+  for (const t of ["hello", "1", "1", "1", "Rose Ndi"]) await say(t, WA10);
+  const mid10 = await sessionOf(WA10); const conv10 = await convOf(WA10);
+  check("SWITCH setup: a customer is in the middle of an order (asking the address)", mid10.state === "ASK_ADDRESS" && mid10.data.name === "Rose Ndi");
+  await sw("wa_sales_settings_set", { p_actor_user_id: alice.user, p_profile_id: alice.profile, p_enabled: false });
+  reset();
+  const offReplies = [await say("Bonamoussadi, Douala", WA10), await say("human", WA10), await say("0", WA10), await say("hello", "237677101011"), await say("x", WA10, { type: "image" })];
+  check("SWITCH OFF: no reply at all, not even to a customer mid-order, to 'human', to the menu, to a new customer or to media; no outbound request to Meta", offReplies.every((x) => x.status === 200 && x.sent === 0) && fetchCalls.length === 0);
+  const after10 = await sessionOf(WA10);
+  check("SWITCH OFF: the session is untouched (same state, data, version, no hand-off); nothing was claimed as processed; a new customer gets no session; no hand-off push", after10.state === mid10.state && after10.version === mid10.version && after10.handoff === false && JSON.stringify(after10.data) === JSON.stringify(mid10.data) && (await count("wa_sales_processed", `conversation_id = '${conv10}' and provider_message_id in (${offReplies.map((x) => "'" + x.id + "'").join(",")})`)) === 0 && !(await sessionOf("237677101011")) && !pushes.some((p) => p.payload.category === "inbox_handoff"));
+  check("SWITCH OFF: inbound messages are still stored in the Inbox and the normal new-message push still goes out", (await count("inbox_messages", `conversation_id = '${conv10}' and direction = 'inbound'`)) >= 9 && pushes.length >= 1 && pushes.every((p) => p.userId === alice.user) && !pushes.some((p) => p.payload.category === "inbox_handoff"));
+  const gateRes = await Runner.handleSalesBotMessage({ admin: mkAdmin() }, { phoneNumberId: PH_A, messageId: offReplies[0].id });
+  check("SWITCH OFF: the runner itself also refuses (second layer), logging a category only", gateRes.result === "off" && logs.some((l) => l.includes("switched_off")));
+  reset();
+  const noticeOff = await Notice.notifyWhatsAppOrderPaid(mkAdmin(), req2.id);
+  check("SWITCH OFF: the paid-order confirmation never consults the switch (hook and payment code do not reference it)", noticeOff.result !== "off" && !read("src/lib/salesBot/paymentNotice.ts").includes("wa_sales_enabled") && !read("src/lib/signupPayment.ts").includes("wa_sales_enabled"));
+  check("SWITCH OFF: pending orders and payments are untouched (the switch migration never references signup requests, Fapshi or orders)", !/signup_requests|fapshi|orders/.test(bare2));
+  const resumeOff = await Handoff.resumeSalesBot({ admin: mkAdmin(), userId: alice.user, profileId: alice.profile }, conv10);
+  check("SWITCH OFF: the per-conversation resume action still works (a no-op here, nothing is in hand-off)", resumeOff.status === 200 && resumeOff.body.state === "noop");
+  rpcMode = "sales_error";
+  r = await say("hi", WA10);
+  check("SWITCH read error: the bot fails closed (silent), the message is still stored and answered 200, nothing leaks", r.status === 200 && r.sent === 0 && !logs.join("\n").includes("SECRET BOT TEXT"));
+  rpcMode = "ok"; reset();
+  await sw("wa_sales_settings_set", { p_actor_user_id: alice.user, p_profile_id: alice.profile, p_enabled: true });
+  r = await say("0", WA10);
+  check("SWITCH back ON: the bot answers again, with the customer's earlier state intact (the 0 cancels the half-made order as always)", r.status === 200 && r.sent === 1 && r.reply.startsWith(translations.en.inbox.salesBot.cancelled));
+  check("SWITCH audit: every real change is logged with the actor (on, off, on) and nothing else", (await q1("select enabled from public.wa_sales_settings_log order by id")).map((x) => x.enabled).join() === "true,false,true");
+  process.env.WHATSAPP_SALES_BOT_PHONE_NUMBER_ID = PH_B; reset();
+  r = await say("hi", "237677101012");
+  process.env.WHATSAPP_SALES_BOT_PHONE_NUMBER_ID = PH_A;
+  check("ENV GATE still decisive: with the owner's switch ON but the environment variable naming another number, the bot stays silent", r.sent === 0);
+  delete process.env.WHATSAPP_SALES_BOT_PHONE_NUMBER_ID; reset();
+  r = await say("hi", "237677101013");
+  process.env.WHATSAPP_SALES_BOT_PHONE_NUMBER_ID = PH_A;
+  check("ENV GATE still decisive: with the switch ON and the variable unset the bot is off", r.sent === 0);
+  const SwitchLib = src("lib/salesBot/settings.ts");
+  const aliceA = { admin: mkAdmin(), userId: alice.user, profileId: alice.profile };
+  check("switch route logic: a non-boolean body is rejected (422), a bad profile id is 404, before any database call", (await SwitchLib.saveSalesBotSwitch(aliceA, { enabled: "yes" })).status === 422 && (await SwitchLib.saveSalesBotSwitch(aliceA, {})).status === 422 && (await SwitchLib.saveSalesBotSwitch({ ...aliceA, profileId: "x" }, { enabled: true })).status === 404);
+  check("switch route logic: another owner's profile is 404, the owner's own is 200 and reads back", (await SwitchLib.saveSalesBotSwitch({ ...aliceA, userId: bob.user }, { enabled: false })).status === 404 && (await SwitchLib.saveSalesBotSwitch(aliceA, { enabled: false })).body.state === "off" && (await SwitchLib.loadSalesBotSwitch(mkAdmin(), alice.user, alice.profile)) === false && (await SwitchLib.saveSalesBotSwitch(aliceA, { enabled: true })).body.state === "on" && (await SwitchLib.loadSalesBotSwitch(mkAdmin(), alice.user, alice.profile)) === true);
+  rpcMode = "sales_error";
+  const swFail = await SwitchLib.saveSalesBotSwitch(aliceA, { enabled: false }); const swRead = await SwitchLib.loadSalesBotSwitch(mkAdmin(), alice.user, alice.profile);
+  rpcMode = "ok";
+  check("switch route logic: a database error is a 500 with nothing leaked, and an unreadable switch loads as null (the control is then hidden)", swFail.status === 500 && swFail.body.error === "server_error" && swRead === null && !logs.join("\n").includes("SECRET BOT TEXT"));
+  const swRoute = read("src/app/api/inbox/sales-bot/route.ts"), swPage = read("src/app/dashboard/inbox/settings/page.tsx"), swForm = read("src/components/inbox/InboxSettingsForm.tsx");
+  check("switch route: owner-only wrapper (no team-member or admin path), body handled only by saveSalesBotSwitch, no owner/profile read from the request", /withInboxOwner\(request, \(actor, body\) => saveSalesBotSwitch\(actor, body\)\)/.test(swRoute) && !/withConversationActor|withSavedReplyActor|assertAdmin|profile_id|owner_id/.test(swRoute));
+  check("switch UI: only on the owner's settings page, only when the bot is configured and the saved value was readable; the form sends only the boolean, only when changed", /salesBotConfigured\(\)/.test(swPage) && /resolveInboxOwner/.test(swPage) && /botSwitch === null \? null/.test(swPage) && /botOn !== salesBot\.enabled/.test(swForm) && /\{ enabled: botOn \}/.test(swForm) && !/assertAdmin|\/admin/.test(swPage + swForm));
+  check("switch copy: EN and FR present, non-empty and different; the help mentions the PIN rule and that payments are not affected", ["salesBotTitle", "salesBotHelp", "salesBotEnabled", "salesBotSaveFailed"].every((k) => translations.en.inbox.settings[k].length > 5 && translations.fr.inbox.settings[k].length > 5 && translations.en.inbox.settings[k] !== translations.fr.inbox.settings[k]) && /PIN/.test(translations.en.inbox.settings.salesBotHelp) && /PIN/.test(translations.fr.inbox.settings.salesBotHelp) && /not affected/.test(translations.en.inbox.settings.salesBotHelp));
+
   // --- failure isolation
   reset(); rpcMode = "sales_error";
   r = await say("hi", "237677888999");
@@ -591,11 +664,13 @@ try {
   check("the webhook order is unchanged: the bot runs AFTER the message is stored, the notice raised and the push sent, in its own try/catch with a timeout, only for the configured number", auto.indexOf("await onInboundMessage(deps, e);\n        await runSalesBot(deps, e);") > 0 && /salesBotEnabledFor\(e\.phoneNumberId, deps\.env\)/.test(auto) && /withTimeout\(handleSalesBotMessage\(/.test(auto) && /SALES_BOT_TIMEOUT_MS/.test(auto));
   const sp = read("src/lib/signupPayment.ts");
   check("the payment hook is purely additive: inside the existing best-effort fan-out, and computeSignupAmount / confirmSignupPayment / markSignupPaid are unchanged in their logic", /notifyWhatsAppOrderPaid\(admin, request\.id\)/.test(sp) && sp.indexOf("notifyWhatsAppOrderPaid") > sp.indexOf("async function notifySignupPaid") && sp.indexOf("notifyWhatsAppOrderPaid") < sp.indexOf("async function markSignupPaid"));
+  const rollback2 = await db.exec(ROLLBACK2).then(() => true, () => false);
+  check("switch rollback removes exactly its two tables and three functions, leaving the bot's own objects, and is safe to re-run", rollback2 && (await q1(OBJ)).map((x) => x.x).filter((x) => /wa_sales_(settings|enabled)/.test(x)).length === 0 && (await q1(OBJ)).map((x) => x.x).includes("fn:wa_sales_begin") && await db.exec(ROLLBACK2).then(() => true, () => false));
   const rollback = await db.exec(ROLLBACK).then(() => true, () => false);
   check("rollback removes exactly the bot's functions and tables, and is safe to re-run", rollback && (await q1(OBJ)).map((x) => x.x).filter((x) => /wa_sales_/.test(x)).length === 0 && await db.exec(ROLLBACK).then(() => true, () => false));
   reset();
   r = await say("hi", "237677999000");
-  check("after the rollback the webhook still stores the message and answers 200 (the bot fails safely, the Inbox and push are untouched)", r.status === 200 && pushes.length === 1 && (await count("inbox_messages", `conversation_id = '${await convOf("237677999000")}' and direction = 'inbound'`)) === 1);
+  check("after the rollback the webhook still stores the message and answers 200 (the bot fails safely and stays silent, the Inbox and push are untouched)", r.status === 200 && r.sent === 0 && pushes.length === 1 && (await count("inbox_messages", `conversation_id = '${await convOf("237677999000")}' and direction = 'inbound'`)) === 1);
 } finally { console.info = origInfo; console.error = origErr; globalThis.fetch = realFetch; }
 
 const failed = results.filter((x) => !x.pass);

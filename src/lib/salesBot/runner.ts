@@ -137,6 +137,10 @@ function payReply(lang: Lang, outcome: PayOutcome, medium: string, phone: string
  * stays silent while a human has taken over, and never throws.
  */
 export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumberId: string; messageId: string }): Promise<{ result: string }> {
+  // The owner's switch (second gate, after the environment gate in automation.ts). Asked BEFORE the message is claimed, so an OFF bot neither answers nor consumes it; a read error counts as OFF.
+  const gate = await rpc(deps.admin, "wa_sales_enabled", { p_phone_number_id: e.phoneNumberId });
+  if (!gate.ok || gate.data !== true) { log({ result: gate.ok ? "switched_off" : "gate_failed", ...(gate.ok ? {} : { code: gate.code }) }); return { result: "off" }; }
+
   const begun = await rpc(deps.admin, "wa_sales_begin", { p_phone_number_id: e.phoneNumberId, p_provider_message_id: e.messageId });
   if (!begun.ok) {
     log({ result: "begin_failed", code: begun.code });

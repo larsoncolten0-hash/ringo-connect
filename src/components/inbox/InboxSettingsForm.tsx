@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
-import { callInboxTool, settingsUrl } from "@/lib/inbox/client";
+import { callInboxTool, salesBotSwitchUrl, settingsUrl } from "@/lib/inbox/client";
 import { ACK_MAX, DAYS, toSavePayload, validateSettings, type AckMode, type Day, type InboxSettings, type SettingsErrorKey } from "@/lib/inbox/settings";
 
 // The owner's inbox automation settings. Everything is OFF until switched on. Saving is ONE call to our own route (the profile comes from the
@@ -13,7 +13,8 @@ import { ACK_MAX, DAYS, toSavePayload, validateSettings, type AckMode, type Day,
 
 const DEFAULT_INTERVAL: [string, string] = ["09:00", "18:00"];
 
-export default function InboxSettingsForm({ initial, available }: { initial: InboxSettings; available: boolean }) {
+/** salesBot: the owner's Smart Card sales bot switch; null = not offered (the bot is not configured on this deployment, or the switch could not be read). */
+export default function InboxSettingsForm({ initial, available, salesBot = null }: { initial: InboxSettings; available: boolean; salesBot?: { enabled: boolean } | null }) {
   const { t, locale } = useLanguage();
   const s = t.inbox.settings;
   const router = useRouter();
@@ -21,6 +22,8 @@ export default function InboxSettingsForm({ initial, available }: { initial: Inb
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<SettingsErrorKey | null>(null);
   const [savedOnce, setSavedOnce] = useState(false);
+  const [botOn, setBotOn] = useState(salesBot?.enabled === true);
+  const [botError, setBotError] = useState(false);
   const inFlight = useRef(false);
   const set = (patch: Partial<InboxSettings>) => {
     setDraft((d) => ({ ...d, ...patch }));
@@ -47,13 +50,18 @@ export default function InboxSettingsForm({ initial, available }: { initial: Inb
     inFlight.current = true;
     setBusy(true);
     setError(null);
+    setBotError(false);
     const r = await callInboxTool("POST", settingsUrl, toSavePayload(draft));
     inFlight.current = false;
     setBusy(false);
-    if (r.kind === "response" && r.body.ok) {
-      setSavedOnce(true);
-      router.refresh();
-    } else setError("saveFailed");
+    if (!(r.kind === "response" && r.body.ok)) return setError("saveFailed");
+    // The sales bot switch is its own owner-only call (own route, own database function and audit row); it is only sent when the owner changed it.
+    if (salesBot && botOn !== salesBot.enabled) {
+      const b = await callInboxTool("POST", salesBotSwitchUrl, { enabled: botOn });
+      if (!(b.kind === "response" && b.body.ok)) return setBotError(true);
+    }
+    setSavedOnce(true);
+    router.refresh();
   }
 
   const label = "block text-xs font-medium text-ringo-text";
@@ -128,6 +136,14 @@ export default function InboxSettingsForm({ initial, available }: { initial: Inb
           <input id="fu-hours" type="number" inputMode="numeric" min={1} max={168} step={1} value={draft.followUpAfterHours} onChange={(e) => set({ followUpAfterHours: Number(e.target.value) })} className={`${field} max-w-[8rem]`} />
         </section>
 
+        {salesBot && (
+          <section className={card} aria-labelledby="sb-h" data-testid="sales-bot-switch">
+            <h2 id="sb-h" className="text-sm font-semibold text-ringo-text">{s.salesBotTitle}</h2>
+            <p className="mt-1 text-xs text-ringo-muted">{s.salesBotHelp}</p>
+            <div className="mt-2">{check("sb-on", s.salesBotEnabled, botOn, (v) => { setBotOn(v); setSavedOnce(false); })}</div>
+          </section>
+        )}
+
         <section className={card} aria-labelledby="nt-h">
           <h2 id="nt-h" className="text-sm font-semibold text-ringo-text">{s.notifyTitle}</h2>
           <div className="mt-2 flex flex-col">
@@ -144,8 +160,9 @@ export default function InboxSettingsForm({ initial, available }: { initial: Inb
       </fieldset>
 
       <div aria-live="polite" className="min-h-[1.25rem] text-sm">
+        {botError && !error && <p role="alert" className="text-red-600 dark:text-red-400">{s.salesBotSaveFailed}</p>}
         {error && <p role="alert" className="text-red-600 dark:text-red-400">{s.errors[error]}</p>}
-        {savedOnce && !error && <p role="status" className="text-emerald-700 dark:text-emerald-400">{s.saved}</p>}
+        {savedOnce && !error && !botError && <p role="status" className="text-emerald-700 dark:text-emerald-400">{s.saved}</p>}
       </div>
       <div>
         <button type="submit" disabled={!available || busy} data-locale={locale} className="inline-flex min-h-[44px] items-center rounded-full bg-ringo-indigo px-5 text-sm font-medium text-white disabled:opacity-60">

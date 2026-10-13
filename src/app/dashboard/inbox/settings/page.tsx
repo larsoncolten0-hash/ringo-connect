@@ -3,6 +3,9 @@ import InboxSettingsForm from "@/components/inbox/InboxSettingsForm";
 import { resolveInboxOwner } from "@/lib/inbox/access";
 import { loadInboxSettings } from "@/lib/inbox/automationData";
 import { DEFAULT_SETTINGS } from "@/lib/inbox/settings";
+import { salesBotConfigured } from "@/lib/salesBot/ids";
+import { loadSalesBotSwitch } from "@/lib/salesBot/settings";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -14,5 +17,14 @@ export default async function InboxSettingsPage() {
   if (!access.ok) redirect("/dashboard");
   const { owner } = access;
   const res = await loadInboxSettings(owner.supabase, owner.profileId);
-  return <InboxSettingsForm initial={res.ok ? res.settings : { ...DEFAULT_SETTINGS, businessHours: {} }} available={res.ok} />;
+  // The Smart Card sales bot switch is offered only when the bot is configured on this deployment (the environment gate) and the owner's saved value could be read (the database re-checks ownership).
+  let botSwitch: boolean | null = null;
+  if (salesBotConfigured()) {
+    try {
+      botSwitch = await loadSalesBotSwitch(createAdminClient() as any, owner.userId, owner.profileId);
+    } catch {
+      botSwitch = null;
+    }
+  }
+  return <InboxSettingsForm initial={res.ok ? res.settings : { ...DEFAULT_SETTINGS, businessHours: {} }} available={res.ok} salesBot={botSwitch === null ? null : { enabled: botSwitch }} />;
 }

@@ -363,6 +363,10 @@ await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, ord
     "supabase/support/2026-12-19_whatsapp_sales_bot.rollback.sql",
     "supabase/support/2026-12-19_whatsapp_sales_bot.verify.sql",
     "src/app/api/inbox/conversations/[id]/sales-bot/route.ts",
+    "src/app/api/inbox/sales-bot/route.ts",
+    "supabase/migrations/2026-12-20_whatsapp_sales_bot_owner_switch.sql",
+    "supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.rollback.sql",
+    "supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.verify.sql",
   ]);
   const forbidden = /(^|\/)(middleware|fapshi|stripe|webhook|payout|commission|inventory|checkout|orders?|billing|protection|useTrackPlayback|previewLimit)|\/api\/|^supabase\//i;
   assert.deepEqual(changed.filter((f) => forbidden.test(f) && !ALLOWED.has(f) && !/phase2[0-9]Files|\.test\.mjs$/.test(f)), [], "no sensitive file is among the changed ones");
