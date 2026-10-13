@@ -8,16 +8,34 @@ import type { Offer, TierKey } from "./offers";
 
 export type BotState =
   | "WELCOME" | "CARDS" | "COMPARE" | "CARD_DETAIL" | "HOW_IT_WORKS" | "FAQ" | "RECOMMEND_1" | "RECOMMEND_2"
-  | "ASK_NAME" | "ASK_ADDRESS" | "ASK_USERNAME" | "ASK_OPERATOR" | "ASK_PAY_PHONE" | "REVIEW" | "EDIT_MENU"
+  | "ASK_NAME" | "ASK_ADDRESS" | "ASK_EMAIL" | "ASK_USERNAME" | "ASK_OPERATOR" | "ASK_PAY_PHONE" | "REVIEW" | "EDIT_MENU"
   | "CREATING" | "PAYMENT" | "COMPLETED" | "HUMAN_HANDOFF";
-export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
+export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
+
+/**
+ * The database (wa_sales_sessions.state, wa_sales_save) already knows the states that existed when it was created, and is not altered for this feature. ASK_EMAIL is therefore stored as
+ * ASK_ADDRESS with a small flag in the data, and restored on the way back in. These two functions are the ONLY place that knows about it.
+ */
+export function toStored(state: BotState, data: BotData): { state: BotState; data: BotData } {
+  const { awaitEmail: _drop, ...rest } = data;
+  return state === "ASK_EMAIL" ? { state: "ASK_ADDRESS", data: { ...rest, awaitEmail: true } } : { state, data: rest };
+}
+export function fromStored(state: BotState, data: BotData): { state: BotState; data: BotData } {
+  const { awaitEmail, ...rest } = data;
+  return state === "ASK_ADDRESS" && awaitEmail === true ? { state: "ASK_EMAIL", data: rest } : { state, data: rest };
+}
 
 export type Lang = "en" | "fr";
 export interface BotData {
   lang?: Lang;
+  /** The customer typed fr / en themselves: from then on the language is never guessed from their messages. */
+  langLocked?: boolean;
   tier?: TierKey;
   name?: string;
   address?: string;
+  email?: string;
+  /** Storage detail for the e-mail step (see toStored / fromStored); never set by the machine itself. */
+  awaitEmail?: boolean;
   username?: string;
   medium?: SignupMedium;
   payPhone?: string;
@@ -45,8 +63,21 @@ export interface StepResult { state: BotState; data: BotData; handoff: boolean; 
 export const norm = (s: string): string => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’']/g, "'").replace(/\s+/g, " ").trim();
 const choiceOf = (t: string): number | null => { const m = /^(\d{1,2})[.)]?$/.exec(t); return m ? Number(m[1]) : null; };
 const has = (t: string, words: string[]) => words.includes(t);
-const FR_HINT = /\b(bonjour|bonsoir|salut|merci|oui|non|je veux|commander|carte|cartes|comment|svp|s'il|aide|humain|prix)\b/;
-export const detectLang = (t: string): Lang => (FR_HINT.test(t) ? "fr" : "en");
+// Language signals in ONE message (norm() lower-cases and strips accents). Digits, menu words and names carry no signal: the language then stays as it was.
+const FR_WORDS = /\b(bonjour|bonsoir|salut|merci|oui|je|veux|voudrais|souhaite|commander|commande|acheter|carte|cartes|comment|svp|aide|humain|prix|combien|quelle|quel|quels|quelles|livraison|livrer|abonnement|paiement|payer|vous|votre|vos|avez|pourquoi|pouvez|peux|ca|marche|fonctionne|renseignement|informations?|disponible|le|la|les|des|une|pour|avec|sans|mon|ma|mes|c'est|j'ai|s'il)\b/g;
+const EN_WORDS = /\b(hello|hi|hey|thanks|thank|please|yes|how|what|which|price|prices|cost|order|buy|want|need|would|like|card|cards|help|delivery|deliver|pay|payment|subscription|you|your|do|does|can|could|is|are|the|this|that|with|for|my|me|i|it|work|works|available|information|details)\b/g;
+const FR_ACCENT = /[àâçéèêëîïôùûü]/;
+/** The language of a message when it clearly is one; null when it gives no signal. */
+export function languageSignal(raw: string): Lang | null {
+  const lowered = String(raw ?? "").toLowerCase();
+  const t = norm(raw);
+  const fr = (t.match(FR_WORDS)?.length ?? 0) + (FR_ACCENT.test(lowered) ? 2 : 0);
+  const en = t.match(EN_WORDS)?.length ?? 0;
+  if (fr === en) return null;
+  return fr > en ? "fr" : "en";
+}
+export const detectLang = (t: string): Lang => languageSignal(t) ?? "en";
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const clean = (s: string, max: number) => s.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -54,21 +85,30 @@ const HUMAN_WORDS = ["human", "agent", "support", "representative", "representan
 const HUMAN_LOOSE = /\b(human|agent|representative|talk to (a )?(someone|person|human)|speak to (a )?(someone|person|human)|real person|help|support|humain|conseiller|assistance|aide|parler a (quelqu|une personne))/;
 const MENU_WORDS = ["0", "menu", "main menu", "menu principal", "start", "hi", "hello", "hey", "bonjour", "bonsoir", "salut", "hola"];
 const CANCEL_WORDS = ["cancel", "reset", "restart", "annuler", "recommencer", "stop"];
+const IMAGE_WORDS = ["image", "images", "photo", "photos", "picture", "pictures", "see image", "see images", "see the card", "voir image", "voir images", "voir les images", "voir des images", "voir la carte", "voir photo", "voir photos"];
 const ORDER_WORDS = ["order", "buy", "i want to order", "commander", "acheter", "commande", "je veux commander"];
 const SKIP_WORDS = ["skip", "no", "none", "passer", "non", "aucun", "pas besoin"];
-const FREE_TEXT: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_USERNAME", "ASK_PAY_PHONE"];
-const ORDER_FLOW: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU"];
+const FREE_TEXT: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_PAY_PHONE"];
+const ORDER_FLOW: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU"];
 
 export const groupNum = (n: number, sep: string) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, sep);
 const lastDigits = (phone: string) => phone.slice(-3);
 
 function S(lang: Lang) { return translations[lang].inbox.salesBot; }
 function money(lang: Lang, n: number) { const T = S(lang); return T.price(groupNum(n, T.thousandsSep)); }
+/** The one-line subscription description (used on the payment receipt). */
+export function subscriptionLine(lang: Lang, o: Offer): string {
+  const T = S(lang);
+  return T.subscription(T.period(o.days), cap(o.planName));
+}
 function offerLines(lang: Lang, o: Offer): string[] {
   const T = S(lang);
   const lines = [T.subscription(T.period(o.days), cap(o.planName))];
   if (o.hasQr) lines.push(T.qrIncluded);
   if (o.hasConfig) lines.push(T.configIncluded);
+  // What the granted plan itself includes (Basic or Pro), straight from the plans table; the other language is the fallback when one list is missing.
+  const own = lang === "fr" ? o.featuresFr : o.featuresEn;
+  lines.push(...(own.length ? own : lang === "fr" ? o.featuresEn : o.featuresFr));
   return lines;
 }
 const offerFor = (facts: Facts, tier?: TierKey) => facts.offers.find((o) => o.tier === tier);
@@ -97,8 +137,8 @@ function includedAnswer(lang: Lang, facts: Facts): string {
 function reviewScreen(lang: Lang, d: BotData, facts: Facts, waDigits: string): string | null {
   const T = S(lang);
   const o = offerFor(facts, d.tier);
-  if (!o || !d.name || !d.address || !d.medium || !d.payPhone || typeof facts.total !== "number") return null;
-  return T.review({ label: T.tierLabel[o.tier], price: money(lang, o.priceXaf), total: money(lang, facts.total), name: d.name, username: d.username || null, phone: `+${waDigits}`, address: d.address, operator: T.operatorName[d.medium], last3: lastDigits(d.payPhone) });
+  if (!o || !d.name || !d.address || !d.email || !d.medium || !d.payPhone || typeof facts.total !== "number") return null;
+  return T.review({ label: T.tierLabel[o.tier], price: money(lang, o.priceXaf), total: money(lang, facts.total), name: d.name, email: d.email, username: d.username || null, phone: `+${waDigits}`, address: d.address, operator: T.operatorName[d.medium], last3: lastDigits(d.payPhone) });
 }
 function payPhonePrompt(lang: Lang, waDigits: string): string {
   const own = normalizeSignupPhone(waDigits);
@@ -119,6 +159,7 @@ function prompt(state: BotState, d: BotData, facts: Facts, lang: Lang): string {
     case "RECOMMEND_2": return T.rec2;
     case "ASK_NAME": return T.askName(o ? T.tierLabel[o.tier] : "");
     case "ASK_ADDRESS": return T.askAddress;
+    case "ASK_EMAIL": return T.askEmail;
     case "ASK_USERNAME": return T.askUsername;
     case "ASK_OPERATOR": return T.askOperator;
     case "ASK_PAY_PHONE": return payPhonePrompt(lang, facts.waDigits);
@@ -132,7 +173,7 @@ function prompt(state: BotState, d: BotData, facts: Facts, lang: Lang): string {
 /** The first prompt of the order: the customer picked a card. */
 function startOrder(d: BotData, facts: Facts, lang: Lang): StepResult | null {
   if (!offerFor(facts, d.tier)) return null;
-  const next: BotData = { lang: d.lang, tier: d.tier };
+  const next: BotData = { lang: d.lang, tier: d.tier, ...(d.langLocked ? { langLocked: true } : {}) };
   return { state: "ASK_NAME", data: next, handoff: false, reply: prompt("ASK_NAME", next, facts, lang), effect: "none" };
 }
 
@@ -142,13 +183,16 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
   const t = norm(text);
   const d: BotData = { ...session.data };
   const state = session.state;
-  const lang: Lang = d.lang ?? detectLang(t);
+  // The reply language follows the customer's own message (French in, French out; English in, English out). A typed fr / en is a choice they made, so it is kept (langLocked).
+  // Answers to free-text questions (a name, an address, an e-mail) say nothing about language, and neither do numbers or menu words.
+  const signal = d.langLocked || FREE_TEXT.includes(state) ? null : languageSignal(text);
+  const lang: Lang = signal ?? d.lang ?? "en";
   d.lang = lang;
   const T = S(lang);
   const out = (s: BotState, data: BotData, reply: string, effect: Effect = "none", handoff = false): StepResult => ({ state: s, data, handoff, reply, effect });
   const stay = (reply: string) => out(state, d, reply);
   const confused = () => stay(`${T.didNotUnderstand}\n\n${prompt(state, d, facts, lang)}`);
-  const welcome = (prefix = "") => out("WELCOME", { lang }, `${prefix}${T.welcome}`);
+  const welcome = (prefix = "") => out("WELCOME", { lang, ...(d.langLocked ? { langLocked: true } : {}) }, `${prefix}${T.welcome}`);
 
   if (session.handoff || state === "HUMAN_HANDOFF") return { state: "HUMAN_HANDOFF", data: d, handoff: true, reply: "", effect: "none" };
   if (!t) return confused();
@@ -160,7 +204,7 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
   // Language: any time, keeps the place in the conversation.
   if (has(t, ["fr", "francais", "french"]) || has(t, ["en", "english", "anglais"])) {
     const to: Lang = has(t, ["fr", "francais", "french"]) ? "fr" : "en";
-    const nd = { ...d, lang: to };
+    const nd = { ...d, lang: to, langLocked: true };
     const first = ORDER_FLOW.includes(state) || state === "PAYMENT" || state === "CREATING";
     return out(first ? state : "WELCOME", nd, `${S(to).langSwitched}\n\n${first ? prompt(state, nd, facts, to) : S(to).welcome}`);
   }
@@ -185,6 +229,9 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
       if (n === 2 || has(t, ["how it works", "comment ca marche", "how"])) return out("HOW_IT_WORKS", d, `${T.howItWorks}${T.howOptions}`);
       if (n === 3 || has(t, ["question", "questions", "faq"])) return out("FAQ", d, T.faqMenu);
       if (n === 4 || has(t, ORDER_WORDS)) return out("CARDS", d, cardsScreen(lang, facts));
+      // Pictures: the official Ringo profile shows the card; the bot just points there (it never sends or invents images).
+      if (n === 5 || has(t, IMAGE_WORDS)) return out(state === "COMPLETED" ? "COMPLETED" : "WELCOME", d, T.imagesInfo);
+      if (n === 6) return out("HUMAN_HANDOFF", d, T.handoff, "handoff", true);
       return state === "COMPLETED" ? out("COMPLETED", d, T.afterPaid) : confused();
     }
     case "CARDS": {
@@ -204,7 +251,7 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
         const o = offerFor(facts, d.tier);
         if (!o) return out("CARDS", d, cardsScreen(lang, facts));
         // Changing the card from the review keeps the answers already given.
-        if (d.returnTo === "REVIEW" && d.name && d.address && d.medium && d.payPhone) { d.returnTo = undefined; return out("REVIEW", d, prompt("REVIEW", d, facts, lang)); }
+        if (d.returnTo === "REVIEW" && d.name && d.address && d.email && d.medium && d.payPhone) { d.returnTo = undefined; return out("REVIEW", d, prompt("REVIEW", d, facts, lang)); }
         return startOrder(d, facts, lang) ?? out("CARDS", d, cardsScreen(lang, facts));
       }
       if (n === 2) return out("CARDS", d, cardsScreen(lang, facts));
@@ -245,6 +292,13 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
       const address = clean(text, 200);
       if (address.length < 5) return stay(T.askAddress);
       d.address = address;
+      return advance("ASK_EMAIL");
+    }
+    case "ASK_EMAIL": {
+      // Needed so the Ringo team can e-mail the login details when the request is approved. One address, no spaces.
+      const email = text.trim().toLowerCase();
+      if (email.length > 120 || !EMAIL_RE.test(email)) return stay(T.emailInvalid);
+      d.email = email;
       return advance("ASK_USERNAME");
     }
     case "ASK_USERNAME": {
@@ -280,6 +334,7 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
       return d.repay ? repay() : advance("REVIEW");
     }
     case "REVIEW": {
+      if (!d.email) return out("ASK_EMAIL", { ...d, returnTo: "REVIEW" }, T.askEmail);
       if (n === 1) {
         if (!offerFor(facts, d.tier) || typeof facts.total !== "number") return stay(T.orderFailed);
         return out("CREATING", d, T.creating, "create_and_pay");
@@ -290,9 +345,10 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
     case "EDIT_MENU": {
       if (n === 1) return out("ASK_NAME", { ...d, returnTo: "REVIEW" }, T.askName(offerFor(facts, d.tier) ? T.tierLabel[d.tier!] : ""));
       if (n === 2) return out("ASK_ADDRESS", { ...d, returnTo: "REVIEW" }, T.askAddress);
-      if (n === 3) return out("ASK_USERNAME", { ...d, returnTo: "REVIEW" }, T.askUsername);
-      if (n === 4) return out("ASK_OPERATOR", { ...d, returnTo: "REVIEW", payPhone: undefined, medium: undefined }, T.askOperator);
-      if (n === 5) return out("CARDS", { ...d, returnTo: "REVIEW" }, cardsScreen(lang, facts));
+      if (n === 3) return out("ASK_EMAIL", { ...d, returnTo: "REVIEW" }, T.askEmail);
+      if (n === 4) return out("ASK_USERNAME", { ...d, returnTo: "REVIEW" }, T.askUsername);
+      if (n === 5) return out("ASK_OPERATOR", { ...d, returnTo: "REVIEW", payPhone: undefined, medium: undefined }, T.askOperator);
+      if (n === 6) return out("CARDS", { ...d, returnTo: "REVIEW" }, cardsScreen(lang, facts));
       return confused();
     }
     case "PAYMENT": {
@@ -305,11 +361,12 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
 
   // The next question in the order. When one answer was changed from the review, go straight back to it.
   function advance(next: BotState): StepResult {
-    if (d.returnTo === "REVIEW" && d.name && d.address && d.medium && d.payPhone) {
+    if (d.returnTo === "REVIEW" && d.name && d.address && d.email && d.medium && d.payPhone) {
       d.returnTo = undefined;
       return out("REVIEW", d, prompt("REVIEW", d, facts, lang));
     }
     if (next === "ASK_OPERATOR" && d.returnTo === "REVIEW" && !d.medium) return out("ASK_OPERATOR", d, T.askOperator);
+    if (next === "REVIEW" && !d.email) return out("ASK_EMAIL", d, T.askEmail);
     if (next === "REVIEW") d.returnTo = undefined;
     return out(next, d, prompt(next, d, facts, lang));
   }

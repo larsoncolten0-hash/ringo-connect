@@ -7,7 +7,7 @@ import { computeSignupAmount, confirmSignupPayment } from "@/lib/signupPayment";
 import { POST as createSignupRoute } from "@/app/api/signup-requests/route";
 import { POST as paySignupRoute } from "@/app/api/signup-requests/[id]/pay/route";
 import { resolveSmartCardOffers, type Offer } from "./offers";
-import { step, type Facts, type Lang, type Session, type StepResult, type BotState } from "./machine";
+import { step, toStored, fromStored, type Facts, type Lang, type Session, type StepResult, type BotState } from "./machine";
 
 // The Smart Card sales bot's side-effect layer. The conversation logic is the pure machine in machine.ts; everything here is plumbing around EXISTING systems:
 //   * messages in/out      -> the Inbox: the inbound text was already stored by ingestion; every reply goes through the audited text sender (sendReply: ownership, 24-hour window,
@@ -100,7 +100,7 @@ async function createOrder(deps: SalesBotDeps, ctx: { waDigits: string }, s: Ste
       body: JSON.stringify({
         full_name: s.data.name,
         whatsapp_number: `+${ctx.waDigits}`,
-        email: null,
+        email: s.data.email || null,
         suggested_username: s.data.username || null,
         delivery_location: s.data.address,
         business_note: "Ordered via WhatsApp (Smart Card sales bot)",
@@ -154,10 +154,11 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
   const ownerUserId = str(b.owner_user_id);
   const waDigits = str(b.wa_id).replace(/[^0-9]/g, "");
   const raw = obj(b.session);
-  const data = obj(raw.data) as Session["data"];
+  // The e-mail step is stored as ASK_ADDRESS plus a flag (see machine.ts toStored / fromStored): the database is not altered for it.
+  const restored = fromStored((str(raw.state) || "WELCOME") as BotState, obj(raw.data) as Session["data"]);
   let session: Session = {
-    state: (str(raw.state) || "WELCOME") as BotState,
-    data,
+    state: restored.state,
+    data: restored.data,
     handoff: raw.handoff === true,
     signupRequestId: str(raw.signup_request_id) || null,
     version: Number(raw.version) || 0,
@@ -175,7 +176,8 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
     }
   };
   const save = async (state: BotState, d: Session["data"], handoff: boolean, signupRequestId?: string | null): Promise<boolean> => {
-    const saved = await rpc(deps.admin, "wa_sales_save", { p_conversation_id: conversationId, p_expected_version: session.version, p_state: state, p_data: d, p_handoff: handoff, p_signup_request_id: signupRequestId ?? null });
+    const stored = toStored(state, d);
+    const saved = await rpc(deps.admin, "wa_sales_save", { p_conversation_id: conversationId, p_expected_version: session.version, p_state: stored.state, p_data: stored.data, p_handoff: handoff, p_signup_request_id: signupRequestId ?? null });
     if (saved.ok && saved.data === "ok") {
       session = { ...session, state, data: d, handoff: session.handoff || handoff, signupRequestId: signupRequestId ?? session.signupRequestId, version: session.version + 1 };
       return true;

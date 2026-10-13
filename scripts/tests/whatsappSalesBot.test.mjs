@@ -91,7 +91,10 @@ const seedTables = () => {
   ];
   tables.signup_requests = [];
   tables.profiles = [{ id: "p-x", username: "taken_name" }];
-  tables.plans = [];
+  tables.plans = [
+    { name: "basic", features_en: ["Up to 15 links", "Up to 15 catalog items", "Unlimited social icons", "Custom theme", "Facebook & TikTok pixels", "Full analytics with history", 'Remove "Made with Ringo" badge', "Real restaurant ordering & music/ticket checkout", "Bookings enabled"], features_fr: ["Jusqu'à 15 liens", "Jusqu'à 15 articles au catalogue", "Icônes sociales illimitées", "Thème personnalisé", "Pixels Facebook et TikTok", "Analyses complètes avec historique", "Suppression du badge « Made with Ringo »", "Commandes restaurant et paiement musique/billetterie réels", "Réservations activées"] },
+    { name: "pro", features_en: ["Unlimited links", "Unlimited catalog items", "Unlimited social icons", "Custom theme", "Facebook & TikTok pixels", "Full analytics with history", 'Remove "Made with Ringo" badge', "Real restaurant ordering & music/ticket checkout", "Bookings enabled"], features_fr: ["Liens illimités", "Catalogue illimité", "Icônes sociales illimitées", "Thème personnalisé", "Pixels Facebook et TikTok", "Analyses complètes avec historique", "Suppression du badge « Made with Ringo »", "Commandes restaurant et paiement musique/billetterie réels", "Réservations activées"] },
+  ];
 };
 seedTables();
 let rowSeq = 0;
@@ -294,7 +297,7 @@ try {
   check("validation: a one-letter name is not accepted", s.state === "ASK_NAME");
   s = Machine.step(fresh("ASK_NAME", d0), "  Jean   Mbah ", facts());
   check("name is cleaned and the address is asked next", s.state === "ASK_ADDRESS" && s.data.name === "Jean Mbah");
-  check("validation: a too-short address is refused; a real one moves on to the username question", Machine.step(fresh("ASK_ADDRESS", d0), "Dla", facts()).state === "ASK_ADDRESS" && Machine.step(fresh("ASK_ADDRESS", d0), "Akwa, Douala", facts()).state === "ASK_USERNAME");
+  check("validation: a too-short address is refused; a real one moves on to the e-mail question", Machine.step(fresh("ASK_ADDRESS", d0), "Dla", facts()).state === "ASK_ADDRESS" && Machine.step(fresh("ASK_ADDRESS", d0), "Akwa, Douala", facts()).state === "ASK_EMAIL");
   check("username: 'skip' continues without one", (() => { const x = Machine.step(fresh("ASK_USERNAME", d0), "skip", facts()); return x.state === "ASK_OPERATOR" && !x.data.username; })());
   check("username: under 3 characters is refused (the same minimum as the admin review)", Machine.step(fresh("ASK_USERNAME", d0), "ab", facts()).reply === EN.usernameShort);
   check("username: taken is refused with the name echoed", Machine.step(fresh("ASK_USERNAME", d0), "Taken_Name", facts({ usernameStatus: "taken" })).reply === EN.usernameTaken("taken_name"));
@@ -302,12 +305,12 @@ try {
   check("username: available is kept and the payment question follows", (() => { const x = Machine.step(fresh("ASK_USERNAME", d0), "johnmbah", facts({ usernameStatus: "ok" })); return x.state === "ASK_OPERATOR" && x.reply.includes(EN.usernameKept("johnmbah")) && x.reply.includes(EN.askOperator); })());
   s = Machine.step(fresh("ASK_OPERATOR", d0), "1", facts());
   check("payment operator: 1 = MTN Mobile Money, then the payment number is asked, offering the verified WhatsApp number (shown only by its last digits)", s.state === "ASK_PAY_PHONE" && s.data.medium === "mobile money" && s.reply.includes("ending 456") && !s.reply.includes(CUST));
-  check("payment number: '1' uses the sender's own WhatsApp number; nothing to retype", (() => { const x = Machine.step(fresh("ASK_PAY_PHONE", { ...d0, medium: "mobile money" }), "1", facts()); return x.state === "REVIEW" && x.data.payPhone === "677123456"; })());
+  check("payment number: '1' uses the sender's own WhatsApp number; nothing to retype", (() => { const x = Machine.step(fresh("ASK_PAY_PHONE", { ...d0, email: "jean@example.com", medium: "mobile money" }), "1", facts()); return x.state === "REVIEW" && x.data.payPhone === "677123456"; })());
   check("payment number: accepts +237 / spaces and normalises it", Machine.step(fresh("ASK_PAY_PHONE", { ...d0, medium: "mobile money" }), "+237 677 12 34 99", facts()).data.payPhone === "677123499");
   check("validation: a PIN-like or malformed number is refused with the never-send-your-PIN warning, nothing stored", ["1234", "4321", "12345678", "abc", "5551234567"].every((t) => { const x = Machine.step(fresh("ASK_PAY_PHONE", { ...d0, medium: "mobile money" }), t, { ...facts(), waDigits: "33612345678" }); return x.state === "ASK_PAY_PHONE" && x.reply === EN.payPhoneInvalid && !x.data.payPhone; }));
   s = Machine.step(fresh("ASK_PAY_PHONE", { ...d0, medium: "orange money" }), "677123456", facts());
   check("validation: a number whose network clearly differs from the chosen one sends the customer back to pick the network again", s.state === "ASK_OPERATOR" && /MTN Mobile Money/.test(s.reply) && !s.data.medium);
-  const full = { lang: "en", tier: "pro", name: "Jean Mbah", address: "Akwa, Douala", username: "johnmbah", medium: "mobile money", payPhone: "677123456" };
+  const full = { lang: "en", tier: "pro", name: "Jean Mbah", address: "Akwa, Douala", email: "jean@example.com", username: "johnmbah", medium: "mobile money", payPhone: "677123456" };
   s = Machine.step(fresh("REVIEW", full), "xx", facts({ total: 5000 }));
   check("ORDER_REVIEW: confirmation not understood keeps the review", s.state === "REVIEW" && s.reply.includes("Everything correct?"));
   s = Machine.step(fresh("ASK_PAY_PHONE", { ...full, payPhone: undefined }), "1", facts({ total: 5000 }));
@@ -317,13 +320,13 @@ try {
   check("the total is NEVER computed by the bot: without the server's figure the review cannot be confirmed", Machine.step(fresh("REVIEW", full), "1", facts({ total: null })).effect === "none" && Machine.step(fresh("REVIEW", full), "1", facts()).effect === "none");
   s = Machine.step(fresh("REVIEW", full), "2", facts({ total: 5000 }));
   check("EDIT: the review's edit menu lists what can change, and each choice returns to the review afterwards", s.state === "EDIT_MENU" && (() => { const e1 = Machine.step(s, "2", facts()); const e2 = Machine.step({ ...fresh(), state: e1.state, data: e1.data }, "Bonamoussadi, Douala", facts({ total: 5000 })); return e1.state === "ASK_ADDRESS" && e2.state === "REVIEW" && e2.data.address === "Bonamoussadi, Douala" && e2.data.name === "Jean Mbah"; })());
-  check("EDIT: changing the card keeps the other answers and shows the review again", (() => { let x = Machine.step(fresh("EDIT_MENU", full), "5", facts()); x = Machine.step({ ...fresh(), state: x.state, data: x.data }, "3", facts()); x = Machine.step({ ...fresh(), state: x.state, data: x.data }, "1", facts({ total: 10000 })); return x.state === "REVIEW" && x.data.tier === "premium" && x.reply.includes("Card: Premium"); })());
+  check("EDIT: changing the card keeps the other answers and shows the review again", (() => { let x = Machine.step(fresh("EDIT_MENU", full), "6", facts()); x = Machine.step({ ...fresh(), state: x.state, data: x.data }, "3", facts()); x = Machine.step({ ...fresh(), state: x.state, data: x.data }, "1", facts({ total: 10000 })); return x.state === "REVIEW" && x.data.tier === "premium" && x.reply.includes("Card: Premium"); })());
   check("0 = main menu everywhere; inside the order it clears the half-made order", Machine.step(fresh("ASK_ADDRESS", full), "0", facts()).state === "WELCOME" && Object.keys(Machine.step(fresh("ASK_ADDRESS", full), "0", facts()).data).join() === "lang" && Machine.step(fresh("FAQ", d0), "0", facts()).state === "WELCOME");
   check("cancel / annuler / reset behave like 0 and say nothing was charged", ["cancel", "annuler", "reset"].every((w) => Machine.step(fresh("REVIEW", full), w, facts()).reply.startsWith(EN.cancelled)));
   check("language switch: 'fr' / 'en' at any time keeps the place in the order", (() => { const x = Machine.step(fresh("ASK_ADDRESS", full), "fr", facts()); return x.state === "ASK_ADDRESS" && x.data.lang === "fr" && x.reply.includes(FR.askAddress); })());
   const humanWords = ["human", "agent", "support", "representative", "talk to someone", "I want to talk to someone please", "help", "humain", "conseiller", "parler à quelqu'un", "aide"];
   check("HUMAN request: every listed phrase, at any menu state, hands off", humanWords.every((w) => { const x = Machine.step(fresh("CARDS", d0), w, facts()); return x.effect === "handoff" && x.handoff === true && x.state === "HUMAN_HANDOFF"; }));
-  check("HUMAN request while giving a free-text answer: a bare request hands off, but an address that merely contains the word does not", Machine.step(fresh("ASK_ADDRESS", full), "human", facts()).effect === "handoff" && Machine.step(fresh("ASK_ADDRESS", full), "Rue du Support, Akwa", facts()).state === "ASK_USERNAME");
+  check("HUMAN request while giving a free-text answer: a bare request hands off, but an address that merely contains the word does not", Machine.step(fresh("ASK_ADDRESS", full), "human", facts()).effect === "handoff" && Machine.step(fresh("ASK_ADDRESS", full), "Rue du Support, Akwa", facts()).state === "ASK_EMAIL");
   check("HUMAN_HANDOFF: the machine is silent and changes nothing", (() => { const x = Machine.step({ ...fresh("HUMAN_HANDOFF", full), handoff: true }, "1", facts()); return x.reply === "" && x.effect === "none" && x.handoff === true; })());
   check("PAYMENT state: status / resend / change number are the only actions; anything else repeats the waiting message", Machine.step(fresh("PAYMENT", full), "status", facts()).effect === "check_payment" && Machine.step(fresh("PAYMENT", full), "resend", facts()).effect === "resend_payment" && Machine.step(fresh("PAYMENT", full), "edit", facts()).state === "ASK_OPERATOR" && Machine.step(fresh("PAYMENT", full), "hello?", facts()).reply === EN.paymentResumed);
   check("CREATING that never finished (stuck) lets the customer go back to the review; a fresh one just waits", Machine.step(fresh("CREATING", full), "hi", facts({ stuck: true, total: 5000 })).state === "REVIEW" && Machine.step(fresh("CREATING", full), "hi", facts()).reply === EN.creating);
@@ -386,18 +389,20 @@ try {
   check("E2E: ordering asks for the name", reply === EN.askName("Pro"));
   await flow("Jean Mbah");
   reply = await flow("Akwa, Douala");
-  check("E2E: the username question follows the address", reply === EN.askUsername);
+  check("E2E: the e-mail question follows the address", reply === EN.askEmail);
+  reply = await flow("jean@example.com");
+  check("E2E: the username question follows the e-mail", reply === EN.askUsername);
   reply = await flow("Taken_Name");
   check("E2E: a username that already exists (profiles) is refused, using the same availability source the admin review uses", reply === EN.usernameTaken("taken_name"));
   reply = await flow("jeanmbah");
   check("E2E: an available username is accepted and the network question comes next", reply.includes(EN.usernameKept("jeanmbah")) && reply.includes(EN.askOperator));
   await flow("1");
   reply = await flow("1");
-  check("E2E: the sender's own number is reused (not retyped) and the review shows the SERVER's total", reply.includes("Card: Pro") && reply.includes(`Total: ${price(5000)}`) && reply.includes("Username: jeanmbah") && reply.includes(`WhatsApp: +${CUST}`) && reply.includes("Delivery: Akwa, Douala") && !reply.split("\n").find((l) => l.startsWith("Payment:")).includes("677123456"), reply);
+  check("E2E: the sender's own number is reused (not retyped) and the review shows the SERVER's total", reply.includes("Card: Pro") && reply.includes(`Total: ${price(5000)}`) && reply.includes("Username: jeanmbah") && reply.includes("Email: jean@example.com") && reply.includes(`WhatsApp: +${CUST}`) && reply.includes("Delivery: Akwa, Douala") && !reply.split("\n").find((l) => l.startsWith("Payment:")).includes("677123456"), reply);
   check("E2E: nothing exists yet: no signup request, no payment request before the customer confirms", tables.signup_requests.length === 0 && fapshiCalls.length === 0);
   reply = await flow("1");
   const req = tables.signup_requests[0];
-  check("EXISTING ORDER BACKEND: confirming creates ONE signup request through the existing /api/signup-requests handler with the collected data and the Smart Card add-on (the web form's shape)", tables.signup_requests.length === 1 && req.full_name === "Jean Mbah" && req.whatsapp_number === `+${CUST}` && req.suggested_username === "jeanmbah" && req.delivery_location === "Akwa, Douala" && JSON.stringify(req.requested_addon_ids) === JSON.stringify([A_PRO]) && req.requested_plan_id === null && req.email === null && req.status === "pending" && req.customer_paid === false && req.source === "get_started", JSON.stringify(req));
+  check("EXISTING ORDER BACKEND: confirming creates ONE signup request through the existing /api/signup-requests handler with the collected data and the Smart Card add-on (the web form's shape)", tables.signup_requests.length === 1 && req.full_name === "Jean Mbah" && req.whatsapp_number === `+${CUST}` && req.suggested_username === "jeanmbah" && req.delivery_location === "Akwa, Douala" && JSON.stringify(req.requested_addon_ids) === JSON.stringify([A_PRO]) && req.requested_plan_id === null && req.email === "jean@example.com" && req.status === "pending" && req.customer_paid === false && req.source === "get_started", JSON.stringify(req));
   check("EXISTING ORDER BACKEND: admins are NOT pinged for an unpaid attempt (same as the web form's online-payment path)", adminPushes.length === 0);
   check("PAYMENT: the EXISTING pay handler asked Fapshi for the amount it recomputed from the add-on (5,000) on the customer's own number and network - nothing the customer typed set the amount", fapshiCalls.length === 1 && fapshiCalls[0].amount === 5000 && fapshiCalls[0].phone === "677123456" && fapshiCalls[0].medium === "mobile money" && fapshiCalls[0].userId === req.id && /^signup-/.test(fapshiCalls[0].externalId), JSON.stringify(fapshiCalls));
   check("PAYMENT: the customer is told to approve on their phone, with only the last digits shown, and warned never to send a PIN here", reply === EN.paymentSent("MTN Mobile Money", "456") && /never here/.test(reply) && !reply.includes("677123456"), reply);
@@ -415,7 +420,7 @@ try {
   const outAfter = await outboundOf(CUST);
   const paidMsg = outAfter[outAfter.length - 1].body;
   check("PAYMENT CONFIRMED: the existing code recorded the payment (customer_paid), exactly once", checkRes.paid && checkRes.justPaid && tables.signup_requests[0].customer_paid === true && tables.signup_requests[0].pending_fapshi_trans_id);
-  check("CONFIRMATION: the hook messages the customer in WhatsApp with card, amount and a short reference, and the approval next step; no promise of a delivery date", paidMsg === EN.paidNotice("Pro", price(5000), `#${req.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`) && /reviews your request/.test(paidMsg) && !/deliver|livr/i.test(paidMsg), paidMsg);
+  check("CONFIRMATION: the hook messages the customer in WhatsApp with card, amount and a short reference, and the approval next step; no promise of a delivery date", /Payment receipt/.test(paidMsg) && paidMsg.includes(`Receipt no.: RC-${req.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`) && paidMsg.includes("Customer: Jean Mbah") && paidMsg.includes("Ringo Connect Smart Card — Pro") && paidMsg.includes("1 month Pro subscription included") && paidMsg.includes(`Amount paid: *${price(5000)}*`) && paidMsg.includes("Payment method: Mobile Money") && /Date: \d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}/.test(paidMsg) && /Transaction ID: \S+/.test(paidMsg) && paidMsg.includes("Status: ✅ Paid") && /reviews your request/.test(paidMsg) && /login details/.test(paidMsg) && !/deliver|livr/i.test(paidMsg), paidMsg);
   check("CONFIRMATION: it was sent to the customer's own number through the Inbox sender, and no secret or internal id beyond the short reference appears", fetchCalls.length === 1 && JSON.parse(fetchCalls[0].init.body).to === CUST && !paidMsg.includes(req.id) && !paidMsg.includes(conv0(convC)));
   function conv0(x) { return String(x); }
   check("CONFIRMATION: the flow is marked COMPLETED by the hook", (await sessionOf(CUST)).state === "COMPLETED");
@@ -433,7 +438,7 @@ try {
   check("hook: a paid signup that did NOT come from the bot sends nothing", notBot.result === "not_from_bot" && fetchCalls.length === 0);
   // window closed: a new order whose customer last wrote more than 24 hours ago
   const WA2 = "237699222333";
-  await say("hello", WA2); await say("1", WA2); await say("1", WA2); await say("1", WA2); await say("Paul Etoa", WA2); await say("Bonamoussadi, Douala", WA2); await say("skip", WA2); await say("2", WA2); await say("1", WA2); await say("1", WA2);
+  await say("hello", WA2); await say("1", WA2); await say("1", WA2); await say("1", WA2); await say("Paul Etoa", WA2); await say("Bonamoussadi, Douala", WA2); await say("paul@example.com", WA2); await say("skip", WA2); await say("2", WA2); await say("1", WA2); await say("1", WA2);
   const req2 = tables.signup_requests[1];
   check("second customer (Orange number) ordered Standard through the same flow: network Orange, own number reused", req2 && JSON.stringify(req2.requested_addon_ids) === JSON.stringify([A_STD]) && req2.suggested_username === null && fapshiCalls.at(-1).medium === "orange money" && fapshiCalls.at(-1).phone === "699222333" && fapshiCalls.at(-1).amount === 3500, JSON.stringify(fapshiCalls.at(-1)));
   const conv2 = await convOf(WA2);
@@ -449,7 +454,7 @@ try {
   // --- payment failures
   reset(); fapshiMode = "reject";
   const WA3 = "237677333444";
-  for (const t of ["hi", "1", "3", "1", "Marie Ngo", "Bastos, Yaoundé", "skip", "1", "1"]) await say(t, WA3);
+  for (const t of ["hi", "1", "3", "1", "Marie Ngo", "Bastos, Yaoundé", "marie@example.com", "skip", "1", "1"]) await say(t, WA3);
   reply = (await say("1", WA3)).reply;
   check("PAYMENT refused by the operator: the customer is told, the order stays, nothing is marked paid, and they can resend or change the number", reply === EN.paymentRejected && tables.signup_requests.at(-1).customer_paid === false && (await sessionOf(WA3)).state === "PAYMENT");
   fapshiMode = "uncertain"; reply = (await say("resend", WA3)).reply;
@@ -467,7 +472,7 @@ try {
   // --- order creation failure
   reset(); globalThis.__signupInsertFails = true;
   const WA4 = "237677444555";
-  for (const t of ["hi", "1", "1", "1", "Luc Biya", "Mvog-Ada, Yaoundé", "skip", "1", "1"]) await say(t, WA4);
+  for (const t of ["hi", "1", "1", "1", "Luc Biya", "Mvog-Ada, Yaoundé", "luc@example.com", "skip", "1", "1"]) await say(t, WA4);
   const reqsBefore4 = tables.signup_requests.length;
   reply = (await say("1", WA4)).reply;
   check("ORDER creation failure: the customer is told nothing was charged, no payment request was made, and the review is back so they can try again; the database error text never reaches them or the logs", reply === EN.orderFailed && tables.signup_requests.length === reqsBefore4 && fapshiCalls.length === 0 && (await sessionOf(WA4)).state === "REVIEW" && !reply.includes("SECRET") && !logs.filter((l) => l.includes('"scope":"sales_bot"')).join("\n").includes("SECRET INSERT TEXT"), JSON.stringify({ reply: reply?.slice(0, 80), reqs: tables.signup_requests.length - reqsBefore4, fapshi: fapshiCalls.length, state: (await sessionOf(WA4)).state }));
@@ -481,7 +486,7 @@ try {
   // --- confirmation race: two "1" at once
   reset();
   const WA5 = "237677555666";
-  for (const t of ["hi", "1", "2", "1", "Anne Fotso", "Limbe, Fako", "skip", "1", "1"]) await say(t, WA5);
+  for (const t of ["hi", "1", "2", "1", "Anne Fotso", "Limbe, Fako", "anne@example.com", "skip", "1", "1"]) await say(t, WA5);
   const reqsBefore5 = tables.signup_requests.length;
   const [ra, rb] = await Promise.all([say("1", WA5), say("1", WA5)]);
   check("RACE: two simultaneous confirmations create exactly ONE signup request and ONE payment request", tables.signup_requests.length === reqsBefore5 + 1 && fapshiCalls.length === 1, JSON.stringify({ reqs: tables.signup_requests.length - reqsBefore5, fapshi: fapshiCalls.length, ra: ra.reply?.slice(0, 40), rb: rb.reply?.slice(0, 40) }));
@@ -499,7 +504,7 @@ try {
   r = await say("en", WA6);
   check("language switch to English mid-conversation", r.reply.startsWith(EN.langSwitched));
   r = await say("fr", WA6); r = await say("0", WA6);
-  for (const t of ["1", "3", "1", "Aïcha Bello", "Akwa Nord, Douala", "passer", "2", "1"]) r = await say(t, WA6);
+  for (const t of ["1", "3", "1", "Aïcha Bello", "Akwa Nord, Douala", "aicha@example.com", "passer", "2", "1"]) r = await say(t, WA6);
   check("FR: the review is in French, with the French payment network name and 'ending' digits", r.reply.includes("Votre commande Ringo Connect Smart Card") && r.reply.includes("Carte : Premium") && r.reply.includes(`Total : ${priceFr(10000)}`) && r.reply.includes("Orange Money · se terminant par 203"), r.reply);
   r = await say("1", WA6);
   check("FR: the payment instruction is French and the Orange network was used", r.reply === FR.paymentSent("Orange Money", "203") && fapshiCalls.at(-1).medium === "orange money" && fapshiCalls.at(-1).amount === 10000);
@@ -507,7 +512,7 @@ try {
   const frReq = tables.signup_requests.at(-1);
   await SignupPay.confirmSignupPayment(mkAdmin(), frReq.id); await new Promise((res) => setTimeout(res, 50));
   const frOut = await outboundOf(WA6);
-  check("FR: the payment confirmation is sent in French", frOut.at(-1).body === FR.paidNotice("Premium", priceFr(10000), `#${frReq.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`));
+  check("FR: the payment confirmation is sent in French", /Reçu de paiement/.test(frOut.at(-1).body) && frOut.at(-1).body.includes(`N° de reçu : RC-${frReq.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`) && frOut.at(-1).body.includes(`Montant payé : *${priceFr(10000)}*`) && frOut.at(-1).body.includes("Statut : ✅ Payé") && frOut.at(-1).body.includes("Abonnement Basic de 1 an inclus") && /identifiants de connexion/.test(frOut.at(-1).body));
 
   // --- human hand-off, end to end
   reset();
@@ -564,9 +569,142 @@ try {
   rpcMode = "ok";
   check("RESUME with a database error: 500 server_error and nothing from the error is returned or logged", failRes.status === 500 && failRes.body.error === "server_error" && !JSON.stringify(failRes).includes("SECRET BOT TEXT") && !logs.join("\n").includes("SECRET BOT TEXT"));
   const routeSrc = read("src/app/api/inbox/conversations/[id]/sales-bot/route.ts");
-  check("RESUME route: owner-only wrapper, the id comes from the URL, the body is not read, no owner/profile from the request", /withInboxOwner\(request, \(actor\) => resumeSalesBot\(actor, params\.id\)\)/.test(routeSrc) && !/withConversationActor|body\./.test(routeSrc) && !/profile_id|owner_id|p_actor_user_id/.test(routeSrc));
+  check("RESUME/PAUSE route: owner-only wrapper, the id comes from the URL, the only body field read is the word 'pause', no owner/profile/recipient from the request", /withInboxOwner\(request, \(actor, body\) => \(body\.action === "pause" \? pauseSalesBot\(actor, params\.id\) : resumeSalesBot\(actor, params\.id\)\)\)/.test(routeSrc) && !/withConversationActor|withSavedReplyActor|assertAdmin/.test(routeSrc) && (routeSrc.match(/body\.\w+/g) || []).join() === "body.action" && !/profile_id|owner_id|p_actor_user_id/.test(routeSrc.replace(/\/\/.*$/gm, "")));
+
+  // --- pause the sales bot in one chat (the owner's Pause sales bot button)
+  const Pause = Handoff;
+  reset();
+  const WAP = "237677606060";
+  await say("hello", WAP); await say("1", WAP);
+  const convP = await convOf(WAP);
+  const sentBefore = (await outboundOf(WAP)).length; fetchCalls = [];
+  const bobP = await Pause.pauseSalesBot(bobActor, convP);
+  check("PAUSE by ANOTHER owner: 404 not_found and the conversation is untouched", bobP.status === 404 && bobP.body.error === "not_found" && (await sessionOf(WAP)).handoff === false);
+  check("PAUSE with a bad conversation id: 404, no database call", (await Pause.pauseSalesBot(aliceActor, "not-a-uuid")).status === 404);
+  const pausedRes = await Pause.pauseSalesBot(aliceActor, convP);
+  check("PAUSE by the OWNER: 200 paused, the hand-off flag is on, and NOTHING is sent to the customer by the pause itself", pausedRes.status === 200 && pausedRes.body.state === "paused" && (await sessionOf(WAP)).handoff === true && (await sessionOf(WAP)).state === "HUMAN_HANDOFF" && (await outboundOf(WAP)).length === sentBefore && fetchCalls.length === 0);
+  r = await say("2", WAP); const r2P = await say("hello", WAP);
+  check("PAUSED: the bot stays completely silent (every message is still stored in the Inbox)", r.sent === 0 && r2P.sent === 0 && fetchCalls.length === 0 && (await count("inbox_messages", `conversation_id = '${convP}' and direction = 'inbound'`)) >= 4);
+  check("PAUSE again is harmless (still paused), and the other customers are not affected", (await Pause.pauseSalesBot(aliceActor, convP)).status === 200 && (await sessionOf(WAP)).handoff === true && (await say("hello", "237677606061")).reply === EN.welcome);
+  const resumedP = await Pause.resumeSalesBot(aliceActor, convP);
+  r = await say("hi", WAP);
+  check("RESUME after a PAUSE: the bot answers again from the welcome menu", resumedP.body.state === "resumed" && r.reply === EN.welcome);
+  const WAQ = "237677606062";
+  await say("hello", WAQ); const convQ = await convOf(WAQ);
+  await db.exec(`delete from public.wa_sales_sessions where conversation_id = '${convQ}'`);
+  const pauseNoSession = await Pause.pauseSalesBot(aliceActor, convQ);
+  check("PAUSE on a chat with no bot session yet: the pause is recorded so the bot never starts there", pauseNoSession.body.state === "paused" && (await sessionOf(WAQ)).handoff === true && (await say("hello", WAQ)).sent === 0);
+  await Pause.resumeSalesBot(aliceActor, convQ);
+  rpcMode = "sales_error";
+  const pauseFail = await Pause.pauseSalesBot(aliceActor, convP);
+  rpcMode = "ok";
+  check("PAUSE with a database error: 500 server_error, nothing leaked", pauseFail.status === 500 && pauseFail.body.error === "server_error" && !JSON.stringify(pauseFail).includes("SECRET BOT TEXT"));
+  const btnSrc = read("src/components/inbox/ResumeSalesBotButton.tsx"), viewSrc = read("src/components/inbox/InboxView.tsx");
+  check("PAUSE button: next to Resume in every chat for the owner (and only when the bot is configured); it sends only the word pause", /data-testid="pause-sales-bot"/.test(btnSrc) && /data-testid="resume-sales-bot"/.test(btnSrc) && /\{ action: "pause" \}/.test(btnSrc) && /salesBotResume && access\.kind === "owner" && <ResumeSalesBotButton/.test(viewSrc));
+  check("PAUSE copy exists in English and French", ["pauseSalesBot", "pauseSalesBotDone", "pauseSalesBotFailed"].every((k) => typeof translations.en.inbox[k] === "string" && typeof translations.fr.inbox[k] === "string" && translations.fr.inbox[k] !== translations.en.inbox[k]) && /Pause sales bot/.test(translations.en.inbox.pauseSalesBot));
   check("RESUME copy exists in English and French", ["resumeSalesBot", "resumeSalesBotDone", "resumeSalesBotNotPaused", "resumeSalesBotFailed"].every((k) => typeof translations.en.inbox[k] === "string" && typeof translations.fr.inbox[k] === "string" && translations.fr.inbox[k] !== translations.en.inbox[k]));
   check("PAYMENT-SENT copy no longer promises a message 'as soon as' it is confirmed (EN and FR)", !/as soon as/i.test(EN.paymentSent("MTN", "123")) && !/dès (qu|que)/i.test(FR.paymentSent("MTN", "123")) && /try to let you know/.test(EN.paymentSent("MTN", "123")) && /essaierons de vous prévenir/.test(FR.paymentSent("MTN", "123")));
+
+  // --- language that follows the customer, e-mail collection, talk-to-an-agent menu entry, plan feature lists, help hints, receipt
+  reset();
+  check("LANGUAGE signal: French messages are French, English messages English, bare numbers / names / menu words give none", Machine.languageSignal("Bonjour, je veux commander une carte") === "fr" && Machine.languageSignal("j'ai une question sur le prix") === "fr" && Machine.languageSignal("où êtes-vous situés") === "fr" && Machine.languageSignal("Hello, I want to order a card") === "en" && Machine.languageSignal("what is the price?") === "en" && Machine.languageSignal("1") === null && Machine.languageSignal("Jean Mbah") === null && Machine.languageSignal("0") === null && Machine.languageSignal("") === null);
+  const sessW = (state, data) => ({ state, data, handoff: false, signupRequestId: null, version: 0 });
+  let ls = Machine.step(sessW("WELCOME", {}), "Bonjour", facts());
+  check("LANGUAGE: the first French message is answered in French (and English in English)", ls.data.lang === "fr" && ls.reply.includes(FR.welcome.slice(0, 40)) && Machine.step(sessW("WELCOME", {}), "hello", facts()).data.lang === "en");
+  ls = Machine.step(sessW("CARDS", { lang: "en" }), "Bonjour, quel est le prix ?", facts());
+  check("LANGUAGE: a clearly French message mid-conversation switches the replies to French, without losing the place and without locking", ls.data.lang === "fr" && !ls.data.langLocked && ls.state === "CARDS" && ls.reply.includes(FR.didNotUnderstand));
+  const backEn = Machine.step(sessW("CARDS", { lang: "fr" }), "what is the price of the cards?", facts());
+  check("LANGUAGE: and back to English when the customer writes English (not locked)", backEn.data.lang === "en");
+  const lockedFr = Machine.step(sessW("WELCOME", { lang: "en" }), "fr", facts());
+  check("LANGUAGE buttons still work: typing fr / en switches, says so, and LOCKS the choice", lockedFr.data.lang === "fr" && lockedFr.data.langLocked === true && lockedFr.reply.startsWith(FR.langSwitched) && Machine.step(sessW("WELCOME", { lang: "fr" }), "english", facts()).data.lang === "en" && Machine.step(sessW("WELCOME", { lang: "fr" }), "en", facts()).data.langLocked === true);
+  const stayFr = Machine.step(sessW("WELCOME", lockedFr.data), "hello how much is the card", facts());
+  const stayEn = Machine.step(sessW("WELCOME", { lang: "en", langLocked: true }), "bonjour je veux commander", facts());
+  check("LANGUAGE: an explicit choice is never overridden by guessing", stayFr.data.lang === "fr" && stayEn.data.lang === "en");
+  check("LANGUAGE: free-text answers (name, address, e-mail) never change the language", Machine.step(sessW("ASK_ADDRESS", { lang: "en", tier: "pro", name: "Jean" }), "Rue de la Paix, Akwa, Douala", facts()).data.lang === "en" && Machine.step(sessW("ASK_NAME", { lang: "fr", tier: "pro" }), "Hello Thanks", facts()).data.lang === "fr");
+  check("LANGUAGE: the choice survives the main menu and the start of an order", Machine.step(sessW("CARDS", lockedFr.data), "0", facts()).data.langLocked === true && Machine.step(sessW("CARD_DETAIL", { ...lockedFr.data, tier: "pro" }), "1", facts()).data.langLocked === true);
+
+  // the menu entry
+  check("MENU: both welcome menus list 'See images of the card' as option 5 and 'Talk to a Ringo agent' as option 6", /5\. 🖼️ See images of the card/.test(EN.welcome) && /6\. 👤 Talk to a Ringo agent/.test(EN.welcome) && /5\. 🖼️ Voir des images de la carte/.test(FR.welcome) && /6\. 👤 Parler à un agent Ringo/.test(FR.welcome));
+  const agent = Machine.step(sessW("WELCOME", { lang: "en" }), "6", facts());
+  check("MENU: choosing 6 hands the conversation to a person (same hand-off as typing human): the customer is told, the owner is notified by the runner", agent.effect === "handoff" && agent.handoff === true && agent.state === "HUMAN_HANDOFF" && agent.reply === EN.handoff && Machine.step(sessW("COMPLETED", { lang: "fr" }), "6", facts()).reply === FR.handoff);
+
+  // e-mail
+  const afterAddr = Machine.step(sessW("ASK_ADDRESS", { lang: "en", tier: "pro", name: "Jean Mbah" }), "Akwa, Douala", facts());
+  check("EMAIL: the question follows the address and says why it is needed (login details)", afterAddr.state === "ASK_EMAIL" && afterAddr.reply === EN.askEmail && /login details/.test(EN.askEmail) && /identifiants/.test(FR.askEmail));
+  const badMails = ["not-an-email", "a@b", "a b@c.com", "@x.com", "jean@", "x@y.c", "1234", `${"a".repeat(130)}@x.com`];
+  check("EMAIL: an invalid address is refused with the reason and the talk-to-the-team hint, and nothing is stored", badMails.every((m) => { const x = Machine.step(sessW("ASK_EMAIL", { lang: "en", tier: "pro", name: "Jean", address: "Akwa, Douala" }), m, facts()); return x.state === "ASK_EMAIL" && x.reply === EN.emailInvalid && !x.data.email; }) && /\*human\*/.test(EN.emailInvalid) && /\*humain\*/.test(FR.emailInvalid));
+  const goodMail = Machine.step(sessW("ASK_EMAIL", { lang: "en", tier: "pro", name: "Jean", address: "Akwa, Douala" }), "  Jean.Mbah+ringo@Example.COM ", facts());
+  check("EMAIL: a valid address is stored lower-cased and the username question follows", goodMail.state === "ASK_USERNAME" && goodMail.data.email === "jean.mbah+ringo@example.com" && goodMail.reply === EN.askUsername);
+  check("EMAIL: a bare 'human' while giving it hands off (nobody is stuck without an e-mail)", Machine.step(sessW("ASK_EMAIL", { lang: "en" }), "human", facts()).effect === "handoff");
+  const fullE = { lang: "en", tier: "pro", name: "Jean Mbah", address: "Akwa, Douala", email: "jean@example.com", username: "johnmbah", medium: "mobile money", payPhone: "677123456" };
+  const rev = Machine.step(sessW("ASK_PAY_PHONE", { ...fullE, payPhone: undefined }), "1", facts({ total: 5000 }));
+  check("EMAIL: the review shows it, and the French review too", rev.reply.includes("Email: jean@example.com") && Machine.step(sessW("ASK_PAY_PHONE", { ...fullE, lang: "fr", payPhone: undefined }), "1", facts({ total: 5000 })).reply.includes("E-mail : jean@example.com"));
+  const em1 = Machine.step(sessW("EDIT_MENU", fullE), "3", facts());
+  const em2 = Machine.step(sessW(em1.state, em1.data), "new@example.com", facts({ total: 5000 }));
+  check("EMAIL: editable from the review (option 3) and back to the review; the other edit options moved down by one (4 username, 5 payment number, 6 card)", em1.state === "ASK_EMAIL" && em2.state === "REVIEW" && em2.data.email === "new@example.com" && Machine.step(sessW("EDIT_MENU", fullE), "4", facts()).state === "ASK_USERNAME" && Machine.step(sessW("EDIT_MENU", fullE), "5", facts()).state === "ASK_OPERATOR" && Machine.step(sessW("EDIT_MENU", fullE), "6", facts()).state === "CARDS" && /3\. Email/.test(EN.editMenu) && /3\. E-mail/.test(FR.editMenu));
+  check("EMAIL: a session that reached the review before this step existed is asked for it instead of failing", Machine.step(sessW("REVIEW", { ...fullE, email: undefined }), "1", facts({ total: 5000 })).state === "ASK_EMAIL");
+  const st = Machine.toStored("ASK_EMAIL", { lang: "en", email: undefined });
+  const back = Machine.fromStored(st.state, st.data);
+  check("EMAIL storage: stored as ASK_ADDRESS plus a flag (the database state list is not altered) and restored exactly; other states pass through", st.state === "ASK_ADDRESS" && st.data.awaitEmail === true && back.state === "ASK_EMAIL" && back.data.awaitEmail === undefined && Machine.toStored("REVIEW", { lang: "en" }).state === "REVIEW" && Machine.fromStored("ASK_ADDRESS", { lang: "en" }).state === "ASK_ADDRESS");
+
+  // plan feature lists on the cards
+  const planRows = tables.plans;
+  const offersF = (await Offers.resolveSmartCardOffers(mkAdmin())).offers;
+  const cardsEn = Machine.step(sessW("WELCOME", { lang: "en" }), "1", { ...facts(), offers: offersF }).reply;
+  const cardsFr = Machine.step(sessW("WELCOME", { lang: "fr" }), "1", { ...facts(), offers: offersF }).reply;
+  check("FEATURES: the plan feature lists come from the plans table at runtime (Basic for Standard and Premium, Pro for Pro)", offersF.find((o) => o.tier === "standard").featuresEn.includes("Up to 15 links") && offersF.find((o) => o.tier === "premium").featuresEn.includes("Up to 15 links") && offersF.find((o) => o.tier === "pro").featuresEn.includes("Unlimited links") && offersF.find((o) => o.tier === "pro").featuresFr.includes("Liens illimités"));
+  const proBlock = cardsEn.split("*Pro*")[1].split("*Premium*")[0], stdBlock = cardsEn.split("*Standard*")[1].split("*Pro*")[0];
+  check("FEATURES: the card list shows the subscription, QR and configuration lines AND the plan's own features (Basic on Standard/Premium, Pro on Pro), in English and French", /1 month Basic subscription included/.test(stdBlock) && /Up to 15 links/.test(stdBlock) && !/Unlimited links/.test(stdBlock) && /1 month Pro subscription included/.test(proBlock) && /Unlimited links/.test(proBlock) && /QR code on the card/.test(proBlock) && /Liens illimités/.test(cardsFr) && /Jusqu’à 15 liens|Jusqu'à 15 liens/.test(cardsFr) && cardsEn.length < 3500);
+  check("FEATURES: every screen stays well inside WhatsApp's 4,096-character limit in both languages (cards, compare, each detail)", [cardsEn, cardsFr, ...["en", "fr"].flatMap((lg) => [Machine.step(sessW("CARDS", { lang: lg }), "4", { ...facts(), offers: offersF }).reply, ...["1", "2", "3"].map((n) => Machine.step(sessW("CARDS", { lang: lg }), n, { ...facts(), offers: offersF }).reply)])].every((x) => x.length < 3800), [cardsEn.length, cardsFr.length].join());
+  check("FEATURES: the detail and compare screens carry them too", Machine.step(sessW("CARDS", { lang: "en" }), "2", { ...facts(), offers: offersF }).reply.includes("Unlimited links") && Machine.step(sessW("CARDS", { lang: "en" }), "4", { ...facts(), offers: offersF }).reply.includes("Up to 15 links"));
+  const savedPlans = tables.plans.splice(0);
+  const noPlans = await Offers.resolveSmartCardOffers(mkAdmin());
+  tables.plans.push(...savedPlans);
+  check("FEATURES: if the plans cannot be read the cards are still offered, just without the extra list (nothing is invented)", noPlans.offers.length === 3 && noPlans.offers.every((o) => o.featuresEn.length === 0) && !Machine.step(sessW("WELCOME", { lang: "en" }), "1", { ...facts(), offers: noPlans.offers }).reply.includes("Unlimited links"));
+
+  // talk-to-the-team hints in the technical places
+  const HINT_EN = "Need help? Type *human* to talk to a Ringo team member.", HINT_FR = "Besoin d’aide ? Tapez *humain* pour parler à un membre de l’équipe Ringo.";
+  check("HELP hints: the confusing or technical messages end with how to reach a Ringo team member, in both languages", ["didNotUnderstand", "payPhoneInvalid", "emailInvalid", "paymentRejected", "paymentUncertain", "statusPending", "statusUnknown", "faqOptions", "howOptions"].every((k) => EN[k].includes(HINT_EN) && FR[k].includes(HINT_FR)));
+  check("HELP hints: an unrecognised answer shows the hint, and typing human then hands off", Machine.step(sessW("CARDS", { lang: "en" }), "blah", facts()).reply.includes(HINT_EN) && Machine.step(sessW("ASK_PAY_PHONE", { lang: "fr", medium: "mobile money" }), "abc", facts()).reply.includes(HINT_FR));
+
+  // through the real webhook: language, e-mail stored with the order, agent menu entry
+  reset();
+  const WAL = "237677404040";
+  r = await say("Bonjour", WAL);
+  check("E2E LANGUAGE: a French first message gets the French welcome, an English one the English welcome, regardless of the earlier language", r.reply === FR.welcome && (await say("hello", WAL)).reply === EN.welcome && (await say("Bonjour", WAL)).reply === FR.welcome);
+  r = await say("en", WAL);
+  check("E2E LANGUAGE: typing en still switches (and keeps English even if the customer then writes French)", r.reply.startsWith(EN.langSwitched) && (await say("bonjour", WAL)).reply === EN.welcome);
+  const WAA = "237677404041";
+  await say("hi", WAA); r = await say("6", WAA);
+  check("E2E MENU: option 6 hands over to a person: the customer is told, the session is silenced, the owner gets the bell + push, and the bot then sends nothing", r.reply === EN.handoff && (await sessionOf(WAA)).handoff === true && pushes.some((p) => p.payload.category === "inbox_handoff") && (await say("1", WAA)).sent === 0);
+  const WAE = "237677404042";
+  for (const t of ["hello", "1", "2", "1", "Eric Nkoa", "Bastos, Yaoundé"]) r = await say(t, WAE);
+  check("E2E EMAIL: after the address the customer is asked for an e-mail; the database holds the state as ASK_ADDRESS with the flag", r.reply === EN.askEmail && (await sessionOf(WAE)).state === "ASK_ADDRESS" && (await sessionOf(WAE)).data.awaitEmail === true);
+  r = await say("nope", WAE);
+  check("E2E EMAIL: an invalid address is refused with the hint and the customer stays on the question", r.reply === EN.emailInvalid && (await sessionOf(WAE)).data.awaitEmail === true);
+  r = await say("Eric.Nkoa@Example.com", WAE);
+  check("E2E EMAIL: a valid address moves on to the username question and the flag is cleared", r.reply === EN.askUsername && (await sessionOf(WAE)).state === "ASK_USERNAME" && (await sessionOf(WAE)).data.email === "eric.nkoa@example.com" && (await sessionOf(WAE)).data.awaitEmail === undefined);
+  for (const t of ["skip", "1", "1"]) r = await say(t, WAE);
+  check("E2E EMAIL: the review shows it", r.reply.includes("Email: eric.nkoa@example.com"));
+  r = await say("1", WAE);
+  const reqE = tables.signup_requests.at(-1);
+  check("E2E EMAIL: the order is created with the e-mail through the existing signup handler (so the admin approval can e-mail the login details)", reqE.email === "eric.nkoa@example.com" && reqE.full_name === "Eric Nkoa");
+
+  // --- website and official profile, the image option, and the 0 button
+  const SITE = "www.ringoconnectltd.com", PROFILE = "www.ringoconnectltd.com/ringoconnectltd";
+  check("LINKS: the welcome menu and the questions menu carry the enquiries line with the website and the official profile (EN and FR)", [EN.welcome, EN.faqMenu, EN.moreEnquiries].every((x) => x.includes(`For more enquiries, check out ${SITE} or our official Ringo profile ${PROFILE}`)) && [FR.welcome, FR.faqMenu, FR.moreEnquiries].every((x) => x.includes(`Pour plus de renseignements, consultez ${SITE} ou notre profil officiel Ringo ${PROFILE}`)));
+  const imgEn = Machine.step(sessW("WELCOME", { lang: "en" }), "5", facts());
+  check("IMAGES: option 5 sends the customer to the official Ringo profile (and the website), starts nothing, hands nothing off, and keeps them at the menu", imgEn.reply === EN.imagesInfo && EN.imagesInfo.includes(PROFILE) && EN.imagesInfo.includes(SITE) && FR.imagesInfo.includes(PROFILE) && imgEn.effect === "none" && imgEn.handoff === false && imgEn.state === "WELCOME" && Machine.step(sessW("COMPLETED", { lang: "fr" }), "5", facts()).state === "COMPLETED");
+  check("IMAGES: the words work too, in English and French, and the next 1 shows the cards", ["see images", "images", "photos", "see the card"].every((w) => Machine.step(sessW("WELCOME", { lang: "en" }), w, facts()).reply === EN.imagesInfo) && ["voir les images", "photos", "voir des images"].every((w) => Machine.step(sessW("WELCOME", { lang: "fr", langLocked: true }), w, facts()).reply === FR.imagesInfo) && Machine.step(sessW("WELCOME", { lang: "en" }), "1", { ...facts(), offers: OFFERS }).state === "CARDS");
+  check("IMAGES: the reply claims nothing about the pictures beyond pointing to the profile", !/gallery|album|video|download|\d+ (photos|images)/i.test(EN.imagesInfo + FR.imagesInfo));
+  const zeroStates = ["CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "PAYMENT", "COMPLETED"];
+  const zeroData = { lang: "en", tier: "pro", name: "Jean Mbah", address: "Akwa, Douala", email: "jean@example.com", medium: "mobile money", payPhone: "677123456" };
+  check("0 BUTTON: from every state of the conversation, 0 goes back to the main menu (inside the order it also clears the half-made order, as it always did)", zeroStates.every((st) => { const x = Machine.step(sessW(st, zeroData), "0", { ...facts(), offers: OFFERS, total: 5000 }); return x.state === "WELCOME" && x.reply.includes(EN.welcome); }));
+  check("0 BUTTON: every question of the order and the payment messages tell the customer so, in English and French", [EN, FR].every((L) => [L.askName("Pro"), L.askAddress, L.askEmail, L.askUsername, L.askOperator, L.askPayPhone("456"), L.askPayPhone(null)].every((x) => x.includes("*0*")) && [L.paymentSent("MTN", "123"), L.paymentResumed, L.statusPending, L.statusPaid("Pro")].every((x) => x.includes("*0*")) && [L.cardsFooter(4, 5), L.cardOptions, L.compareOptions, L.faqOptions, L.howOptions, L.rec1, L.rec2, L.recOptions, L.editMenu, L.didNotUnderstand].every((x) => /\b0\b/.test(x))));
+  reset();
+  const WAI = "237677505050";
+  await say("hello", WAI); r = await say("5", WAI);
+  check("E2E IMAGES: through the webhook the customer gets the profile link and no handoff, no order, no payment is started", r.reply === EN.imagesInfo && (await sessionOf(WAI)).handoff === false && (await sessionOf(WAI)).state === "WELCOME" && fapshiCalls.length === 0 && (await say("0", WAI)).reply === EN.welcome);
 
   // --- the owner's switch OFF: silence for everyone, including mid-order, without touching orders, payments, storage, push or the paid notice
   reset();

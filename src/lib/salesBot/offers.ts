@@ -15,7 +15,15 @@ export interface Offer {
   days: number;
   hasQr: boolean;
   hasConfig: boolean;
+  /** What the granted plan includes, from the plans table (features_en / features_fr). Empty when it could not be read: the card is then described without that list. */
+  featuresEn: string[];
+  featuresFr: string[];
 }
+
+/** plan name -> its feature lists, read from the plans table at runtime. */
+export type PlanFeatures = Record<string, { en: string[]; fr: string[] }>;
+
+const cleanFeatures = (v: unknown): string[] => (Array.isArray(v) ? v : []).map((f) => String(f ?? "").replace(/\s+/g, " ").trim().slice(0, 140)).filter(Boolean).slice(0, 14);
 
 const TIER_RULES: { tier: TierKey; plan: string; days: number }[] = [
   { tier: "standard", plan: "basic", days: 30 },
@@ -38,7 +46,7 @@ interface AddonRow {
   sort_order?: number | null;
 }
 
-export function offersFromAddons(rows: AddonRow[]): OfferResolution {
+export function offersFromAddons(rows: AddonRow[], plans: PlanFeatures = {}): OfferResolution {
   const offers: Offer[] = [];
   const missing: TierKey[] = [];
   const sorted = [...rows].sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));
@@ -58,6 +66,8 @@ export function offersFromAddons(rows: AddonRow[]): OfferResolution {
       days: rule.days,
       hasQr: features.some((f) => f.includes("qr")),
       hasConfig: features.some((f) => f.includes("configuration")),
+      featuresEn: plans[rule.plan]?.en ?? [],
+      featuresFr: plans[rule.plan]?.fr ?? [],
     });
   }
   return { offers, missing };
@@ -71,5 +81,24 @@ export async function resolveSmartCardOffers(admin: any): Promise<OfferResolutio
     .not("grants_plan_name", "is", null)
     .not("grants_plan_duration_days", "is", null);
   if (error || !Array.isArray(data)) return { offers: [], missing: TIER_RULES.map((r) => r.tier) };
-  return offersFromAddons(data as AddonRow[]);
+  return offersFromAddons(data as AddonRow[], await resolvePlanFeatures(admin));
+}
+
+/** The plans' own feature lists (Basic, Pro). Best effort: any failure just means the cards are shown without the lists. */
+export async function resolvePlanFeatures(admin: any): Promise<PlanFeatures> {
+  try {
+    const { data, error } = await admin.from("plans").select("name, features_en, features_fr").in("name", TIER_RULES.map((r) => r.plan));
+    if (error || !Array.isArray(data)) return {};
+    const out: PlanFeatures = {};
+    for (const r of data as { name?: string; features_en?: unknown; features_fr?: unknown }[]) {
+      const name = String(r.name || "").toLowerCase();
+      if (!name) continue;
+      const en = cleanFeatures(r.features_en);
+      const fr = cleanFeatures(r.features_fr);
+      out[name] = { en: en.length ? en : fr, fr: fr.length ? fr : en };
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }
