@@ -67,7 +67,12 @@ export default function InboxView({ list, selectedId, thread, filter = DEFAULT_F
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="font-display text-xl font-medium text-ringo-text">{u.title}</h1>
-          {access.kind === "owner" && <Link href={`${INBOX_PATH}/settings`} className="inline-flex min-h-[36px] items-center rounded-full border border-ringo-border px-3 text-xs text-ringo-text hover:bg-ringo-surface">{u.automationLink}</Link>}
+          {access.kind === "owner" && (
+            <span className="flex flex-wrap items-center gap-2">
+              <Link href={`${INBOX_PATH}/sales-bot`} className="inline-flex min-h-[36px] items-center rounded-full border border-ringo-border px-3 text-xs text-ringo-text hover:bg-ringo-surface">{u.salesBotLink}</Link>
+              <Link href={`${INBOX_PATH}/settings`} className="inline-flex min-h-[36px] items-center rounded-full border border-ringo-border px-3 text-xs text-ringo-text hover:bg-ringo-surface">{u.automationLink}</Link>
+            </span>
+          )}
         </div>
         <p className="mt-1 text-sm text-ringo-muted">{u.intro}</p>
       </div>
