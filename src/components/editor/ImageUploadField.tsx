@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Loader2, ImagePlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import OptImg from "@/components/ui/OptImg";
 import { downscaleImage, uploadKindForFolder, type UploadKind } from "@/lib/imageDownscale";
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
@@ -17,6 +18,7 @@ export default function ImageUploadField({
   size = 64,
   errorText,
   optimizeFor,
+  fit = "cover",
 }: {
   value?: string | null;
   onChange: (url: string) => void;
@@ -32,6 +34,8 @@ export default function ImageUploadField({
   errorText?: { tooLarge: string; wrongType: string; failed: string };
   // What the picture is for (sizes it for that use); by default taken from the folder (avatar / cover / products / tracks / releases / events).
   optimizeFor?: UploadKind;
+  // How the preview fills its box. "contain" shows the whole picture (logos and icons, as the public page does); "cover" fills it (photos, avatars).
+  fit?: "cover" | "contain";
 }) {
   const supabase = createClient();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -84,8 +88,7 @@ export default function ImageUploadField({
         }`}
       >
         {value ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={value} alt="" className="w-full h-full object-cover" />
+          <OptImg src={value} width={size} height={size} cssWidth={size} className={`h-full w-full max-h-full max-w-full ${fit === "contain" ? "object-contain p-0.5" : "object-cover"}`} />
         ) : (
           <ImagePlus size={18} className="text-ringo-muted" />
         )}

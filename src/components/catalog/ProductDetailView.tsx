@@ -269,7 +269,7 @@ export default function ProductDetailView({
                     >
                       <div className="relative aspect-[4/5] overflow-hidden rounded-[18px]" style={{ backgroundColor: hexToRgba(fg, 0.06) }}>
                         {img ? (
-                          <OptImg src={img} alt={r.name} cssWidth={148} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          <OptImg src={img} alt={r.name} cssWidth={148} className="h-full w-full object-contain" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center" style={{ backgroundColor: hexToRgba(accent, 0.1) }}>
                             <ShoppingBag size={22} style={{ color: accent }} strokeWidth={1.5} />
@@ -376,7 +376,7 @@ function HeroGallery({ images, alt, accent, fg }: { images: string[]; alt: strin
     setActive(Math.round(el.scrollLeft / el.clientWidth));
   };
 
-  const frame = "relative aspect-[4/5] w-full overflow-hidden lg:rounded-[28px]";
+  const frame = "relative aspect-[4/5] w-full overflow-hidden lg:rounded-[28px]"; // the whole product is shown (object-contain) on a tinted ground, never zoomed or cropped
 
   if (images.length === 0) {
     return (
@@ -387,10 +387,10 @@ function HeroGallery({ images, alt, accent, fg }: { images: string[]; alt: strin
   }
 
   return (
-    <div className={frame}>
+    <div className={frame} style={{ backgroundColor: hexToRgba(fg, 0.06) }}>
       <div ref={trackRef} onScroll={onScroll} className="no-scrollbar flex h-full w-full snap-x snap-mandatory overflow-x-auto scroll-smooth">
         {images.map((src, i) => (
-          <OptImg key={src + i} src={src} alt={i === 0 ? alt : ""} widths={[480, 800, 1200]} sizes="(min-width: 1024px) 560px, 100vw" priority={i === 0} className="h-full w-full shrink-0 snap-center object-cover" />
+          <OptImg key={src + i} src={src} alt={i === 0 ? alt : ""} widths={[480, 800, 1200]} sizes="(min-width: 1024px) 560px, 100vw" priority={i === 0} className="h-full w-full shrink-0 snap-center object-contain" />
         ))}
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/35 to-transparent" />

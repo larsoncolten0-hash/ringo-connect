@@ -466,8 +466,8 @@ export default function MusicStorePage({ profile }: { profile: any }) {
                         <ImageGallery
                           images={p.image_urls?.length ? p.image_urls : [p.image_url]}
                           alt={p.name}
-                          className="w-full aspect-square"
-                          imgClassName="object-cover"
+                          className="w-full aspect-square bg-[#F3F4F6]"
+                          imgClassName="object-contain"
                         />
                       ) : (
                         <div className="w-full aspect-square" style={{ backgroundColor: "#F3F4F6" }} />

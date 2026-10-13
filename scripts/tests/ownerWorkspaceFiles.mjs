@@ -16,6 +16,7 @@ import { PHASE27_FILES } from "./phase27Files.mjs"; // the product-completeness 
 import { PHASE28_FILES } from "./phase28Files.mjs"; // the WhatsApp Inbox push notifications (Phase A): likewise
 import { PHASE29_FILES } from "./phase29Files.mjs"; // the WhatsApp Smart Card sales bot: likewise
 import { PHASE30_FILES } from "./phase30Files.mjs"; // the WhatsApp Inbox UX and media upgrade: likewise
+import { PHASE31_FILES } from "./phase31Files.mjs"; // the image display fix: likewise
 import { SCALABILITY_PHASE0_FILES } from "./scalabilityPhase0Files.mjs"; // scalability and reliability Phase 0: likewise
 import { SCALABILITY_PHASE1TO5_FILES } from "./scalabilityPhase1to5Files.mjs"; // scalability and reliability Phases 1-5: likewise
 
@@ -43,6 +44,7 @@ export const OWNER_WORKSPACE_FILES = new Set([
   ...PHASE28_FILES,
   ...PHASE29_FILES,
   ...PHASE30_FILES,
+  ...PHASE31_FILES,
   ...SCALABILITY_PHASE0_FILES,
   ...SCALABILITY_PHASE1TO5_FILES,
   "scripts/tests/aiBusinessDrafts.test.mjs", // scope guard: exempts this list

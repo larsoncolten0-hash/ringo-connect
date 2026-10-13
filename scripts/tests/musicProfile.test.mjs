@@ -292,7 +292,8 @@ await test("a protected track is still sold only through its detail page and a p
   assert.equal(git(`diff --name-only HEAD -- src/components/music/useTrackPlayback.ts src/lib/music/previewLimit.ts src/lib/music/currency.ts src/lib/currency.ts src/app/api`).split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts" && f.trim() !== "src/app/api/integrations/whatsapp/webhook/route.ts" && !PHASE30_FILES.has(f.trim())).join(","), "", "playback, preview limit, currency and every API route are untouched by the redesign (the performance project only adds a cache refresh to the admin branding save, proven in performance.test.mjs)");
   for (const f of ["src/components/music/ItemDetailPage.tsx", "src/components/music/MusicStorePage.tsx"]) {
     const changed = git(`diff -U0 HEAD -- ${f}`).split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
-    assert.ok(changed.every((l) => /OptImg|<img|no-img-element|^[-+]import /.test(l)), `${f}: only image tags changed (the storefront, purchase and playback code is untouched)`);
+    const IMAGE_FIT_LINES = ["className=\"w-full aspect-square\"","imgClassName=\"object-cover\"","className=\"w-full aspect-square bg-[#F3F4F6]\"","imgClassName=\"object-contain\""]; // phase 31: the merch photo's fit (display only), exact lines
+    assert.ok(changed.every((l) => /OptImg|<img|no-img-element|^[-+]import /.test(l) || (f.endsWith("MusicStorePage.tsx") && IMAGE_FIT_LINES.includes(l.slice(1).trim()))), `${f}: only image tags changed (the storefront, purchase and playback code is untouched)`);
   }
 });
 await test("10-second preview: the shared playback hook still enforces MAX_PREVIEW_SECONDS and the redesign only calls it", () => {

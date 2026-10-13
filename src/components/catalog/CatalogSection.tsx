@@ -271,7 +271,7 @@ function ProductCard({
             alt={product.name}
             widths={featured ? [480, 768, 1024] : [240, 400, 640]}
             sizes={featured ? "(min-width: 640px) 480px, 100vw" : "(min-width: 640px) 260px, 50vw"}
-            className={`h-full w-full object-cover ${inRail ? "" : "transition-transform duration-700 ease-out group-hover:scale-[1.04]"} ${soldOut ? "opacity-60" : ""}`}
+            className={`h-full w-full object-contain ${soldOut ? "opacity-60" : ""}`}
           />
         ) : (
           <div
