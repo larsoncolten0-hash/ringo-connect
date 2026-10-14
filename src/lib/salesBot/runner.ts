@@ -3,6 +3,7 @@ import { replyRequestId } from "./ids";
 import { sendReply, type SendDeps, type SendResult } from "@/lib/inbox/send";
 import type { InboxPushSender } from "@/lib/inbox/automation";
 import { isReservedUsername } from "@/lib/reservedUsernames";
+import { getOrgNotificationAudience } from "@/lib/team/notificationAudience";
 import { computeSignupAmount, confirmSignupPayment } from "@/lib/signupPayment";
 import { POST as createSignupRoute } from "@/app/api/signup-requests/route";
 import { POST as paySignupRoute } from "@/app/api/signup-requests/[id]/pay/route";
@@ -108,6 +109,28 @@ export function withReplyButton(base: typeof fetch, button: { id: string; title:
     }
     return res;
   }) as typeof fetch;
+}
+
+/**
+ * The "new meeting request" notice for the team: one in-app bell row for the owner and for every team member who may read the Inbox (inbox.view), written directly so the answer is a fact:
+ * true only when the rows were really inserted. The push is a best-effort extra and never changes what the customer is told.
+ */
+async function recordAppointmentNotice(admin: any, ownerUserId: string, profileId: string, T: { apptNoticeTitle: string; apptNoticeBody: string }): Promise<boolean> {
+  const ids = new Set<string>([ownerUserId]);
+  try {
+    if (profileId) for (const id of await getOrgNotificationAudience(profileId, ["inbox.view"])) ids.add(id);
+  } catch {
+    // the owner is always told; a failed lookup of the team only means fewer extra recipients
+  }
+  try {
+    const rows = [...ids].map((user_id) => ({ audience: "user", user_id, type: "card_appointment", title: T.apptNoticeTitle, body: T.apptNoticeBody, link: "/dashboard/inbox/appointments" }));
+    const { error } = await admin.from("notifications").insert(rows);
+    if (error) { log({ result: "appointment_notice_failed", code: String(error.code || "insert_error").slice(0, 20) }); return false; }
+    return true;
+  } catch {
+    log({ result: "appointment_notice_failed", code: "exception" });
+    return false;
+  }
 }
 
 async function readJson(res: Response): Promise<Record<string, unknown>> {
@@ -247,6 +270,15 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
   const facts: Facts = { offers: resolved.offers, waDigits, stuck: session.state === "CREATING" && Number(b.age_seconds) > STUCK_AFTER_SECONDS };
   if (session.state === "ASK_USERNAME" && !tapped) facts.usernameStatus = await usernameStatus(deps.admin, text);
   if (session.state === "REVIEW") facts.total = await totalFor(deps.admin, resolved.offers.find((o) => o.tier === session.data.tier));
+  // The customer's newest meeting request, only in the screens that need it. A failed lookup leaves it undefined (the machine then says so instead of guessing).
+  if (session.state === "MEETING_INFO" || session.state === "WELCOME" || session.state === "APPT_DONE") {
+    const ap = await rpc(deps.admin, "card_appt_status", { p_conversation_id: conversationId });
+    if (ap.ok) {
+      const o = obj(ap.data);
+      const status = str(o.status);
+      facts.appointment = o.result === "ok" && (status === "pending" || status === "confirmed" || status === "declined" || status === "cancelled" || status === "completed") ? { status, open: o.open === true } : { status: "none", open: false };
+    }
+  }
 
   let result = step(session, input, facts);
   // The review shows the authoritative total of the card chosen in THIS step (a change of card or a first review), so look it up and run the same step again.
@@ -292,6 +324,36 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
       await save(reply.state, d, false);
       await sendText(reply.text, "reply");
       return { result: `order_${outcome}` };
+    }
+    case "create_appointment": {
+      // The meeting request: stored PENDING by the database (which re-validates everything, requires the conversation's own verified WhatsApp number, and ignores a repeat). It touches no order,
+      // payment, price or subscription. The customer is told the request was sent, never that it was confirmed, and is told honestly when the team could not be alerted.
+      const d = result.data;
+      const dlang = (d.lang ?? "en") as Lang;
+      const T = translations[dlang].inbox.salesBot;
+      const created = await rpc(deps.admin, "card_appt_create", { p_conversation_id: conversationId, p_name: d.aName ?? "", p_phone: waDigits, p_time: d.aWhen ?? "", p_place: d.aWhere ?? "", p_note: d.aNote ?? null, p_lang: dlang });
+      const c = created.ok ? obj(created.data) : {};
+      if (c.result !== "created" && c.result !== "exists") {
+        log({ result: "appointment_failed", code: created.ok ? str(c.result).slice(0, 20) : created.code });
+        await sendText(T.apptFailed, "reply");
+        return { result: "appointment_failed" };
+      }
+      let reply = T.apptStatusText(str(c.status));
+      let outcome = "appointment_exists";
+      if (c.result === "created") {
+        const alerted = await recordAppointmentNotice(deps.admin, ownerUserId, str(c.profile_id), T);
+        try {
+          await deps.push?.(ownerUserId, { category: "card_appointment", title: T.apptNoticeTitle, body: T.apptNoticeBody, url: "/dashboard/inbox/appointments" }, { bell: false });
+        } catch {
+          log({ result: "appointment_push_failed" });
+        }
+        reply = alerted ? T.apptSubmitted : T.apptSubmittedUnalerted;
+        outcome = alerted ? "appointment_created" : "appointment_created_unalerted";
+      }
+      const { aName: _n, aWhen: _w, aWhere: _p, aNote: _o, ...kept } = d;
+      if (!(await save("APPT_DONE", kept, false))) return { result: "save_failed" };
+      await sendText(reply, "reply");
+      return { result: outcome };
     }
     case "resend_payment": {
       const d = result.data;

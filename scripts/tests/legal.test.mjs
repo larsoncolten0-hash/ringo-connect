@@ -207,10 +207,11 @@ await test("scope: authentication, payments, RLS and the database are untouched 
   const git = (a) => execFileSync("git", a, { cwd: REPO, encoding: "utf8" }).split("\n").filter(Boolean);
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
   const { PHASE28_FILES } = await import("./phase28Files.mjs");
+  const { PHASE33_FILES } = await import("./phase33Files.mjs"); // the WhatsApp card appointments (one un-applied migration, one confirm route)
   const { PHASE32_FILES } = await import("./phase32Files.mjs"); // the Smart Card QR claim (one un-applied migration, one claim route)
   const { PHASE30_FILES } = await import("./phase30Files.mjs"); // the Inbox UX and media upgrade (one authenticated file view, one staging step, one private-bucket migration)
   const { PHASE29_FILES } = await import("./phase29Files.mjs"); // the WhatsApp Smart Card sales bot: its exact files (one payment-confirmed hook, one un-applied migration, one owner route) // the Inbox push phase: its exact files (webhook wiring + one additive migration) belong to its own scope guard
-  assert.deepEqual(changed.filter((f) => /^(supabase\/|src\/middleware|src\/app\/api\/|src\/lib\/(auth|supabase|fapshi|payments|productCheckout|protection))/.test(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f)), [], "no API route, migration, auth, payment or database file changed");
+  assert.deepEqual(changed.filter((f) => /^(supabase\/|src\/middleware|src\/app\/api\/|src\/lib\/(auth|supabase|fapshi|payments|productCheckout|protection))/.test(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f)), [], "no API route, migration, auth, payment or database file changed");
   assert.ok(!/GH₵|GHS/.test(JSON.stringify(docs)));
 });
 

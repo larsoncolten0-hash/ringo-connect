@@ -10,8 +10,9 @@ export type BotState =
   | "WELCOME" | "CARDS" | "COMPARE" | "CARD_DETAIL" | "HOW_IT_WORKS" | "FAQ" | "RECOMMEND_1" | "RECOMMEND_2"
   | "ASK_NAME" | "ASK_ADDRESS" | "ASK_EMAIL" | "ASK_USERNAME" | "ASK_OPERATOR" | "ASK_PAY_PHONE" | "REVIEW" | "EDIT_MENU"
   | "DISCOVER" | "BUY_METHOD" | "MEETING_INFO"
+  | "APPT_NAME" | "APPT_WHEN" | "APPT_WHERE" | "APPT_NOTE" | "APPT_REVIEW" | "APPT_DONE"
   | "CREATING" | "PAYMENT" | "COMPLETED" | "HUMAN_HANDOFF";
-export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "DISCOVER", "BUY_METHOD", "MEETING_INFO", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
+export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "DISCOVER", "BUY_METHOD", "MEETING_INFO", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_DONE", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
 
 /**
  * The database (wa_sales_sessions.state, wa_sales_save) already knows the states that existed when it was created, and is not altered for this feature. A state it does not know is
@@ -23,6 +24,13 @@ const UMBRELLA: Partial<Record<BotState, { stored: BotState; step: string }>> = 
   DISCOVER: { stored: "HOW_IT_WORKS", step: "discover" },
   BUY_METHOD: { stored: "CARDS", step: "method" },
   MEETING_INFO: { stored: "CARDS", step: "meeting" },
+  // the meeting-request form (WhatsApp: Buy a card -> Meet a Ringo agent): four free-text questions, a review, and the "request sent" screen
+  APPT_NAME: { stored: "ASK_ADDRESS", step: "appt_name" },
+  APPT_WHEN: { stored: "ASK_ADDRESS", step: "appt_when" },
+  APPT_WHERE: { stored: "ASK_ADDRESS", step: "appt_where" },
+  APPT_NOTE: { stored: "ASK_ADDRESS", step: "appt_note" },
+  APPT_REVIEW: { stored: "REVIEW", step: "appt_review" },
+  APPT_DONE: { stored: "WELCOME", step: "appt_done" },
 };
 export function toStored(state: BotState, data: BotData): { state: BotState; data: BotData } {
   const { awaitEmail: _drop, step: _step, ...rest } = data;
@@ -55,6 +63,11 @@ export interface BotData {
   bad?: number;
   /** The recovery menu (1 agent, 2 main menu, 3 continue) is on screen: 1 / 2 / 3 mean that, whatever state the customer is in. */
   recover?: boolean;
+  /** The meeting request being typed (name, preferred time, place, optional note). Cleared when the request is sent or cancelled. Free text: never trusted, validated again by the database. */
+  aName?: string;
+  aWhen?: string;
+  aWhere?: string;
+  aNote?: string;
   username?: string;
   medium?: SignupMedium;
   payPhone?: string;
@@ -74,8 +87,10 @@ export interface Facts {
   total?: number | null;
   /** The session has sat in CREATING for too long (an earlier attempt died): let the customer go back to the review. */
   stuck?: boolean;
+  /** The customer's newest meeting request (read by the runner in the screens that need it); undefined when it could not be read. */
+  appointment?: { status: "pending" | "confirmed" | "declined" | "cancelled" | "completed" | "none"; open: boolean };
 }
-export type Effect = "none" | "handoff" | "create_and_pay" | "resend_payment" | "check_payment";
+export type Effect = "none" | "handoff" | "create_and_pay" | "resend_payment" | "check_payment" | "create_appointment";
 /** What the runner passes to the machine when the customer taps the "Get started" button (the only button the bot ever sends). It is never typed text: see step(). */
 export const START_TOKEN = "__start__";
 /** `button`: the reply is the short welcome, and the runner sends it with the "Get started" button. */
@@ -117,7 +132,9 @@ const CANCEL_WORDS = ["cancel", "reset", "restart", "annuler", "recommencer", "s
 const IMAGE_WORDS = ["image", "images", "photo", "photos", "picture", "pictures", "see image", "see images", "see the card", "voir image", "voir images", "voir les images", "voir des images", "voir la carte", "voir photo", "voir photos"];
 const ORDER_WORDS = ["order", "buy", "buy a card", "acheter une carte", "i want to order", "commander", "acheter", "commande", "je veux commander"];
 const SKIP_WORDS = ["skip", "no", "none", "passer", "non", "aucun", "pas besoin"];
-const FREE_TEXT: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_PAY_PHONE"];
+const FREE_TEXT: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_PAY_PHONE", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE"];
+const APPT_FLOW: BotState[] = ["APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW"];
+const STATUS_WORDS = ["status", "statut"];
 const ORDER_FLOW: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU"];
 
 export const groupNum = (n: number, sep: string) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, sep);
@@ -164,6 +181,10 @@ function reviewScreen(lang: Lang, d: BotData, facts: Facts, waDigits: string): s
   if (!o || !d.name || !d.address || !d.email || !d.medium || !d.payPhone || typeof facts.total !== "number") return null;
   return T.review({ label: T.tierLabel[o.tier], price: money(lang, o.priceXaf), total: money(lang, facts.total), name: d.name, email: d.email, username: d.username || null, phone: `+${waDigits}`, address: d.address, operator: T.operatorName[d.medium], last3: lastDigits(d.payPhone) });
 }
+function apptReviewScreen(lang: Lang, d: BotData, waDigits: string): string | null {
+  if (!d.aName || !d.aWhen || !d.aWhere) return null;
+  return S(lang).apptReview({ name: d.aName, phone: `+${waDigits}`, when: d.aWhen, where: d.aWhere, note: d.aNote || null });
+}
 function payPhonePrompt(lang: Lang, waDigits: string): string {
   const own = normalizeSignupPhone(waDigits);
   return S(lang).askPayPhone(own ? lastDigits(own) : null);
@@ -177,6 +198,12 @@ function prompt(state: BotState, d: BotData, facts: Facts, lang: Lang): string {
     case "DISCOVER": return T.discover;
     case "BUY_METHOD": return T.buyMethod;
     case "MEETING_INFO": return T.meetingInfo;
+    case "APPT_NAME": return T.apptAskName;
+    case "APPT_WHEN": return T.apptAskWhen;
+    case "APPT_WHERE": return T.apptAskWhere;
+    case "APPT_NOTE": return T.apptAskNote;
+    case "APPT_REVIEW": return apptReviewScreen(lang, d, facts.waDigits) ?? T.apptAskName;
+    case "APPT_DONE": return facts.appointment ? T.apptStatusText(facts.appointment.status) : T.apptStatusUnknown;
     case "CARDS": return cardsScreen(lang, facts);
     case "COMPARE": return compareScreen(lang, facts);
     case "CARD_DETAIL": return o ? detailScreen(lang, o) : cardsScreen(lang, facts);
@@ -231,7 +258,7 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
   };
   const toHuman = () => out("HUMAN_HANDOFF", d, T.handoff, "handoff", true);
   const mainMenu = (body: string): StepResult => {
-    const r = out("WELCOME", { lang, ...(d.langLocked ? { langLocked: true } : {}) }, `${ORDER_FLOW.includes(state) ? `${T.cancelled}\n\n` : ""}${body}`);
+    const r = out("WELCOME", { lang, ...(d.langLocked ? { langLocked: true } : {}) }, `${ORDER_FLOW.includes(state) ? `${T.cancelled}\n\n` : APPT_FLOW.includes(state) ? `${T.apptCancelled}\n\n` : ""}${body}`);
     return body === T.welcome ? { ...r, button: true } : r;
   };
 
@@ -249,7 +276,7 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
   if (has(t, ["fr", "francais", "french"]) || has(t, ["en", "english", "anglais"])) {
     const to: Lang = has(t, ["fr", "francais", "french"]) ? "fr" : "en";
     const nd = { ...d, lang: to, langLocked: true };
-    const first = ORDER_FLOW.includes(state) || state === "PAYMENT" || state === "CREATING";
+    const first = ORDER_FLOW.includes(state) || APPT_FLOW.includes(state) || state === "PAYMENT" || state === "CREATING";
     const switched = out(first ? state : "WELCOME", nd, `${S(to).langSwitched}\n\n${first ? prompt(state, nd, facts, to) : S(to).welcome}`);
     return first ? switched : { ...switched, button: true };
   }
@@ -274,6 +301,7 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
   switch (state) {
     case "WELCOME":
     case "COMPLETED": {
+      if (state === "WELCOME" && has(t, STATUS_WORDS) && facts.appointment) return out("WELCOME", d, T.apptStatusText(facts.appointment.status));
       // The four-option main menu: 1 Discover Ringo, 2 Buy a card, 3 Know more, 4 Speak with a Ringo agent. The words below are shortcuts to the same places.
       if (n === 1 || has(t, DISCOVER_WORDS)) return out("DISCOVER", d, T.discover);
       if (n === 2 || has(t, ORDER_WORDS) || has(t, PRICE_WORDS)) return out("BUY_METHOD", d, T.buyMethod);
@@ -300,10 +328,44 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
       return confused();
     }
     case "MEETING_INFO": {
-      // Phase 1: nothing about a meeting is collected or stored here. A person from the team arranges it in the conversation.
-      if (n === 1) return toHuman();
-      if (n === 2) return out("CARDS", { ...d, method: "online" }, cardsScreen(lang, facts));
+      // 1 starts the meeting request (or shows the one the customer already has), 2 a person, 3 back to paying online.
+      if (n === 1) return facts.appointment?.open ? out("APPT_DONE", d, T.apptStatusText(facts.appointment.status)) : out("APPT_NAME", d, T.apptAskName);
+      if (n === 2) return toHuman();
+      if (n === 3) return out("CARDS", { ...d, method: "online" }, cardsScreen(lang, facts));
       return confused();
+    }
+    case "APPT_NAME": {
+      const v = clean(text, 80);
+      if (v.length < 2) return stay(T.apptAskName);
+      d.aName = v;
+      return out("APPT_WHEN", d, T.apptAskWhen);
+    }
+    case "APPT_WHEN": {
+      const v = clean(text, 80);
+      if (v.length < 3) return stay(T.apptAskWhen);
+      d.aWhen = v;
+      return out("APPT_WHERE", d, T.apptAskWhere);
+    }
+    case "APPT_WHERE": {
+      const v = clean(text, 160);
+      if (v.length < 3) return stay(T.apptAskWhere);
+      d.aWhere = v;
+      return out("APPT_NOTE", d, T.apptAskNote);
+    }
+    case "APPT_NOTE": {
+      d.aNote = has(t, SKIP_WORDS) ? undefined : clean(text, 200) || undefined;
+      return out("APPT_REVIEW", d, prompt("APPT_REVIEW", d, facts, lang));
+    }
+    case "APPT_REVIEW": {
+      if (!d.aName || !d.aWhen || !d.aWhere) return out("APPT_NAME", d, T.apptAskName);
+      // 1 sends the request: the runner stores it (the database re-validates everything and ignores a repeat) and writes the answer. It never touches an order or a payment.
+      if (n === 1) return out("APPT_REVIEW", d, "", "create_appointment");
+      if (n === 2) return out("APPT_NAME", { ...d, aName: undefined, aWhen: undefined, aWhere: undefined, aNote: undefined }, T.apptAskName);
+      return confused();
+    }
+    case "APPT_DONE": {
+      // After a request was sent (or the customer already had one) every message is answered with where it stands; 0 / menu / human work everywhere as usual.
+      return out("APPT_DONE", d, prompt("APPT_DONE", d, facts, lang));
     }
     case "CARDS": {
       const pick = n !== null && n >= 1 && n <= facts.offers.length ? facts.offers[n - 1] : facts.offers.find((o) => has(t, [norm(T.tierLabel[o.tier]), o.tier]));
