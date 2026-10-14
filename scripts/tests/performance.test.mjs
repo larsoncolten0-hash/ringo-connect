@@ -71,7 +71,7 @@ await test("imageUrl: only a public still image of THIS project's uploads bucket
   }
 });
 await test("imageUrl: the transformed URL is the same object served by Supabase Image Transformations at the requested width; the original is never rewritten", () => {
-  assert.equal(U.transformedImageUrl(IMG, { width: 320 }), `${ORIGIN}/storage/v1/render/image/public/uploads/u1/avatar/a.png?width=320&quality=75`);
+  assert.equal(U.transformedImageUrl(IMG, { width: 320 }), `${ORIGIN}/storage/v1/render/image/public/uploads/u1/avatar/a.png?width=320&resize=contain&quality=75`);
   assert.equal(U.transformedImageUrl(IMG, { width: 320, square: true }), `${ORIGIN}/storage/v1/render/image/public/uploads/u1/avatar/a.png?width=320&height=320&resize=cover&quality=75`);
   assert.match(U.transformedImageUrl(IMG, { width: 99999 }), /width=2000&/, "width is clamped");
   assert.match(U.transformedImageUrl(IMG, { width: 1 }), /width=16&/);

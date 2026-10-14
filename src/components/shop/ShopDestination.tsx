@@ -286,7 +286,7 @@ function Tile({
   const photo = (
     <div className={`relative w-full overflow-hidden rounded-[20px] bg-ringo-stone-100 ${featured ? "aspect-[4/3] md:aspect-auto md:h-full md:min-h-[280px]" : "aspect-[4/5]"}`}>
       {images[0] ? (
-        <OptImg src={images[0]} widths={featured ? [480, 768, 1024] : [240, 400, 640]} sizes={featured ? "(min-width: 768px) 50vw, 100vw" : "(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"} priority={featured} className={`absolute inset-0 h-full w-full object-contain ${soldOut ? "opacity-60" : ""}`} />
+        <OptImg src={images[0]} widths={featured ? [480, 768, 1024] : [240, 400, 640]} sizes={featured ? "(min-width: 768px) 50vw, 100vw" : "(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"} priority={featured} className={`absolute inset-0 h-full w-full object-cover ${soldOut ? "opacity-60" : ""}`} />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(145deg, rgb(var(--ringo-indigo) / 0.14), rgb(var(--ringo-indigo) / 0.04))" }}>
           <ShoppingBag size={featured ? 40 : 28} strokeWidth={1.5} className="text-ringo-indigo opacity-70" aria-hidden="true" />

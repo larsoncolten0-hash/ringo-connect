@@ -269,7 +269,7 @@ export default function ProductDetailView({
                     >
                       <div className="relative aspect-[4/5] overflow-hidden rounded-[18px]" style={{ backgroundColor: hexToRgba(fg, 0.06) }}>
                         {img ? (
-                          <OptImg src={img} alt={r.name} cssWidth={148} className="h-full w-full object-contain" />
+                          <OptImg src={img} alt={r.name} cssWidth={148} className="h-full w-full object-cover" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center" style={{ backgroundColor: hexToRgba(accent, 0.1) }}>
                             <ShoppingBag size={22} style={{ color: accent }} strokeWidth={1.5} />
@@ -390,7 +390,7 @@ function HeroGallery({ images, alt, accent, fg }: { images: string[]; alt: strin
     <div className={frame} style={{ backgroundColor: hexToRgba(fg, 0.06) }}>
       <div ref={trackRef} onScroll={onScroll} className="no-scrollbar flex h-full w-full snap-x snap-mandatory overflow-x-auto scroll-smooth">
         {images.map((src, i) => (
-          <OptImg key={src + i} src={src} alt={i === 0 ? alt : ""} widths={[480, 800, 1200]} sizes="(min-width: 1024px) 560px, 100vw" priority={i === 0} className="h-full w-full shrink-0 snap-center object-contain" />
+          <OptImg key={src + i} src={src} alt={i === 0 ? alt : ""} widths={[480, 800, 1200]} sizes="(min-width: 1024px) 560px, 100vw" priority={i === 0} className="h-full w-full shrink-0 snap-center object-cover" />
         ))}
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/35 to-transparent" />

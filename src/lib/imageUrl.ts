@@ -45,7 +45,8 @@ export function transformedImageUrl(url: string | null | undefined, v: ImageVari
   if (v.square) {
     q.set("height", String(w));
     q.set("resize", "cover");
-  } else if (v.contain) {
+  } else {
+    // A bare width makes Supabase return that width at the ORIGINAL height (a distorted sliver), so every non-square request asks for the whole picture at its own ratio.
     q.set("resize", "contain");
   }
   q.set("quality", String(v.quality ?? IMAGE_QUALITY));

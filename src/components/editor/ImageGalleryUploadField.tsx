@@ -78,7 +78,7 @@ export default function ImageGalleryUploadField({
             className="relative shrink-0 overflow-hidden rounded-card border border-ringo-border"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" className="h-full w-full max-h-full max-w-full object-contain" />
+            <img src={url} alt="" className="h-full w-full max-h-full max-w-full object-cover" />
             <button
               type="button"
               onClick={() => onChange(urls.filter((_, idx) => idx !== i))}

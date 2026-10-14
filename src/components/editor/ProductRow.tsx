@@ -116,7 +116,7 @@ export default function ProductRow({
         >
           {product.image_urls?.[0] || product.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.image_urls?.[0] || product.image_url} alt="" width={38} height={38} className="h-full w-full max-h-full max-w-full object-contain" />
+            <img src={product.image_urls?.[0] || product.image_url} alt="" width={38} height={38} className="h-full w-full max-h-full max-w-full object-cover" />
           ) : (
             <ImagePlus size={16} className="text-ringo-muted" />
           )}

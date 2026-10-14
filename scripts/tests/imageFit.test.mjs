@@ -33,10 +33,10 @@ const PRODUCT_SITES = [
   ["src/components/music/MusicStorePage.tsx", "imgClassName"],
 ];
 for (const [rel, needle] of PRODUCT_SITES) {
-  test(`${rel} (${needle}): product photo uses object-contain, no object-cover and no hover zoom`, () => {
+  test(`${rel} (${needle}): product photo fills its frame (object-cover, no bars) and has no hover zoom`, () => {
     const l = raw(rel).split("\n").filter((x) => x.includes(needle) && /object-(contain|cover)/.test(x)).join("\n");
     assert.ok(l, "site not found");
-    assert.ok(l.includes("object-contain") && !l.includes("object-cover") && !/group-hover:scale|hover:scale/.test(l));
+    assert.ok(l.includes("object-cover") && !l.includes("object-contain") && !/group-hover:scale|hover:scale/.test(l));
   });
 }
 test("catalog tile (multi-line OptImg): fills its frame (object-cover), no hover zoom", () => {
@@ -55,12 +55,12 @@ test("intentional crops are left alone: artwork, covers, avatars and restaurant 
 });
 
 // ---- editor previews match the public page
-test("editor: link preview uses fit=contain, ImageUploadField previews through OptImg with a fixed size, product previews are contained", () => {
-  assert.ok(raw("src/components/editor/LinkRow.tsx").includes('fit="contain"'));
+test("editor: link preview uses fit=contain, ImageUploadField previews through OptImg with a fixed size, product previews fill their frame", () => {
+  assert.ok(raw("src/components/editor/LinkRow.tsx").includes('fit="cover"'));
   const f = raw("src/components/editor/ImageUploadField.tsx");
   assert.ok(f.includes('import OptImg') && f.includes("<OptImg src={value} width={size} height={size}") && f.includes('fit = "cover"'));
-  assert.ok(lineWith("src/components/editor/ProductRow.tsx", "<img src={product.image_urls").join("").includes("object-contain"));
-  assert.ok(lineWith("src/components/editor/ImageGalleryUploadField.tsx", "<img src={url}").join("").includes("object-contain"));
+  assert.ok(lineWith("src/components/editor/ProductRow.tsx", "<img src={product.image_urls").join("").includes("object-cover"));
+  assert.ok(lineWith("src/components/editor/ImageGalleryUploadField.tsx", "<img src={url}").join("").includes("object-cover"));
 });
 
 // ---- optimisation stays safe
@@ -74,9 +74,9 @@ test("imageUrl: only own public raster uploads are resized; svg, gif, external, 
     assert.ok(!U.isTransformableImage(bad), bad);
   assert.strictEqual(U.transformedImageUrl("https://example.com/a.png", { width: 100 }), "https://example.com/a.png");
 });
-test("imageUrl: `square` crops; `contain` asks for the whole picture; a bare width is unchanged (Supabase answers it with the ORIGINAL height, a centred crop)", () => {
+test("imageUrl: `square` crops; `contain` asks for the whole picture; a bare width ALSO asks for the whole picture (Supabase answers a bare width with the ORIGINAL height, a distorted sliver)", () => {
   const free = new URL(U.transformedImageUrl(own("u/a.png"), { width: 200 }));
-  assert.ok(!free.searchParams.has("height") && !free.searchParams.has("resize"), "default URL must stay exactly as before");
+  assert.ok(!free.searchParams.has("height") && free.searchParams.get("resize") === "contain", "a bare width keeps the ratio: contain, never a height");
   const sq = new URL(U.transformedImageUrl(own("u/a.png"), { width: 200, square: true }));
   assert.ok(sq.searchParams.get("resize") === "cover" && sq.searchParams.get("height") === "200");
   const whole = new URL(U.transformedImageUrl(own("u/a.png"), { width: 200, contain: true }));
@@ -89,7 +89,7 @@ test("imageUrl: every srcset candidate of a `contain` image keeps resize=contain
   const dens = U.imageDensitySrcSet(own("u/a.png"), 56, { contain: true }).split(", ");
   const fluid = U.imageSrcSet(own("u/a.png"), [240, 400, 640], { contain: true }).split(", ");
   assert.ok(dens.length === 3 && fluid.length === 3 && [...dens, ...fluid].every((c) => c.includes("resize=contain")));
-  assert.ok(!U.imageDensitySrcSet(own("u/a.png"), 56).includes("resize"), "no flag, no change");
+  assert.ok(U.imageDensitySrcSet(own("u/a.png"), 56).split(", ").every((c) => c.includes("resize=contain")), "a bare width is contain too");
 });
 test("OptImg forwards `contain` to the fallback src, the density srcset and the fluid srcset", () => {
   const o = raw("src/components/ui/OptImg.tsx");

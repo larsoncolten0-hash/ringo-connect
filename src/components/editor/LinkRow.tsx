@@ -60,7 +60,7 @@ export default function LinkRow({
           onChange={(url) => onChange({ image_url: url })}
           userId={userId}
           folder="links"
-          fit="contain"
+          fit="cover"
           size={38}
           errorText={t.editor.upload}
         />
