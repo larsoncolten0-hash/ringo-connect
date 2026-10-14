@@ -7,7 +7,7 @@ import { computeSignupAmount, confirmSignupPayment } from "@/lib/signupPayment";
 import { POST as createSignupRoute } from "@/app/api/signup-requests/route";
 import { POST as paySignupRoute } from "@/app/api/signup-requests/[id]/pay/route";
 import { resolveSmartCardOffers, type Offer } from "./offers";
-import { step, toStored, fromStored, type Facts, type Lang, type Session, type StepResult, type BotState } from "./machine";
+import { step, toStored, fromStored, START_TOKEN, type Facts, type Lang, type Session, type StepResult, type BotState } from "./machine";
 
 // The Smart Card sales bot's side-effect layer. The conversation logic is the pure machine in machine.ts; everything here is plumbing around EXISTING systems:
 //   * messages in/out      -> the Inbox: the inbound text was already stored by ingestion; every reply goes through the audited text sender (sendReply: ownership, 24-hour window,
@@ -82,6 +82,32 @@ async function recordHandoffNotice(admin: any, ownerUserId: string, conversation
     log({ result: "handoff_notice_failed", code: "exception" });
     return false;
   }
+}
+
+/**
+ * Sends ONE message from the audited Inbox sender as a message with a reply button, WITHOUT touching that sender. The sender builds its usual plain-text request and calls the fetch it is given;
+ * this wrapper turns that single request into a WhatsApp reply-button message (body up to 1,024 characters, title up to 20). If WhatsApp definitely refuses the button message (a 4xx that is
+ * not the 24-hour window or a rate limit), nothing was sent, so the original plain-text request is made instead and the customer still gets the message. Network errors, timeouts and 5xx answers
+ * are passed straight through, so an unknown outcome is never retried and nothing can be sent twice.
+ */
+export function withReplyButton(base: typeof fetch, button: { id: string; title: string }): typeof fetch {
+  return (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    let message: any = null;
+    try { message = JSON.parse(String(init?.body ?? "")); } catch { message = null; }
+    const body = message && message.type === "text" && typeof message.text?.body === "string" ? (message.text.body as string) : null;
+    if (!body || body.length > 1024 || button.title.length < 1 || button.title.length > 20 || !/^[A-Za-z0-9_-]{1,64}$/.test(button.id)) return base(input, init);
+    const withButton = { messaging_product: message.messaging_product, recipient_type: message.recipient_type, to: message.to, type: "interactive", interactive: { type: "button", body: { text: body }, action: { buttons: [{ type: "reply", reply: { id: button.id, title: button.title } }] } } };
+    const res = await base(input, { ...init, body: JSON.stringify(withButton) });
+    if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+      let code: unknown = null;
+      try { code = (await res.clone().json())?.error?.code; } catch { code = null; }
+      if (code !== 131047 && code !== 130429 && code !== 80007 && code !== 131056) {
+        log({ result: "button_fallback", http_status: res.status, meta_code: typeof code === "number" ? code : null });
+        return base(input, init);
+      }
+    }
+    return res;
+  }) as typeof fetch;
 }
 
 async function readJson(res: Response): Promise<Record<string, unknown>> {
@@ -181,10 +207,10 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
   if (!conversationId || !ownerUserId || !waDigits) return { result: "skip" };
 
   const sender = deps.send ?? sendReply;
-  const sendText = async (text: string, slot: string) => {
+  const sendText = async (text: string, slot: string, button?: { id: string; title: string }) => {
     if (!text.trim()) return;
     try {
-      const r = await sender({ admin: deps.admin, fetchImpl: deps.fetchImpl, env: deps.env }, { userId: ownerUserId, conversationId, clientRequestId: replyRequestId(e.phoneNumberId, e.messageId, slot), text });
+      const r = await sender({ admin: deps.admin, fetchImpl: button ? withReplyButton(deps.fetchImpl ?? fetch, button) : deps.fetchImpl, env: deps.env }, { userId: ownerUserId, conversationId, clientRequestId: replyRequestId(e.phoneNumberId, e.messageId, slot), text });
       log({ result: "reply", slot, status: r.status, state: r.body.ok ? r.body.state : r.body.error });
     } catch {
       log({ result: "reply_exception", slot });
@@ -207,29 +233,32 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
   const type = str(b.type);
   const text = str(b.text);
   const lang: Lang = isLang(session.data.lang) ? session.data.lang : "en";
-  if (type !== "text") {
+  // A tap on the "Get started" button arrives as an interactive message with no text. It is the only button the bot sends, so it means "start": the machine gets a fixed token, never customer text.
+  const tapped = type === "interactive";
+  if (type !== "text" && !tapped) {
     // Voice notes, images and documents get one short hint; reactions, stickers and system events get nothing (never a reply loop on an emoji).
     if (NON_TEXT_HINT.has(type)) await sendText(translations[lang].inbox.salesBot.nonText, "nontext");
     return { result: "non_text" };
   }
+  const input = tapped ? START_TOKEN : text;
 
   const resolved = await resolveSmartCardOffers(deps.admin);
   if (resolved.missing.length > 0) log({ result: "offers_incomplete", missing: resolved.missing.join(",") });
   const facts: Facts = { offers: resolved.offers, waDigits, stuck: session.state === "CREATING" && Number(b.age_seconds) > STUCK_AFTER_SECONDS };
-  if (session.state === "ASK_USERNAME") facts.usernameStatus = await usernameStatus(deps.admin, text);
+  if (session.state === "ASK_USERNAME" && !tapped) facts.usernameStatus = await usernameStatus(deps.admin, text);
   if (session.state === "REVIEW") facts.total = await totalFor(deps.admin, resolved.offers.find((o) => o.tier === session.data.tier));
 
-  let result = step(session, text, facts);
+  let result = step(session, input, facts);
   // The review shows the authoritative total of the card chosen in THIS step (a change of card or a first review), so look it up and run the same step again.
   if (result.state === "REVIEW" && session.state !== "REVIEW") {
     facts.total = await totalFor(deps.admin, resolved.offers.find((o) => o.tier === result.data.tier));
-    result = step(session, text, facts);
+    result = step(session, input, facts);
   }
 
   switch (result.effect) {
     case "none": {
       if (!(await save(result.state, result.data, false))) return { result: "save_failed" };
-      await sendText(result.reply, "reply");
+      await sendText(result.reply, "reply", result.button ? { id: "start", title: translations[(result.data.lang ?? "en") as Lang].inbox.salesBot.startButton } : undefined);
       return { result: "replied" };
     }
     case "handoff": {

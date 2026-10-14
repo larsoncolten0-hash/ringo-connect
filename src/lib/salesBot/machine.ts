@@ -76,7 +76,10 @@ export interface Facts {
   stuck?: boolean;
 }
 export type Effect = "none" | "handoff" | "create_and_pay" | "resend_payment" | "check_payment";
-export interface StepResult { state: BotState; data: BotData; handoff: boolean; reply: string; effect: Effect }
+/** What the runner passes to the machine when the customer taps the "Get started" button (the only button the bot ever sends). It is never typed text: see step(). */
+export const START_TOKEN = "__start__";
+/** `button`: the reply is the short welcome, and the runner sends it with the "Get started" button. */
+export interface StepResult { state: BotState; data: BotData; handoff: boolean; reply: string; effect: Effect; button?: boolean }
 
 // ------------------------------------------------------------------------------------------------ small helpers
 export const norm = (s: string): string => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[’']/g, "'").replace(/\s+/g, " ").trim();
@@ -127,15 +130,10 @@ export function subscriptionLine(lang: Lang, o: Offer): string {
   const T = S(lang);
   return T.subscription(T.period(o.days), cap(o.planName));
 }
+// What each card is listed with in WhatsApp: ONE short, fixed list per tier (translations.<lang>.inbox.salesBot.tierFeatures), written for this bot only. It does not read the plans table or the add-on
+// features, so it never changes with the platform's plan configuration. The prices still come from the live add-on rows. The first line of each list is that tier's subscription, without a duration.
 function offerLines(lang: Lang, o: Offer): string[] {
-  const T = S(lang);
-  const lines = [T.subscription(T.period(o.days), cap(o.planName))];
-  if (o.hasQr) lines.push(T.qrIncluded);
-  if (o.hasConfig) lines.push(T.configIncluded);
-  // What the granted plan itself includes (Basic or Pro), straight from the plans table; the other language is the fallback when one list is missing.
-  const own = lang === "fr" ? o.featuresFr : o.featuresEn;
-  lines.push(...(own.length ? own : lang === "fr" ? o.featuresEn : o.featuresFr));
-  return lines;
+  return [...S(lang).tierFeatures[o.tier]];
 }
 const offerFor = (facts: Facts, tier?: TierKey) => facts.offers.find((o) => o.tier === tier);
 
@@ -157,7 +155,7 @@ function detailScreen(lang: Lang, o: Offer): string {
 function includedAnswer(lang: Lang, facts: Facts): string {
   const T = S(lang);
   const all = (k: "hasQr" | "hasConfig") => facts.offers.length > 0 && facts.offers.every((o) => o[k]);
-  const lines = [...(all("hasQr") ? [T.qrIncluded] : []), ...(all("hasConfig") ? [T.configIncluded] : []), ...facts.offers.map((o) => `${T.tierLabel[o.tier]}: ${T.subscription(T.period(o.days), cap(o.planName))}`)];
+  const lines = [...(all("hasQr") ? [T.qrIncluded] : []), ...(all("hasConfig") ? [T.configIncluded] : []), ...facts.offers.map((o) => `${T.tierLabel[o.tier]}: ${T.tierFeatures[o.tier][0]}`)];
   return T.faqIncluded(lines);
 }
 function reviewScreen(lang: Lang, d: BotData, facts: Facts, waDigits: string): string | null {
@@ -232,10 +230,16 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
     return { state, data: { ...d, bad, ...(bad >= 3 ? { recover: true } : {}) }, handoff: false, reply, effect: "none" };
   };
   const toHuman = () => out("HUMAN_HANDOFF", d, T.handoff, "handoff", true);
-  const mainMenu = (body: string) => out("WELCOME", { lang, ...(d.langLocked ? { langLocked: true } : {}) }, `${ORDER_FLOW.includes(state) ? `${T.cancelled}\n\n` : ""}${body}`);
+  const mainMenu = (body: string): StepResult => {
+    const r = out("WELCOME", { lang, ...(d.langLocked ? { langLocked: true } : {}) }, `${ORDER_FLOW.includes(state) ? `${T.cancelled}\n\n` : ""}${body}`);
+    return body === T.welcome ? { ...r, button: true } : r;
+  };
 
   if (session.handoff || state === "HUMAN_HANDOFF") return { state: "HUMAN_HANDOFF", data: d, handoff: true, reply: "", effect: "none" };
   if (!t) return confused();
+
+  // The "Get started" button was tapped. At the start of the conversation it opens the main menu; in the middle of anything else it only shows the current question again (nothing is cleared, counted or answered).
+  if (t === START_TOKEN) return state === "WELCOME" || state === "COMPLETED" ? mainMenu(T.mainMenu) : out(state, d, prompt(state, d, facts, lang));
 
   // A human on request, at any point. Free-text answers (a name, an address) only match a bare request, never a word inside an address.
   const wantsHuman = FREE_TEXT.includes(state) ? has(t, HUMAN_WORDS) : HUMAN_LOOSE.test(t) || has(t, HUMAN_WORDS);
@@ -246,7 +250,8 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
     const to: Lang = has(t, ["fr", "francais", "french"]) ? "fr" : "en";
     const nd = { ...d, lang: to, langLocked: true };
     const first = ORDER_FLOW.includes(state) || state === "PAYMENT" || state === "CREATING";
-    return out(first ? state : "WELCOME", nd, `${S(to).langSwitched}\n\n${first ? prompt(state, nd, facts, to) : S(to).welcome}`);
+    const switched = out(first ? state : "WELCOME", nd, `${S(to).langSwitched}\n\n${first ? prompt(state, nd, facts, to) : S(to).welcome}`);
+    return first ? switched : { ...switched, button: true };
   }
 
   if (state === "CREATING") {
