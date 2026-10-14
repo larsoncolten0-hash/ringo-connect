@@ -35,6 +35,17 @@ const nextConfig = {
         source: "/:file(logo\\.png|favicon\\.ico|apple-touch-icon\\.png|icon-192\\.png|icon-512\\.png|icon-maskable-512\\.png)",
         headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
       },
+      // Smart Card QR links (/c/<token>): the token is the credential, so the same rules as /d/.
+      {
+        source: "/c/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, max-age=0" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
       {
         source: "/d/:path*",
         headers: [

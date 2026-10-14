@@ -13,6 +13,7 @@ import { PHASE11_FILES } from "./phase11Files.mjs";
 import { PHASE12_FILES } from "./phase12Files.mjs";
 import { PHASE26_FILES } from "./phase26Files.mjs";
 import { PHASE30_FILES } from "./phase30Files.mjs"; // the Inbox media routes (not music, not analytics)
+import { PHASE32_FILES } from "./phase32Files.mjs"; // the Smart Card QR claim route
 import { isPhase2File } from "./phase2Files.mjs";
 import { isPhase16ProtectedFile } from "./phase16Files.mjs"; // security remediation: the exact files (billing webhook / upgrade stub, package files, next-env.d.ts) it changes on purpose
 import { legacyTranslationsSource } from "./i18nSource.mjs"; // the dictionaries are two modules now; this rebuilds the old single-file text byte for byte
@@ -289,7 +290,7 @@ await test("a protected track is still sold only through its detail page and a p
   const h = render(music());
   assert.ok(!h.includes('src="/p.mp3"') && !/<audio/.test(h), "the page ships no <audio> element or source in the HTML (the single audio element is created on play by useTrackPlayback)");
   assert.ok(!h.includes("protected_audio_path") && !h.includes('"x"'), "the protected path never reaches the page");
-  assert.equal(git(`diff --name-only HEAD -- src/components/music/useTrackPlayback.ts src/lib/music/previewLimit.ts src/lib/music/currency.ts src/lib/currency.ts src/app/api`).split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts" && f.trim() !== "src/app/api/integrations/whatsapp/webhook/route.ts" && !PHASE30_FILES.has(f.trim())).join(","), "", "playback, preview limit, currency and every API route are untouched by the redesign (the performance project only adds a cache refresh to the admin branding save, proven in performance.test.mjs)");
+  assert.equal(git(`diff --name-only HEAD -- src/components/music/useTrackPlayback.ts src/lib/music/previewLimit.ts src/lib/music/currency.ts src/lib/currency.ts src/app/api`).split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts" && f.trim() !== "src/app/api/integrations/whatsapp/webhook/route.ts" && !PHASE30_FILES.has(f.trim()) && !PHASE32_FILES.has(f.trim())).join(","), "", "playback, preview limit, currency and every API route are untouched by the redesign (the performance project only adds a cache refresh to the admin branding save, proven in performance.test.mjs)");
   for (const f of ["src/components/music/ItemDetailPage.tsx", "src/components/music/MusicStorePage.tsx"]) {
     const changed = git(`diff -U0 HEAD -- ${f}`).split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
     const IMAGE_FIT_LINES = ["className=\"w-full aspect-square\"","imgClassName=\"object-cover\"","className=\"w-full aspect-square bg-[#F3F4F6]\"","imgClassName=\"object-contain\""]; // phase 31: the merch photo's fit (display only), exact lines
@@ -415,7 +416,7 @@ await test("Merch page analytics: a product tap goes through the existing /api/t
   assert.match(strip(raw("src/components/music/profile/MusicSections.tsx")), /onClick=\{\(\) => logClick\("product", p\.id/, "and so does every grid card");
   const before = strip(raw("src/components/ProfileView.tsx"));
   assert.match(before, /fetch\("\/api\/track"/, "ProfileView's own tracking is untouched");
-  assert.equal(git("diff --name-only HEAD -- src/app/api src/lib/pixelClient.ts src/lib/pixelEvents.ts src/lib/pixelTracking.ts").split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts" && f.trim() !== "src/app/api/integrations/whatsapp/webhook/route.ts" && f.trim() !== "src/lib/pixelTracking.ts" && !PHASE30_FILES.has(f.trim())).join(","), "", "the analytics implementation itself is unchanged");
+  assert.equal(git("diff --name-only HEAD -- src/app/api src/lib/pixelClient.ts src/lib/pixelEvents.ts src/lib/pixelTracking.ts").split("\n").filter((f) => f.trim() && f.trim() !== "src/app/api/admin/branding/route.ts" && f.trim() !== "src/app/api/integrations/whatsapp/webhook/route.ts" && f.trim() !== "src/lib/pixelTracking.ts" && !PHASE30_FILES.has(f.trim()) && !PHASE32_FILES.has(f.trim())).join(","), "", "the analytics implementation itself is unchanged");
   // the product-completeness phase (phase27Files.mjs) adds ONE switch to pixelTracking.ts so optional Meta / TikTok sending can be turned off; nothing else in that file may change
   const ptChanged = git("diff -U0 HEAD -- src/lib/pixelTracking.ts").split("\n").filter((l) => /^[-+]/.test(l) && !/^(---|\+\+\+)/.test(l));
   assert.ok(ptChanged.every((l) => /^\+/.test(l) && /OPTIONAL_TRACKING_ENABLED/.test(l)), "pixelTracking.ts: only the optional-tracking switch was added: " + ptChanged.join(" | "));

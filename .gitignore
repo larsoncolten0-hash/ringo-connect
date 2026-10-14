@@ -5,3 +5,8 @@ node_modules
 .DS_Store
 npm-debug.log*
 .env.staging
+
+# Smart Card batches hold live tokens / token hashes: never commit them (they are generated outside the repo; this is a safety net)
+RINGO-SMARTCARDS-*/
+PRIVATE_DO_NOT_SHARE/
+SUPPLIER_PACKAGE/

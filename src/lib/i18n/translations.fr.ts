@@ -6453,6 +6453,30 @@ export const fr: Translations = {
       },
       resubscribe: "Se réabonner à Pro",
     },
+    // Page de réclamation du QR Ringo Smart Card (/c/<token>, src/app/c/[token]/page.tsx et src/components/smartCard/CardClaim.tsx).
+    smartCard: {
+      unavailableTitle: "Ce lien de carte n'est pas disponible",
+      unavailableBody: "Le lien est peut-être mal saisi, désactivé ou n'est plus valide. S'il s'agit de votre Carte Ringo, contactez le support Ringo.",
+      limitedTitle: "Trop de tentatives",
+      limitedBody: "Patientez quelques minutes puis scannez de nouveau la carte.",
+      claimTitle: "Activez votre Carte Ringo",
+      claimIntro: "Cette carte attend son propriétaire. Associez-la à votre profil Ringo : toute personne qui la scanne ouvrira votre page.",
+      cardLabel: "Carte",
+      signInFirst: "Connectez-vous ou créez un compte gratuit pour réclamer cette carte.",
+      signIn: "Se connecter pour réclamer",
+      createAccount: "Créer un compte Ringo",
+      claimingAs: "Elle ouvrira ce profil :",
+      claimButton: "Réclamer cette carte",
+      claiming: "Réclamation...",
+      choosePrompt: "Choisissez le profil que cette carte ouvrira :",
+      noProfile: "Votre compte n'a pas encore de profil Ringo. Créez-en un d'abord, puis scannez de nouveau cette carte.",
+      claimedTitle: "Votre carte est activée",
+      claimedBody: "Toute personne qui scanne cette carte ouvrira désormais votre profil Ringo. Vous pouvez modifier votre profil à tout moment : la carte continue de fonctionner.",
+      viewProfile: "Voir mon profil",
+      alreadyClaimed: "Cette carte a déjà été réclamée. Si vous pensez qu'il s'agit d'une erreur, contactez le support Ringo.",
+      profileNotAllowed: "Ce profil ne peut pas être utilisé avec cette carte.",
+      genericError: "Impossible de réclamer cette carte. Vérifiez votre connexion et réessayez.",
+    },
 };
 
 registerDictionary("fr", fr);

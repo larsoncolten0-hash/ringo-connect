@@ -6710,6 +6710,30 @@ export const en = {
       },
       resubscribe: "Resubscribe to Pro",
     },
+    // Ringo Smart Card QR claim page (/c/<token>, src/app/c/[token]/page.tsx and src/components/smartCard/CardClaim.tsx).
+    smartCard: {
+      unavailableTitle: "This card link isn't available",
+      unavailableBody: "The link may be mistyped, switched off or no longer valid. If this is your Ringo Card, contact Ringo support.",
+      limitedTitle: "Too many attempts",
+      limitedBody: "Please wait a few minutes and scan the card again.",
+      claimTitle: "Activate your Ringo Card",
+      claimIntro: "This card is ready for its owner. Link it to your Ringo profile and anyone who scans it will open your page.",
+      cardLabel: "Card",
+      signInFirst: "Sign in or create a free account to claim this card.",
+      signIn: "Sign in to claim",
+      createAccount: "Create a Ringo account",
+      claimingAs: "It will open this profile:",
+      claimButton: "Claim this card",
+      claiming: "Claiming...",
+      choosePrompt: "Choose the profile this card will open:",
+      noProfile: "Your account doesn't have a Ringo profile yet. Create one first, then scan this card again.",
+      claimedTitle: "Your card is activated",
+      claimedBody: "Anyone who scans this card will now open your Ringo profile. You can change your profile any time: the card keeps working.",
+      viewProfile: "View my profile",
+      alreadyClaimed: "This card has already been claimed. If you think this is a mistake, contact Ringo support.",
+      profileNotAllowed: "That profile can't be used with this card.",
+      genericError: "We couldn't claim this card. Check your connection and try again.",
+    },
 };
 
 registerDictionary("en", en);

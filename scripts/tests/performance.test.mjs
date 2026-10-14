@@ -12,6 +12,7 @@ import { PHASE27_FILES } from "./phase27Files.mjs";
 import { PHASE28_FILES } from "./phase28Files.mjs";
 import { PHASE29_FILES } from "./phase29Files.mjs";
 import { PHASE30_FILES } from "./phase30Files.mjs";
+import { PHASE32_FILES } from "./phase32Files.mjs";
 import { PHASE31_FILES } from "./phase31Files.mjs";
 
 const require = createRequire(import.meta.url);
@@ -345,7 +346,7 @@ await test("mobile: the connection to the storage host (where every picture come
 // =============================================================================== scope
 await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, orders, payouts, commissions and the 10-second preview are not touched", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].filter((f) => !f.startsWith("scripts/tests/_"));
-  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE31_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE31_FILES.has(f)), [], "only the registered files changed");
   // Files whose NAME looks sensitive but whose change is a read-only performance edit, listed one by one (never by pattern): the public item checkout PAGE's profile read (the checkout flow itself,
   // the payment calls and the order logic are not in it), the shop page, the supabase proposal files and the admin branding save's cache refresh.
   const ALLOWED = new Set([
@@ -373,13 +374,15 @@ await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, ord
     "supabase/migrations/2026-12-21_inbox_outbound_media_staging.sql",
     "supabase/support/2026-12-21_inbox_outbound_media_staging.rollback.sql",
     "supabase/support/2026-12-21_inbox_outbound_media_staging.verify.sql",
+    "supabase/migrations/2026-12-22_smart_card_claims.sql", // the Smart Card QR claim: one additive, un-applied migration (see docs/smart-cards-production-plan.md)
+    "src/app/api/smart-cards/claim/route.ts", // its one authenticated claim endpoint
     "supabase/migrations/2026-12-20_whatsapp_sales_bot_owner_switch.sql",
     "supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.rollback.sql",
     "supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.verify.sql",
   ]);
   const forbidden = /(^|\/)(middleware|fapshi|stripe|webhook|payout|commission|inventory|checkout|orders?|billing|protection|useTrackPlayback|previewLimit)|\/api\/|^supabase\//i;
   assert.deepEqual(changed.filter((f) => forbidden.test(f) && !ALLOWED.has(f) && !/phase2[0-9]Files|\.test\.mjs$/.test(f)), [], "no sensitive file is among the changed ones");
-  for (const f of changed.filter((x) => /\.(tsx?|mjs|sql)$/.test(x) && !x.startsWith("scripts/tests/") && fs.existsSync(path.join(REPO, x)))) {
+  for (const f of changed.filter((x) => /\.(tsx?|mjs|sql)$/.test(x) && !x.startsWith("scripts/tests/") && !x.startsWith("scripts/smartcards/") && !x.startsWith("supabase/support/tests/") /* command-line tools that report to the console by design */ && fs.existsSync(path.join(REPO, x)))) {
     assert.ok(!/GH₵|GHS|console\.log\(|debugger/.test(fs.readFileSync(path.join(REPO, f), "utf8")), `debug code or a foreign currency in ${f}`);
   }
 });
