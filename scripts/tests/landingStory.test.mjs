@@ -244,9 +244,9 @@ await test("the page has no hard-coded English prose left: the old About section
 // ------------------------------------------------------------------ product truth and behavior
 await test("destinations: every link the page had still exists (funnels, get-started, plans, WhatsApp, mail, phone, legal) and nothing new points off-site", () => {
   const hrefs = new Set([...pageEN.matchAll(/href="([^"]+)"/g)].map((m) => m[1]));
-  for (const h of ["/get-started", "/auth/login", "/card-funnel.html", "/subscription-funnel.html", "/business-funnel.html", "/terms", "/privacy", "mailto:info@ringoconnectltd.com", "tel:+237694028846", "https://wa.me/237694028846", "/get-started?plan=pro", "/get-started?plan=basic", "/get-started?plan=free"]) assert.ok(hrefs.has(h), h);
-  assert.ok([...hrefs].some((h) => h.startsWith("https://wa.me/237694028846?text=")), "the affiliate WhatsApp link");
-  const external = [...hrefs].filter((h) => /^https?:/.test(h) && !h.startsWith("https://wa.me/237694028846"));
+  for (const h of ["/get-started", "/auth/login", "/card-funnel.html", "/subscription-funnel.html", "/business-funnel.html", "/terms", "/privacy", "mailto:info@ringoconnectltd.com", "tel:+237694028846", "https://wa.me/237697185829", "/get-started?plan=pro", "/get-started?plan=basic", "/get-started?plan=free"]) assert.ok(hrefs.has(h), h);
+  assert.ok([...hrefs].some((h) => h.startsWith("https://wa.me/237697185829?text=")), "the affiliate WhatsApp link");
+  const external = [...hrefs].filter((h) => /^https?:/.test(h) && !h.startsWith("https://wa.me/237697185829"));
   assert.deepEqual(external, []);
   const before = gitShow("src/components/landing/LandingView.tsx");
   for (const h of ["/get-started", "/auth/login", "/my-ringo/signin", "mailto:info@ringoconnectltd.com", "tel:+237694028846", "https://wa.me/237694028846", "/terms", "/privacy"]) assert.ok(before.includes(h), "existed before: " + h);
@@ -280,7 +280,7 @@ await test("pricing look: the featured plan is the one gilt object; checks are g
 });
 await test("affiliate: same link, same copy keys, same points, no commission rate; presented as part of the page", () => {
   const s = raw("src/components/landing/AffiliateSection.tsx");
-  assert.ok(s.includes('`https://wa.me/237694028846?text=${encodeURIComponent("Hi! I\'d like to become a Ringo Connect affiliate.")}`'));
+  assert.ok(s.includes('`https://wa.me/237697185829?text=${encodeURIComponent("Hi! I\'d like to become a Ringo Connect affiliate.")}`'));
   for (const k of ["affiliateTitle", "affiliateSubtitle", "affiliatePointLink", "affiliatePointShare", "affiliatePointEarn", "affiliatePointPayout", "affiliateCta"]) assert.ok(s.includes(`t.landing.${k}`), k);
   assert.ok(!/\d+\s?%/.test(s), "no commission rate");
   assert.ok(!/#0B0B12|#F2B705/.test(s), "no separate dark / yellow affiliate world");
@@ -290,7 +290,7 @@ await test("close and footer: the hero's own headline, the same gold button, the
   assert.ok(close.includes(translations.en.landing.heroTitleLead) && close.includes(translations.en.landing.heroTitleRest));
   assert.match(close, /href="\/get-started"[^>]*>Create My Ringo/);
   assert.match(close, /href="\/auth\/login"[^>]*>Log In/);
-  assert.match(close, /href="https:\/\/wa\.me\/237694028846" target="_blank" rel="noopener noreferrer"/);
+  assert.match(close, /href="https:\/\/wa\.me\/237697185829" target="_blank" rel="noopener noreferrer"/);
   assert.match(close, /href="mailto:info@ringoconnectltd\.com"/);
   const footer = pageEN.slice(pageEN.indexOf("<footer"));
   for (const h of ["#features", "#pricing", "#nfc", "#industries", "#restaurant", "/terms", "/privacy", "mailto:info@ringoconnectltd.com", "tel:+237694028846"]) assert.ok(footer.includes(`href="${h}"`), h);

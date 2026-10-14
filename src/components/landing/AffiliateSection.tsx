@@ -10,7 +10,7 @@ import { secondaryButton } from "./Section";
 // Presented as part of the page (a quiet panel in the Ringo system), not as a separate dark affiliate product.
 export default function AffiliateSection() {
   const { t } = useLanguage();
-  const whatsappHref = `https://wa.me/237694028846?text=${encodeURIComponent("Hi! I'd like to become a Ringo Connect affiliate.")}`;
+  const whatsappHref = `https://wa.me/237697185829?text=${encodeURIComponent("Hi! I'd like to become a Ringo Connect affiliate.")}`;
 
   const points = [
     { icon: Link2, text: t.landing.affiliatePointLink },

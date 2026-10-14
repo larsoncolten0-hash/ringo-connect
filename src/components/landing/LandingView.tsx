@@ -91,7 +91,7 @@ export default function LandingView({
   // "Log in" → "Create one" now lands here too, not on self-serve
   // /auth/signup (still reachable directly, just no longer linked to).
   const primaryHref = isLoggedIn ? dashboardHref : "/get-started";
-  const affiliateWhatsappHref = `https://wa.me/237694028846?text=${encodeURIComponent(
+  const affiliateWhatsappHref = `https://wa.me/237697185829?text=${encodeURIComponent(
     "Hi! I'd like to become a Ringo Connect affiliate."
   )}`;
   const primaryLabel = isLoggedIn ? t.landing.goToDashboard : t.landing.heroCtaPrimary;

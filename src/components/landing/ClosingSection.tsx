@@ -52,7 +52,7 @@ export function ClosingCta({ isLoggedIn, primaryHref }: { isLoggedIn: boolean; p
           <p className="ringo-display text-lg font-semibold">{l.contactTitle}</p>
           <p className="mt-1 text-sm text-ringo-stone-300">{l.contactSubtitle}</p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <a href="https://wa.me/237694028846" target="_blank" rel="noopener noreferrer" className={secondaryButtonOnInk}>
+            <a href="https://wa.me/237697185829" target="_blank" rel="noopener noreferrer" className={secondaryButtonOnInk}>
               <FaWhatsapp size={16} />
               {l.contactWhatsapp}
             </a>
