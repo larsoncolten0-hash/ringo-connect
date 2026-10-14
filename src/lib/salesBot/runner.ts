@@ -69,6 +69,21 @@ async function usernameStatus(admin: any, text: string): Promise<"ok" | "taken" 
   }
 }
 
+/**
+ * The hand-off notice in the owner's in-app bell, written directly so the answer is a fact: true only when the row was really inserted. (The push senders return nothing and swallow their
+ * own errors, so a push can never be the proof of anything; it stays a best-effort extra.) Same row shape the shared push + bell helper writes.
+ */
+async function recordHandoffNotice(admin: any, ownerUserId: string, conversationId: string, T: { handoffNoticeTitle: string; handoffNoticeBody: string }): Promise<boolean> {
+  try {
+    const { error } = await admin.from("notifications").insert({ audience: "user", user_id: ownerUserId, type: "inbox_handoff", title: T.handoffNoticeTitle, body: T.handoffNoticeBody, link: `/dashboard/inbox/${conversationId}` });
+    if (error) { log({ result: "handoff_notice_failed", code: String(error.code || "insert_error").slice(0, 20) }); return false; }
+    return true;
+  } catch {
+    log({ result: "handoff_notice_failed", code: "exception" });
+    return false;
+  }
+}
+
 async function readJson(res: Response): Promise<Record<string, unknown>> {
   try { return obj(await res.json()); } catch { return {}; }
 }
@@ -218,15 +233,18 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
       return { result: "replied" };
     }
     case "handoff": {
+      // The bot goes silent first (a human is wanted either way). The customer is then told the request was passed on ONLY when the in-app notice was really recorded; otherwise they are told
+      // the message is saved but the team could not be alerted. The push is a best-effort extra and never changes what the customer is told.
       if (!(await save("HUMAN_HANDOFF", result.data, true))) return { result: "save_failed" };
-      await sendText(result.reply, "reply");
+      const T = translations[(result.data.lang ?? "en") as Lang].inbox.salesBot;
+      const recorded = await recordHandoffNotice(deps.admin, ownerUserId, conversationId, T);
       try {
-        const T = translations[(result.data.lang ?? "en") as Lang].inbox.salesBot;
-        await deps.push?.(ownerUserId, { category: "inbox_handoff", title: T.handoffNoticeTitle, body: T.handoffNoticeBody, url: `/dashboard/inbox/${conversationId}` }, { bell: true });
+        await deps.push?.(ownerUserId, { category: "inbox_handoff", title: T.handoffNoticeTitle, body: T.handoffNoticeBody, url: `/dashboard/inbox/${conversationId}` }, { bell: false });
       } catch {
-        log({ result: "handoff_notice_failed" });
+        log({ result: "handoff_push_failed" });
       }
-      return { result: "handoff" };
+      await sendText(recorded ? result.reply : T.handoffUnconfirmed, "reply");
+      return { result: recorded ? "handoff" : "handoff_unconfirmed" };
     }
     case "create_and_pay": {
       const offer = resolved.offers.find((o) => o.tier === result.data.tier);

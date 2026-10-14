@@ -9,20 +9,32 @@ import type { Offer, TierKey } from "./offers";
 export type BotState =
   | "WELCOME" | "CARDS" | "COMPARE" | "CARD_DETAIL" | "HOW_IT_WORKS" | "FAQ" | "RECOMMEND_1" | "RECOMMEND_2"
   | "ASK_NAME" | "ASK_ADDRESS" | "ASK_EMAIL" | "ASK_USERNAME" | "ASK_OPERATOR" | "ASK_PAY_PHONE" | "REVIEW" | "EDIT_MENU"
+  | "DISCOVER" | "BUY_METHOD" | "MEETING_INFO"
   | "CREATING" | "PAYMENT" | "COMPLETED" | "HUMAN_HANDOFF";
-export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
+export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "DISCOVER", "BUY_METHOD", "MEETING_INFO", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
 
 /**
- * The database (wa_sales_sessions.state, wa_sales_save) already knows the states that existed when it was created, and is not altered for this feature. ASK_EMAIL is therefore stored as
- * ASK_ADDRESS with a small flag in the data, and restored on the way back in. These two functions are the ONLY place that knows about it.
+ * The database (wa_sales_sessions.state, wa_sales_save) already knows the states that existed when it was created, and is not altered for this feature. A state it does not know is
+ * therefore stored as one it does, with a small marker in the data, and restored on the way back in: ASK_EMAIL is ASK_ADDRESS + awaitEmail, and the three menu screens added with the
+ * four-option main menu (DISCOVER, BUY_METHOD, MEETING_INFO) are HOW_IT_WORKS / CARDS + step. These two functions are the ONLY place that knows about it; whatsappSalesBot.test.mjs checks that
+ * every state round-trips and that every stored state is one the database accepts.
  */
+const UMBRELLA: Partial<Record<BotState, { stored: BotState; step: string }>> = {
+  DISCOVER: { stored: "HOW_IT_WORKS", step: "discover" },
+  BUY_METHOD: { stored: "CARDS", step: "method" },
+  MEETING_INFO: { stored: "CARDS", step: "meeting" },
+};
 export function toStored(state: BotState, data: BotData): { state: BotState; data: BotData } {
-  const { awaitEmail: _drop, ...rest } = data;
-  return state === "ASK_EMAIL" ? { state: "ASK_ADDRESS", data: { ...rest, awaitEmail: true } } : { state, data: rest };
+  const { awaitEmail: _drop, step: _step, ...rest } = data;
+  if (state === "ASK_EMAIL") return { state: "ASK_ADDRESS", data: { ...rest, awaitEmail: true } };
+  const u = UMBRELLA[state];
+  return u ? { state: u.stored, data: { ...rest, step: u.step } } : { state, data: rest };
 }
 export function fromStored(state: BotState, data: BotData): { state: BotState; data: BotData } {
-  const { awaitEmail, ...rest } = data;
-  return state === "ASK_ADDRESS" && awaitEmail === true ? { state: "ASK_EMAIL", data: rest } : { state, data: rest };
+  const { awaitEmail, step, ...rest } = data;
+  if (state === "ASK_ADDRESS" && awaitEmail === true) return { state: "ASK_EMAIL", data: rest };
+  const hit = (Object.entries(UMBRELLA) as [BotState, { stored: BotState; step: string }][]).find(([, u]) => u.stored === state && u.step === step);
+  return hit ? { state: hit[0], data: rest } : { state, data: rest };
 }
 
 export type Lang = "en" | "fr";
@@ -34,8 +46,15 @@ export interface BotData {
   name?: string;
   address?: string;
   email?: string;
-  /** Storage detail for the e-mail step (see toStored / fromStored); never set by the machine itself. */
+  /** Storage details for the e-mail step and the menu screens added with the four-option menu (see toStored / fromStored); never set by the machine itself. */
   awaitEmail?: boolean;
+  step?: string;
+  /** How the customer chose to get the card, kept while they move through the order. "agent" is only a choice in this phase: nothing is submitted or stored for a meeting. */
+  method?: "online" | "agent";
+  /** Consecutive menu replies the bot could not read. Reset by any reply it could. Free-text answers (name, e-mail, ...) never count. */
+  bad?: number;
+  /** The recovery menu (1 agent, 2 main menu, 3 continue) is on screen: 1 / 2 / 3 mean that, whatever state the customer is in. */
+  recover?: boolean;
   username?: string;
   medium?: SignupMedium;
   payPhone?: string;
@@ -83,10 +102,17 @@ const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 const HUMAN_WORDS = ["human", "agent", "support", "representative", "representant", "talk to someone", "speak to someone", "talk to a person", "someone", "help", "real person", "humain", "conseiller", "assistance", "aide", "parler a quelqu'un", "parler a quelqu un", "parler a une personne", "quelqu'un"];
 const HUMAN_LOOSE = /\b(human|agent|representative|talk to (a )?(someone|person|human)|speak to (a )?(someone|person|human)|real person|help|support|humain|conseiller|assistance|aide|parler a (quelqu|une personne))/;
-const MENU_WORDS = ["0", "menu", "main menu", "menu principal", "start", "hi", "hello", "hey", "bonjour", "bonsoir", "salut", "hola"];
+const MENU_WORDS = ["0", "menu", "main menu", "menu principal"];
+const GREET_WORDS = ["start", "hi", "hello", "hey", "bonjour", "bonsoir", "salut", "hola"];
+// Price questions start the same way as buying: online or with an agent first, then the plans.
+const PRICE_WORDS = ["price", "prices", "prix", "tarif", "tarifs", "cost", "how much", "combien", "cards", "cartes", "card", "carte", "see the cards", "voir les cartes"];
+const DISCOVER_WORDS = ["discover", "discover ringo", "decouvrir", "decouvrir ringo", "what is ringo"];
+const KNOW_MORE_WORDS = ["know more", "en savoir plus", "question", "questions", "faq", "how it works", "comment ca marche", "how"];
+const ONLINE_WORDS = ["online", "pay online", "en ligne", "payer en ligne"];
+const MEETING_WORDS = ["meet", "meeting", "rendez-vous", "rdv", "rencontre", "rencontrer"];
 const CANCEL_WORDS = ["cancel", "reset", "restart", "annuler", "recommencer", "stop"];
 const IMAGE_WORDS = ["image", "images", "photo", "photos", "picture", "pictures", "see image", "see images", "see the card", "voir image", "voir images", "voir les images", "voir des images", "voir la carte", "voir photo", "voir photos"];
-const ORDER_WORDS = ["order", "buy", "i want to order", "commander", "acheter", "commande", "je veux commander"];
+const ORDER_WORDS = ["order", "buy", "buy a card", "acheter une carte", "i want to order", "commander", "acheter", "commande", "je veux commander"];
 const SKIP_WORDS = ["skip", "no", "none", "passer", "non", "aucun", "pas besoin"];
 const FREE_TEXT: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_PAY_PHONE"];
 const ORDER_FLOW: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU"];
@@ -149,7 +175,10 @@ function prompt(state: BotState, d: BotData, facts: Facts, lang: Lang): string {
   const T = S(lang);
   const o = offerFor(facts, d.tier);
   switch (state) {
-    case "WELCOME": case "COMPLETED": case "HUMAN_HANDOFF": return T.welcome;
+    case "WELCOME": case "COMPLETED": case "HUMAN_HANDOFF": return T.mainMenu;
+    case "DISCOVER": return T.discover;
+    case "BUY_METHOD": return T.buyMethod;
+    case "MEETING_INFO": return T.meetingInfo;
     case "CARDS": return cardsScreen(lang, facts);
     case "COMPARE": return compareScreen(lang, facts);
     case "CARD_DETAIL": return o ? detailScreen(lang, o) : cardsScreen(lang, facts);
@@ -173,7 +202,7 @@ function prompt(state: BotState, d: BotData, facts: Facts, lang: Lang): string {
 /** The first prompt of the order: the customer picked a card. */
 function startOrder(d: BotData, facts: Facts, lang: Lang): StepResult | null {
   if (!offerFor(facts, d.tier)) return null;
-  const next: BotData = { lang: d.lang, tier: d.tier, ...(d.langLocked ? { langLocked: true } : {}) };
+  const next: BotData = { lang: d.lang, tier: d.tier, ...(d.method ? { method: d.method } : {}), ...(d.langLocked ? { langLocked: true } : {}) };
   return { state: "ASK_NAME", data: next, handoff: false, reply: prompt("ASK_NAME", next, facts, lang), effect: "none" };
 }
 
@@ -189,17 +218,28 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
   const lang: Lang = signal ?? d.lang ?? "en";
   d.lang = lang;
   const T = S(lang);
-  const out = (s: BotState, data: BotData, reply: string, effect: Effect = "none", handoff = false): StepResult => ({ state: s, data, handoff, reply, effect });
+  // Any reply the bot could read ends a run of unreadable ones: the counter and the recovery menu never outlive the reply that answers them.
+  const out = (s: BotState, data: BotData, reply: string, effect: Effect = "none", handoff = false): StepResult => {
+    const { bad: _bad, recover: _recover, ...kept } = data;
+    return { state: s, data: kept, handoff, reply, effect };
+  };
   const stay = (reply: string) => out(state, d, reply);
-  const confused = () => stay(`${T.didNotUnderstand}\n\n${prompt(state, d, facts, lang)}`);
-  const welcome = (prefix = "") => out("WELCOME", { lang, ...(d.langLocked ? { langLocked: true } : {}) }, `${prefix}${T.welcome}`);
+  // A menu reply that matches nothing. 1st: say how the menu works; 2nd: shorter, with the human route; 3rd and later: the recovery menu. The place in the conversation and everything collected stay.
+  const confused = (): StepResult => {
+    const bad = (d.bad ?? 0) + 1;
+    const here = prompt(state, d, facts, lang);
+    const reply = bad === 1 ? `${T.didNotUnderstand}\n\n${here}\n\n${T.invalidTail}` : bad === 2 ? `${T.invalidShort}\n\n${here}` : T.recoveryMenu;
+    return { state, data: { ...d, bad, ...(bad >= 3 ? { recover: true } : {}) }, handoff: false, reply, effect: "none" };
+  };
+  const toHuman = () => out("HUMAN_HANDOFF", d, T.handoff, "handoff", true);
+  const mainMenu = (body: string) => out("WELCOME", { lang, ...(d.langLocked ? { langLocked: true } : {}) }, `${ORDER_FLOW.includes(state) ? `${T.cancelled}\n\n` : ""}${body}`);
 
   if (session.handoff || state === "HUMAN_HANDOFF") return { state: "HUMAN_HANDOFF", data: d, handoff: true, reply: "", effect: "none" };
   if (!t) return confused();
 
   // A human on request, at any point. Free-text answers (a name, an address) only match a bare request, never a word inside an address.
   const wantsHuman = FREE_TEXT.includes(state) ? has(t, HUMAN_WORDS) : HUMAN_LOOSE.test(t) || has(t, HUMAN_WORDS);
-  if (wantsHuman) return out("HUMAN_HANDOFF", d, T.handoff, "handoff", true);
+  if (wantsHuman) return toHuman();
 
   // Language: any time, keeps the place in the conversation.
   if (has(t, ["fr", "francais", "french"]) || has(t, ["en", "english", "anglais"])) {
@@ -214,25 +254,51 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
     return stay(T.creating);
   }
 
-  // 0 / menu / cancel: always works. Inside the order it clears the half-made order; nothing has been created or charged yet.
-  if (has(t, MENU_WORDS) || has(t, CANCEL_WORDS)) {
-    if (ORDER_FLOW.includes(state)) return welcome(`${T.cancelled}\n\n`);
-    return welcome();
-  }
+  // 0 / menu / cancel: always works. Inside the order it clears the half-made order; nothing has been created or charged yet. A greeting shows the full welcome, 0 the short menu.
+  if (has(t, MENU_WORDS) || has(t, CANCEL_WORDS) || has(t, GREET_WORDS)) return mainMenu(has(t, GREET_WORDS) ? T.welcome : T.mainMenu);
 
   const n = choiceOf(t);
+
+  // The recovery menu is on screen: its three numbers mean what it says, whatever the state behind it. Anything else is read as usual.
+  if (d.recover && n !== null && n >= 1 && n <= 3) {
+    if (n === 1) return toHuman();
+    if (n === 2) return mainMenu(T.mainMenu);
+    return out(state, d, prompt(state, d, facts, lang));
+  }
 
   switch (state) {
     case "WELCOME":
     case "COMPLETED": {
-      if (n === 1 || has(t, ["cards", "cartes", "card", "carte", "see the cards", "voir les cartes", "price", "prix"])) return out("CARDS", d, cardsScreen(lang, facts));
-      if (n === 2 || has(t, ["how it works", "comment ca marche", "how"])) return out("HOW_IT_WORKS", d, `${T.howItWorks}${T.howOptions}`);
-      if (n === 3 || has(t, ["question", "questions", "faq"])) return out("FAQ", d, T.faqMenu);
-      if (n === 4 || has(t, ORDER_WORDS)) return out("CARDS", d, cardsScreen(lang, facts));
+      // The four-option main menu: 1 Discover Ringo, 2 Buy a card, 3 Know more, 4 Speak with a Ringo agent. The words below are shortcuts to the same places.
+      if (n === 1 || has(t, DISCOVER_WORDS)) return out("DISCOVER", d, T.discover);
+      if (n === 2 || has(t, ORDER_WORDS) || has(t, PRICE_WORDS)) return out("BUY_METHOD", d, T.buyMethod);
+      if (n === 3 || has(t, KNOW_MORE_WORDS)) return out("FAQ", d, T.faqMenu);
+      if (n === 4) return toHuman();
       // Pictures: the official Ringo profile shows the card; the bot just points there (it never sends or invents images).
-      if (n === 5 || has(t, IMAGE_WORDS)) return out(state === "COMPLETED" ? "COMPLETED" : "WELCOME", d, T.imagesInfo);
-      if (n === 6) return out("HUMAN_HANDOFF", d, T.handoff, "handoff", true);
-      return state === "COMPLETED" ? out("COMPLETED", d, T.afterPaid) : confused();
+      if (has(t, IMAGE_WORDS)) return out(state === "COMPLETED" ? "COMPLETED" : "WELCOME", d, T.imagesInfo);
+      if (state === "COMPLETED") return out("COMPLETED", d, T.afterPaid);
+      // 5 and 6 were options of the previous six-option menu. At the main menu ONLY (never inside an order, where every digit keeps its own meaning) they get one short notice and the current
+      // menu: mapped to nothing, and not counted as an unreadable reply. The recovery menu is not on screen any more, so its flag is dropped; the counter is left exactly as it was.
+      if ((n === 5 || n === 6) && session.version > 0) { const { recover: _r, ...keep } = d; return { state, data: keep, handoff: false, reply: `${T.menuUpdated}\n\n${T.mainMenu}`, effect: "none" }; }
+      // A brand-new conversation (nothing saved yet) gets the welcome, never an apology for not understanding a first message.
+      return session.version === 0 ? mainMenu(T.welcome) : confused();
+    }
+    case "DISCOVER": {
+      if (n === 1) return out("BUY_METHOD", d, T.buyMethod);
+      if (n === 2) return toHuman();
+      if (n === 3) return mainMenu(T.mainMenu);
+      return confused();
+    }
+    case "BUY_METHOD": {
+      if (n === 1 || has(t, ONLINE_WORDS)) return out("CARDS", { ...d, method: "online" }, cardsScreen(lang, facts));
+      if (n === 2 || has(t, MEETING_WORDS)) return out("MEETING_INFO", { ...d, method: "agent" }, T.meetingInfo);
+      return confused();
+    }
+    case "MEETING_INFO": {
+      // Phase 1: nothing about a meeting is collected or stored here. A person from the team arranges it in the conversation.
+      if (n === 1) return toHuman();
+      if (n === 2) return out("CARDS", { ...d, method: "online" }, cardsScreen(lang, facts));
+      return confused();
     }
     case "CARDS": {
       const pick = n !== null && n >= 1 && n <= facts.offers.length ? facts.offers[n - 1] : facts.offers.find((o) => has(t, [norm(T.tierLabel[o.tier]), o.tier]));
@@ -258,13 +324,13 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
       return confused();
     }
     case "HOW_IT_WORKS": {
-      if (n === 1 || has(t, ORDER_WORDS)) return out("CARDS", d, cardsScreen(lang, facts));
-      if (n === 2) return out("CARDS", d, cardsScreen(lang, facts));
+      if (n === 1 || has(t, ORDER_WORDS)) return out("BUY_METHOD", d, T.buyMethod);
+      if (n === 2) return out("BUY_METHOD", d, T.buyMethod); // the old "See the cards": the online-or-agent choice always comes before the plans
       if (n === 3) return out("FAQ", d, T.faqMenu);
       return confused();
     }
     case "FAQ": {
-      if (has(t, ORDER_WORDS)) return out("CARDS", d, cardsScreen(lang, facts));
+      if (has(t, ORDER_WORDS)) return out("BUY_METHOD", d, T.buyMethod);
       if (has(t, ["faq", "questions", "question"])) return out("FAQ", d, T.faqMenu);
       if (n !== null && n >= 1 && n <= T.faq.length) {
         const answer = n === 9 ? includedAnswer(lang, facts) : T.faq[n - 1];
