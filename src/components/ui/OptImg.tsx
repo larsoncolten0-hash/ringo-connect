@@ -15,6 +15,7 @@ export default function OptImg({
   sizes,
   cssWidth,
   square = false,
+  contain = false,
   priority = false,
   className,
   style,
@@ -29,6 +30,7 @@ export default function OptImg({
   sizes?: string;
   cssWidth?: number;
   square?: boolean;
+  contain?: boolean;
   priority?: boolean;
   className?: string;
   style?: CSSProperties;
@@ -54,8 +56,8 @@ export default function OptImg({
 
   if (!src) return null;
   const fallbackWidth = cssWidth ? cssWidth * 2 : widths && widths.length ? widths[Math.floor(widths.length / 2)] : 640;
-  const srcAttr = useOptimized ? transformedImageUrl(src, { width: fallbackWidth, square }) : src;
-  const srcSet = useOptimized ? (cssWidth ? imageDensitySrcSet(src, cssWidth, { square }) : widths ? imageSrcSet(src, widths, { square }) : undefined) : undefined;
+  const srcAttr = useOptimized ? transformedImageUrl(src, { width: fallbackWidth, square, contain }) : src;
+  const srcSet = useOptimized ? (cssWidth ? imageDensitySrcSet(src, cssWidth, { square, contain }) : widths ? imageSrcSet(src, widths, { square, contain }) : undefined) : undefined;
   // `fetchpriority` is spread lowercase: React 18 forwards it as the real HTML attribute (the camelCase prop is not known to it and logs a warning).
   const hints = priority ? ({ fetchpriority: "high" } as Record<string, string>) : {};
 

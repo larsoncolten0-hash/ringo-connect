@@ -34,7 +34,7 @@ export function isTransformableImage(url: string | null | undefined): url is str
   return !/\.(svg|gif)$/i.test(rest);
 }
 
-export type ImageVariant = { width: number; /** square crop (avatars): the same centred crop object-fit: cover gives */ square?: boolean; quality?: number };
+export type ImageVariant = { width: number; /** square crop (avatars): the same centred crop object-fit: cover gives */ square?: boolean; /** keep the whole picture at its own aspect ratio (link icons, merch). Without it Supabase returns the requested width at the ORIGINAL height, i.e. a centred crop. */ contain?: boolean; quality?: number };
 
 /** The URL of the image at the given width, or the original URL when it cannot be transformed. */
 export function transformedImageUrl(url: string | null | undefined, v: ImageVariant): string {
@@ -45,19 +45,21 @@ export function transformedImageUrl(url: string | null | undefined, v: ImageVari
   if (v.square) {
     q.set("height", String(w));
     q.set("resize", "cover");
+  } else if (v.contain) {
+    q.set("resize", "contain");
   }
   q.set("quality", String(v.quality ?? IMAGE_QUALITY));
   return `${u.origin}${RENDER_PATH}${u.pathname.slice(OBJECT_PATH.length)}?${q.toString()}`;
 }
 
 /** `srcset` for a fluid image: one candidate per width. Empty when the image cannot be transformed. */
-export function imageSrcSet(url: string | null | undefined, widths: number[], opts: { square?: boolean; quality?: number } = {}): string {
+export function imageSrcSet(url: string | null | undefined, widths: number[], opts: { square?: boolean; contain?: boolean; quality?: number } = {}): string {
   if (!isTransformableImage(url)) return "";
   return widths.map((w) => `${transformedImageUrl(url, { width: w, ...opts })} ${w}w`).join(", ");
 }
 
 /** `srcset` for an image shown at a fixed CSS size: 1x / 2x / 3x candidates. */
-export function imageDensitySrcSet(url: string | null | undefined, cssWidth: number, opts: { square?: boolean; quality?: number } = {}): string {
+export function imageDensitySrcSet(url: string | null | undefined, cssWidth: number, opts: { square?: boolean; contain?: boolean; quality?: number } = {}): string {
   if (!isTransformableImage(url)) return "";
   return [1, 2, 3].map((d) => `${transformedImageUrl(url, { width: cssWidth * d, ...opts })} ${d}x`).join(", ");
 }

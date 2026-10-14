@@ -112,7 +112,7 @@ await test("OptImg: a plain <img> with a srcset of right-sized copies, lazy by d
   assert.ok(foreign.includes('src="https://cdn.example.com/a.png"') && !foreign.includes("srcSet"), "a foreign or default image is a plain <img>");
   assert.equal(html({ src: null }), "", "no source, nothing rendered");
   const source = strip(raw("src/components/ui/OptImg.tsx"));
-  assert.ok(/onError=\{\(\) => \{\s*if \(transformable\) setFailed\(true\);/.test(source) && source.includes("const srcAttr = useOptimized ? transformedImageUrl(src, { width: fallbackWidth, square }) : src;"), "if the resized copy cannot be loaded the original file is used");
+  assert.ok(/onError=\{\(\) => \{\s*if \(transformable\) setFailed\(true\);/.test(source) && source.includes("const srcAttr = useOptimized ? transformedImageUrl(src, { width: fallbackWidth, square, contain }) : src;"), "if the resized copy cannot be loaded the original file is used");
   assert.ok(source.includes("el.complete && el.naturalWidth === 0"), "a failure that happened before hydration is caught too");
 });
 await test("every public surface asks for right-sized images: avatar, cover, artwork, releases, products, events, shop, product pages, galleries", () => {

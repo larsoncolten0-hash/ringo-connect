@@ -75,11 +75,37 @@ test("imageUrl: only own public raster uploads are resized; svg, gif, external, 
     assert.ok(!U.isTransformableImage(bad), bad);
   assert.strictEqual(U.transformedImageUrl("https://example.com/a.png", { width: 100 }), "https://example.com/a.png");
 });
-test("imageUrl: a width-only request keeps the aspect ratio (no crop); only `square` crops", () => {
+test("imageUrl: `square` crops; `contain` asks for the whole picture; a bare width is unchanged (Supabase answers it with the ORIGINAL height, a centred crop)", () => {
   const free = new URL(U.transformedImageUrl(own("u/a.png"), { width: 200 }));
-  assert.ok(!free.searchParams.has("height") && !free.searchParams.has("resize"));
+  assert.ok(!free.searchParams.has("height") && !free.searchParams.has("resize"), "default URL must stay exactly as before");
   const sq = new URL(U.transformedImageUrl(own("u/a.png"), { width: 200, square: true }));
   assert.ok(sq.searchParams.get("resize") === "cover" && sq.searchParams.get("height") === "200");
+  const whole = new URL(U.transformedImageUrl(own("u/a.png"), { width: 200, contain: true }));
+  assert.ok(whole.searchParams.get("resize") === "contain" && whole.searchParams.get("width") === "200" && !whole.searchParams.has("height"));
+  const both = new URL(U.transformedImageUrl(own("u/a.png"), { width: 200, square: true, contain: true }));
+  assert.ok(both.searchParams.get("resize") === "cover", "square keeps winning, so avatars are untouched");
+  assert.strictEqual(U.transformedImageUrl("https://example.com/a.png", { width: 200, contain: true }), "https://example.com/a.png");
+});
+test("imageUrl: every srcset candidate of a `contain` image keeps resize=contain (1x/2x/3x and fluid widths)", () => {
+  const dens = U.imageDensitySrcSet(own("u/a.png"), 56, { contain: true }).split(", ");
+  const fluid = U.imageSrcSet(own("u/a.png"), [240, 400, 640], { contain: true }).split(", ");
+  assert.ok(dens.length === 3 && fluid.length === 3 && [...dens, ...fluid].every((c) => c.includes("resize=contain")));
+  assert.ok(!U.imageDensitySrcSet(own("u/a.png"), 56).includes("resize"), "no flag, no change");
+});
+test("OptImg forwards `contain` to the fallback src, the density srcset and the fluid srcset", () => {
+  const o = raw("src/components/ui/OptImg.tsx");
+  assert.ok(/contain\?: boolean/.test(o) && o.includes("contain = false"));
+  assert.ok(o.includes("transformedImageUrl(src, { width: fallbackWidth, square, contain })"));
+  assert.ok(o.includes("imageDensitySrcSet(src, cssWidth, { square, contain })") && o.includes("imageSrcSet(src, widths, { square, contain })"));
+});
+test("Links and Merch (profile) request the whole picture: the link icons, the merch grid and the catalog tile pass `contain`", () => {
+  assert.ok(/<OptImg src=\{link\.image_url\} width=\{56\} height=\{56\} cssWidth=\{56\} contain className/.test(raw("src/components/ProfileView.tsx")));
+  const ms = raw("src/components/music/profile/MusicSections.tsx");
+  assert.ok(/<OptImg src=\{link\.image_url\} width=\{44\} height=\{44\} cssWidth=\{44\} contain className/.test(ms));
+  assert.ok(/<OptImg src=\{img\} widths=\{\[200, 360, 540\]\} sizes="[^"]*" contain className="h-full w-full object-contain"/.test(ms));
+  const cs = raw("src/components/catalog/CatalogSection.tsx");
+  const from = cs.indexOf("alt={product.name}");
+  assert.ok(from > 0 && /sizes=[^\n]*\n\s*contain\n/.test(cs.slice(from)));
 });
 test("link and product images are never requested as a square crop (that would defeat object-contain)", () => {
   for (const [rel, needle] of [["src/components/ProfileView.tsx", "link.image_url} width="], ["src/components/music/profile/MusicSections.tsx", "link.image_url} width="], ["src/components/editor/ImageUploadField.tsx", "<OptImg src={value}"]])
