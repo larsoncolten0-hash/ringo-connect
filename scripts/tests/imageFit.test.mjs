@@ -18,9 +18,9 @@ const lineWith = (rel, needle) => { const l = raw(rel).split("\n").filter((x) =>
 
 // ---- link icons: fixed, never shrunk or enlarged, whole image visible, contrast background that follows the theme
 for (const [rel, px] of [["src/components/ProfileView.tsx", 56], ["src/components/music/profile/MusicSections.tsx", 44]]) {
-  test(`${rel}: the link icon has intrinsic ${px}px size, cannot shrink or grow, and uses object-contain on a theme-aware ground`, () => {
+  test(`${rel}: the link icon has intrinsic ${px}px size, cannot shrink or grow, and FILLS its square (object-cover, square crop, no padding)`, () => {
     const l = lineWith(rel, "link.image_url} width=").join("\n");
-    assert.ok(l.includes(`width={${px}} height={${px}}`) && l.includes("shrink-0") && l.includes("object-contain") && !l.includes("object-cover"));
+    assert.ok(l.includes(`width={${px}} height={${px}}`) && l.includes("shrink-0") && l.includes("object-cover") && !l.includes("object-contain") && l.includes(" square ") && !l.includes(" p-"));
     assert.ok(/max-w-/.test(l) && /max-h-/.test(l) && l.includes("currentColor"));
   });
 }
@@ -30,7 +30,6 @@ const PRODUCT_SITES = [
   ["src/components/catalog/ProductDetailView.tsx", "snap-center"],
   ["src/components/catalog/ProductDetailView.tsx", "alt={r.name}"],
   ["src/components/shop/ShopDestination.tsx", "images[0]"],
-  ["src/components/music/profile/MusicSections.tsx", "src={img}"],
   ["src/components/music/MusicStorePage.tsx", "imgClassName"],
 ];
 for (const [rel, needle] of PRODUCT_SITES) {
@@ -40,11 +39,11 @@ for (const [rel, needle] of PRODUCT_SITES) {
     assert.ok(l.includes("object-contain") && !l.includes("object-cover") && !/group-hover:scale|hover:scale/.test(l));
   });
 }
-test("catalog tile (multi-line OptImg): object-contain, no hover zoom, no cover", () => {
+test("catalog tile (multi-line OptImg): fills its frame (object-cover), no hover zoom", () => {
   const src = raw("src/components/catalog/CatalogSection.tsx");
   const from = src.indexOf("alt={product.name}");
   const m = from < 0 ? null : /className=\{`([^`]*)`\}/.exec(src.slice(from));
-  assert.ok(m && m[1].includes("object-contain") && !m[1].includes("object-cover") && !/scale/.test(m[1]));
+  assert.ok(m && m[1].includes("object-cover") && !m[1].includes("object-contain") && !/scale/.test(m[1]));
 });
 test("product detail gallery frame has a tinted ground so a contained photo has no bare edges", () => {
   assert.ok(/<div className=\{frame\} style=\{\{ backgroundColor: hexToRgba\(fg, 0\.06\) \}\}>/.test(raw("src/components/catalog/ProductDetailView.tsx")));
@@ -98,18 +97,14 @@ test("OptImg forwards `contain` to the fallback src, the density srcset and the 
   assert.ok(o.includes("transformedImageUrl(src, { width: fallbackWidth, square, contain })"));
   assert.ok(o.includes("imageDensitySrcSet(src, cssWidth, { square, contain })") && o.includes("imageSrcSet(src, widths, { square, contain })"));
 });
-test("Links and Merch (profile) request the whole picture: the link icons, the merch grid and the catalog tile pass `contain`", () => {
-  assert.ok(/<OptImg src=\{link\.image_url\} width=\{56\} height=\{56\} cssWidth=\{56\} contain className/.test(raw("src/components/ProfileView.tsx")));
+test("Links and Merch (profile) fill their frame: link icons and the merch grid use a square crop + object-cover, the 4:5 catalog tile uses the whole-picture resize + object-cover", () => {
+  assert.ok(/<OptImg src=\{link\.image_url\} width=\{56\} height=\{56\} cssWidth=\{56\} square className="[^"]*object-cover/.test(raw("src/components/ProfileView.tsx")));
   const ms = raw("src/components/music/profile/MusicSections.tsx");
-  assert.ok(/<OptImg src=\{link\.image_url\} width=\{44\} height=\{44\} cssWidth=\{44\} contain className/.test(ms));
-  assert.ok(/<OptImg src=\{img\} widths=\{\[200, 360, 540\]\} sizes="[^"]*" contain className="h-full w-full object-contain"/.test(ms));
+  assert.ok(/<OptImg src=\{link\.image_url\} width=\{44\} height=\{44\} cssWidth=\{44\} square className="[^"]*object-cover/.test(ms));
+  assert.ok(/<OptImg src=\{img\} widths=\{\[200, 360, 540\]\} sizes="[^"]*" square className="h-full w-full object-cover"/.test(ms));
   const cs = raw("src/components/catalog/CatalogSection.tsx");
   const from = cs.indexOf("alt={product.name}");
-  assert.ok(from > 0 && /sizes=[^\n]*\n\s*contain\n/.test(cs.slice(from)));
-});
-test("link and product images are never requested as a square crop (that would defeat object-contain)", () => {
-  for (const [rel, needle] of [["src/components/ProfileView.tsx", "link.image_url} width="], ["src/components/music/profile/MusicSections.tsx", "link.image_url} width="], ["src/components/editor/ImageUploadField.tsx", "<OptImg src={value}"]])
-    assert.ok(!/\bsquare\b/.test(lineWith(rel, needle).join("")), rel);
+  assert.ok(from > 0 && /sizes=[^\n]*\n\s*contain\n/.test(cs.slice(from)), "non-square frame: the transform keeps the aspect ratio, object-cover then fills it");
 });
 test("downscale: svg and gif are never touched; small images are not enlarged; aspect ratio is kept", () => {
   assert.strictEqual(D.planDownscale({ type: "image/svg+xml", size: 9e6 }, { width: 4000, height: 4000 }), null);

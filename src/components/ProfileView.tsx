@@ -479,7 +479,7 @@ export default function ProfileView({
                     style={panelButtonStyle}
                   >
                     {link.image_url && (
-                      <OptImg src={link.image_url} width={56} height={56} cssWidth={56} contain className="h-14 w-14 min-h-[56px] min-w-[56px] max-h-14 max-w-14 shrink-0 rounded-lg object-contain p-1 bg-[color-mix(in_srgb,currentColor_8%,transparent)]" />
+                      <OptImg src={link.image_url} width={56} height={56} cssWidth={56} square className="h-14 w-14 min-h-[56px] min-w-[56px] max-h-14 max-w-14 shrink-0 rounded-lg object-cover bg-[color-mix(in_srgb,currentColor_8%,transparent)]" />
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold [overflow-wrap:anywhere]">{publicLinkTitle(link)}</p>

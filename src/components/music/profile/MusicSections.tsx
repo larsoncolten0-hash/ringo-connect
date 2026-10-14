@@ -411,7 +411,7 @@ export function MerchGrid({ products, username, currency, storeHref, totalCount,
                 <span className="relative block aspect-square w-full overflow-hidden rounded-[11px]" style={{ background: MP.raised }}>
                   {img ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <OptImg src={img} widths={[200, 360, 540]} sizes="(min-width: 480px) 220px, 44vw" contain className="h-full w-full object-contain" />
+                    <OptImg src={img} widths={[200, 360, 540]} sizes="(min-width: 480px) 220px, 44vw" square className="h-full w-full object-cover" />
                   ) : (
                     <span className="flex h-full w-full items-center justify-center" style={{ color: "var(--mp-accent)" }} aria-hidden="true"><ShoppingBag size={28} /></span>
                   )}
@@ -458,7 +458,7 @@ export function LinkRows({ links, name, logClick }: { links: any[]; name: string
                 aria-label={`${publicLinkTitle(link)} (${t.musicProfile.openLink})`}
               >
                 {link.image_url ? (
-                  <OptImg src={link.image_url} width={44} height={44} cssWidth={44} contain className="h-11 w-11 max-h-11 max-w-11 shrink-0 rounded-[10px] object-contain p-0.5 bg-[color-mix(in_srgb,currentColor_8%,transparent)]" />
+                  <OptImg src={link.image_url} width={44} height={44} cssWidth={44} square className="h-11 w-11 max-h-11 max-w-11 shrink-0 rounded-[10px] object-cover bg-[color-mix(in_srgb,currentColor_8%,transparent)]" />
                 ) : (
                   <span className="flex h-11 w-11 items-center justify-center rounded-[12px]" style={{ background: hexToRgba("#E8B04B", 0.12), color: "var(--mp-accent)" }} aria-hidden="true"><ArrowUpRight size={18} /></span>
                 )}
