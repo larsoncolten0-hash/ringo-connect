@@ -255,7 +255,8 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
 
   const type = str(b.type);
   const text = str(b.text);
-  const lang: Lang = isLang(session.data.lang) ? session.data.lang : "en";
+  // a brand-new conversation is answered in French first (see step())
+  const lang: Lang = isLang(session.data.lang) ? session.data.lang : "fr";
   // A tap on the "Get started" button arrives as an interactive message with no text. It is the only button the bot sends, so it means "start": the machine gets a fixed token, never customer text.
   const tapped = type === "interactive";
   if (type !== "text" && !tapped) {
@@ -331,7 +332,22 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
       const d = result.data;
       const dlang = (d.lang ?? "en") as Lang;
       const T = translations[dlang].inbox.salesBot;
-      const created = await rpc(deps.admin, "card_appt_create", { p_conversation_id: conversationId, p_name: d.aName ?? "", p_phone: waDigits, p_time: d.aWhen ?? "", p_place: d.aWhere ?? "", p_note: d.aNote ?? null, p_lang: dlang });
+      // The card the customer chose, with the live price at this moment (a snapshot for the agent and the receipt). Stored by card_appt_create_with_card; if that function is not in the
+      // database yet, the request is still saved with the old function and the card is written at the start of the note, so a request is never lost.
+      // The tier and price stored are the REVIEWED ones (d.aPrice), never a newer lookup. The machine already refused to send when the live offer differed; this is the second, independent check.
+      const live = d.aCard ? resolved.offers.find((o) => o.tier === d.aCard) : undefined;
+      if (d.aCard && (!live || typeof d.aPrice !== "number" || live.priceXaf !== d.aPrice)) {
+        log({ result: "appointment_price_changed" });
+        await sendText(T.apptFailed, "reply");
+        return { result: "appointment_price_changed" };
+      }
+      const chosen = d.aCard && live ? { tier: live.tier, priceXaf: d.aPrice as number } : undefined;
+      const base = { p_conversation_id: conversationId, p_name: d.aName ?? "", p_phone: waDigits, p_time: d.aWhen ?? "", p_place: d.aWhere ?? "", p_note: d.aNote ?? null, p_lang: dlang };
+      let created = await rpc(deps.admin, "card_appt_create_with_card", { ...base, p_card_tier: chosen ? chosen.tier : null, p_card_price: chosen ? chosen.priceXaf : null });
+      if (!created.ok && (created.code === "PGRST202" || created.code === "42883")) {
+        const cardNote = chosen ? `Card: ${translations.en.inbox.salesBot.tierLabel[chosen.tier]} ${chosen.priceXaf} FCFA${d.aNote ? `. ${d.aNote}` : ""}`.slice(0, 200) : d.aNote ?? null;
+        created = await rpc(deps.admin, "card_appt_create", { ...base, p_note: cardNote });
+      }
       const c = created.ok ? obj(created.data) : {};
       if (c.result !== "created" && c.result !== "exists") {
         log({ result: "appointment_failed", code: created.ok ? str(c.result).slice(0, 20) : created.code });
@@ -350,7 +366,7 @@ export async function handleSalesBotMessage(deps: SalesBotDeps, e: { phoneNumber
         reply = alerted ? T.apptSubmitted : T.apptSubmittedUnalerted;
         outcome = alerted ? "appointment_created" : "appointment_created_unalerted";
       }
-      const { aName: _n, aWhen: _w, aWhere: _p, aNote: _o, ...kept } = d;
+      const { aCard: _c, aPrice: _q, aName: _n, aWhen: _w, aWhere: _p, aNote: _o, ...kept } = d;
       if (!(await save("APPT_DONE", kept, false))) return { result: "save_failed" };
       await sendText(reply, "reply");
       return { result: outcome };

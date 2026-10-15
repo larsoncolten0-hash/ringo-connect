@@ -10,9 +10,9 @@ export type BotState =
   | "WELCOME" | "CARDS" | "COMPARE" | "CARD_DETAIL" | "HOW_IT_WORKS" | "FAQ" | "RECOMMEND_1" | "RECOMMEND_2"
   | "ASK_NAME" | "ASK_ADDRESS" | "ASK_EMAIL" | "ASK_USERNAME" | "ASK_OPERATOR" | "ASK_PAY_PHONE" | "REVIEW" | "EDIT_MENU"
   | "DISCOVER" | "BUY_METHOD" | "MEETING_INFO"
-  | "APPT_NAME" | "APPT_WHEN" | "APPT_WHERE" | "APPT_NOTE" | "APPT_REVIEW" | "APPT_DONE"
+  | "APPT_CARD" | "APPT_NAME" | "APPT_WHEN" | "APPT_WHERE" | "APPT_NOTE" | "APPT_REVIEW" | "APPT_DONE"
   | "CREATING" | "PAYMENT" | "COMPLETED" | "HUMAN_HANDOFF";
-export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "DISCOVER", "BUY_METHOD", "MEETING_INFO", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_DONE", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
+export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "DISCOVER", "BUY_METHOD", "MEETING_INFO", "APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_DONE", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
 
 /**
  * The database (wa_sales_sessions.state, wa_sales_save) already knows the states that existed when it was created, and is not altered for this feature. A state it does not know is
@@ -25,6 +25,7 @@ const UMBRELLA: Partial<Record<BotState, { stored: BotState; step: string }>> = 
   BUY_METHOD: { stored: "CARDS", step: "method" },
   MEETING_INFO: { stored: "CARDS", step: "meeting" },
   // the meeting-request form (WhatsApp: Buy a card -> Meet a Ringo agent): four free-text questions, a review, and the "request sent" screen
+  APPT_CARD: { stored: "ASK_ADDRESS", step: "appt_card" },
   APPT_NAME: { stored: "ASK_ADDRESS", step: "appt_name" },
   APPT_WHEN: { stored: "ASK_ADDRESS", step: "appt_when" },
   APPT_WHERE: { stored: "ASK_ADDRESS", step: "appt_where" },
@@ -64,6 +65,10 @@ export interface BotData {
   /** The recovery menu (1 agent, 2 main menu, 3 continue) is on screen: 1 / 2 / 3 mean that, whatever state the customer is in. */
   recover?: boolean;
   /** The meeting request being typed (name, preferred time, place, optional note). Cleared when the request is sent or cancelled. Free text: never trusted, validated again by the database. */
+  /** The card the customer chose for the meeting (Standard / Pro / Premium); the agent brings the details, so nothing else is asked about it. */
+  aCard?: TierKey;
+  /** The FCFA price the customer saw on the review screen for that card. It is what gets submitted; if the live price differs when they confirm, nothing is sent and they review again. */
+  aPrice?: number;
   aName?: string;
   aWhen?: string;
   aWhere?: string;
@@ -133,7 +138,7 @@ const IMAGE_WORDS = ["image", "images", "photo", "photos", "picture", "pictures"
 const ORDER_WORDS = ["order", "buy", "buy a card", "acheter une carte", "i want to order", "commander", "acheter", "commande", "je veux commander"];
 const SKIP_WORDS = ["skip", "no", "none", "passer", "non", "aucun", "pas besoin"];
 const FREE_TEXT: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_PAY_PHONE", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE"];
-const APPT_FLOW: BotState[] = ["APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW"];
+const APPT_FLOW: BotState[] = ["APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW"];
 const STATUS_WORDS = ["status", "statut"];
 const ORDER_FLOW: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU"];
 
@@ -161,6 +166,12 @@ function cardsScreen(lang: Lang, facts: Facts): string {
   const body = facts.offers.map((o, i) => T.cardLine(i + 1, T.tierLabel[o.tier], money(lang, o.priceXaf), offerLines(lang, o))).join("");
   return `${T.cardsIntro}${body}${T.cardsFooter(facts.offers.length + 1, facts.offers.length + 2)}`;
 }
+// The card choice of the meeting flow: the same short card lists as the online flow, but the customer only picks one (no further questions about it).
+function apptCardsScreen(lang: Lang, facts: Facts): string {
+  const T = S(lang);
+  const body = facts.offers.map((o, i) => T.cardLine(i + 1, T.tierLabel[o.tier], money(lang, o.priceXaf), offerLines(lang, o))).join("");
+  return `${T.apptCardsIntro}${body}${T.apptCardsFooter}`;
+}
 function compareScreen(lang: Lang, facts: Facts): string {
   const T = S(lang);
   return `${T.compareTitle}${facts.offers.map((o) => T.compareLine(T.tierLabel[o.tier], money(lang, o.priceXaf), offerLines(lang, o))).join("")}${T.compareSame}${T.compareOptions}`;
@@ -181,9 +192,12 @@ function reviewScreen(lang: Lang, d: BotData, facts: Facts, waDigits: string): s
   if (!o || !d.name || !d.address || !d.email || !d.medium || !d.payPhone || typeof facts.total !== "number") return null;
   return T.review({ label: T.tierLabel[o.tier], price: money(lang, o.priceXaf), total: money(lang, facts.total), name: d.name, email: d.email, username: d.username || null, phone: `+${waDigits}`, address: d.address, operator: T.operatorName[d.medium], last3: lastDigits(d.payPhone) });
 }
-function apptReviewScreen(lang: Lang, d: BotData, waDigits: string): string | null {
+function apptReviewScreen(lang: Lang, d: BotData, facts: Facts): string | null {
+  const waDigits = facts.waDigits;
   if (!d.aName || !d.aWhen || !d.aWhere) return null;
-  return S(lang).apptReview({ name: d.aName, phone: `+${waDigits}`, when: d.aWhen, where: d.aWhere, note: d.aNote || null });
+  const T = S(lang);
+  const o = offerFor(facts, d.aCard);
+  return T.apptReview({ card: o ? `${T.tierLabel[o.tier]} — ${money(lang, d.aPrice ?? o.priceXaf)}` : null, name: d.aName, phone: `+${waDigits}`, when: d.aWhen, where: d.aWhere, note: d.aNote || null });
 }
 function payPhonePrompt(lang: Lang, waDigits: string): string {
   const own = normalizeSignupPhone(waDigits);
@@ -198,11 +212,12 @@ function prompt(state: BotState, d: BotData, facts: Facts, lang: Lang): string {
     case "DISCOVER": return T.discover;
     case "BUY_METHOD": return T.buyMethod;
     case "MEETING_INFO": return T.meetingInfo;
+    case "APPT_CARD": return facts.offers.length > 0 ? apptCardsScreen(lang, facts) : T.apptAskName;
     case "APPT_NAME": return T.apptAskName;
     case "APPT_WHEN": return T.apptAskWhen;
     case "APPT_WHERE": return T.apptAskWhere;
     case "APPT_NOTE": return T.apptAskNote;
-    case "APPT_REVIEW": return apptReviewScreen(lang, d, facts.waDigits) ?? T.apptAskName;
+    case "APPT_REVIEW": return apptReviewScreen(lang, d, facts) ?? T.apptAskName;
     case "APPT_DONE": return facts.appointment ? T.apptStatusText(facts.appointment.status) : T.apptStatusUnknown;
     case "CARDS": return cardsScreen(lang, facts);
     case "COMPARE": return compareScreen(lang, facts);
@@ -240,7 +255,9 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
   // The reply language follows the customer's own message (French in, French out; English in, English out). A typed fr / en is a choice they made, so it is kept (langLocked).
   // Answers to free-text questions (a name, an address, an e-mail) say nothing about language, and neither do numbers or menu words.
   const signal = d.langLocked || FREE_TEXT.includes(state) ? null : languageSignal(text);
-  const lang: Lang = signal ?? d.lang ?? "en";
+  // The very first reply of a brand-new conversation is French whatever the customer wrote (most customers speak French, and the Facebook ad opens the chat in English). A typed en / fr still wins, below.
+  const firstContact = session.version === 0 && state === "WELCOME" && !d.lang;
+  const lang: Lang = firstContact ? "fr" : signal ?? d.lang ?? "en";
   d.lang = lang;
   const T = S(lang);
   // Any reply the bot could read ends a run of unreadable ones: the counter and the recovery menu never outlive the reply that answers them.
@@ -329,10 +346,19 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
     }
     case "MEETING_INFO": {
       // 1 starts the meeting request (or shows the one the customer already has), 2 a person, 3 back to paying online.
-      if (n === 1) return facts.appointment?.open ? out("APPT_DONE", d, T.apptStatusText(facts.appointment.status)) : out("APPT_NAME", d, T.apptAskName);
+      if (n === 1) {
+        if (facts.appointment?.open) return out("APPT_DONE", d, T.apptStatusText(facts.appointment.status));
+        return facts.offers.length > 0 ? out("APPT_CARD", d, apptCardsScreen(lang, facts)) : out("APPT_NAME", d, T.apptAskName);
+      }
       if (n === 2) return toHuman();
       if (n === 3) return out("CARDS", { ...d, method: "online" }, cardsScreen(lang, facts));
       return confused();
+    }
+    case "APPT_CARD": {
+      const pick = n !== null && n >= 1 && n <= facts.offers.length ? facts.offers[n - 1] : facts.offers.find((o) => has(t, [norm(T.tierLabel[o.tier]), o.tier]));
+      if (!pick) return confused();
+      d.aCard = pick.tier;
+      return out("APPT_NAME", d, T.apptAskName);
     }
     case "APPT_NAME": {
       const v = clean(text, 80);
@@ -354,13 +380,33 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
     }
     case "APPT_NOTE": {
       d.aNote = has(t, SKIP_WORDS) ? undefined : clean(text, 200) || undefined;
+      // the price shown on the review screen is the one the customer reviews: it is kept, and it is what is submitted
+      d.aPrice = offerFor(facts, d.aCard)?.priceXaf;
       return out("APPT_REVIEW", d, prompt("APPT_REVIEW", d, facts, lang));
     }
     case "APPT_REVIEW": {
       if (!d.aName || !d.aWhen || !d.aWhere) return out("APPT_NAME", d, T.apptAskName);
       // 1 sends the request: the runner stores it (the database re-validates everything and ignores a repeat) and writes the answer. It never touches an order or a payment.
-      if (n === 1) return out("APPT_REVIEW", d, "", "create_appointment");
-      if (n === 2) return out("APPT_NAME", { ...d, aName: undefined, aWhen: undefined, aWhere: undefined, aNote: undefined }, T.apptAskName);
+      if (n === 1) {
+        // Immediately before sending, the reviewed card and price are compared with the live offer. If the offer is gone or the price moved, nothing is sent: the customer is told and reviews again.
+        if (d.aCard) {
+          const live = offerFor(facts, d.aCard);
+          if (!live) {
+            const gone = { ...d, aCard: undefined, aPrice: undefined };
+            return facts.offers.length > 0 ? out("APPT_CARD", gone, `${T.apptCardUnavailable}${apptCardsScreen(lang, facts)}`) : out("APPT_NAME", gone, `${T.apptCardUnavailable}${T.apptAskName}`);
+          }
+          if (d.aPrice !== live.priceXaf) {
+            const was = d.aPrice;
+            d.aPrice = live.priceXaf;
+            return out("APPT_REVIEW", d, `${T.apptPriceChanged({ was: typeof was === "number" ? money(lang, was) : null, now: money(lang, live.priceXaf) })}${prompt("APPT_REVIEW", d, facts, lang)}`);
+          }
+        }
+        return out("APPT_REVIEW", d, "", "create_appointment");
+      }
+      if (n === 2) {
+        const cleared = { ...d, aCard: undefined, aPrice: undefined, aName: undefined, aWhen: undefined, aWhere: undefined, aNote: undefined };
+        return facts.offers.length > 0 ? out("APPT_CARD", cleared, apptCardsScreen(lang, facts)) : out("APPT_NAME", cleared, T.apptAskName);
+      }
       return confused();
     }
     case "APPT_DONE": {

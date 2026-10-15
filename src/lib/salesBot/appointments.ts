@@ -2,6 +2,7 @@ import { translations } from "@/lib/i18n/translations";
 import { isUuid } from "@/lib/inbox/format";
 import { sendReply, type SendDeps, type SendResult } from "@/lib/inbox/send";
 import { replyRequestId } from "./ids";
+import { groupNum } from "./machine";
 
 // Confirm / decline / cancel a card-appointment request (the WhatsApp "Meet a Ringo agent" flow), for the owner or a team member the database admits.
 // The order of things is the whole point:
@@ -89,7 +90,20 @@ export async function changeAppointmentStatus(deps: ChangeDeps, input: { appoint
 
   // 4. only now is the customer told, and what really happened is recorded
   const lang = c.lang === "fr" ? "fr" : "en";
-  const text = translations[lang].inbox.salesBot.apptDecision(to, details);
+  // The confirmation reads like a receipt: name, date and time, item, price, location. Each part is shown only when the database returned it (older requests have no card).
+  const T = translations[lang].inbox.salesBot;
+  const tier = str(c.card_tier);
+  const priceXaf = typeof c.card_price_xaf === "number" && c.card_price_xaf > 0 ? c.card_price_xaf : null;
+  const receipt = str(c.customer_name) && str(c.preferred_time) && str(c.meeting_place)
+    ? {
+        name: str(c.customer_name),
+        when: str(c.preferred_time),
+        where: str(c.meeting_place),
+        item: tier === "standard" || tier === "pro" || tier === "premium" ? `${T.receiptItem} — ${T.tierLabel[tier]}` : null,
+        price: priceXaf !== null ? T.price(groupNum(priceXaf, T.thousandsSep)) : null,
+      }
+    : undefined;
+  const text = T.apptDecision(to, details, receipt);
   let outcome: NotifyOutcome = "failed";
   try {
     const sender = deps.send ?? sendReply;

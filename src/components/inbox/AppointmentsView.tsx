@@ -21,6 +21,9 @@ export interface AppointmentRow {
   status: AppointmentStatus;
   decision_details: string | null;
   customer_notify_status: "sent" | "window_closed" | "failed" | null;
+  /** The card the customer chose (null for requests made before the card choice existed). */
+  card_tier?: "standard" | "pro" | "premium" | null;
+  card_price_xaf?: number | null;
   created_at: string;
   decided_at: string | null;
   lastActor: "owner" | "staff" | "customer" | null;
@@ -87,6 +90,12 @@ function Card({ row, canAct }: { row: AppointmentRow; canAct: boolean }) {
         </a>
       </div>
       <dl className="mt-2 grid gap-1 text-sm sm:grid-cols-[10rem_1fr]">
+        {row.card_tier && (
+          <>
+            <dt className="text-ringo-muted">{u.card}</dt>
+            <dd className="text-ringo-text" data-testid="appointment-card-choice">{row.card_tier.charAt(0).toUpperCase() + row.card_tier.slice(1)}{typeof row.card_price_xaf === "number" ? ` — ${String(row.card_price_xaf).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} FCFA` : ""}</dd>
+          </>
+        )}
         <dt className="text-ringo-muted">{u.number}</dt>
         <dd className="text-ringo-text">+{row.customer_phone}</dd>
         <dt className="text-ringo-muted">{u.when}</dt>

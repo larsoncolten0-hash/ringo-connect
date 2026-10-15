@@ -140,8 +140,8 @@ await test("the customer's message is in THEIR language (English or French) and 
   const confirmed = EN.apptDecision("confirmed", null), declined = EN.apptDecision("declined", null), cancelled = EN.apptDecision("cancelled", null);
   assert.ok(/confirmed/.test(confirmed) && !/confirmed/.test(declined.replace(/not confirmed/g, "")) && !/confirmed/.test(cancelled));
   assert.ok(!/\b(guarantee|garanti|within \d|dans les \d)/i.test(confirmed + declined + cancelled + FR.apptDecision("confirmed", null)));
-  assert.ok(confirmed.includes("A team member will share the details") && FR.apptDecision("confirmed", null).includes("partagera les détails"));
-  assert.ok(EN.apptDecision("confirmed", "BRING ID").includes("BRING ID") && !EN.apptDecision("confirmed", "BRING ID").includes("A team member will share the details"));
+  assert.ok(confirmed.includes("A Ringo Connect agent will reach out to you") && FR.apptDecision("confirmed", null).includes("vous contactera"));
+  assert.ok(EN.apptDecision("confirmed", "BRING ID").includes("BRING ID") && !EN.apptDecision("confirmed", "BRING ID").includes("undefined"));
 });
 
 await test("a double click or retry is a pure no-op for the customer too: no second message, no new record of an outcome, for every target including completed", async () => {

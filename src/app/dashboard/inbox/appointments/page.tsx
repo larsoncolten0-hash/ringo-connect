@@ -16,12 +16,11 @@ export default async function AppointmentsPage() {
   let rows: AppointmentRow[] = [];
   let loadFailed = false;
   try {
-    const { data, error } = await actor.supabase
-      .from("card_appointments")
-      .select("id, customer_name, customer_phone, preferred_time, meeting_place, note, status, decision_details, customer_notify_status, created_at, decided_at")
-      .eq("profile_id", actor.profileId)
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const columns = "id, customer_name, customer_phone, preferred_time, meeting_place, note, status, decision_details, customer_notify_status, created_at, decided_at";
+    const load = (select: string) => actor.supabase.from("card_appointments").select(select).eq("profile_id", actor.profileId).order("created_at", { ascending: false }).limit(200);
+    // The chosen card (card_tier, card_price_xaf) comes with the card-choice migration; until it is applied the list is read without it, so the page never breaks.
+    let { data, error } = await load(`${columns}, card_tier, card_price_xaf`);
+    if (error) ({ data, error } = await load(columns));
     if (error || !Array.isArray(data)) {
       loadFailed = true;
     } else {
