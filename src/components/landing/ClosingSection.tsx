@@ -122,6 +122,7 @@ export function LandingFooter({ logoUrl, appName, affiliateHref }: { logoUrl: st
             <Link href="/privacy" className={link}>{l.footerPrivacy}</Link>
             <a href="mailto:info@ringoconnectltd.com" className={link}>info@ringoconnectltd.com</a>
             <a href="tel:+237694028846" className={link}>+237 694 028 846</a>
+            <a href="https://wa.me/237697185829" target="_blank" rel="noopener noreferrer" className={link}>WhatsApp +237 697 185 829</a>
           </div>
         </div>
       </div>
