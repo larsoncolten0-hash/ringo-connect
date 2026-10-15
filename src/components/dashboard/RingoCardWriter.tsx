@@ -180,26 +180,40 @@ export default function RingoCardWriter({
     try {
       let cardId = flow.cardId;
 
+      // Chrome on Android only shows its NFC permission prompt while the tap that asked for it is still
+      // fresh (a few seconds). The old order did a network call to create the card record FIRST, so on a
+      // slow connection the tap had expired by the time write() ran and the write failed with "NFC
+      // permission is required" although the user had never refused anything. The write is therefore
+      // started right here, inside the tap; the card record is created while the phone waits for the
+      // card. Nothing is committed until both have succeeded, exactly as before.
+      // Web NFC's write() blocks until a physical tag is presented, then writes it in the same operation
+      // — there's no separate "tag found" event — so one status message covers the wait-and-write window.
+      setStatusMessage(c.statusWriting);
+      const writeOutcome: Promise<unknown> = writeRingoCard(destinationUrl, contact, controller.signal).then(
+        () => null,
+        (e) => e ?? new RingoCardError("unknown", "write failed")
+      );
+
       if (!cardId) {
-        setStatusMessage(c.statusPreparing);
-        const res = await fetch("/api/ringo-cards", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profileId: profile.id }),
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json.card) throw new RingoCardError("unknown", json.error || "server");
-        cardId = json.card.id;
-        updateCard(json.card);
-        setFlow((f) => (f ? { ...f, cardId } : f));
+        try {
+          const res = await fetch("/api/ringo-cards", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ profileId: profile.id }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || !json.card) throw new RingoCardError("unknown", json.error || "server");
+          cardId = json.card.id;
+          updateCard(json.card);
+          setFlow((f) => (f ? { ...f, cardId } : f));
+        } catch (createErr) {
+          controller.abort(); // no record to attach the write to: stop waiting for a card
+          throw createErr;
+        }
       }
 
-      // Web NFC's write() call itself blocks until a physical tag is
-      // presented, then writes it in the same operation — there's no
-      // separate "tag found" event to react to, so a single status
-      // message covers the whole wait-and-write window.
-      setStatusMessage(c.statusWriting);
-      await writeRingoCard(destinationUrl, contact, controller.signal);
+      const writeError = await writeOutcome;
+      if (writeError) throw writeError;
 
       const commitRes = await fetch(`/api/ringo-cards/${cardId}/write`, {
         method: "POST",

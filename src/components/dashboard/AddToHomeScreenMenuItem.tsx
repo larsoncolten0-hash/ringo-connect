@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Smartphone, Share, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useInstallPrompt } from "@/components/my-ringo/useInstallPrompt";
 
 // Dashboard-side "Add to Home Screen" entry, surfaced from AvatarMenu so
 // it's reachable from every /dashboard/** page on every breakpoint
@@ -14,39 +15,24 @@ import { useLanguage } from "@/components/LanguageProvider";
 // isn't actually possible (already installed, or a browser that supports
 // neither the native prompt nor iOS's manual flow) — no dead menu item,
 // same reasoning that replaced the old dashboard-wide InstallPrompt.
+//
+// This item lives inside the avatar dropdown, so it only mounts when the menu is OPENED. Chrome on Android
+// fires `beforeinstallprompt` once, shortly after the page loads, long before anyone opens the menu — a
+// listener added at mount therefore never heard it and the install option never appeared (it only worked in a
+// browser where the event happened to arrive later). useInstallPrompt listens from the moment the dashboard
+// loads (module level) and keeps the event, so the item can use it whenever the menu is opened.
 export default function AddToHomeScreenMenuItem({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useLanguage();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(true); // hidden until the mount effect below checks
+  const { state, install: installNative } = useInstallPrompt();
+  const isIOS = state === "ios";
   const [showIOSInstructions, setShowIOSInstructions] = useState(false);
-
-  useEffect(() => {
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
-    setIsStandalone(standalone);
-    if (standalone) return;
-
-    const ua = window.navigator.userAgent;
-    setIsIOS(/iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream);
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
 
   const install = async () => {
     if (isIOS) {
       setShowIOSInstructions(true);
       return;
     }
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
+    await installNative();
     onNavigate?.();
   };
 
@@ -55,7 +41,7 @@ export default function AddToHomeScreenMenuItem({ onNavigate }: { onNavigate?: (
     onNavigate?.();
   };
 
-  if (isStandalone || (!deferredPrompt && !isIOS)) return null;
+  if (state !== "available" && state !== "ios") return null;
 
   return (
     <>
