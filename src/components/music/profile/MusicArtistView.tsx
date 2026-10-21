@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { getBookingConfig, getMusicRole } from "@/lib/categories";
 import { hexToRgba, readableOn } from "@/lib/color";
 import { buildVCard, vCardFileName } from "@/lib/vcard";
+import { saveContactClick } from "@/components/SaveContactButton";
 import { coverImage, profileNameSize, trackActions } from "@/lib/music/profileMusic";
 import type { LatestRelease } from "@/lib/latestRelease";
 import SocialIcon from "@/components/SocialIcon";
@@ -321,7 +322,7 @@ export default function MusicArtistView({
                     {t.musicProfile.call}
                   </a>
                   {vcardHref && (
-                    <a href={vcardHref} download={vCardFileName(profile)} className={tile} style={tileStyle}>
+                    <a href={vcardHref} download={vCardFileName(profile)} onClick={(e) => saveContactClick(e, profile)} className={tile} style={tileStyle}>
                       {badge("var(--mp-accent)", "var(--mp-on-accent)", <UserPlus size={17} />)}
                       {t.musicProfile.saveContact}
                     </a>

@@ -19,6 +19,7 @@ import { PHASE30_FILES } from "./phase30Files.mjs"; // the WhatsApp Inbox UX and
 import { PHASE32_FILES } from "./phase32Files.mjs";
 import { PHASE33_FILES } from "./phase33Files.mjs"; // the WhatsApp card appointments
 import { PHASE34_FILES } from "./phase34Files.mjs"; // the Android fixes: Write Your Ringo Card, Add to Home Screen // the Smart Card QR claim: likewise
+import { PHASE36_FILES } from "./phase36Files.mjs"; // the Android Save Contact change: likewise
 import { PHASE31_FILES } from "./phase31Files.mjs"; // the image display fix: likewise
 import { SCALABILITY_PHASE0_FILES } from "./scalabilityPhase0Files.mjs"; // scalability and reliability Phase 0: likewise
 import { SCALABILITY_PHASE1TO5_FILES } from "./scalabilityPhase1to5Files.mjs"; // scalability and reliability Phases 1-5: likewise
@@ -50,6 +51,7 @@ export const OWNER_WORKSPACE_FILES = new Set([
   ...PHASE32_FILES,
   ...PHASE33_FILES,
   ...PHASE34_FILES,
+  ...PHASE36_FILES,
   ...PHASE31_FILES,
   ...SCALABILITY_PHASE0_FILES,
   ...SCALABILITY_PHASE1TO5_FILES,
