@@ -8,6 +8,7 @@ import path from "path";
 import assert from "assert";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { assertMainSiteMiddlewareBehaviour } from "./mainSiteMiddleware.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -281,7 +282,7 @@ await test("buttons source: PKCE sign-in with a same-origin /auth/callback redir
 });
 
 // ------------------------------------------------------------------ placement and scope
-await test("placement: only the Log in page, under the unchanged form; /auth/signup, /get-started and the middleware are untouched", () => {
+await test("placement: only the Log in page, under the unchanged form; /auth/signup, /get-started and the middleware have no OAuth, and main-site middleware behaviour is intact", async () => {
   const login = src("src/app/auth/login/page.tsx");
   const form = login.indexOf("</form>");
   const buttons = login.indexOf("<OAuthButtons />");
@@ -289,7 +290,7 @@ await test("placement: only the Log in page, under the unchanged form; /auth/sig
   assert.ok(form > 0 && buttons > form && create > buttons, "form, then the buttons, then the 'Create one' link");
   for (const keep of ['label="Email or username"', 'label="Password"', "Forgot password?", "<SubmitButton", "/api/auth/login"]) assert.ok(login.includes(keep), keep);
   for (const f of ["src/app/auth/signup/page.tsx", "src/components/GetStartedFlow.tsx", "src/middleware.ts"]) if (fs.existsSync(path.join(REPO, f))) assert.ok(!/OAuthButtons|signInWithOAuth/.test(src(f)), f);
-  assert.match(src("src/middleware.ts"), /matcher: \["\/dashboard\/:path\*", "\/admin\/:path\*"\]/);
+  await assertMainSiteMiddlewareBehaviour();
 });
 await test("EN/FR: oauthLogin has the same keys in both languages, every text differs, nothing is empty", () => {
   const en = translations.en.oauthLogin;

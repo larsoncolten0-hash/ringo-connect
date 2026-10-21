@@ -6,6 +6,7 @@ import path from "path";
 import assert from "assert";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { assertMainSiteMiddlewareBehaviour } from "./mainSiteMiddleware.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -100,11 +101,11 @@ await test("robots: profiles and their canonical-bearing secondary pages are NOT
   for (const p of ["/", "/ada", "/r/", "/m/", "/get-started", "/ada/book", "/ada/item/1"])
     assert.ok(!rule.disallow.some((d) => p === d || p.startsWith(d)), p);
 });
-await test("robots is guidance only: no auth, middleware or route code was changed to make it work", () => {
+await test("robots is guidance only: robots.ts uses no auth or middleware, and main-site middleware behaviour is intact", async () => {
   const s = src("src/app/robots.ts");
   assert.match(fs.readFileSync(path.join(REPO, "src/app/robots.ts"), "utf8"), /NOT access control/);
   assert.ok(!/middleware|supabase/.test(s));
-  assert.match(src("src/middleware.ts"), /matcher: \["\/dashboard\/:path\*", "\/admin\/:path\*"\]/);
+  await assertMainSiteMiddlewareBehaviour();
 });
 
 // ------------------------------------------------------------------ sitemap filtering

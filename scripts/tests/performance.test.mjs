@@ -15,6 +15,7 @@ import { PHASE30_FILES } from "./phase30Files.mjs";
 import { PHASE32_FILES } from "./phase32Files.mjs";
 import { PHASE33_FILES } from "./phase33Files.mjs";
 import { PHASE34_FILES } from "./phase34Files.mjs";
+import { PHASE35_FILES } from "./phase35Files.mjs";
 import { PHASE31_FILES } from "./phase31Files.mjs";
 
 const require = createRequire(import.meta.url);
@@ -348,12 +349,20 @@ await test("mobile: the connection to the storage host (where every picture come
 // =============================================================================== scope
 await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, orders, payouts, commissions and the 10-second preview are not touched", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].filter((f) => !f.startsWith("scripts/tests/_"));
-  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE31_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE35_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE31_FILES.has(f)), [], "only the registered files changed");
   // Files whose NAME looks sensitive but whose change is a read-only performance edit, listed one by one (never by pattern): the public item checkout PAGE's profile read (the checkout flow itself,
   // the payment calls and the order logic are not in it), the shop page, the supabase proposal files and the admin branding save's cache refresh.
   const ALLOWED = new Set([
     "src/app/[username]/item/[id]/checkout/page.tsx",
     "src/app/api/admin/branding/route.ts",
+    // The custom profile address phase (phase35Files.mjs): the host-aware middleware, its one authenticated owner route, and its additive, un-applied migration with the verify and rollback scripts.
+    "src/middleware.ts",
+    "scripts/tests/mainSiteMiddleware.mjs",
+    "src/app/api/profile/subdomain/route.ts",
+    "supabase/migrations/2026-12-25_profile_subdomains.sql",
+    "supabase/support/2026-12-25_profile_subdomains.preflight.sql",
+    "supabase/support/2026-12-25_profile_subdomains.verify.sql",
+    "supabase/support/2026-12-25_profile_subdomains.rollback.sql",
     // The WhatsApp card-appointment phase (phase33Files.mjs): its one authenticated confirm route, and its additive, un-applied migration with the preflight, verify and rollback scripts.
     "src/app/api/inbox/appointments/[id]/status/route.ts",
     "supabase/migrations/2026-12-23_card_appointments.sql",

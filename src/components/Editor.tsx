@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Tag, Sparkles, UtensilsCrossed, BookOpen, QrCode, Palette, MessageCircle, Share2, Link2, Disc3, Music, ShoppingBag, Ticket, Pin, Info, Radar } from "lucide-react";
+import { ExternalLink, Globe, Tag, Sparkles, UtensilsCrossed, BookOpen, QrCode, Palette, MessageCircle, Share2, Link2, Disc3, Music, ShoppingBag, Ticket, Pin, Info, Radar } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { MotionConfig } from "framer-motion";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -24,6 +24,8 @@ import TracksCard from "@/components/editor/TracksCard";
 import CatalogCard from "@/components/editor/CatalogCard";
 import AboutCard from "@/components/editor/AboutCard";
 import PixelsCard from "@/components/editor/PixelsCard";
+import ProfileAddressCard from "@/components/editor/ProfileAddressCard";
+import { getProfileDomain, profileSubdomainAllowed } from "@/lib/profileSubdomain";
 import { EditorCardBareGroup } from "@/components/editor/EditorCard";
 import { EditorPreviewProvider, useEditorPreview } from "@/components/editor/EditorPreviewContext";
 import LivePreviewPanel from "@/components/editor/LivePreviewPanel";
@@ -303,6 +305,15 @@ function EditorCards({
               />
             </EditorCardBareGroup>
           </EditorSection>
+
+          {/* Custom profile address: only offered once the profile domain is configured (NEXT_PUBLIC_PROFILE_DOMAIN) AND the owner is on a paid plan (the API re-checks both on the server). */}
+          {getProfileDomain() && profileSubdomainAllowed({ plans: plan }) && (
+            <EditorSection id="profile-address" icon={Globe} title={t.editor.profileAddress.title}>
+              <EditorCardBareGroup>
+                <ProfileAddressCard />
+              </EditorCardBareGroup>
+            </EditorSection>
+          )}
 
           <EditorSection id="pixels" icon={Radar} title={t.editor.trackingPixels}>
             <EditorCardBareGroup>

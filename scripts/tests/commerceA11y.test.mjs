@@ -8,6 +8,7 @@ import path from "path";
 import assert from "assert";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { assertMainSiteMiddlewareBehaviour } from "./mainSiteMiddleware.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -256,9 +257,9 @@ await test("/shop/orders/[id] and /order/[id] are not indexable: metadata only, 
   assert.match(tracking, /export const dynamic = "force-dynamic"/);
   assert.ok(!/generateMetadata/.test(receipt + tracking), "no dynamic metadata (and so no order data in <head>)");
 });
-await test("robots.ts and middleware are unchanged by this phase (still guidance only; matcher untouched)", () => {
+await test("robots.ts is unchanged by this phase (still guidance only) and the main-site middleware behaviour is intact (dashboard/admin guarded, everything else untouched)", async () => {
   assert.match(src("src/app/robots.ts"), /"\/shop\/orders"/);
-  assert.match(src("src/middleware.ts"), /matcher: \["\/dashboard\/:path\*", "\/admin\/:path\*"\]/);
+  await assertMainSiteMiddlewareBehaviour();
 });
 
 // ------------------------------------------------------------------ 6. translations

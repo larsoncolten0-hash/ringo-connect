@@ -8,6 +8,7 @@ import path from "path";
 import crypto from "crypto";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import { assertMainSiteMiddlewareBehaviour } from "./mainSiteMiddleware.mjs";
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -308,7 +309,9 @@ const resolveOk = (docId = ID(1), profileId = OWNER.profileId) => ({ data: { doc
   const cfg = read("next.config.js");
   check("next.config sets no-store, no-referrer, noindex, nosniff and DENY framing for /d/:path*", /source: "\/d\/:path\*"/.test(cfg) && /no-store/.test(cfg) && /no-referrer/.test(cfg) && /noindex/.test(cfg) && /nosniff/.test(cfg) && /DENY/.test(cfg));
   const mw = fs.existsSync(path.join(SRC, "middleware.ts")) ? read("src/middleware.ts") : "";
-  check("the middleware matcher covers only /dashboard and /admin, so /d/* is public (customers need no account)", /matcher: \["\/dashboard\/:path\*", "\/admin\/:path\*"\]/.test(mw));
+  let mwOk = false;
+  try { await assertMainSiteMiddlewareBehaviour(); mwOk = true; } catch (e) { console.log("   ", e.message); }
+  check("the middleware only guards /dashboard and /admin on the main site, so /d/* is public (customers need no account)", mwOk && mw.length > 0);
   {
     const RU = jiti(path.join(SRC, "lib/reservedUsernames.ts"));
     check("the username 'd' is reserved (case/space-insensitive) so no profile page can be shadowed by /d/[token]; 'my-ringo' stays reserved; ordinary names are unaffected",
