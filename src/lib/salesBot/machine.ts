@@ -24,7 +24,7 @@ const UMBRELLA: Partial<Record<BotState, { stored: BotState; step: string }>> = 
   DISCOVER: { stored: "HOW_IT_WORKS", step: "discover" },
   BUY_METHOD: { stored: "CARDS", step: "method" },
   MEETING_INFO: { stored: "CARDS", step: "meeting" },
-  // the details form (WhatsApp: Buy a card now): the card, three free-text questions (name, time, place), a review, the choice of payment (APPT_PAY: online, or on delivery = a booked appointment) and the "booking approved" screen. APPT_NOTE is kept only for conversations saved before the note question was removed.
+  // the details form (WhatsApp: Buy a card now): the card, three free-text questions (name, time, place), the choice of payment (APPT_PAY: online, or on delivery = a booked appointment), a review (Approve) and the "booking approved" screen. APPT_NOTE is kept only for conversations saved before the note question was removed.
   APPT_CARD: { stored: "ASK_ADDRESS", step: "appt_card" },
   APPT_NAME: { stored: "ASK_ADDRESS", step: "appt_name" },
   APPT_WHEN: { stored: "ASK_ADDRESS", step: "appt_when" },
@@ -74,6 +74,8 @@ export interface BotData {
   aWhen?: string;
   aWhere?: string;
   aNote?: string;
+  /** How the customer chose to pay, asked before the review: online (the regular online order) or on delivery (an agent comes and is paid in cash; the appointment is booked). */
+  aPay?: "online" | "delivery";
   username?: string;
   medium?: SignupMedium;
   payPhone?: string;
@@ -374,9 +376,10 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
       const v = clean(text, 160);
       if (v.length < 3) return stay(T.apptAskWhere);
       d.aWhere = v;
-      // no optional note any more: the details are complete, so the card and price the customer saw are kept and the review comes next
+      // no optional note any more: the details are complete, so the card and price the customer saw are kept. The customer now chooses how to pay, then reviews everything
+      // (a request made without a card has nothing to pay online, so it goes straight to the review).
       d.aPrice = offerFor(facts, d.aCard)?.priceXaf;
-      return out("APPT_REVIEW", d, prompt("APPT_REVIEW", d, facts, lang));
+      return d.aCard ? out("APPT_PAY", d, T.apptPayChoice) : out("APPT_REVIEW", d, prompt("APPT_REVIEW", d, facts, lang));
     }
     case "APPT_NOTE": {
       d.aNote = has(t, SKIP_WORDS) ? undefined : clean(text, 200) || undefined;
@@ -401,31 +404,30 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
             return out("APPT_REVIEW", d, `${T.apptPriceChanged({ was: typeof was === "number" ? money(lang, was) : null, now: money(lang, live.priceXaf) })}${prompt("APPT_REVIEW", d, facts, lang)}`);
           }
         }
-        // Approved: the customer now chooses how to pay (a request made without a card can only be paid on delivery, so it is booked straight away).
-        return d.aCard ? out("APPT_PAY", d, T.apptPayChoice) : out("APPT_REVIEW", d, "", "create_appointment");
+        // Approved. Pay on delivery (or a request made without a card, which can only be booked): the appointment is booked from the details already given; the runner stores it and tells the customer.
+        if (!d.aCard || d.aPay === "delivery") return out("APPT_REVIEW", d, "", "create_appointment");
+        // Pay online: the regular online order (e-mail, username, Mobile Money number, review, payment request) with the card, name and place already given. Nothing is asked twice.
+        const live = d.aPay === "online" ? offerFor(facts, d.aCard) : undefined;
+        if (live) {
+          const order: BotData = { lang, tier: live.tier, method: "online", name: d.aName, ...(d.langLocked ? { langLocked: true } : {}) };
+          // the delivery address of the online order needs 5 characters (ASK_ADDRESS); the meeting place only 3
+          if (d.aWhere.length < 5) return out("ASK_ADDRESS", order, T.askAddress);
+          return out("ASK_EMAIL", { ...order, address: d.aWhere }, T.askEmail);
+        }
+        // A conversation saved before the choice of payment moved ahead of this review has no choice stored yet: it is asked now.
+        return out("APPT_PAY", d, T.apptPayChoice);
       }
       if (n === 2) {
-        const cleared = { ...d, aCard: undefined, aPrice: undefined, aName: undefined, aWhen: undefined, aWhere: undefined, aNote: undefined };
+        const cleared = { ...d, aCard: undefined, aPrice: undefined, aName: undefined, aWhen: undefined, aWhere: undefined, aNote: undefined, aPay: undefined };
         return facts.offers.length > 0 ? out("APPT_CARD", cleared, apptCardsScreen(lang, facts)) : out("APPT_NAME", cleared, T.apptAskName);
       }
       return confused();
     }
     case "APPT_PAY": {
       if (!d.aName || !d.aWhen || !d.aWhere) return out("APPT_NAME", d, T.apptAskName);
-      // 1: the regular online order (e-mail, username, Mobile Money number, review, payment request) with the card, name and place already given. Nothing is asked twice.
-      if (n === 1 || has(t, ONLINE_WORDS)) {
-        const live = offerFor(facts, d.aCard);
-        if (!live) {
-          const gone = { ...d, aCard: undefined, aPrice: undefined };
-          return facts.offers.length > 0 ? out("APPT_CARD", gone, `${T.apptCardUnavailable}${apptCardsScreen(lang, facts)}`) : out("WELCOME", { lang, ...(d.langLocked ? { langLocked: true } : {}) }, T.unavailable);
-        }
-        const order: BotData = { lang, tier: live.tier, method: "online", name: d.aName, ...(d.langLocked ? { langLocked: true } : {}) };
-        // the delivery address of the online order needs 5 characters (ASK_ADDRESS); the meeting place only 3
-        if (d.aWhere.length < 5) return out("ASK_ADDRESS", order, T.askAddress);
-        return out("ASK_EMAIL", { ...order, address: d.aWhere }, T.askEmail);
-      }
-      // 2: pay on delivery: the appointment is booked from the details already given. The runner stores it and tells the customer.
-      if (n === 2 || has(t, DELIVERY_WORDS)) return out("APPT_PAY", d, "", "create_appointment");
+      // The choice is only remembered here; it is acted on when the customer approves the review that follows.
+      if (n === 1 || has(t, ONLINE_WORDS)) { d.aPay = "online"; return out("APPT_REVIEW", d, prompt("APPT_REVIEW", d, facts, lang)); }
+      if (n === 2 || has(t, DELIVERY_WORDS)) { d.aPay = "delivery"; return out("APPT_REVIEW", d, prompt("APPT_REVIEW", d, facts, lang)); }
       return confused();
     }
     case "APPT_DONE": {
