@@ -226,6 +226,8 @@ await test("Discover Ringo and every Know more answer carry the website and the 
     assert.ok(L.faqMenu.includes(SITE) && L.faqMenu.includes(PROFILE), name + " faqMenu");
   }
   assert.ok(/NFC/.test(EN.discover) && /QR/.test(EN.discover) && /1\. Buy a card now/.test(EN.discover) && /3\. Main menu/.test(EN.discover));
+  const VIDEO = "https://www.facebook.com/share/r/1KLGNrNpxs/?mibextid=wwXIfr";
+  for (const [L, name] of [[EN, "EN"], [FR, "FR"]]) { assert.ok(L.discover.includes(VIDEO) && L.faqOptions.includes(VIDEO), name + " video"); assert.ok(!L.welcome.includes(VIDEO) && !L.mainMenu.includes(VIDEO), name + " video only where asked"); }
   assert.ok(EN.faqOptions.includes("*faq* to see the questions") && EN.faqOptions.includes("Type *human*") && FR.faqOptions.includes("Tapez *humain*"));
 });
 
