@@ -24,6 +24,8 @@ checks(label, expect, actual) as (
                                                   'education_training', 'travel_hospitality', 'events_experiences', 'creative_media', 'freelancers_creators', 'construction_home_services', 'agriculture_agribusiness', 'other']) s
            where (select def from defs where conname = 'profiles_category_check') like '%''' || s || '''%')
   union all select '10 no other object was touched: the migration created no table or function (church_* tables, 0 expected)', '0',
-         (select count(*)::text from pg_tables where schemaname = 'public' and tablename like 'church\_%')
+         (select count(*)::text from pg_tables where schemaname = 'public' and tablename like 'church\_%'
+            -- the four people/group tables of the later Phase 2A migration (2026-12-27_church_people_groups.sql) are expected once that migration is applied; any OTHER church_* table is still a surprise
+            and tablename not in ('church_members', 'church_groups', 'church_group_members', 'church_leadership'))
 )
 select label, expect, actual, (expect = actual) as ok from checks order by label;

@@ -126,7 +126,10 @@ const PREVIOUS_16 = [
   const ALLOWED = ["src/lib/ai/knowledge/modules/churchMinistries.ts", "src/components/church/ChurchVisitCard.tsx"];
   check("the church folders hold only the Phase 1 files", fs.readdirSync(path.join(REPO, "src/lib/church")).join() === "publicPage.ts" && fs.readdirSync(path.join(REPO, "src/components/church")).join() === "ChurchVisitCard.tsx");
   check("the only church-named source files are the AI knowledge module and the Phase 1 public page shell (no routes or dashboard screens)", hits.length === ALLOWED.length && ALLOWED.every((a) => hits.includes(a)), hits.join());
-  check("no church_* table is created by any migration", !fs.readdirSync(path.join(REPO, "supabase/migrations")).some((f) => /create table[^;]*church_/i.test(read(`supabase/migrations/${f}`))));
+  // Phase 0 itself creates no table; the only church_* tables are the four people/group tables of Phase 2A (2026-12-27_church_people_groups.sql), created by nothing else.
+  const migFiles = fs.readdirSync(path.join(REPO, "supabase/migrations"));
+  check("the category migration creates no table, and the only migration creating church_* tables is the Phase 2A people-and-groups one", !/create table/i.test(read("supabase/migrations/2026-12-26_church_category.sql").replace(/--[^\n]*/g, ""))
+    && migFiles.filter((f) => /create table[^;]*church_/i.test(read(`supabase/migrations/${f}`))).join() === "2026-12-27_church_people_groups.sql");
 }
 
 // ------------------------------------------------------------------ 6. EXECUTED against a disposable in-memory PostgreSQL (PGlite). Nothing here touches any real database.

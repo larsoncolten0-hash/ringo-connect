@@ -187,7 +187,8 @@ const html = (Comp, props, lang) => {
 // ------------------------------------------------------------------ 6. scope: nothing beyond the shell
 {
   const migs = fs.readdirSync(path.join(REPO, "supabase/migrations")).sort();
-  check("no new migration or schema change in Phase 1 (the newest is still the Phase 0 one)", migs[migs.length - 1] === "2026-12-26_church_category.sql");
+  // Phase 1 added no migration: the first one after the Phase 0 category migration is the later Phase 2A people-and-groups one.
+  check("no migration or schema change in Phase 1 (the first migration after the Phase 0 one is the Phase 2A one)", migs[migs.indexOf("2026-12-26_church_category.sql") + 1] === "2026-12-27_church_people_groups.sql");
   const view = read("src/components/ProfileView.tsx");
   check("ProfileView: every church addition is gated on the church flag", /const churchVisit = isChurch \? getChurchVisit\(profile\) : null/.test(view) && /const churchType = isChurch \? getChurchTypeLabel\(profile, locale\) : null/.test(view) && /\{churchVisit && \(\s*<ChurchVisitCard/.test(view) && /\{churchType && \(/.test(view));
   const touched = ["src/components/church/ChurchVisitCard.tsx", "src/lib/church/publicPage.ts"].map(read).join("\n").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1"); // code only: a comment may say "stripe" (an accent stripe)
