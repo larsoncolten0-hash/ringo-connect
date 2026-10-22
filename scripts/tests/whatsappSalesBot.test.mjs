@@ -287,11 +287,11 @@ try {
   let s = Machine.step(brandNew(), "Hi", facts());
   check("WELCOME: the very first message of a brand-new conversation is answered in French, even when it is written in English (and it says how to get English)", s.state === "WELCOME" && s.reply === FR.welcome && s.data.lang === "fr" && s.effect === "none", s.reply);
   s = Machine.step(fresh(), "Hi", facts());
-  check("WELCOME: a greeting in an existing conversation gets the welcome menu in English (and says how to get French)", s.state === "WELCOME" && s.reply === EN.welcome && /Ringo Connect card/.test(s.reply) && /tapez fr/.test(s.reply) && s.effect === "none");
+  check("WELCOME: a greeting in an existing conversation gets the welcome menu in English (and says how to get French)", s.state === "WELCOME" && s.reply === EN.welcome && /Ringo Connect Smart Card/.test(s.reply) && /tapez \*fr\*/.test(s.reply) && s.effect === "none");
   s = Machine.step(fresh(), "Bonjour", facts());
   check("WELCOME: a French greeting gets the French welcome", s.reply === FR.welcome && s.data.lang === "fr");
-  s = Machine.step(fresh("BUY_METHOD"), "1", facts());
-  check("CARD_SELECTION: paying online (Buy a card, option 1) lists the three cards with the prices from the add-ons", s.state === "CARDS" && s.reply.includes(price(3500)) && s.reply.includes(price(5000)) && s.reply.includes(price(10000)) && s.reply.includes("Standard") && s.reply.includes("Pro") && s.reply.includes("Premium"), s.reply);
+  s = Machine.step(fresh("WELCOME"), "1", facts());
+  check("CARD_SELECTION: Buy a card now (option 1) lists the three cards with the prices from the add-ons", s.state === "APPT_CARD" && s.reply.includes(price(3500)) && s.reply.includes(price(5000)) && s.reply.includes(price(10000)) && s.reply.includes("Standard") && s.reply.includes("Pro") && s.reply.includes("Premium"), s.reply);
   check("CARD_SELECTION: each card is listed with its own short list (subscription without a duration, QR code, configuration, then the tier's features)", s.reply.includes("Basic subscription") && s.reply.includes("Pro subscription") && s.reply.includes("Premium subscription") && s.reply.includes(EN.qrIncluded) && s.reply.includes(EN.configIncluded) && !/1 month|1 year|\bincluded\b/.test(s.reply), s.reply);
   const picks = [["1", "standard", 3500, "Basic subscription"], ["2", "pro", 5000, "Pro subscription"], ["3", "premium", 10000, "Premium subscription"]];
   for (const [n, tier, amount, line] of picks) {
@@ -313,7 +313,7 @@ try {
   r1 = Machine.step(fresh("RECOMMEND_2"), "1", facts());
   check("RECOMMENDATION: a month with Pro -> Pro; a month with Basic -> Standard", r1.data.tier === "pro" && Machine.step(fresh("RECOMMEND_2"), "2", facts()).data.tier === "standard");
   check("RECOMMENDATION: falls back to a tier that exists when the first choice is not offered", Machine.step(fresh("RECOMMEND_1"), "2", { ...facts(), offers: OFFERS.filter((o) => o.tier !== "premium") }).data.tier === "standard");
-  check("no offers at all: the bot says the card cannot be ordered here and offers a person, instead of inventing one", Machine.step(fresh("BUY_METHOD"), "1", { ...facts(), offers: [] }).reply === EN.unavailable);
+  check("no offers at all: the bot says the card cannot be ordered here and offers a person, instead of inventing one", Machine.step(fresh("WELCOME"), "1", { ...facts(), offers: [] }).reply === EN.unavailable);
 
   // order collection
   const d0 = { lang: "en", tier: "pro" };
@@ -407,16 +407,18 @@ try {
   reset();
   const flow = async (text, wa = CUST) => (await say(text, wa)).reply;
   await flow("hello");
-  await flow("2");
   let reply = await flow("1");
   check("E2E: card list from the live add-on prices", reply.includes(price(3500)) && reply.includes(price(5000)) && reply.includes(price(10000)));
   reply = await flow("2");
-  check("E2E: Pro selected", reply.includes("*Ringo Connect Smart Card — Pro*") && reply.includes(price(5000)));
-  reply = await flow("1");
-  check("E2E: ordering asks for the name", reply === EN.askName("Pro"));
+  check("E2E: Pro selected: the details start straight away with the name", reply === EN.apptAskName);
   await flow("Jean Mbah");
+  await flow("today at 10 am");
   reply = await flow("Akwa, Douala");
-  check("E2E: the e-mail question follows the address", reply === EN.askEmail);
+  check("E2E: the details are reviewed and approved (card, name, number, time, place)", reply.includes("Pro") && reply.includes("Jean Mbah") && reply.includes("today at 10 am") && reply.includes("Akwa, Douala") && reply.includes("1. ✅ Approve"));
+  reply = await flow("1");
+  check("E2E: after approving, the customer chooses how to pay", reply === EN.apptPayChoice);
+  reply = await flow("1");
+  check("E2E: paying online goes straight to the e-mail question (name and place are not asked again)", reply === EN.askEmail);
   reply = await flow("jean@example.com");
   check("E2E: the username question follows the e-mail", reply === EN.askUsername);
   reply = await flow("Taken_Name");
@@ -465,7 +467,7 @@ try {
   check("hook: a paid signup that did NOT come from the bot sends nothing", notBot.result === "not_from_bot" && fetchCalls.length === 0);
   // window closed: a new order whose customer last wrote more than 24 hours ago
   const WA2 = "237699222333";
-  await say("hello", WA2); await say("2", WA2); await say("1", WA2); await say("1", WA2); await say("1", WA2); await say("Paul Etoa", WA2); await say("Bonamoussadi, Douala", WA2); await say("paul@example.com", WA2); await say("skip", WA2); await say("2", WA2); await say("1", WA2); await say("1", WA2);
+  await say("hello", WA2); await say("1", WA2); await say("1", WA2); await say("Paul Etoa", WA2); await say("today at 10 am", WA2); await say("Bonamoussadi, Douala", WA2); await say("1", WA2); await say("1", WA2); await say("paul@example.com", WA2); await say("skip", WA2); await say("2", WA2); await say("1", WA2); await say("1", WA2);
   const req2 = tables.signup_requests[1];
   check("second customer (Orange number) ordered Standard through the same flow: network Orange, own number reused", req2 && JSON.stringify(req2.requested_addon_ids) === JSON.stringify([A_STD]) && req2.suggested_username === null && fapshiCalls.at(-1).medium === "orange money" && fapshiCalls.at(-1).phone === "699222333" && fapshiCalls.at(-1).amount === 3500, JSON.stringify(fapshiCalls.at(-1)));
   const conv2 = await convOf(WA2);
@@ -481,7 +483,7 @@ try {
   // --- payment failures
   reset(); fapshiMode = "reject";
   const WA3 = "237677333444";
-  for (const t of ["hi", "2", "1", "3", "1", "Marie Ngo", "Bastos, Yaoundé", "marie@example.com", "skip", "1", "1"]) await say(t, WA3);
+  for (const t of ["hi", "1", "3", "Marie Ngo", "today at 10 am", "Bastos, Yaoundé", "1", "1", "marie@example.com", "skip", "1", "1"]) await say(t, WA3);
   reply = (await say("1", WA3)).reply;
   check("PAYMENT refused by the operator: the customer is told, the order stays, nothing is marked paid, and they can resend or change the number", reply === EN.paymentRejected && tables.signup_requests.at(-1).customer_paid === false && (await sessionOf(WA3)).state === "PAYMENT");
   fapshiMode = "uncertain"; reply = (await say("resend", WA3)).reply;
@@ -499,7 +501,7 @@ try {
   // --- order creation failure
   reset(); globalThis.__signupInsertFails = true;
   const WA4 = "237677444555";
-  for (const t of ["hi", "2", "1", "1", "1", "Luc Biya", "Mvog-Ada, Yaoundé", "luc@example.com", "skip", "1", "1"]) await say(t, WA4);
+  for (const t of ["hi", "1", "1", "Luc Biya", "today at 10 am", "Mvog-Ada, Yaoundé", "1", "1", "luc@example.com", "skip", "1", "1"]) await say(t, WA4);
   const reqsBefore4 = tables.signup_requests.length;
   reply = (await say("1", WA4)).reply;
   check("ORDER creation failure: the customer is told nothing was charged, no payment request was made, and the review is back so they can try again; the database error text never reaches them or the logs", reply === EN.orderFailed && tables.signup_requests.length === reqsBefore4 && fapshiCalls.length === 0 && (await sessionOf(WA4)).state === "REVIEW" && !reply.includes("SECRET") && !logs.filter((l) => l.includes('"scope":"sales_bot"')).join("\n").includes("SECRET INSERT TEXT"), JSON.stringify({ reply: reply?.slice(0, 80), reqs: tables.signup_requests.length - reqsBefore4, fapshi: fapshiCalls.length, state: (await sessionOf(WA4)).state }));
@@ -513,7 +515,7 @@ try {
   // --- confirmation race: two "1" at once
   reset();
   const WA5 = "237677555666";
-  for (const t of ["hi", "2", "1", "2", "1", "Anne Fotso", "Limbe, Fako", "anne@example.com", "skip", "1", "1"]) await say(t, WA5);
+  for (const t of ["hi", "1", "2", "Anne Fotso", "today at 10 am", "Limbe, Fako", "1", "1", "anne@example.com", "skip", "1", "1"]) await say(t, WA5);
   const reqsBefore5 = tables.signup_requests.length;
   const [ra, rb] = await Promise.all([say("1", WA5), say("1", WA5)]);
   check("RACE: two simultaneous confirmations create exactly ONE signup request and ONE payment request", tables.signup_requests.length === reqsBefore5 + 1 && fapshiCalls.length === 1, JSON.stringify({ reqs: tables.signup_requests.length - reqsBefore5, fapshi: fapshiCalls.length, ra: ra.reply?.slice(0, 40), rb: rb.reply?.slice(0, 40) }));
@@ -523,7 +525,6 @@ try {
   const WA6 = "237655010203";
   r = await say("Bonjour", WA6);
   check("FR: a French greeting gets the French welcome", r.reply === FR.welcome);
-  await say("2", WA6);
   reply = (await say("1", WA6)).reply;
   check("FR: the card list is French with prices grouped the French way and the real subscriptions", reply.includes(priceFr(5000)) && reply.includes(priceFr(10000)) && reply.includes("Abonnement Pro") && reply.includes("Abonnement Premium") && reply.includes("QR code sur la carte") && !/1 mois|1 an|inclus/.test(reply), reply);
   reply = (await say("faq", WA6)).reply;
@@ -532,7 +533,7 @@ try {
   r = await say("en", WA6);
   check("language switch to English mid-conversation", r.reply.startsWith(EN.langSwitched));
   r = await say("fr", WA6); r = await say("0", WA6);
-  for (const t of ["2", "1", "3", "1", "Aïcha Bello", "Akwa Nord, Douala", "aicha@example.com", "passer", "2", "1"]) r = await say(t, WA6);
+  for (const t of ["1", "3", "Aïcha Bello", "aujourd’hui à 10h", "Akwa Nord, Douala", "1", "1", "aicha@example.com", "passer", "2", "1"]) r = await say(t, WA6);
   check("FR: the review is in French, with the French payment network name and 'ending' digits", r.reply.includes("Votre commande Ringo Connect Smart Card") && r.reply.includes("Carte : Premium") && r.reply.includes(`Total : ${priceFr(10000)}`) && r.reply.includes("Orange Money · se terminant par 203"), r.reply);
   r = await say("1", WA6);
   check("FR: the payment instruction is French and the Orange network was used", r.reply === FR.paymentSent("Orange Money", "203") && fapshiCalls.at(-1).medium === "orange money" && fapshiCalls.at(-1).amount === 10000);
@@ -545,7 +546,7 @@ try {
   // --- human hand-off, end to end
   reset();
   const WA7 = "237677777888";
-  await say("hello", WA7); await say("2", WA7); await say("1", WA7); await say("1", WA7);
+  await say("hello", WA7); await say("1", WA7);
   pushes.length = 0; notes.length = 0; tables.notifications = [];
   r = await say("I want to talk to someone", WA7);
   check("HAND-OFF: the customer is told a person will take over; the session is silenced", r.reply === EN.handoff && (await sessionOf(WA7)).handoff === true && (await sessionOf(WA7)).state === "HUMAN_HANDOFF");
@@ -652,7 +653,7 @@ try {
   check("LANGUAGE: the choice survives the main menu and the start of an order", Machine.step(sessW("CARDS", lockedFr.data), "0", facts()).data.langLocked === true && Machine.step(sessW("CARD_DETAIL", { ...lockedFr.data, tier: "pro" }), "1", facts()).data.langLocked === true);
 
   // the menu entry
-  check("MENU: the main menu (shown after the Get started button) lists exactly four options in order (1 Discover Ringo, 2 Buy a card, 3 Know more, 4 Speak with a Ringo agent), in both languages", [[EN.mainMenu, ["Discover Ringo", "Buy a card", "Know more", "Speak with a Ringo agent"]], [FR.mainMenu, ["Découvrir Ringo", "Acheter une carte", "En savoir plus", "Parler à un agent Ringo"]]].every(([text, labels]) => labels.every((l, i) => text.includes(`${i + 1}. ${l}`)) && !/\n5\. /.test(text) && text.indexOf(`1. ${labels[0]}`) < text.indexOf(`4. ${labels[3]}`)));
+  check("MENU: the main menu (shown after the Get started button) lists exactly four options in order (1 Buy a card now, 2 Discover Ringo, 3 Know more, 4 Speak with a Ringo agent), in both languages", [[EN.mainMenu, ["Buy a card now", "Discover Ringo", "Know more", "Speak with a Ringo agent"]], [FR.mainMenu, ["Acheter une carte maintenant", "Découvrir Ringo", "En savoir plus", "Parler à un agent Ringo"]]].every(([text, labels]) => labels.every((l, i) => text.includes(`${i + 1}. ${l}`)) && !/\n5\. /.test(text) && text.indexOf(`1. ${labels[0]}`) < text.indexOf(`4. ${labels[3]}`)));
   const agent = Machine.step(sessW("WELCOME", { lang: "en" }), "4", facts());
   check("MENU: choosing 4 hands the conversation to a person (same hand-off as typing human): the customer is told, the owner is notified by the runner", agent.effect === "handoff" && agent.handoff === true && agent.state === "HUMAN_HANDOFF" && agent.reply === EN.handoff && Machine.step(sessW("COMPLETED", { lang: "fr" }), "4", facts()).reply === FR.handoff);
 
@@ -688,7 +689,7 @@ try {
   const savedPlans = tables.plans.splice(0);
   const noPlans = await Offers.resolveSmartCardOffers(mkAdmin());
   tables.plans.push(...savedPlans);
-  check("FEATURES: if the plans cannot be read the cards are still offered, just without the extra list (nothing is invented)", noPlans.offers.length === 3 && noPlans.offers.every((o) => o.featuresEn.length === 0) && !Machine.step(sessW("WELCOME", { lang: "en" }), "1", { ...facts(), offers: noPlans.offers }).reply.includes("Unlimited links"));
+  check("FEATURES: if the plans cannot be read the cards are still offered, just without the extra list (nothing is invented)", noPlans.offers.length === 3 && noPlans.offers.every((o) => o.featuresEn.length === 0) && !Machine.step(sessW("WELCOME", { lang: "en" }), "2", { ...facts(), offers: noPlans.offers }).reply.includes("Unlimited links"));
 
   // talk-to-the-team hints in the technical places
   const HINT_EN = "Need help? Type *human* to talk to a Ringo team member.", HINT_FR = "Besoin d’aide ? Tapez *humain* pour parler à un membre de l’équipe Ringo.";
@@ -707,7 +708,7 @@ try {
   await say("hi", WAA); r = await say("4", WAA);
   check("E2E MENU: option 4 hands over to a person: the customer is told, the session is silenced, the owner gets the bell row + push, and the bot then sends nothing", r.reply === EN.handoff && (await sessionOf(WAA)).handoff === true && tables.notifications.some((n) => n.type === "inbox_handoff") && pushes.some((p) => p.payload.category === "inbox_handoff") && (await say("1", WAA)).sent === 0);
   const WAE = "237677404042";
-  for (const t of ["hello", "2", "1", "2", "1", "Eric Nkoa", "Bastos, Yaoundé"]) r = await say(t, WAE);
+  for (const t of ["hello", "1", "2", "Eric Nkoa", "today at 10 am", "Bastos, Yaoundé", "1", "1"]) r = await say(t, WAE);
   check("E2E EMAIL: after the address the customer is asked for an e-mail; the database holds the state as ASK_ADDRESS with the flag", r.reply === EN.askEmail && (await sessionOf(WAE)).state === "ASK_ADDRESS" && (await sessionOf(WAE)).data.awaitEmail === true);
   r = await say("nope", WAE);
   check("E2E EMAIL: an invalid address is refused with the hint and the customer stays on the question", r.reply === EN.emailInvalid && (await sessionOf(WAE)).data.awaitEmail === true);
@@ -724,12 +725,12 @@ try {
   check("LINKS: the questions menu carries the enquiries line with the website and the official profile (EN and FR); the short first message deliberately does not", [EN.faqMenu, EN.moreEnquiries].every((x) => x.includes(`For more enquiries, check out ${SITE} or our official Ringo profile ${PROFILE}`)) && [FR.faqMenu, FR.moreEnquiries].every((x) => x.includes(`Pour plus de renseignements, consultez ${SITE} ou notre profil officiel Ringo ${PROFILE}`)));
   const imgEn = Machine.step(sessW("WELCOME", { lang: "en" }), "images", facts());
   check("IMAGES: the typed word sends the customer to the official Ringo profile (and the website), starts nothing, hands nothing off, and keeps them at the menu", imgEn.reply === EN.imagesInfo && EN.imagesInfo.includes(PROFILE) && EN.imagesInfo.includes(SITE) && FR.imagesInfo.includes(PROFILE) && imgEn.effect === "none" && imgEn.handoff === false && imgEn.state === "WELCOME" && Machine.step(sessW("COMPLETED", { lang: "fr" }), "images", facts()).state === "COMPLETED");
-  check("IMAGES: the words work too, in English and French, and the next 2 (Buy a card) asks how to buy", ["see images", "images", "photos", "see the card"].every((w) => Machine.step(sessW("WELCOME", { lang: "en" }), w, facts()).reply === EN.imagesInfo) && ["voir les images", "photos", "voir des images"].every((w) => Machine.step(sessW("WELCOME", { lang: "fr", langLocked: true }), w, facts()).reply === FR.imagesInfo) && Machine.step(sessW("WELCOME", { lang: "en" }), "2", { ...facts(), offers: OFFERS }).state === "BUY_METHOD");
+  check("IMAGES: the words work too, in English and French, and the next 1 (Buy a card now) shows the cards", ["see images", "images", "photos", "see the card"].every((w) => Machine.step(sessW("WELCOME", { lang: "en" }), w, facts()).reply === EN.imagesInfo) && ["voir les images", "photos", "voir des images"].every((w) => Machine.step(sessW("WELCOME", { lang: "fr", langLocked: true }), w, facts()).reply === FR.imagesInfo) && Machine.step(sessW("WELCOME", { lang: "en" }), "1", { ...facts(), offers: OFFERS }).state === "APPT_CARD");
   check("IMAGES: the reply claims nothing about the pictures beyond pointing to the profile", !/gallery|album|video|download|\d+ (photos|images)/i.test(EN.imagesInfo + FR.imagesInfo));
   const zeroStates = ["CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "PAYMENT", "COMPLETED"];
   const zeroData = { lang: "en", tier: "pro", name: "Jean Mbah", address: "Akwa, Douala", email: "jean@example.com", medium: "mobile money", payPhone: "677123456" };
   check("0 BUTTON: from every state of the conversation, 0 goes back to the main menu (inside the order it also clears the half-made order, as it always did)", zeroStates.every((st) => { const x = Machine.step(sessW(st, zeroData), "0", { ...facts(), offers: OFFERS, total: 5000 }); return x.state === "WELCOME" && x.reply.includes(EN.mainMenu); }));
-  check("0 BUTTON: every question of the order and the payment messages tell the customer so, in English and French", [EN, FR].every((L) => [L.askName("Pro"), L.askAddress, L.askEmail, L.askUsername, L.askOperator, L.askPayPhone("456"), L.askPayPhone(null)].every((x) => x.includes("*0*")) && [L.paymentSent("MTN", "123"), L.paymentResumed, L.statusPending, L.statusPaid("Pro")].every((x) => x.includes("*0*")) && [L.cardsFooter(4, 5), L.cardOptions, L.compareOptions, L.faqOptions, L.howOptions, L.rec1, L.rec2, L.recOptions, L.editMenu, L.buyMethod, L.meetingInfo].every((x) => /\b0\b/.test(x))));
+  check("0 BUTTON: every question of the order and the payment messages tell the customer so, in English and French", [EN, FR].every((L) => [L.askName("Pro"), L.askAddress, L.askEmail, L.askUsername, L.askOperator, L.askPayPhone("456"), L.askPayPhone(null)].every((x) => x.includes("*0*")) && [L.paymentSent("MTN", "123"), L.paymentResumed, L.statusPending, L.statusPaid("Pro")].every((x) => x.includes("*0*")) && [L.cardsFooter(4, 5), L.cardOptions, L.compareOptions, L.faqOptions, L.howOptions, L.rec1, L.rec2, L.recOptions, L.editMenu, L.apptCardsFooter, L.apptPayChoice].every((x) => /\b0\b/.test(x))));
   reset();
   const WAI = "237677505050";
   await say("hello", WAI); r = await say("images", WAI);
@@ -738,9 +739,9 @@ try {
   // --- the owner's switch OFF: silence for everyone, including mid-order, without touching orders, payments, storage, push or the paid notice
   reset();
   const WA10 = "237677101010";
-  for (const t of ["hello", "2", "1", "1", "1", "Rose Ndi"]) await say(t, WA10);
+  for (const t of ["hello", "1", "1", "Rose Ndi", "today at 10 am", "Akwa, Douala", "1", "1"]) await say(t, WA10);
   const mid10 = await sessionOf(WA10); const conv10 = await convOf(WA10);
-  check("SWITCH setup: a customer is in the middle of an order (asking the address)", mid10.state === "ASK_ADDRESS" && mid10.data.name === "Rose Ndi");
+  check("SWITCH setup: a customer is in the middle of an order (asking the e-mail)", mid10.state === "ASK_ADDRESS" && mid10.data.name === "Rose Ndi");
   await sw("wa_sales_settings_set", { p_actor_user_id: alice.user, p_profile_id: alice.profile, p_enabled: false });
   reset();
   const offReplies = [await say("Bonamoussadi, Douala", WA10), await say("human", WA10), await say("0", WA10), await say("hello", "237677101011"), await say("x", WA10, { type: "image" })];
@@ -827,34 +828,44 @@ try {
   // --- welcome and main menu
   let p1 = Machine.step(brandNew(), "I want a card please", facts());
   check("PHASE1 welcome: a brand-new conversation whose first message is not a menu choice gets the welcome, never an apology, and nothing is counted", p1.state === "WELCOME" && p1.reply === FR.welcome && p1.data.bad === undefined && !p1.reply.includes(EN.didNotUnderstand));
-  check("PHASE1 welcome: the guide says the menu is numbered, the two ways to buy (and that the agent is paid in cash), the human route and to tap the button (EN); the main menu then explains how to type the number", /numbered menu/.test(EN.welcome) && /pay online/i.test(EN.welcome) && /meet-up with a Ringo Connect agent/i.test(EN.welcome) && /pay the agent cash/.test(EN.welcome) && /Type human/.test(EN.welcome) && /Tap Get started/.test(EN.welcome) && /type the number of the option you choose and send it/i.test(EN.mainMenu) && /\*2\* to buy a card/.test(EN.mainMenu));
-  check("PHASE1 welcome: the French welcome says the same things", /menu numéroté/.test(FR.welcome) && /payer en ligne/i.test(FR.welcome) && /rendez-vous avec un agent Ringo Connect/i.test(FR.welcome) && /en espèces à l’agent/.test(FR.welcome) && /Tapez humain/.test(FR.welcome) && /Appuyez sur Commencer/.test(FR.welcome) && /taper le numéro de l’option choisie et l’envoyer/i.test(FR.mainMenu) && /\*2\* pour acheter une carte/.test(FR.mainMenu));
-  check("PHASE1 welcome: it promises no immediate availability, no guaranteed time and no completed registration", BOTH.every(([, L]) => !/\b(immediately|instantly|right away|guaranteed?|within \d|24\/7|tout de suite|immédiatement|garanti)/i.test(L.welcome + L.meetingInfo + L.handoff)));
-  check("PHASE1 menu: numbers are accepted with surrounding whitespace, and the exact labels work too", [[" 1 ", "DISCOVER"], ["2 ", "BUY_METHOD"], ["\t3", "FAQ"], ["  4  ", "HUMAN_HANDOFF"], ["discover ringo", "DISCOVER"], ["buy a card", "BUY_METHOD"], ["know more", "FAQ"], ["En savoir plus", "FAQ"], ["acheter une carte", "BUY_METHOD"], ["Découvrir Ringo", "DISCOVER"]].every(([t, st]) => Machine.step(sessV("WELCOME"), t, facts()).state === st));
+  check("PHASE1 welcome: the guide is short and plain: a numbered menu, pay online or an agent paid in cash on delivery, the human route and the button (EN); the main menu then explains how to type the number", /Reply with a number from the menu/.test(EN.welcome) && /Pay online, or have an agent come to you and pay cash on delivery/.test(EN.welcome) && /Type \*human\* anytime/.test(EN.welcome) && /Tap \*Get started\*/.test(EN.welcome) && EN.welcome.length < 600 && /type the number of the option you choose and send it/i.test(EN.mainMenu) && /\*1\* to buy a card now/.test(EN.mainMenu));
+  check("PHASE1 welcome: the French welcome says the same things", /Répondez avec un numéro du menu/.test(FR.welcome) && /Payez en ligne, ou faites venir un agent chez vous et payez en espèces à la livraison/.test(FR.welcome) && /Tapez \*humain\* à tout moment/.test(FR.welcome) && /Appuyez sur \*Commencer\*/.test(FR.welcome) && FR.welcome.length < 600 && /taper le numéro de l’option choisie et l’envoyer/i.test(FR.mainMenu) && /\*1\* pour acheter une carte maintenant/.test(FR.mainMenu));
+  check("PHASE1 welcome: it promises no immediate availability, no guaranteed time and no completed registration", BOTH.every(([, L]) => !/\b(immediately|instantly|right away|guaranteed?|within \d|24\/7|tout de suite|immédiatement|garanti)/i.test(L.welcome + L.apptPayChoice + L.handoff)));
+  check("PHASE1 menu: numbers are accepted with surrounding whitespace, and the exact labels work too", [[" 1 ", "APPT_CARD"], ["2 ", "DISCOVER"], ["\t3", "FAQ"], ["  4  ", "HUMAN_HANDOFF"], ["discover ringo", "DISCOVER"], ["buy a card", "APPT_CARD"], ["know more", "FAQ"], ["En savoir plus", "FAQ"], ["acheter une carte", "APPT_CARD"], ["Découvrir Ringo", "DISCOVER"]].every(([t, st]) => Machine.step(sessV("WELCOME"), t, facts()).state === st));
   check("PHASE1 menu: 5 and 6 are not options of the four-option menu (they get the legacy notice, see below) and 7 is an ordinary unreadable reply, counted once", ["5", "6"].every((n) => Machine.step(sessV("WELCOME"), n, facts()).reply === `${EN.menuUpdated}\n\n${EN.mainMenu}`) && (() => { const x = Machine.step(sessV("WELCOME"), "7", facts()); return x.state === "WELCOME" && x.data.bad === 1 && x.reply.includes(EN.didNotUnderstand); })());
 
   // --- Discover Ringo
-  let d1 = Machine.step(sessV("WELCOME"), "1", facts());
-  check("PHASE1 discover: option 1 shows the explanation and the three next steps (Buy a card / Speak with a Ringo agent / Main menu), no price and no invented capability", d1.state === "DISCOVER" && d1.reply === EN.discover && /1\. Buy a card/.test(d1.reply) && /2\. Speak with a Ringo agent/.test(d1.reply) && /3\. Main menu/.test(d1.reply) && BOTH.every(([, L]) => !/FCFA/.test(L.discover) && /NFC/.test(L.discover) && /QR/.test(L.discover)));
-  check("PHASE1 discover: 1 goes to buying, 2 to a person, 3 to the main menu, anything else is an unreadable reply", Machine.step(sessV("DISCOVER"), "1", facts()).state === "BUY_METHOD" && Machine.step(sessV("DISCOVER"), "2", facts()).effect === "handoff" && Machine.step(sessV("DISCOVER"), "3", facts()).reply === EN.mainMenu && Machine.step(sessV("DISCOVER"), "9", facts()).data.bad === 1);
+  let d1 = Machine.step(sessV("WELCOME"), "2", facts());
+  check("PHASE1 discover: option 2 shows the explanation and the three next steps (Buy a card now / Speak with a Ringo agent / Main menu), no price and no invented capability", d1.state === "DISCOVER" && d1.reply === EN.discover && /1\. Buy a card now/.test(d1.reply) && /2\. Speak with a Ringo agent/.test(d1.reply) && /3\. Main menu/.test(d1.reply) && BOTH.every(([, L]) => !/FCFA/.test(L.discover) && /NFC/.test(L.discover) && /QR/.test(L.discover)));
+  check("PHASE1 discover: 1 goes to the card choice, 2 to a person, 3 to the main menu, anything else is an unreadable reply", Machine.step(sessV("DISCOVER"), "1", facts()).state === "APPT_CARD" && Machine.step(sessV("DISCOVER"), "2", facts()).effect === "handoff" && Machine.step(sessV("DISCOVER"), "3", facts()).reply === EN.mainMenu && Machine.step(sessV("DISCOVER"), "9", facts()).data.bad === 1);
 
   // --- Know more
   let k1 = Machine.step(sessV("WELCOME"), "3", facts());
   check("PHASE1 know more: option 3 shows the question list with a route to the main menu and to a person, and every answer keeps both routes", k1.state === "FAQ" && k1.reply === EN.faqMenu && /\*0\*/.test(EN.faqMenu) && /\*human\*/.test(EN.faqMenu) && /\*0\*/.test(FR.faqMenu) && /\*humain\*/.test(FR.faqMenu) && [1, 2, 9, 10].every((n) => { const a = Machine.step(sessV("FAQ"), String(n), facts()).reply; return /0\. Main menu/.test(a) && /\*human\*/.test(a); }));
-  check("PHASE1 know more: 0 returns to the short main menu, human hands off, and ordering goes to the buying choice (not straight to the cards)", Machine.step(sessV("FAQ"), "0", facts()).reply === EN.mainMenu && Machine.step(sessV("FAQ"), "human", facts()).effect === "handoff" && Machine.step(sessV("FAQ"), "order", facts()).state === "BUY_METHOD");
+  check("PHASE1 know more: 0 returns to the short main menu, human hands off, and ordering opens the card choice", Machine.step(sessV("FAQ"), "0", facts()).reply === EN.mainMenu && Machine.step(sessV("FAQ"), "human", facts()).effect === "handoff" && Machine.step(sessV("FAQ"), "order", facts()).state === "APPT_CARD");
 
-  // --- Buy a card: online or meet an agent, before any plan
-  let b1 = Machine.step(sessV("WELCOME"), "2", facts());
-  check("PHASE1 buy: option 2 asks pay online / meet a Ringo agent FIRST, with no business-discovery question and no plan list yet", b1.state === "BUY_METHOD" && b1.reply === EN.buyMethod && /1\. \*Pay online\*/.test(EN.buyMethod) && /2\. \*Meet a Ringo agent\*/.test(EN.buyMethod) && !/FCFA/.test(EN.buyMethod) && !/business|activity|type of/i.test(EN.buyMethod));
-  let b2 = Machine.step(sessV("BUY_METHOD"), "1", facts());
-  check("PHASE1 buy online: shows the existing plan screen with the live prices and remembers the method", b2.state === "CARDS" && b2.data.method === "online" && b2.reply.includes(price(3500)) && b2.reply.includes(price(5000)) && b2.reply.includes(price(10000)));
-  let b3 = Machine.step(sessV("BUY_METHOD"), "2", facts());
-  check("PHASE1 buy with an agent: explains it honestly (a request stays pending until the team confirms, transport/delivery charges are the customer's, no amount invented), method remembered, no effect", b3.state === "MEETING_INFO" && b3.data.method === "agent" && b3.effect === "none" && b3.reply === EN.meetingInfo && /A Ringo Connect agent will come to you/.test(EN.meetingInfo) && /Transport or delivery charges are your responsibility/.test(EN.meetingInfo) && /explained to you before the meeting is finalized/.test(EN.meetingInfo) && BOTH.every(([, L]) => !/\d\s*(FCFA|XAF)/.test(L.meetingInfo)));
-  check("PHASE1 buy with an agent: 1 starts the meeting request, 2 hands to a person, 3 switches to paying online (method online), 0 returns to the menu", Machine.step(sessV("MEETING_INFO", { method: "agent" }), "1", facts()).state === "APPT_CARD" && Machine.step(sessV("MEETING_INFO", { method: "agent" }), "2", facts()).effect === "handoff" && Machine.step(sessV("MEETING_INFO", { method: "agent" }), "3", facts()).data.method === "online" && Machine.step(sessV("MEETING_INFO"), "0", facts()).reply === EN.mainMenu);
-  let o1 = run(sessV("BUY_METHOD"), ["1", "2", "1"]);
-  check("PHASE1 online path: the method survives the plan choice and the start of the order, and the existing order questions follow unchanged", o1.x.state === "ASK_NAME" && o1.x.data.method === "online" && o1.x.data.tier === "pro" && o1.x.reply === EN.askName("Pro"));
-  let o2 = run(sessV("ASK_NAME", { lang: "en", tier: "pro", method: "online" }), ["Jean Mbah", "Akwa, Douala", "jean@example.com", "skip", "1", "1"], { total: 5000 });
-  check("PHASE1 online path: the order still reaches the same review and the same single create_and_pay effect only after the customer confirms", o2.x.state === "REVIEW" && o2.trail.every((t) => t.effect === "none") && Machine.step(o2.cur, "1", facts({ total: 5000 })).effect === "create_and_pay");
+  // --- Buy a card now: the cards first, then the details, then how to pay
+  let b1 = Machine.step(sessV("WELCOME"), "1", facts());
+  check("PHASE1 buy: option 1 (Buy a card now) shows the three cards with their prices straight away, with no question before them and no business-discovery question", b1.state === "APPT_CARD" && b1.reply.startsWith(EN.apptCardsIntro) && b1.reply.includes(price(3500)) && b1.reply.includes(price(5000)) && b1.reply.includes(price(10000)) && b1.effect === "none" && !/what (kind|type) of business|your activity/i.test(b1.reply));
+  check("PHASE1 buy: the old online-or-agent question and the 'meet a Ringo agent' explanation are gone from both dictionaries", BOTH.every(([, L]) => L.buyMethod === undefined && L.meetingInfo === undefined) && !/Meet a Ringo agent|Rencontrer un agent Ringo|delivery charges|frais de livraison/i.test(JSON.stringify([EN.apptPayChoice, EN.apptSubmitted, FR.apptPayChoice, FR.apptSubmitted])));
+  check("PHASE1 buy: a conversation still saved on the removed screens (BUY_METHOD / MEETING_INFO) is taken to the card choice, whatever it types", ["BUY_METHOD", "MEETING_INFO"].every((st) => ["1", "2", "online"].every((w) => { const x = Machine.step(sessV(st), w, facts()); return x.state === "APPT_CARD" && x.reply.startsWith(EN.apptCardsIntro) && x.effect === "none"; })) && ["BUY_METHOD", "MEETING_INFO"].every((st) => Machine.step(sessV(st), "0", facts()).reply === EN.mainMenu));
+  let b2 = Machine.step(sessV("APPT_CARD"), "2", facts());
+  check("PHASE1 buy: choosing a card goes straight to the first question (the name), with the card remembered and nothing sent", b2.state === "APPT_NAME" && b2.data.aCard === "pro" && b2.reply === EN.apptAskName && b2.effect === "none");
+  const toReview = run(sessV("APPT_CARD", { lang: "en", langLocked: true }), ["2", "Jean Mbah", "today at 10 am", "Akwa, Douala"]);
+  check("PHASE1 buy: name, then time, then place, then the review (no note question); the time example is 'today at 10 am' and the review offers Approve, not Send request", toReview.trail.map((x) => x.state).join() === "APPT_NAME,APPT_WHEN,APPT_WHERE,APPT_REVIEW" && toReview.trail.every((x) => x.effect === "none") && /today at 10 am/.test(EN.apptAskWhen) && /aujourd’hui à 10h/.test(FR.apptAskWhen) && toReview.x.reply.includes("1. ✅ Approve") && toReview.x.reply.includes("Jean Mbah") && toReview.x.reply.includes("today at 10 am") && toReview.x.reply.includes("Akwa, Douala") && toReview.x.reply.includes(`+${CUST}`) && !/Send request|send it/i.test(toReview.x.reply) && /1\. ✅ Approuver/.test(FR.apptReview({ card: null, name: "A", phone: "+1", when: "w", where: "p", note: null })));
+  const toPay = run(toReview.cur, ["1"]);
+  check("PHASE1 buy: Approve asks how to pay (online / on delivery), and nothing is booked or ordered yet", toPay.x.state === "APPT_PAY" && toPay.x.reply === EN.apptPayChoice && toPay.x.effect === "none" && /1\. \*Pay online\*/.test(EN.apptPayChoice) && /2\. \*Pay on delivery\*/.test(EN.apptPayChoice) && /pay cash when they are with you/.test(EN.apptPayChoice) && /1\. \*Payer en ligne\*/.test(FR.apptPayChoice) && /2\. \*Payer à la livraison\*/.test(FR.apptPayChoice));
+  const payOnline = Machine.step(toPay.cur, "1", facts());
+  check("PHASE1 buy online: nothing is asked twice: the regular online order continues at the e-mail with the card, name and place already filled in (method online), and nothing is sent or charged", payOnline.state === "ASK_EMAIL" && payOnline.reply === EN.askEmail && payOnline.effect === "none" && payOnline.data.tier === "pro" && payOnline.data.name === "Jean Mbah" && payOnline.data.address === "Akwa, Douala" && payOnline.data.method === "online" && payOnline.data.aName === undefined && payOnline.data.aCard === undefined);
+  check("PHASE1 buy online: a short meeting place (under the 5 characters the delivery address needs) is asked again as the address, still without repeating the name", (() => { const sh = run(sessV("APPT_CARD", { lang: "en" }), ["1", "Jean Mbah", "today at 10 am", "Dla", "1", "1"]); return sh.x.state === "ASK_ADDRESS" && sh.x.reply === EN.askAddress && sh.x.data.name === "Jean Mbah" && sh.x.data.tier === "standard" && sh.x.data.address === undefined; })());
+  const payDelivery = Machine.step(toPay.cur, "2", facts());
+  check("PHASE1 buy on delivery: the appointment is booked from the details already given (effect create_appointment) with no further question", payDelivery.effect === "create_appointment" && payDelivery.data.aName === "Jean Mbah" && payDelivery.data.aWhen === "today at 10 am" && payDelivery.data.aWhere === "Akwa, Douala" && payDelivery.data.aCard === "pro" && payDelivery.data.aPrice === 5000);
+  check("PHASE1 buy: the words work too ('pay online', 'online', 'livraison', 'cash'), and anything else is an unreadable reply that keeps the details", ["online", "pay online", "en ligne"].every((w) => Machine.step(toPay.cur, w, facts()).state === "ASK_EMAIL") && ["delivery", "pay on delivery", "cash", "livraison"].every((w) => Machine.step(toPay.cur, w, facts()).effect === "create_appointment") && (() => { const x = Machine.step(toPay.cur, "5", facts()); return x.state === "APPT_PAY" && x.data.bad === 1 && x.data.aName === "Jean Mbah"; })());
+  check("PHASE1 buy: if the chosen card disappears before the choice of payment, the customer chooses a card again instead of paying for a card that does not exist", (() => { const x = Machine.step(toPay.cur, "1", { ...facts(), offers: OFFERS.filter((o) => o.tier !== "pro") }); return x.state === "APPT_CARD" && x.data.aCard === undefined && x.reply.startsWith(EN.apptCardUnavailable); })());
+  check("PHASE1 buy: the customer can still start over (2), cancel (0) or ask for a person at the payment choice", Machine.step(toPay.cur, "0", facts()).reply.startsWith(EN.apptCancelled) && Machine.step(toPay.cur, "human", facts()).effect === "handoff");
+  let o2 = run(toPay.cur, ["1", "jean@example.com", "skip", "1", "1"], { total: 5000 });
+  check("PHASE1 online path: after the payment choice the usual questions follow (e-mail, username, network, number) to the same review, and the single create_and_pay effect happens only when the customer confirms", o2.x.state === "REVIEW" && o2.trail.every((t) => t.effect === "none") && o2.x.reply.includes("Delivery: Akwa, Douala") && o2.x.reply.includes("Name: Jean Mbah") && Machine.step(o2.cur, "1", facts({ total: 5000 })).effect === "create_and_pay");
+
 
   // --- invalid input: counter, escalation, reset, free text
   let i1 = run(sessV("WELCOME"), ["zzz"]);
@@ -866,7 +877,7 @@ try {
   let i4 = run(sessV("WELCOME"), ["a", "b", "c", "d", "e"]);
   check("PHASE1 recovery persistent: still the recovery menu (no loop of escalating text, no forced hand-off), the customer decides", i4.x.reply === EN.recoveryMenu && i4.x.effect === "none" && i4.x.state === "WELCOME");
   check("PHASE1 recovery: 1 = agent (hand-off), 2 = main menu, 3 = continue where I was; the counter and the flag are gone afterwards", (() => { const base = i3.cur; const a = Machine.step(base, "1", facts()), m = Machine.step(base, "2", facts()), c = Machine.step(base, "3", facts()); return a.effect === "handoff" && m.state === "WELCOME" && m.reply === EN.mainMenu && c.state === "WELCOME" && c.reply === EN.mainMenu && [a, m, c].every((x) => x.data.bad === undefined && x.data.recover === undefined); })());
-  check("PHASE1 recovery: a valid choice resets the counter (the next unreadable reply is the 1st again)", (() => { const mid = run(sessV("WELCOME"), ["zzz", "qqq", "2"]); return mid.x.state === "BUY_METHOD" && mid.x.data.bad === undefined && Machine.step(mid.cur, "nonsense", facts()).data.bad === 1; })());
+  check("PHASE1 recovery: a valid choice resets the counter (the next unreadable reply is the 1st again)", (() => { const mid = run(sessV("WELCOME"), ["zzz", "qqq", "2"]); return mid.x.state === "DISCOVER" && mid.x.data.bad === undefined && Machine.step(mid.cur, "nonsense", facts()).data.bad === 1; })());
   check("PHASE1 recovery: 1/2/3 mean the recovery menu ONLY while it is on screen (a plain 1 in the card list still picks card 1)", Machine.step(sessV("CARDS", { lang: "en" }), "1", facts()).state === "CARD_DETAIL");
   check("PHASE1 recovery: free-text answers are never counted and never trigger it (name, address, e-mail, username, phone), and they clear a stale counter", (() => { const t = (st, text, d = {}) => Machine.step(sessV(st, { lang: "en", tier: "pro", bad: 2, ...d }), text, facts()); return [t("ASK_NAME", "x"), t("ASK_ADDRESS", "Da"), t("ASK_EMAIL", "not-an-email", { awaitEmail: undefined }), t("ASK_USERNAME", "ab"), t("ASK_PAY_PHONE", "abc", { medium: "mobile money" })].every((x) => x.data.bad === undefined && x.data.recover === undefined) && t("ASK_NAME", "Jean Mbah").state === "ASK_ADDRESS"; })());
   check("PHASE1 recovery: nothing collected or chosen is lost (plan, name, address, e-mail, method) and 'continue' returns to the same question", (() => { const keep = { lang: "en", tier: "pro", method: "online", name: "Jean Mbah", address: "Akwa, Douala", email: "jean@example.com", username: "jean" }; const r = run(sessV("ASK_OPERATOR", keep), ["zzz", "qqq", "xxx"]); const c = Machine.step(r.cur, "3", facts()); return r.x.reply === EN.recoveryMenu && Object.entries(keep).every(([k, v]) => r.x.data[k] === v && c.data[k] === v) && c.state === "ASK_OPERATOR" && c.reply === EN.askOperator; })());
@@ -877,9 +888,9 @@ try {
   check("PHASE1 human: HUMAN / human / Humain from the welcome, discover, buying, meeting, cards, questions and the review all hand off with the state kept for the Inbox", ["WELCOME", "DISCOVER", "BUY_METHOD", "MEETING_INFO", "CARDS", "FAQ", "REVIEW", "EDIT_MENU"].every((st) => ["HUMAN", "human", "Humain", " Human "].every((w) => { const x = Machine.step(sessV(st, { lang: "en", tier: "pro", name: "Jean Mbah" }), w, facts({ total: 5000 })); return x.effect === "handoff" && x.handoff === true && x.state === "HUMAN_HANDOFF" && x.data.name === "Jean Mbah"; })));
 
   // --- both languages follow the same states and effects
-  check("PHASE1 languages: the same inputs give the same states and effects in English and French, each with its own dictionary", (() => { const path = ["1", "1", "2", "2", "0", "3", "0", "2", "zzz", "qqq", "xxx", "3", "4"]; const a = run(sessV("WELCOME", { lang: "en", langLocked: true }), path), f = run(sessV("WELCOME", { lang: "fr", langLocked: true }), path); return a.trail.every((x, i) => x.state === f.trail[i].state && x.effect === f.trail[i].effect && x.handoff === f.trail[i].handoff) && a.trail[0].reply === EN.discover && f.trail[0].reply === FR.discover && a.trail[3].reply.length > 0 && f.trail[1].reply === FR.buyMethod; })());
-  check("PHASE1 languages: every new key exists in both dictionaries as a non-empty string", ["welcome", "mainMenu", "discover", "buyMethod", "meetingInfo", "didNotUnderstand", "invalidTail", "invalidShort", "recoveryMenu", "handoff", "handoffUnconfirmed", "faqMenu", "imagesInfo"].every((k) => typeof EN[k] === "string" && EN[k].length > 20 && typeof FR[k] === "string" && FR[k].length > 20 && EN[k] !== FR[k]));
-  check("PHASE1 languages: every screen stays inside WhatsApp's 4,096-character limit", BOTH.every(([, L]) => ["welcome", "mainMenu", "discover", "buyMethod", "meetingInfo", "recoveryMenu", "faqMenu", "handoff", "handoffUnconfirmed"].every((k) => L[k].length < 3500)));
+  check("PHASE1 languages: the same inputs give the same states and effects in English and French, each with its own dictionary", (() => { const path = ["2", "1", "2", "3", "0", "3", "0", "1", "zzz", "qqq", "xxx", "3", "4"]; const a = run(sessV("WELCOME", { lang: "en", langLocked: true }), path), f = run(sessV("WELCOME", { lang: "fr", langLocked: true }), path); return a.trail.every((x, i) => x.state === f.trail[i].state && x.effect === f.trail[i].effect && x.handoff === f.trail[i].handoff) && a.trail[0].reply === EN.discover && f.trail[0].reply === FR.discover && a.trail[3].reply.length > 0 && f.trail[1].reply.startsWith(FR.apptCardsIntro); })());
+  check("PHASE1 languages: every new key exists in both dictionaries as a non-empty string", ["welcome", "mainMenu", "discover", "apptPayChoice", "apptSubmitted", "apptSubmittedUnalerted", "didNotUnderstand", "invalidTail", "invalidShort", "recoveryMenu", "handoff", "handoffUnconfirmed", "faqMenu", "imagesInfo"].every((k) => typeof EN[k] === "string" && EN[k].length > 20 && typeof FR[k] === "string" && FR[k].length > 20 && EN[k] !== FR[k]));
+  check("PHASE1 languages: every screen stays inside WhatsApp's 4,096-character limit", BOTH.every(([, L]) => ["welcome", "mainMenu", "discover", "apptPayChoice", "apptSubmitted", "apptSubmittedUnalerted", "recoveryMenu", "faqMenu", "handoff", "handoffUnconfirmed"].every((k) => L[k].length < 3500)));
 
   // --- stored-state mapping (no migration): every state round-trips, is accepted by the database list, and the data stays small
   const dbList = [...read("supabase/migrations/2026-12-19_whatsapp_sales_bot.sql").match(/check \(state in \(([^)]*)\)/)[1].matchAll(/'([A-Z0-9_]+)'/g)].map((m) => m[1]);
@@ -895,18 +906,18 @@ try {
   const WP1 = "237677610011";
   r = await say("hello", WP1);
   check("PHASE1 E2E: the first message gets the welcome (version 0 -> saved)", r.reply === FR.welcome && (await sessionOf(WP1)).state === "WELCOME");
-  r = await say("1", WP1);
+  r = await say("2", WP1);
   check("PHASE1 E2E: Discover is stored as HOW_IT_WORKS + step=discover (a state the database accepts) and shown as the discover screen", r.reply === EN.discover && (await sessionOf(WP1)).state === "HOW_IT_WORKS" && (await sessionOf(WP1)).data.step === "discover");
   r = await say("1", WP1);
-  check("PHASE1 E2E: Buy a card is stored as CARDS + step=method and restored as the buying choice", r.reply === EN.buyMethod && (await sessionOf(WP1)).state === "CARDS" && (await sessionOf(WP1)).data.step === "method");
+  check("PHASE1 E2E: Buy a card now is stored as ASK_ADDRESS + step=appt_card (a state the database accepts) and shown as the card choice", r.reply.startsWith(EN.apptCardsIntro) && (await sessionOf(WP1)).state === "ASK_ADDRESS" && (await sessionOf(WP1)).data.step === "appt_card");
   const signupsBefore = tables.signup_requests.length, fapshiBefore = fapshiCalls.length, rpcBefore = rpcCalls.length;
-  r = await say("2", WP1);
-  check("PHASE1 E2E: meeting an agent shows the honest explanation and creates NOTHING (no signup request, no payment call, no booking row, no appointment table, the session stays the only record)", r.reply === EN.meetingInfo && tables.signup_requests.length === signupsBefore && fapshiCalls.length === fapshiBefore && !(tables.bookings || []).length && !rpcCalls.slice(rpcBefore).some((c) => !/^(wa_sales_|inbox_)/.test(c.fn)) && (await q1("select count(*)::int n from pg_tables where schemaname = 'public' and tablename ~ 'appoint'"))[0].n === 0);
-  check("PHASE1 E2E: the method choice is persisted for the next message", (await sessionOf(WP1)).data.method === "agent" && (await sessionOf(WP1)).data.lang === "en");
   r = await say("zzz", WP1); r = await say("qqq", WP1);
   check("PHASE1 E2E: the invalid counter is persisted between webhook calls (2nd unreadable reply gets the shorter text)", r.reply.startsWith(EN.invalidShort) && (await sessionOf(WP1)).data.bad === 2);
   r = await say("xxx", WP1);
-  check("PHASE1 E2E: the 3rd unreadable reply shows the recovery menu, and continuing returns to the same screen with the method kept", r.reply === EN.recoveryMenu && (await say("3", WP1)).reply === EN.meetingInfo && (await sessionOf(WP1)).data.bad === undefined && (await sessionOf(WP1)).data.method === "agent");
+  check("PHASE1 E2E: the 3rd unreadable reply shows the recovery menu, and continuing returns to the same screen with the card choice shown again", r.reply === EN.recoveryMenu && (await say("3", WP1)).reply.startsWith(EN.apptCardsIntro) && (await sessionOf(WP1)).data.bad === undefined && (await sessionOf(WP1)).data.step === "appt_card");
+  r = await say("2", WP1);
+  check("PHASE1 E2E: choosing a card asks for the name and creates NOTHING (no signup request, no payment call, no booking row, no appointment, the session stays the only record)", r.reply === EN.apptAskName && tables.signup_requests.length === signupsBefore && fapshiCalls.length === fapshiBefore && !(tables.bookings || []).length && !rpcCalls.slice(rpcBefore).some((c) => !/^(wa_sales_|inbox_)/.test(c.fn)) && (await q1("select count(*)::int n from pg_tables where schemaname = 'public' and tablename ~ 'appoint'"))[0].n === 0);
+  check("PHASE1 E2E: the chosen card is persisted for the next message", (await sessionOf(WP1)).data.aCard === "pro" && (await sessionOf(WP1)).data.lang === "en");
   const dupId = "wamid.PHASE1DUP";
   r = await say("1", WP1, { id: dupId });
   const versionAfter = (await sessionOf(WP1)).version, sentAfter = (await outboundOf(WP1)).length;
@@ -943,29 +954,29 @@ try {
   // ============================================================ PHASE 1 refinements: price shortcuts choose the buying method first; legacy menu digits 5 / 6
   // --- price shortcuts
   const PRICE_EN = ["price", "prices", "Prices", "cards", "card", "how much", "cost", "see the cards", " PRICE "], PRICE_FR = ["prix", "cartes", "carte", "combien", "voir les cartes"], PRICE_NEUTRAL = ["tarif", "tarifs"], PRICE_PHRASES = [...PRICE_EN, ...PRICE_FR, ...PRICE_NEUTRAL];
-  check("REFINE price: every English price / cards shortcut, from the main menu and after an order, shows the BUY-METHOD screen (1 online, 2 meet an agent) and NOT the plan list", ["WELCOME", "COMPLETED"].every((st) => PRICE_EN.every((w) => { const x = Machine.step(sessV(st), w, facts()); return x.state === "BUY_METHOD" && x.reply === EN.buyMethod && x.effect === "none" && x.handoff === false && !x.reply.includes("FCFA") && x.data.method === undefined; })));
-  check("REFINE price: the French shortcuts (a French word also switches the reply to French) show the French buying choice; 'tarif(s)' carry no language signal and keep the session's language; with the language locked, every shortcut does, and the plan list only follows after choosing", ["WELCOME", "COMPLETED"].every((st) => PRICE_FR.every((w) => { const x = Machine.step(sessV(st), w, facts()); return x.state === "BUY_METHOD" && x.reply === FR.buyMethod && x.data.lang === "fr" && !x.reply.includes("FCFA"); })) && PRICE_NEUTRAL.every((w) => { const x = Machine.step(sessV("WELCOME", { lang: "en" }), w, facts()); return x.state === "BUY_METHOD" && x.reply === EN.buyMethod; }) && PRICE_PHRASES.every((w) => { const x = Machine.step(sessV("WELCOME", { lang: "fr", langLocked: true }), w, facts()); return x.state === "BUY_METHOD" && x.reply === FR.buyMethod; }) && Machine.step(sessV("BUY_METHOD", { lang: "fr", langLocked: true }), "1", facts()).reply.includes(priceFr(5000)));
-  check("REFINE price: after the shortcut, 1 = online shows the existing plan list (method online) and 2 = meet an agent shows the honest meeting screen; the order questions are unchanged", (() => { const a = run(sessV("WELCOME"), ["prices", "1"]); const b = run(sessV("WELCOME"), ["price", "2"]); const c = run(sessV("WELCOME"), ["price", "1", "2", "1"]); return a.x.state === "CARDS" && a.x.data.method === "online" && a.x.reply.includes(price(3500)) && a.x.reply.includes(price(10000)) && b.x.state === "MEETING_INFO" && b.x.effect === "none" && c.x.state === "ASK_NAME" && c.x.reply === EN.askName("Pro") && c.x.data.method === "online"; })());
-  check("REFINE price: other states keep their words (a free-text answer or a card-list word is not a shortcut): 'price' inside the order is a name, and in the card list it is not hijacked", Machine.step(sessV("ASK_NAME", { lang: "en", tier: "pro" }), "Cards Mbah", facts()).state === "ASK_ADDRESS" && Machine.step(sessV("CARDS", { lang: "en" }), "price", facts()).state === "CARDS");
+  check("REFINE price: every English price / cards shortcut, from the main menu and after an order, shows the card choice with the prices straight away (no extra question first)", ["WELCOME", "COMPLETED"].every((st) => PRICE_EN.every((w) => { const x = Machine.step(sessV(st), w, facts()); return x.state === "APPT_CARD" && x.reply.startsWith(EN.apptCardsIntro) && x.reply.includes(price(5000)) && x.effect === "none" && x.handoff === false && x.data.method === undefined; })));
+  check("REFINE price: the French shortcuts (a French word also switches the reply to French) show the French card choice; 'tarif(s)' carry no language signal and keep the session's language; with the language locked, every shortcut does", ["WELCOME", "COMPLETED"].every((st) => PRICE_FR.every((w) => { const x = Machine.step(sessV(st), w, facts()); return x.state === "APPT_CARD" && x.reply.startsWith(FR.apptCardsIntro) && x.data.lang === "fr" && x.reply.includes(priceFr(5000)); })) && PRICE_NEUTRAL.every((w) => { const x = Machine.step(sessV("WELCOME", { lang: "en" }), w, facts()); return x.state === "APPT_CARD" && x.reply.startsWith(EN.apptCardsIntro); }) && PRICE_PHRASES.every((w) => { const x = Machine.step(sessV("WELCOME", { lang: "fr", langLocked: true }), w, facts()); return x.state === "APPT_CARD" && x.reply.startsWith(FR.apptCardsIntro); }));
+  check("REFINE price: after the shortcut, choosing a card (1-3) goes straight to the name question; the details follow one at a time", (() => { const a = run(sessV("WELCOME"), ["prices", "1"]); const c = run(sessV("WELCOME"), ["price", "2", "Jean Mbah"]); return a.x.state === "APPT_NAME" && a.x.data.aCard === "standard" && a.x.reply === EN.apptAskName && a.x.effect === "none" && c.x.state === "APPT_WHEN" && c.x.reply === EN.apptAskWhen && c.x.data.aCard === "pro"; })());
+  check("REFINE price: other states keep their words (a free-text answer or a card-list word is not a shortcut): 'price' inside the order is a name, and in the card list it is not hijacked", Machine.step(sessV("ASK_NAME", { lang: "en", tier: "pro" }), "Cards Mbah", facts()).state === "ASK_ADDRESS" && Machine.step(sessV("CARDS", { lang: "en" }), "price", facts()).state === "CARDS" && Machine.step(sessV("APPT_NAME", { lang: "en", aCard: "pro" }), "Cards Mbah", facts()).state === "APPT_WHEN");
   reset();
   const WR1 = "237677620021";
   await say("hello", WR1);
   const signupsR = tables.signup_requests.length, fapshiR = fapshiCalls.length;
   r = await say("prices", WR1);
-  check("REFINE price E2E: through the webhook 'prices' returns the buying choice, creates no order and makes no payment call", r.reply === EN.buyMethod && (await sessionOf(WR1)).state === "CARDS" && (await sessionOf(WR1)).data.step === "method" && tables.signup_requests.length === signupsR && fapshiCalls.length === fapshiR);
-  r = await say("1", WR1);
-  check("REFINE price E2E: choosing 1 then shows the live prices (the existing plan list)", r.reply.includes(price(3500)) && r.reply.includes(price(5000)) && r.reply.includes(price(10000)));
-  r = await say("2", WR1); r = await say("1", WR1);
-  check("REFINE price E2E: the online order continues exactly as before (the first order question)", r.reply === EN.askName("Pro") && tables.signup_requests.length === signupsR);
+  check("REFINE price E2E: through the webhook 'prices' returns the card choice with the live prices, creates no order and makes no payment call", r.reply.startsWith(EN.apptCardsIntro) && r.reply.includes(price(3500)) && r.reply.includes(price(5000)) && r.reply.includes(price(10000)) && (await sessionOf(WR1)).state === "ASK_ADDRESS" && (await sessionOf(WR1)).data.step === "appt_card" && tables.signup_requests.length === signupsR && fapshiCalls.length === fapshiR);
+  r = await say("2", WR1);
+  check("REFINE price E2E: choosing a card asks for the name", r.reply === EN.apptAskName);
+  r = await say("Jean Mbah", WR1);
+  check("REFINE price E2E: the details continue one question at a time and still create no order", r.reply === EN.apptAskWhen && tables.signup_requests.length === signupsR);
 
   // --- legacy digits 5 / 6 (the previous six-option menu)
   const LEGACY_EN = (n) => `${EN.menuUpdated}\n\n${EN.mainMenu}`, LEGACY_FR = `${FR.menuUpdated}\n\n${FR.mainMenu}`;
   check("REFINE legacy: at the main menu 5 and 6 get one short 'menu updated' notice followed by the current four-option menu, map to NOTHING (no hand-off, no images, no state change, no effect)", ["5", "6", " 5 ", "6."].every((n) => { const x = Machine.step(sessV("WELCOME"), n, facts()); return x.reply === LEGACY_EN() && x.state === "WELCOME" && x.effect === "none" && x.handoff === false && x.data.method === undefined && x.data.tier === undefined; }) && EN.menuUpdated.length < 80 && FR.menuUpdated.length < 80 && !/\d/.test(EN.menuUpdated + FR.menuUpdated));
   check("REFINE legacy: the French notice is the same behaviour from the French dictionary", ["5", "6"].every((n) => Machine.step(sessV("WELCOME", { lang: "fr", langLocked: true }), n, facts()).reply === LEGACY_FR) && /Le menu a été mis à jour/.test(FR.menuUpdated) && FR.mainMenu.includes("4. Parler à un agent Ringo"));
   check("REFINE legacy: it does NOT touch the recovery counter (a counter of 2 stays 2, a clean one stays clean), and the next unreadable reply counts from there", (() => { const w = Machine.step(sessV("WELCOME", { lang: "en", bad: 2 }), "5", facts()); const z = Machine.step(sessV("WELCOME", { lang: "en" }), "6", facts()); const after = Machine.step({ ...sessV("WELCOME"), data: w.data }, "zzz", facts()); const clean = Machine.step({ ...sessV("WELCOME"), data: z.data }, "zzz", facts()); return w.data.bad === 2 && z.data.bad === undefined && after.data.bad === 3 && clean.data.bad === 1 && clean.reply.startsWith(EN.didNotUnderstand); })());
-  check("REFINE legacy: with the recovery menu on screen, 5 / 6 replace it by the main menu, so the flag is dropped (1 / 2 / 3 then mean the real menu again)", (() => { const rec = run(sessV("WELCOME"), ["a", "b", "c"]).cur; const x = Machine.step(rec, "5", facts()); const y = Machine.step({ ...rec, data: x.data }, "1", facts()); return x.reply === LEGACY_EN() && x.data.recover === undefined && y.state === "DISCOVER"; })());
+  check("REFINE legacy: with the recovery menu on screen, 5 / 6 replace it by the main menu, so the flag is dropped (1 / 2 / 3 then mean the real menu again)", (() => { const rec = run(sessV("WELCOME"), ["a", "b", "c"]).cur; const x = Machine.step(rec, "5", facts()); const y = Machine.step({ ...rec, data: x.data }, "1", facts()); return x.reply === LEGACY_EN() && x.data.recover === undefined && y.state === "APPT_CARD"; })());
   check("REFINE legacy: a brand-new conversation never sees 'the menu has been updated' (it gets the welcome), and the legacy notice is NOT shown after an order is completed (that screen keeps its own reply)", Machine.step(brandNew(), "5", facts()).reply === FR.welcome && Machine.step(sessV("COMPLETED"), "5", facts()).reply === EN.afterPaid && Machine.step(sessV("COMPLETED"), "6", facts()).reply === EN.afterPaid);
-  check("REFINE legacy: only the main menu has this notice (the other menus treat 5 / 6 as unreadable, counted once), and 1-4 are untouched", ["DISCOVER", "BUY_METHOD", "MEETING_INFO"].every((st) => ["5", "6"].every((n) => { const x = Machine.step(sessV(st), n, facts()); return x.state === st && x.data.bad === 1 && x.reply.includes(EN.didNotUnderstand) && !x.reply.includes(EN.menuUpdated); })) && Machine.step(sessV("WELCOME"), "4", facts()).effect === "handoff");
+  check("REFINE legacy: only the main menu has this notice (the other menus treat 5 / 6 as unreadable, counted once), and 1-4 are untouched", ["DISCOVER"].every((st) => ["5", "6"].every((n) => { const x = Machine.step(sessV(st), n, facts()); return x.state === st && x.data.bad === 1 && x.reply.includes(EN.didNotUnderstand) && !x.reply.includes(EN.menuUpdated); })) && Machine.step(sessV("WELCOME"), "4", facts()).effect === "handoff");
 
   // --- every digit keeps its own, state-specific meaning during a purchase or payment flow
   const full5 = { lang: "en", tier: "pro", name: "Jean Mbah", address: "Akwa, Douala", email: "jean@example.com", username: "jean", medium: "mobile money", payPhone: "677123456" };
@@ -992,11 +1003,11 @@ try {
   const legacyData = { lang: "en", langLocked: true, tier: "pro", name: "Jean Mbah" };
   const LEGACY_INPUTS = [...Array(13).keys()].map(String).concat(["0", "menu", "hi", "price", "prices", "prix", "cards", "cartes", "card", "carte", "see the cards", "voir les cartes", "order", "buy", "buy a card", "commander", "online", "en ligne", "compare", "choose", "pro", "standard", "premium", "how it works", "faq", "images", "status", "edit", "skip", "zzz"]);
   const leg2 = Machine.step(sessV("HOW_IT_WORKS", legacyData), "2", facts());
-  check("LEGACY how-it-works: the old option 2 'See the cards' now shows the online-or-agent choice (BUY_METHOD), not the plan list, and changes nothing else (effect none, no hand-off, no method pre-chosen)", leg2.state === "BUY_METHOD" && leg2.reply === EN.buyMethod && !leg2.reply.includes("FCFA") && leg2.effect === "none" && leg2.handoff === false && leg2.data.method === undefined);
-  check("LEGACY how-it-works: the conversation data and the language are kept (plan, name, locked language), and French stays French", leg2.data.tier === "pro" && leg2.data.name === "Jean Mbah" && leg2.data.lang === "en" && leg2.data.langLocked === true && (() => { const f = Machine.step(sessV("HOW_IT_WORKS", { lang: "fr", langLocked: true, tier: "premium" }), "2", facts()); return f.state === "BUY_METHOD" && f.reply === FR.buyMethod && f.data.lang === "fr" && f.data.tier === "premium"; })());
+  check("LEGACY how-it-works: the old option 2 'See the cards' now shows the card choice with the prices (APPT_CARD), and changes nothing else (effect none, no hand-off, no method pre-chosen)", leg2.state === "APPT_CARD" && leg2.reply.startsWith(EN.apptCardsIntro) && leg2.reply.includes(price(5000)) && leg2.effect === "none" && leg2.handoff === false && leg2.data.method === undefined);
+  check("LEGACY how-it-works: the language is kept (locked language included), whatever an older half-made order left behind is cleared, and French stays French", leg2.data.lang === "en" && leg2.data.langLocked === true && leg2.data.tier === undefined && leg2.data.name === undefined && (() => { const f = Machine.step(sessV("HOW_IT_WORKS", { lang: "fr", langLocked: true, tier: "premium" }), "2", facts()); return f.state === "APPT_CARD" && f.reply.startsWith(FR.apptCardsIntro) && f.data.lang === "fr"; })());
   check("LEGACY how-it-works: NO input of any kind (digits 0-12, menu words, price / cards shortcuts in both languages, order words, plan names) leads straight to the plan list from this state", LEGACY_INPUTS.every((t) => Machine.step(sessV("HOW_IT_WORKS", legacyData), t, facts()).state !== "CARDS") && LEGACY_INPUTS.every((t) => Machine.step(sessV("HOW_IT_WORKS", { lang: "fr", langLocked: true }), t, facts()).state !== "CARDS"));
-  check("LEGACY how-it-works: the plans still follow the choice (2 then 1 = online shows the live prices with method online; 2 then 2 = meeting screen)", (() => { const a = run(sessV("HOW_IT_WORKS", legacyData), ["2", "1"]); const b = run(sessV("HOW_IT_WORKS", legacyData), ["2", "2"]); return a.x.state === "CARDS" && a.x.data.method === "online" && a.x.reply.includes(price(3500)) && a.x.reply.includes(price(10000)) && b.x.state === "MEETING_INFO" && b.x.effect === "none"; })());
-  check("LEGACY how-it-works: the other legacy options behave exactly as before (1 and the order words = buying choice, 3 = questions, 0 = short main menu, human = hand-off, anything else = unreadable reply counted once, state kept)", Machine.step(sessV("HOW_IT_WORKS", legacyData), "1", facts()).state === "BUY_METHOD" && Machine.step(sessV("HOW_IT_WORKS", legacyData), "order", facts()).state === "BUY_METHOD" && Machine.step(sessV("HOW_IT_WORKS", legacyData), "3", facts()).reply === EN.faqMenu && Machine.step(sessV("HOW_IT_WORKS", legacyData), "0", facts()).reply === EN.mainMenu && Machine.step(sessV("HOW_IT_WORKS", legacyData), "human", facts()).effect === "handoff" && (() => { const x = Machine.step(sessV("HOW_IT_WORKS", legacyData), "zzz", facts()); return x.state === "HOW_IT_WORKS" && x.data.bad === 1 && x.reply.includes(EN.didNotUnderstand); })());
+  check("LEGACY how-it-works: the card choice follows (2 then 1 = Standard, 2 then 2 = Pro, straight to the name question)", (() => { const a = run(sessV("HOW_IT_WORKS", legacyData), ["2", "1"]); const b = run(sessV("HOW_IT_WORKS", legacyData), ["2", "2"]); return a.x.state === "APPT_NAME" && a.x.data.aCard === "standard" && a.x.reply === EN.apptAskName && b.x.state === "APPT_NAME" && b.x.data.aCard === "pro" && b.x.effect === "none"; })());
+  check("LEGACY how-it-works: the other legacy options behave exactly as before (1 and the order words = card choice, 3 = questions, 0 = short main menu, human = hand-off, anything else = unreadable reply counted once, state kept)", Machine.step(sessV("HOW_IT_WORKS", legacyData), "1", facts()).state === "APPT_CARD" && Machine.step(sessV("HOW_IT_WORKS", legacyData), "order", facts()).state === "APPT_CARD" && Machine.step(sessV("HOW_IT_WORKS", legacyData), "3", facts()).reply === EN.faqMenu && Machine.step(sessV("HOW_IT_WORKS", legacyData), "0", facts()).reply === EN.mainMenu && Machine.step(sessV("HOW_IT_WORKS", legacyData), "human", facts()).effect === "handoff" && (() => { const x = Machine.step(sessV("HOW_IT_WORKS", legacyData), "zzz", facts()); return x.state === "HOW_IT_WORKS" && x.data.bad === 1 && x.reply.includes(EN.didNotUnderstand); })());
   check("LEGACY how-it-works: a conversation saved by the old bot (state HOW_IT_WORKS, no step marker) is restored as exactly that state, while the current Discover screen (same stored state + step) is not confused with it", Machine.fromStored("HOW_IT_WORKS", { lang: "en" }).state === "HOW_IT_WORKS" && Machine.fromStored("HOW_IT_WORKS", { lang: "en", step: "discover" }).state === "DISCOVER");
   reset();
   const WL1 = "237677630031";
@@ -1004,7 +1015,7 @@ try {
   await db.exec("update public.wa_sales_sessions set state = 'HOW_IT_WORKS', data = '{\"lang\":\"en\"}'::jsonb where conversation_id = '" + (await convOf(WL1)) + "'");
   const signupsL = tables.signup_requests.length, fapshiL = fapshiCalls.length;
   r = await say("2", WL1);
-  check("LEGACY how-it-works E2E: a conversation saved in the old HOW_IT_WORKS state, through the real webhook and database, gets the online-or-agent choice for '2' (stored as CARDS + step=method), and nothing is ordered or charged", r.reply === EN.buyMethod && (await sessionOf(WL1)).state === "CARDS" && (await sessionOf(WL1)).data.step === "method" && tables.signup_requests.length === signupsL && fapshiCalls.length === fapshiL);
+  check("LEGACY how-it-works E2E: a conversation saved in the old HOW_IT_WORKS state, through the real webhook and database, gets the card choice for '2' (stored as ASK_ADDRESS + step=appt_card), and nothing is ordered or charged", r.reply.startsWith(EN.apptCardsIntro) && (await sessionOf(WL1)).state === "ASK_ADDRESS" && (await sessionOf(WL1)).data.step === "appt_card" && tables.signup_requests.length === signupsL && fapshiCalls.length === fapshiL);
 
   // ============================================================ SHORT WELCOME + "GET STARTED" BUTTON
   const btn = (x) => x.button === true;
@@ -1035,8 +1046,8 @@ try {
   check("BUTTON E2E: tapping the button answers with the main menu as an ordinary text message (no button), stays at the main menu, and starts nothing (no order, no payment, no hand-off, no bell)", t1.status === 200 && t1.reply === EN.mainMenu && fetchCalls.length === 1 && menuMsg.type === "text" && menuMsg.text.body === EN.mainMenu && (await sessionOf(WB1)).state === "WELCOME" && (await sessionOf(WB1)).handoff === false && tables.signup_requests.length === signupsB && fapshiCalls.length === fapB && tables.notifications.length === 0);
   const t1b = await tap(WB1, "wamid.TAPDUP1");
   check("BUTTON E2E: the same tap delivered twice is answered once (the existing duplicate protection covers it)", t1b.sent === 0 && fetchCalls.length === 1);
-  check("BUTTON E2E: after the tap the menu works exactly as before (2 = the online-or-agent choice)", (await say("2", WB1)).reply === EN.buyMethod);
-  check("BUTTON E2E: a tap on an old welcome message later in the conversation never cancels or answers anything (mid-order it shows the current question and the name is NOT set by the tap)", await (async () => { const W = "237677640042"; for (const t of ["hello", "2", "1", "2", "1"]) await say(t, W); const m = await tap(W); const after = await say("Jean Mbah", W); return m.reply === EN.askName("Pro") && after.reply === EN.askAddress && (await sessionOf(W)).data.name === "Jean Mbah"; })());
+  check("BUTTON E2E: after the tap the menu works (1 = the card choice, straight away)", (await say("1", WB1)).reply.startsWith(EN.apptCardsIntro));
+  check("BUTTON E2E: a tap on an old welcome message later in the conversation never cancels or answers anything (mid-form it shows the current question and the name is NOT set by the tap)", await (async () => { const W = "237677640042"; for (const t of ["hello", "1", "2"]) await say(t, W); const m = await tap(W); const after = await say("Jean Mbah", W); return m.reply === EN.apptAskName && after.reply === EN.apptAskWhen && (await sessionOf(W)).data.aName === "Jean Mbah"; })());
   check("BUTTON E2E (French): a French greeting gets the French guide with the 'Commencer' button, and the tap shows the French menu", await (async () => { const W = "237677640043"; fetchCalls = []; const a = await say("Bonjour", W); const body = JSON.parse(fetchCalls[0].init.body); const t = await tap(W); return a.reply === FR.welcome && body.interactive.action.buttons[0].reply.title === "Commencer" && t.reply === FR.mainMenu; })());
   check("BUTTON E2E: a tap in a conversation handed to a person gets no automatic reply", await (async () => { const W = "237677640044"; await say("hello", W); await say("4", W); const t = await tap(W); return t.sent === 0 && (await sessionOf(W)).handoff === true; })());
 
@@ -1048,7 +1059,7 @@ try {
   const bodies5 = fetchCalls.map((c) => JSON.parse(c.init.body));
   const out5 = await outboundOf(WB5);
   check("BUTTON FALLBACK: a definite refusal of the button message sends the SAME guide as plain text right away (nothing is lost); the Inbox shows one sent message; Meta's refusal text is never logged or shown", bodies5.length === 2 && bodies5[0].type === "interactive" && bodies5[1].type === "text" && bodies5[1].text.body === FR.welcome && out5.length === 1 && out5[0].status === "sent" && r.reply === FR.welcome && logs.some((l) => l.includes("button_fallback")) && !logs.some((l) => l.includes("SECRET BUTTON REFUSAL")));
-  check("BUTTON FALLBACK: the customer can still start by typing (the plain guide says to type a number: 2 = buying choice) and the menu follows", (await say("2", WB5)).reply === EN.buyMethod);
+  check("BUTTON FALLBACK: the customer can still start by typing (the plain guide says to type a number: 1 = buy a card now) and the card choice follows", (await say("1", WB5)).reply.startsWith(EN.apptCardsIntro));
   reset();
   metaMode = "window_closed_interactive";
   const WB6 = "237677640046";
@@ -1085,38 +1096,42 @@ try {
 
   // ============================================================ PHASE 2: the meeting request (Buy a card -> Meet a Ringo agent)
   const A = EN, AF = FR;
-  const formEn = run(sessV("MEETING_INFO", { lang: "en", langLocked: true }), ["1", "2", "Jean Mbah", "Saturday 10am", "Akwa, near the Total station", "skip"]);
-  check("APPT form: 1 on the meeting screen asks which card (Standard / Pro / Premium), then a four-question form (name, time, place, note), one question at a time, each with its own prompt and a way to cancel", formEn.trail.map((x) => x.state).join() === "APPT_CARD,APPT_NAME,APPT_WHEN,APPT_WHERE,APPT_NOTE,APPT_REVIEW" && formEn.trail[0].reply.includes(A.apptCardsIntro) && formEn.trail[0].reply.includes(price(3500)) && formEn.trail[0].reply.includes(price(5000)) && formEn.trail[0].reply.includes(price(10000)) && formEn.trail[1].data.aCard === "pro" && formEn.trail[1].reply === A.apptAskName && formEn.trail[2].reply === A.apptAskWhen && formEn.trail[3].reply === A.apptAskWhere && formEn.trail[4].reply === A.apptAskNote && [A.apptAskName, A.apptAskWhen, A.apptAskWhere, A.apptAskNote].every((x) => x.includes("*0*")) && formEn.trail.every((x) => x.effect === "none" && x.handoff === false));
-  check("APPT review: shows the name, the VERIFIED WhatsApp number (+ the sender's own, never typed), the time and the place; shows the chosen card with its live price; offers send / start over / cancel", (() => { const r = formEn.x.reply; return formEn.x.state === "APPT_REVIEW" && r.includes("Jean Mbah") && r.includes("+" + CUST) && r.includes("Saturday 10am") && r.includes("Akwa, near the Total station") && !/Note:/.test(r) && r.includes("Card: Pro — " + price(5000)) && /type \*1\* to send it or \*2\* to start over/.test(r) && /1\. ✅ Send request/.test(r) && /2\. ✏️ Start over/.test(r) && /0\. Cancel/.test(r); })());
-  check("APPT review (French): the same content from the French dictionary, with the same states", (() => { const f = run(sessV("MEETING_INFO", { lang: "fr", langLocked: true }), ["1", "2", "Jean Mbah", "samedi 10h", "Akwa, près de la station Total", "passer"]); const r = f.x.reply; return f.trail.map((x) => x.state).join() === formEn.trail.map((x) => x.state).join() && f.trail[0].reply.includes(AF.apptCardsIntro) && f.trail[1].reply === AF.apptAskName && r.includes("+" + CUST) && r.includes("Carte : Pro — " + priceFr(5000)) && /Tout est correct/.test(r) && /1\. ✅ Envoyer la demande/.test(r) && f.x.data.aNote === undefined; })());
+  const formEn = run(sessV("WELCOME", { lang: "en", langLocked: true }), ["1", "2", "Jean Mbah", "Saturday 10am", "Akwa, near the Total station"]);
+  check("APPT form: 1 at the main menu asks which card (Standard / Pro / Premium), then a three-question form (name, time, place), one question at a time, each with its own prompt and a way to cancel", formEn.trail.map((x) => x.state).join() === "APPT_CARD,APPT_NAME,APPT_WHEN,APPT_WHERE,APPT_REVIEW" && formEn.trail[0].reply.includes(A.apptCardsIntro) && formEn.trail[0].reply.includes(price(3500)) && formEn.trail[0].reply.includes(price(5000)) && formEn.trail[0].reply.includes(price(10000)) && formEn.trail[1].data.aCard === "pro" && formEn.trail[1].reply === A.apptAskName && formEn.trail[2].reply === A.apptAskWhen && formEn.trail[3].reply === A.apptAskWhere && [A.apptAskName, A.apptAskWhen, A.apptAskWhere].every((x) => x.includes("*0*")) && formEn.trail.every((x) => x.effect === "none" && x.handoff === false));
+  check("APPT review: shows the name, the VERIFIED WhatsApp number (+ the sender's own, never typed), the time and the place; shows the chosen card with its live price; offers approve / start over / cancel", (() => { const r = formEn.x.reply; return formEn.x.state === "APPT_REVIEW" && r.includes("Jean Mbah") && r.includes("+" + CUST) && r.includes("Saturday 10am") && r.includes("Akwa, near the Total station") && !/Note:/.test(r) && r.includes("Card: Pro — " + price(5000)) && /Type \*1\* to approve or \*2\* to start over/.test(r) && /1\. ✅ Approve/.test(r) && /2\. ✏️ Start over/.test(r) && /0\. Cancel/.test(r); })());
+  check("APPT review (French): the same content from the French dictionary, with the same states", (() => { const f = run(sessV("WELCOME", { lang: "fr", langLocked: true }), ["1", "2", "Jean Mbah", "samedi 10h", "Akwa, près de la station Total"]); const r = f.x.reply; return f.trail.map((x) => x.state).join() === formEn.trail.map((x) => x.state).join() && f.trail[0].reply.includes(AF.apptCardsIntro) && f.trail[1].reply === AF.apptAskName && r.includes("+" + CUST) && r.includes("Carte : Pro — " + priceFr(5000)) && /Tout est correct/.test(r) && /1\. ✅ Approuver/.test(r) && f.x.data.aNote === undefined; })());
   const withNote = run(sessV("APPT_NOTE", { lang: "en", langLocked: true, aName: "Jean Mbah", aWhen: "Saturday 10am", aWhere: "Akwa" }), ["Please call first"]);
   check("APPT review: an optional note is kept and shown (and 'skip' / 'passer' / 'non' leave it out)", withNote.x.data.aNote === "Please call first" && withNote.x.reply.includes("Note: Please call first") && ["skip", "passer", "no", "non"].every((w) => Machine.step(sessV("APPT_NOTE", { lang: "en", langLocked: true, aName: "J M", aWhen: "abc", aWhere: "abc" }), w, facts()).data.aNote === undefined));
   check("APPT validation: too-short answers are asked again (no state change, nothing stored, never counted as an unreadable menu reply); long ones are cut to the limits (80 / 80 / 160 / 200) and whitespace is cleaned", (() => { const st = (state, text, d = {}) => Machine.step(sessV(state, { lang: "en", langLocked: true, ...d }), text, facts()); const a = st("APPT_NAME", "J"), b = st("APPT_WHEN", "ab", { aName: "Jean" }), c = st("APPT_WHERE", "ab", { aName: "Jean", aWhen: "abc" }); const long = st("APPT_NAME", "x".repeat(200)), lw = st("APPT_WHEN", "y".repeat(200), { aName: "Jean" }), lp = st("APPT_WHERE", "z".repeat(400), { aName: "Jean", aWhen: "abc" }), ln = st("APPT_NOTE", "n".repeat(500), { aName: "Jean", aWhen: "abc", aWhere: "abc" }), ws = st("APPT_NAME", "  Jean \n\t  Mbah  "); return a.state === "APPT_NAME" && a.data.aName === undefined && a.data.bad === undefined && b.state === "APPT_WHEN" && b.data.aWhen === undefined && c.state === "APPT_WHERE" && c.data.aWhere === undefined && long.data.aName.length === 80 && lw.data.aWhen.length === 80 && lp.data.aWhere.length === 160 && ln.data.aNote.length === 200 && ws.data.aName === "Jean Mbah"; })());
-  check("APPT confirm: 1 asks the runner to send the request (one effect, create_appointment): no order, no payment, no hand-off effect; 2 starts over and clears every typed answer; anything else is an unreadable reply that keeps the answers", (() => { const one = Machine.step(formEn.cur, "1", facts()); const two = Machine.step(formEn.cur, "2", facts()); const odd = Machine.step(formEn.cur, "zzz", facts()); return one.effect === "create_appointment" && one.state === "APPT_REVIEW" && one.handoff === false && two.state === "APPT_CARD" && two.data.aCard === undefined && two.data.aName === undefined && two.data.aWhen === undefined && two.data.aWhere === undefined && odd.state === "APPT_REVIEW" && odd.data.aName === "Jean Mbah" && odd.data.bad === 1; })());
+  check("APPT confirm: 1 (Approve) asks how to pay and sends nothing; 2 (pay on delivery) is the one effect create_appointment: no order, no payment, no hand-off effect; start over clears every typed answer; anything else is an unreadable reply that keeps the answers", (() => { const one = Machine.step(formEn.cur, "1", facts()); const two = Machine.step(formEn.cur, "2", facts()); const odd = Machine.step(formEn.cur, "zzz", facts()); const pay = run(formEn.cur, ["1", "2"]); return one.effect === "none" && one.state === "APPT_PAY" && one.handoff === false && pay.x.effect === "create_appointment" && pay.x.handoff === false && two.state === "APPT_CARD" && two.data.aCard === undefined && two.data.aName === undefined && two.data.aWhen === undefined && two.data.aWhere === undefined && odd.state === "APPT_REVIEW" && odd.data.aName === "Jean Mbah" && odd.data.bad === 1; })());
   const everyEffect = new Set();
-  for (const w of ["1", "2", "0", "human", "status", "zzz"]) for (const st of ["MEETING_INFO", "APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_DONE"]) everyEffect.add(Machine.step(sessV(st, { lang: "en", aName: "Jean", aWhen: "abc", aWhere: "abc" }), w, facts()).effect);
+  for (const w of ["1", "2", "0", "human", "status", "zzz"]) for (const st of ["MEETING_INFO", "APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_PAY", "APPT_DONE"]) everyEffect.add(Machine.step(sessV(st, { lang: "en", aName: "Jean", aWhen: "abc", aWhere: "abc" }), w, facts()).effect);
   check("APPT isolation: the only effects the meeting flow can ask for are none, hand-off and create_appointment (never create_and_pay, resend_payment or check_payment)", [...everyEffect].every((e) => ["none", "handoff", "create_appointment"].includes(e)));
-  check("APPT open request: a customer who already has a pending or confirmed request is shown where it stands instead of a second form; after a declined or cancelled one a new request can start", Machine.step(sessV("MEETING_INFO"), "1", facts({ appointment: { status: "pending", open: true } })).reply === A.apptStatusText("pending") && Machine.step(sessV("MEETING_INFO"), "1", facts({ appointment: { status: "confirmed", open: true } })).state === "APPT_DONE" && Machine.step(sessV("MEETING_INFO"), "1", facts({ appointment: { status: "declined", open: false } })).state === "APPT_CARD" && Machine.step(sessV("MEETING_INFO"), "1", facts({ appointment: { status: "cancelled", open: false } })).state === "APPT_CARD" && Machine.step(sessV("MEETING_INFO"), "1", facts({ appointment: { status: "completed", open: false } })).state === "APPT_CARD" && Machine.step(sessV("MEETING_INFO"), "1", facts()).state === "APPT_CARD");
+  check("APPT open request: a customer who already has a request can still start a new purchase (for example to pay online); choosing pay on delivery again is answered by the runner with where the existing request stands", ["pending", "confirmed", "declined", "cancelled", "completed"].every((st) => Machine.step(sessV("WELCOME"), "1", facts({ appointment: { status: st, open: st === "pending" || st === "confirmed" } })).state === "APPT_CARD") && Machine.step(sessV("WELCOME"), "1", facts()).state === "APPT_CARD");
   check("APPT status: 'status' / 'statut' at the main menu and any message after a request was sent show its real status in the customer's language (pending, confirmed, declined, cancelled, completed, none); if it cannot be read, the bot says so instead of guessing", ["pending", "confirmed", "declined", "cancelled", "completed", "none"].every((st) => Machine.step(sessV("WELCOME"), "status", facts({ appointment: { status: st, open: st === "pending" || st === "confirmed" } })).reply === A.apptStatusText(st) && Machine.step(sessV("APPT_DONE", { lang: "fr", langLocked: true }), "où en est-ce", facts({ appointment: { status: st, open: false } })).reply === AF.apptStatusText(st)) && Machine.step(sessV("APPT_DONE"), "hello?", facts()).reply === A.apptStatusUnknown && Machine.step(sessV("APPT_DONE"), "1", facts({ appointment: { status: "pending", open: true } })).state === "APPT_DONE");
   check("APPT status wording: pending says it was only received (never confirmed); confirmed says the team confirmed it; nothing promises a time, a place or availability", /received your meeting request/.test(A.apptStatusText("pending")) && !/confirmed/i.test(A.apptStatusText("pending")) && /\*confirmed\*/.test(A.apptStatusText("confirmed")) && /bien reçu votre demande/.test(AF.apptStatusText("pending")) && !/confirmée/i.test(AF.apptStatusText("pending")) && /\*confirmée\*/.test(AF.apptStatusText("confirmed")) && BOTH.every(([, L]) => !/\b(guarantee|garanti|within \d|dans les \d|today|aujourd)/i.test(L.apptStatusText("confirmed") + L.apptSubmitted + L.apptSubmittedUnalerted)));
-  check("APPT free text: inside the form 'human' (bare) hands off and keeps the answers, an address that merely contains 'help' does not, 0 cancels with the 'nothing was sent' line, a language word keeps the place, and a tap on the button just shows the current question", (() => { const st = (state, text, d = {}) => Machine.step(sessV(state, { lang: "en", aName: "Jean", aWhen: "abc", ...d }), text, facts()); const h = st("APPT_WHERE", "human"), nh = st("APPT_WHERE", "near the help desk, Akwa"), z = st("APPT_WHEN", "0"), fr = st("APPT_WHERE", "fr"), tap = st("APPT_WHEN", Machine.START_TOKEN); return h.effect === "handoff" && h.data.aName === "Jean" && nh.state === "APPT_NOTE" && nh.data.aWhere === "near the help desk, Akwa" && z.state === "WELCOME" && z.reply.startsWith(A.apptCancelled) && z.data.aName === undefined && fr.state === "APPT_WHERE" && fr.data.lang === "fr" && fr.reply.includes(AF.apptAskWhere) && tap.state === "APPT_WHEN" && tap.reply === A.apptAskWhen && tap.data.aName === "Jean"; })());
+  check("APPT free text: inside the form 'human' (bare) hands off and keeps the answers, an address that merely contains 'help' does not, 0 cancels with the 'nothing was sent' line, a language word keeps the place, and a tap on the button just shows the current question", (() => { const st = (state, text, d = {}) => Machine.step(sessV(state, { lang: "en", aName: "Jean", aWhen: "abc", ...d }), text, facts()); const h = st("APPT_WHERE", "human"), nh = st("APPT_WHERE", "near the help desk, Akwa"), z = st("APPT_WHEN", "0"), fr = st("APPT_WHERE", "fr"), tap = st("APPT_WHEN", Machine.START_TOKEN); return h.effect === "handoff" && h.data.aName === "Jean" && nh.state === "APPT_REVIEW" && nh.data.aWhere === "near the help desk, Akwa" && z.state === "WELCOME" && z.reply.startsWith(A.apptCancelled) && z.data.aName === undefined && fr.state === "APPT_WHERE" && fr.data.lang === "fr" && fr.reply.includes(AF.apptAskWhere) && tap.state === "APPT_WHEN" && tap.reply === A.apptAskWhen && tap.data.aName === "Jean"; })());
   const worstAppt = { lang: "fr", langLocked: true, method: "agent", aCard: "premium", aName: "N".repeat(80), aWhen: "W".repeat(80), aWhere: "P".repeat(160), aNote: "o".repeat(200), bad: 99, recover: true };
-  check("APPT persistence: every new state round-trips through the existing database states (ASK_ADDRESS / REVIEW / WELCOME + a step marker), the stored state is accepted by the database list, and the largest possible form data is far below 4,096 bytes", ["APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_DONE"].every((st) => { const t = Machine.toStored(st, worstAppt); const b = Machine.fromStored(t.state, t.data); return dbList.includes(t.state) && b.state === st && b.data.aCard === "premium" && b.data.aName === worstAppt.aName && b.data.aNote === worstAppt.aNote && b.data.step === undefined && Buffer.byteLength(JSON.stringify(t.data)) < 1500; }) && Machine.fromStored("REVIEW", {}).state === "REVIEW" && Machine.fromStored("ASK_ADDRESS", { awaitEmail: true }).state === "ASK_EMAIL" && Machine.fromStored("WELCOME", {}).state === "WELCOME");
-  check("APPT meeting screen: the three options are request a meeting / speak with an agent / pay online instead, in both languages, and the text says an agent comes to the customer and the transport rule", [[A, /1\. Request a meeting/, /2\. Speak with a Ringo agent/, /3\. Pay online instead/], [AF, /1\. Demander un rendez-vous/, /2\. Parler à un agent Ringo/, /3\. Payer en ligne à la place/]].every(([L, a, b, c]) => a.test(L.meetingInfo) && b.test(L.meetingInfo) && c.test(L.meetingInfo)) && /will come to you/.test(A.meetingInfo) && /viendra vers vous/.test(AF.meetingInfo) && /Transport or delivery charges are your responsibility/.test(A.meetingInfo) && /frais de transport ou de livraison sont à votre charge/i.test(AF.meetingInfo));
+  check("APPT persistence: every new state round-trips through the existing database states (ASK_ADDRESS / REVIEW / WELCOME + a step marker), the stored state is accepted by the database list, and the largest possible form data is far below 4,096 bytes", ["APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_PAY", "APPT_DONE"].every((st) => { const t = Machine.toStored(st, worstAppt); const b = Machine.fromStored(t.state, t.data); return dbList.includes(t.state) && b.state === st && b.data.aCard === "premium" && b.data.aName === worstAppt.aName && b.data.aNote === worstAppt.aNote && b.data.step === undefined && Buffer.byteLength(JSON.stringify(t.data)) < 1500; }) && Machine.fromStored("REVIEW", {}).state === "REVIEW" && Machine.fromStored("ASK_ADDRESS", { awaitEmail: true }).state === "ASK_EMAIL" && Machine.fromStored("WELCOME", {}).state === "WELCOME");
+  check("APPT approved message: after the booking the customer is told an agent will come, create the profile, register the card and teach how to edit it, and that transport is covered by the customer when the agent arrives; no amount and no promised time", [[A, /will come to you/, /create your profile/, /register your card/, /teach you how to edit your profile/, /Transport charges shall be covered by you when the agent arrives/], [AF, /viendra chez vous/, /créera votre profil/, /enregistrera votre carte/, /apprendra à modifier votre profil/, /frais de transport sont à votre charge lorsque l’agent arrive/]].every(([L, ...res]) => [L.apptSubmitted, L.apptSubmittedUnalerted].every((t) => res.every((re) => re.test(t))) && !/\d\s*(FCFA|XAF)/.test(L.apptSubmitted)) && !/delivery fee|frais de livraison/i.test(A.apptSubmitted + AF.apptSubmitted));
 
   // --- through the real webhook (the database functions are the in-memory stand-in here; their real behaviour is proven in cardAppointmentsSql.test.mjs)
   reset(); tables.notifications = [];
   const WP = "237677650051";
   const signupsP = tables.signup_requests.length, fapshiP = fapshiCalls.length;
-  for (const t of ["hello", "2", "2", "1", "2", "Jean Mbah", "Saturday 10am", "Akwa, near the Total station"]) r = await say(t, WP);
-  check("APPT E2E: the questions arrive one by one through the real webhook, and the form state is stored in the database as ASK_ADDRESS + a step", r.reply === EN.apptAskNote && (await sessionOf(WP)).state === "ASK_ADDRESS" && (await sessionOf(WP)).data.step === "appt_note" && (await sessionOf(WP)).data.aName === "Jean Mbah");
-  r = await say("skip", WP);
+  for (const t of ["hello", "1", "2", "Jean Mbah"]) r = await say(t, WP);
+  check("APPT E2E: the questions arrive one by one through the real webhook, and the form state is stored in the database as ASK_ADDRESS + a step", r.reply === EN.apptAskWhen && (await sessionOf(WP)).state === "ASK_ADDRESS" && (await sessionOf(WP)).data.step === "appt_when" && (await sessionOf(WP)).data.aName === "Jean Mbah");
+  await say("Saturday 10am", WP);
+  r = await say("Akwa, near the Total station", WP);
+  // (the review follows the place directly: no note question any more)
   check("APPT E2E: the review shows the sender's own verified number and stores nothing yet (no request exists until the customer sends it)", r.reply.includes("+" + WP) && apptRows.length === 0 && (await sessionOf(WP)).state === "REVIEW" && (await sessionOf(WP)).data.step === "appt_review");
+  r = await say("1", WP);
+  check("APPT E2E: approving asks how to pay and still stores nothing (no request, no order, no payment)", r.reply === EN.apptPayChoice && apptRows.length === 0 && (await sessionOf(WP)).data.step === "appt_pay" && tables.signup_requests.length === signupsP && fapshiCalls.length === fapshiP);
   const sendId = "wamid.APPTSEND1";
   const bellBefore = tables.notifications.length;
-  r = await say("1", WP, { id: sendId });
+  r = await say("2", WP, { id: sendId });
   const created = apptRows.find((x) => x.phone === WP);
-  check("APPT E2E: sending stores ONE pending request with the verified number (from the webhook, not from anything typed), the typed answers, the language and the right conversation; the customer is told it was sent and is NOT yet confirmed", r.reply === EN.apptSubmitted && apptRows.length === 1 && created.status === "pending" && created.name === "Jean Mbah" && created.time === "Saturday 10am" && created.place === "Akwa, near the Total station" && created.note === null && created.card_tier === "pro" && created.card_price_xaf === 5000 && created.lang === "en" && created.conversation_id === (await convOf(WP)) && !/confirmed/i.test(r.reply.replace(/not confirmed|until our team confirms/gi, "")));
+  check("APPT E2E: pay on delivery stores ONE pending request with the verified number (from the webhook, not from anything typed), the typed answers, the language and the right conversation; the customer is told it was sent and is NOT yet confirmed", r.reply === EN.apptSubmitted && apptRows.length === 1 && created.status === "pending" && created.name === "Jean Mbah" && created.time === "Saturday 10am" && created.place === "Akwa, near the Total station" && created.note === null && created.card_tier === "pro" && created.card_price_xaf === 5000 && created.lang === "en" && created.conversation_id === (await convOf(WP)) && !/confirmed/i.test(r.reply.replace(/not confirmed|until our team confirms/gi, "")));
   check("APPT E2E: the team is told: an in-app bell row for the owner (type card_appointment, link to the appointments page) really inserted, and a best-effort push; the session moves to the 'request sent' screen with the typed answers cleared", tables.notifications.length === bellBefore + 1 && tables.notifications.at(-1).type === "card_appointment" && tables.notifications.at(-1).user_id === alice.user && tables.notifications.at(-1).link === "/dashboard/inbox/appointments" && pushes.some((q) => q.payload.category === "card_appointment" && q.kind === "only") && (await sessionOf(WP)).state === "WELCOME" && (await sessionOf(WP)).data.step === "appt_done" && (await sessionOf(WP)).data.aName === undefined && (await sessionOf(WP)).data.aWhere === undefined);
   const callsBefore = rpcCalls.filter((c) => c.fn === "card_appt_create_with_card").length;
   const dupSend = await say("1", WP, { id: sendId });
@@ -1126,15 +1141,16 @@ try {
   apptRows[0].status = "confirmed";
   r = await say("status", WP);
   check("APPT E2E: after the team confirms it, 'status' says confirmed", r.reply === EN.apptStatusText("confirmed"));
-  for (const t of ["0", "2", "2", "1"]) r = await say(t, WP);
-  check("APPT E2E: asking for a meeting again while one is open shows its status and creates no second request", r.reply === EN.apptStatusText("confirmed") && apptRows.length === 1);
+  for (const t of ["0", "1", "2", "Jean Mbah", "Sunday 9am", "Akwa", "1", "2"]) r = await say(t, WP);
+  check("APPT E2E: choosing pay on delivery again while a request is open shows its status and creates no second request", r.reply === EN.apptStatusText("confirmed") && apptRows.length === 1);
   check("APPT E2E: no signup request, no payment call and no order was created by any of this", tables.signup_requests.length === signupsP && fapshiCalls.length === fapshiP);
 
   // backward compatibility: the card function from the Phase 3 migration is not in the database yet -> the request is still saved with the old function, the card goes at the start of the note
   reset(); tables.notifications = []; globalThis.__cardFnMissing = true;
   const WV = "237677650057";
-  for (const t of ["hello", "2", "2", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi", "skip"]) await say(t, WV);
-  r = await say("1", WV);
+  for (const t of ["hello", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi"]) await say(t, WV);
+  await say("1", WV);
+  r = await say("2", WV);
   globalThis.__cardFnMissing = false;
   check("APPT E2E fallback: when card_appt_create_with_card does not exist yet (PGRST202) the runner falls back to card_appt_create, the request is saved pending with the card at the start of the note, and the customer gets the normal 'sent' answer", r.reply === EN.apptSubmitted && apptRows.length === 1 && apptRows[0].status === "pending" && apptRows[0].card_tier === null && /^Card: Premium 10000 FCFA/.test(apptRows[0].note || "") && rpcCalls.filter((c) => c.fn === "card_appt_create_with_card").length === 1 && rpcCalls.filter((c) => c.fn === "card_appt_create").length === 1);
   // ============================================================ PHASE 3 price guard: the price on the review screen is the one that is submitted
@@ -1144,20 +1160,20 @@ try {
     const noteStep = Machine.step(sessV("APPT_NOTE", { lang: "en", langLocked: true, aCard: "premium", aName: "Jean Mbah", aWhen: "Saturday 10am", aWhere: "Akwa" }), "skip", facts());
     check("PRICE GUARD: reaching the review screen records the card and the exact price shown on it (Premium, 10 000)", noteStep.state === "APPT_REVIEW" && noteStep.data.aCard === "premium" && noteStep.data.aPrice === 10000 && noteStep.reply.includes(price(10000)));
     const same = Machine.step(review(), "1", facts());
-    check("PRICE GUARD unchanged: price unchanged -> the request is sent (create_appointment) with the reviewed card and price kept, no extra message", same.effect === "create_appointment" && same.data.aCard === "premium" && same.data.aPrice === 10000 && same.reply === "");
+    check("PRICE GUARD unchanged: price unchanged -> Approve moves on to the choice of payment, with the reviewed card and price kept; choosing pay on delivery then sends the request (create_appointment) with them", same.effect === "none" && same.state === "APPT_PAY" && same.reply === EN.apptPayChoice && same.data.aCard === "premium" && same.data.aPrice === 10000 && (() => { const d = Machine.step({ ...review(), state: same.state, data: same.data, version: 2 }, "2", facts()); return d.effect === "create_appointment" && d.data.aCard === "premium" && d.data.aPrice === 10000; })());
     const up = Machine.step(review(), "1", facts({ offers: priceOf(OFFERS, "premium", 12000) }));
     check("PRICE GUARD changed (English): price changed -> nothing is sent, the customer is told (old and new price), the review screen is shown again with the CURRENT price, and the new price is the one to confirm", up.effect === "none" && up.state === "APPT_REVIEW" && up.reply.startsWith(EN.apptPriceChanged({ was: price(10000), now: price(12000) })) && up.reply.includes(price(12000)) && up.data.aPrice === 12000 && up.data.aCard === "premium");
     const upFr = Machine.step(review({ lang: "fr" }), "1", facts({ offers: priceOf(OFFERS, "premium", 8000) }));
     check("PRICE GUARD changed (French): the same, in French, also for a price that went DOWN", upFr.effect === "none" && upFr.reply.startsWith(FR.apptPriceChanged({ was: priceFr(10000), now: priceFr(8000) })) && upFr.data.aPrice === 8000);
     const again = Machine.step({ ...review(), state: up.state, data: up.data, version: 2 }, "1", facts({ offers: priceOf(OFFERS, "premium", 12000) }));
-    check("PRICE GUARD re-confirm: confirming again at the new price sends the request with the NEW reviewed price (12 000), never the old one", again.effect === "create_appointment" && again.data.aPrice === 12000);
+    check("PRICE GUARD re-confirm: approving again at the new price moves on with the NEW reviewed price (12 000), never the old one, and that is the price sent", again.state === "APPT_PAY" && again.data.aPrice === 12000 && Machine.step({ ...review(), state: again.state, data: again.data, version: 3 }, "2", facts({ offers: priceOf(OFFERS, "premium", 12000) })).data.aPrice === 12000);
     const gone = Machine.step(review(), "1", facts({ offers: OFFERS.filter((o) => o.tier !== "premium") }));
     check("PRICE GUARD unavailable: the chosen offer is gone -> nothing is sent, the customer is told, the card and reviewed price are cleared, and the card choice is shown again (only the offers that exist)", gone.effect === "none" && gone.state === "APPT_CARD" && gone.reply.startsWith(EN.apptCardUnavailable) && gone.data.aCard === undefined && gone.data.aPrice === undefined && !gone.reply.includes(EN.tierLabel.premium) && gone.data.aName === "Jean Mbah");
     const none = Machine.step(review(), "1", facts({ offers: [] }));
     check("PRICE GUARD no offers at all: nothing is sent, the card is cleared and the customer is not left with a stale card", none.effect === "none" && none.data.aCard === undefined && none.data.aPrice === undefined && none.reply.startsWith(EN.apptCardUnavailable));
     const startOver = Machine.step(review(), "2", facts());
     check("PRICE GUARD start over: the card AND the reviewed price are cleared with every typed answer", startOver.state === "APPT_CARD" && startOver.data.aCard === undefined && startOver.data.aPrice === undefined && startOver.data.aName === undefined);
-    const fresh = run(sessV("MEETING_INFO", { lang: "en", langLocked: true }), ["1", "3", "Jean Mbah", "Saturday 10am", "Akwa", "skip"], { offers: priceOf(OFFERS, "premium", 11000) });
+    const fresh = run(sessV("WELCOME", { lang: "en", langLocked: true }), ["1", "3", "Jean Mbah", "Saturday 10am", "Akwa"], { offers: priceOf(OFFERS, "premium", 11000) });
     check("PRICE GUARD new request after start over: a new form records the price of that moment, not a previous one", fresh.x.data.aPrice === 11000 && fresh.x.reply.includes(price(11000)));
     const cancelled = Machine.step(review(), "0", facts());
     check("PRICE GUARD cancel: cancelling the request drops the card and the reviewed price", cancelled.data.aCard === undefined && cancelled.data.aPrice === undefined);
@@ -1168,65 +1184,70 @@ try {
     const premRow = tables.addons.find((a) => a.id === A_PREM);
     const WP2 = "237677650058";
     reset(); tables.notifications = [];
-    for (const t of ["hello", "2", "2", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi", "skip"]) r = await say(t, WP2);
+    for (const t of ["hello", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi"]) r = await say(t, WP2);
     check("PRICE GUARD E2E: the review screen shows Premium at 10 000 and the reviewed price is stored in the session", r.reply.includes(price(10000)) && (await sessionOf(WP2)).data.aPrice === 10000);
     premRow.price_xaf = 12000;
     r = await say("1", WP2);
     check("PRICE GUARD E2E changed: after the owner changed the price, '1' sends NOTHING (no request, no create call, no team alert), tells the customer the price changed and shows 12 000 with the review again", apptRows.length === 0 && rpcCalls.filter((c) => c.fn === "card_appt_create_with_card" || c.fn === "card_appt_create").length === 0 && r.reply.startsWith(EN.apptPriceChanged({ was: price(10000), now: price(12000) })) && r.reply.includes(price(12000)) && tables.notifications.length === 0 && (await sessionOf(WP2)).state === "REVIEW" && (await sessionOf(WP2)).data.aPrice === 12000);
-    r = await say("1", WP2);
+    await say("1", WP2);
+    r = await say("2", WP2);
     const cWith = rpcCalls.filter((c) => c.fn === "card_appt_create_with_card");
     check("PRICE GUARD E2E re-confirm: confirming again creates ONE pending request stored with the price the customer just saw (12 000) and tier premium; the session is cleaned of the card and reviewed price", r.reply === EN.apptSubmitted && apptRows.length === 1 && cWith.length === 1 && cWith[0].args.p_card_tier === "premium" && cWith[0].args.p_card_price === 12000 && apptRows[0].card_price_xaf === 12000 && (await sessionOf(WP2)).data.aPrice === undefined && (await sessionOf(WP2)).data.aCard === undefined);
     premRow.price_xaf = 10000;
     const WP3 = "237677650059";
     reset(); tables.notifications = [];
-    for (const t of ["hello", "2", "2", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi", "skip"]) r = await say(t, WP3);
+    for (const t of ["hello", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi"]) r = await say(t, WP3);
     premRow.active = false;
     r = await say("1", WP3);
     premRow.active = true;
     check("PRICE GUARD E2E unavailable: the chosen card was withdrawn -> nothing is sent, the customer is told and is back at the card choice with the card and price cleared", apptRows.length === 0 && rpcCalls.filter((c) => c.fn === "card_appt_create_with_card" || c.fn === "card_appt_create").length === 0 && r.reply.startsWith(EN.apptCardUnavailable) && (await sessionOf(WP3)).data.aCard === undefined && (await sessionOf(WP3)).data.aPrice === undefined);
     const WP4 = "237677650060";
     reset(); tables.notifications = [];
-    for (const t of ["hello", "2", "2", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi", "skip"]) r = await say(t, WP4);
-    r = await say("1", WP4);
+    for (const t of ["hello", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi"]) r = await say(t, WP4);
+    await say("1", WP4);
+    r = await say("2", WP4);
     check("PRICE GUARD E2E unchanged: price unchanged -> the request is stored with exactly the reviewed tier and price (10 000)", r.reply === EN.apptSubmitted && apptRows.length === 1 && rpcCalls.filter((c) => c.fn === "card_appt_create_with_card")[0].args.p_card_price === 10000);
     // the runner's own, independent guard: the machine is forced to ask for the send although the reviewed price (9 999) is not the live one (10 000); the runner must refuse
     const WP5 = "237677650061";
     reset(); tables.notifications = [];
-    for (const t of ["hello", "2", "2", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi", "skip"]) r = await say(t, WP5);
+    for (const t of ["hello", "1", "3", "Paul Etoa", "Monday 3pm", "Bonamoussadi"]) r = await say(t, WP5);
     const realStep = Machine.step;
     try {
-      Machine.step = (sess, input, f) => { const x = realStep(sess, input, f); return x.state === "APPT_REVIEW" && input === "1" ? { ...x, effect: "create_appointment", data: { ...x.data, aPrice: 9999 } } : x; };
-      r = await say("1", WP5);
+      Machine.step = (sess, input, f) => { const x = realStep(sess, input, f); return x.state === "APPT_PAY" && x.effect === "create_appointment" ? { ...x, data: { ...x.data, aPrice: 9999 } } : x; };
+      await say("1", WP5);
+      r = await say("2", WP5);
     } finally { Machine.step = realStep; }
     check("PRICE GUARD runner: if the machine ever asks to send with a reviewed price that is not the live offer, the runner itself refuses: no request, no create call, no team alert; the customer gets the 'try again' answer and stays on the review screen", Machine.step === realStep && apptRows.length === 0 && rpcCalls.filter((c) => c.fn === "card_appt_create_with_card" || c.fn === "card_appt_create").length === 0 && tables.notifications.length === 0 && r.reply === EN.apptFailed && (await sessionOf(WP5)).state === "REVIEW");
     reset(); tables.notifications = [];
   }
   reset(); tables.notifications = []; globalThis.__notifyInsertFails = true;
   const WQ = "237677650052";
-  for (const t of ["hello", "2", "2", "1", "2", "Paul Etoa", "Monday 3pm", "Bonamoussadi", "skip"]) await say(t, WQ);
-  r = await say("1", WQ);
+  for (const t of ["hello", "1", "2", "Paul Etoa", "Monday 3pm", "Bonamoussadi"]) await say(t, WQ);
+  await say("1", WQ);
+  r = await say("2", WQ);
   globalThis.__notifyInsertFails = false;
   check("APPT E2E honesty: when the team's bell could not be recorded the request is still saved (pending) and the customer is told so, not that the team was alerted; the error text never reaches them", r.reply === EN.apptSubmittedUnalerted && !r.reply.includes("SECRET") && apptRows.length === 1 && apptRows[0].status === "pending" && tables.notifications.length === 0 && logs.some((l) => l.includes("appointment_notice_failed")) && !logs.some((l) => l.includes("SECRET NOTICE TEXT")));
   reset(); tables.notifications = []; globalThis.__apptCreateInvalid = true;
   const WR = "237677650053";
-  for (const t of ["hello", "2", "2", "1", "2", "Paul Etoa", "Monday 3pm", "Bonamoussadi", "skip"]) await say(t, WR);
-  r = await say("1", WR);
+  for (const t of ["hello", "1", "2", "Paul Etoa", "Monday 3pm", "Bonamoussadi"]) await say(t, WR);
+  await say("1", WR);
+  r = await say("2", WR);
   globalThis.__apptCreateInvalid = false;
-  check("APPT E2E failure: if the database refuses the request nothing is saved, the customer is told so and can try again (the form answers are kept), and the team is not alerted", r.reply === EN.apptFailed && apptRows.length === 0 && tables.notifications.length === 0 && (await sessionOf(WR)).state === "REVIEW" && (await sessionOf(WR)).data.step === "appt_review" && (await sessionOf(WR)).data.aName === "Paul Etoa" && (await say("1", WR)).reply === EN.apptSubmitted && apptRows.length === 1);
+  check("APPT E2E failure: if the database refuses the request nothing is saved, the customer is told so and can try again (the form answers are kept), and the team is not alerted", r.reply === EN.apptFailed && apptRows.length === 0 && tables.notifications.length === 0 && (await sessionOf(WR)).state === "REVIEW" && (await sessionOf(WR)).data.step === "appt_pay" && (await sessionOf(WR)).data.aName === "Paul Etoa" && (await say("2", WR)).reply === EN.apptSubmitted && apptRows.length === 1);
   reset(); tables.notifications = [];
   const WS = "237677650054";
-  for (const t of ["Bonjour", "2", "2", "1", "2", "Marie Ngo", "mardi 9h", "Bastos, Yaoundé", "passer"]) r = await say(t, WS);
-  r = await say("1", WS);
+  for (const t of ["Bonjour", "1", "2", "Marie Ngo", "mardi 9h", "Bastos, Yaoundé"]) r = await say(t, WS);
+  await say("1", WS);
+  r = await say("2", WS);
   check("APPT E2E (French): the whole flow in French, stored with the French language, and the French 'request sent' answer", r.reply === FR.apptSubmitted && apptRows.length === 1 && apptRows[0].lang === "fr" && apptRows[0].name === "Marie Ngo" && (await say("statut", WS)).reply === FR.apptStatusText("pending"));
   reset(); tables.notifications = [];
   const WT = "237677650055";
-  for (const t of ["hello", "2", "2", "1", "2", "237699000000"]) r = await say(t, WT);
-  for (const t of ["Monday 3pm", "Bonamoussadi", "skip"]) await say(t, WT);
-  await say("1", WT);
+  for (const t of ["hello", "1", "2", "237699000000"]) r = await say(t, WT);
+  for (const t of ["Monday 3pm", "Bonamoussadi", "1", "2"]) await say(t, WT);
   check("APPT E2E: a phone number typed by the customer is just an answer: the stored number is always the WhatsApp sender's own", apptRows.length === 1 && apptRows[0].phone === WT && apptRows[0].name === "237699000000");
   reset(); tables.notifications = [];
   const WU = "237677650056";
-  for (const t of ["hello", "2", "2", "1", "2", "Paul Etoa", "Monday 3pm"]) await say(t, WU);
+  for (const t of ["hello", "1", "2", "Paul Etoa", "Monday 3pm"]) await say(t, WU);
   r = await say("human", WU);
   check("APPT E2E: asking for a person in the middle of the form hands the conversation over (bell + pause), nothing is stored and no request is created", r.reply === EN.handoff && (await sessionOf(WU)).handoff === true && apptRows.length === 0 && tables.notifications.some((n) => n.type === "inbox_handoff"));
 

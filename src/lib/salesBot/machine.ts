@@ -10,9 +10,9 @@ export type BotState =
   | "WELCOME" | "CARDS" | "COMPARE" | "CARD_DETAIL" | "HOW_IT_WORKS" | "FAQ" | "RECOMMEND_1" | "RECOMMEND_2"
   | "ASK_NAME" | "ASK_ADDRESS" | "ASK_EMAIL" | "ASK_USERNAME" | "ASK_OPERATOR" | "ASK_PAY_PHONE" | "REVIEW" | "EDIT_MENU"
   | "DISCOVER" | "BUY_METHOD" | "MEETING_INFO"
-  | "APPT_CARD" | "APPT_NAME" | "APPT_WHEN" | "APPT_WHERE" | "APPT_NOTE" | "APPT_REVIEW" | "APPT_DONE"
+  | "APPT_CARD" | "APPT_NAME" | "APPT_WHEN" | "APPT_WHERE" | "APPT_NOTE" | "APPT_REVIEW" | "APPT_PAY" | "APPT_DONE"
   | "CREATING" | "PAYMENT" | "COMPLETED" | "HUMAN_HANDOFF";
-export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "DISCOVER", "BUY_METHOD", "MEETING_INFO", "APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_DONE", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
+export const BOT_STATES: BotState[] = ["WELCOME", "CARDS", "COMPARE", "CARD_DETAIL", "HOW_IT_WORKS", "FAQ", "RECOMMEND_1", "RECOMMEND_2", "ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU", "DISCOVER", "BUY_METHOD", "MEETING_INFO", "APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_PAY", "APPT_DONE", "CREATING", "PAYMENT", "COMPLETED", "HUMAN_HANDOFF"];
 
 /**
  * The database (wa_sales_sessions.state, wa_sales_save) already knows the states that existed when it was created, and is not altered for this feature. A state it does not know is
@@ -24,13 +24,14 @@ const UMBRELLA: Partial<Record<BotState, { stored: BotState; step: string }>> = 
   DISCOVER: { stored: "HOW_IT_WORKS", step: "discover" },
   BUY_METHOD: { stored: "CARDS", step: "method" },
   MEETING_INFO: { stored: "CARDS", step: "meeting" },
-  // the meeting-request form (WhatsApp: Buy a card -> Meet a Ringo agent): four free-text questions, a review, and the "request sent" screen
+  // the details form (WhatsApp: Buy a card now): the card, three free-text questions (name, time, place), a review, the choice of payment (APPT_PAY: online, or on delivery = a booked appointment) and the "booking approved" screen. APPT_NOTE is kept only for conversations saved before the note question was removed.
   APPT_CARD: { stored: "ASK_ADDRESS", step: "appt_card" },
   APPT_NAME: { stored: "ASK_ADDRESS", step: "appt_name" },
   APPT_WHEN: { stored: "ASK_ADDRESS", step: "appt_when" },
   APPT_WHERE: { stored: "ASK_ADDRESS", step: "appt_where" },
   APPT_NOTE: { stored: "ASK_ADDRESS", step: "appt_note" },
   APPT_REVIEW: { stored: "REVIEW", step: "appt_review" },
+  APPT_PAY: { stored: "REVIEW", step: "appt_pay" },
   APPT_DONE: { stored: "WELCOME", step: "appt_done" },
 };
 export function toStored(state: BotState, data: BotData): { state: BotState; data: BotData } {
@@ -132,13 +133,13 @@ const PRICE_WORDS = ["price", "prices", "prix", "tarif", "tarifs", "cost", "how 
 const DISCOVER_WORDS = ["discover", "discover ringo", "decouvrir", "decouvrir ringo", "what is ringo"];
 const KNOW_MORE_WORDS = ["know more", "en savoir plus", "question", "questions", "faq", "how it works", "comment ca marche", "how"];
 const ONLINE_WORDS = ["online", "pay online", "en ligne", "payer en ligne"];
-const MEETING_WORDS = ["meet", "meeting", "rendez-vous", "rdv", "rencontre", "rencontrer"];
 const CANCEL_WORDS = ["cancel", "reset", "restart", "annuler", "recommencer", "stop"];
 const IMAGE_WORDS = ["image", "images", "photo", "photos", "picture", "pictures", "see image", "see images", "see the card", "voir image", "voir images", "voir les images", "voir des images", "voir la carte", "voir photo", "voir photos"];
 const ORDER_WORDS = ["order", "buy", "buy a card", "acheter une carte", "i want to order", "commander", "acheter", "commande", "je veux commander"];
 const SKIP_WORDS = ["skip", "no", "none", "passer", "non", "aucun", "pas besoin"];
 const FREE_TEXT: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_PAY_PHONE", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE"];
-const APPT_FLOW: BotState[] = ["APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW"];
+const APPT_FLOW: BotState[] = ["APPT_CARD", "APPT_NAME", "APPT_WHEN", "APPT_WHERE", "APPT_NOTE", "APPT_REVIEW", "APPT_PAY"];
+const DELIVERY_WORDS = ["delivery", "pay on delivery", "cash", "livraison", "payer a la livraison", "especes"];
 const STATUS_WORDS = ["status", "statut"];
 const ORDER_FLOW: BotState[] = ["ASK_NAME", "ASK_ADDRESS", "ASK_EMAIL", "ASK_USERNAME", "ASK_OPERATOR", "ASK_PAY_PHONE", "REVIEW", "EDIT_MENU"];
 
@@ -210,8 +211,9 @@ function prompt(state: BotState, d: BotData, facts: Facts, lang: Lang): string {
   switch (state) {
     case "WELCOME": case "COMPLETED": case "HUMAN_HANDOFF": return T.mainMenu;
     case "DISCOVER": return T.discover;
-    case "BUY_METHOD": return T.buyMethod;
-    case "MEETING_INFO": return T.meetingInfo;
+    // The two screens that used to come before the card choice are gone: a session still stored on one of them sees the card choice instead.
+    case "BUY_METHOD": case "MEETING_INFO": return facts.offers.length > 0 ? apptCardsScreen(lang, facts) : T.unavailable;
+    case "APPT_PAY": return T.apptPayChoice;
     case "APPT_CARD": return facts.offers.length > 0 ? apptCardsScreen(lang, facts) : T.apptAskName;
     case "APPT_NAME": return T.apptAskName;
     case "APPT_WHEN": return T.apptAskWhen;
@@ -279,6 +281,12 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
     return body === T.welcome ? { ...r, button: true } : r;
   };
 
+  // "Buy a card now": the card choice comes first, then the details, then how to pay. Whatever an earlier attempt left behind is cleared.
+  const startBuy = (): StepResult => {
+    const fresh: BotData = { lang, ...(d.langLocked ? { langLocked: true } : {}) };
+    return facts.offers.length > 0 ? out("APPT_CARD", fresh, apptCardsScreen(lang, facts)) : out("WELCOME", fresh, T.unavailable);
+  };
+
   if (session.handoff || state === "HUMAN_HANDOFF") return { state: "HUMAN_HANDOFF", data: d, handoff: true, reply: "", effect: "none" };
   if (!t) return confused();
 
@@ -319,9 +327,9 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
     case "WELCOME":
     case "COMPLETED": {
       if (state === "WELCOME" && has(t, STATUS_WORDS) && facts.appointment) return out("WELCOME", d, T.apptStatusText(facts.appointment.status));
-      // The four-option main menu: 1 Discover Ringo, 2 Buy a card, 3 Know more, 4 Speak with a Ringo agent. The words below are shortcuts to the same places.
-      if (n === 1 || has(t, DISCOVER_WORDS)) return out("DISCOVER", d, T.discover);
-      if (n === 2 || has(t, ORDER_WORDS) || has(t, PRICE_WORDS)) return out("BUY_METHOD", d, T.buyMethod);
+      // The four-option main menu: 1 Buy a card now, 2 Discover Ringo, 3 Know more, 4 Speak with a Ringo agent. The words below are shortcuts to the same places.
+      if (n === 1 || has(t, ORDER_WORDS) || has(t, PRICE_WORDS)) return startBuy();
+      if (n === 2 || has(t, DISCOVER_WORDS)) return out("DISCOVER", d, T.discover);
       if (n === 3 || has(t, KNOW_MORE_WORDS)) return out("FAQ", d, T.faqMenu);
       if (n === 4) return toHuman();
       // Pictures: the official Ringo profile shows the card; the bot just points there (it never sends or invents images).
@@ -334,25 +342,15 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
       return session.version === 0 ? mainMenu(T.welcome) : confused();
     }
     case "DISCOVER": {
-      if (n === 1) return out("BUY_METHOD", d, T.buyMethod);
+      if (n === 1) return startBuy();
       if (n === 2) return toHuman();
       if (n === 3) return mainMenu(T.mainMenu);
       return confused();
     }
-    case "BUY_METHOD": {
-      if (n === 1 || has(t, ONLINE_WORDS)) return out("CARDS", { ...d, method: "online" }, cardsScreen(lang, facts));
-      if (n === 2 || has(t, MEETING_WORDS)) return out("MEETING_INFO", { ...d, method: "agent" }, T.meetingInfo);
-      return confused();
-    }
+    case "BUY_METHOD":
     case "MEETING_INFO": {
-      // 1 starts the meeting request (or shows the one the customer already has), 2 a person, 3 back to paying online.
-      if (n === 1) {
-        if (facts.appointment?.open) return out("APPT_DONE", d, T.apptStatusText(facts.appointment.status));
-        return facts.offers.length > 0 ? out("APPT_CARD", d, apptCardsScreen(lang, facts)) : out("APPT_NAME", d, T.apptAskName);
-      }
-      if (n === 2) return toHuman();
-      if (n === 3) return out("CARDS", { ...d, method: "online" }, cardsScreen(lang, facts));
-      return confused();
+      // Screens that no longer exist: a session still stored on one of them is taken to the card choice.
+      return startBuy();
     }
     case "APPT_CARD": {
       const pick = n !== null && n >= 1 && n <= facts.offers.length ? facts.offers[n - 1] : facts.offers.find((o) => has(t, [norm(T.tierLabel[o.tier]), o.tier]));
@@ -376,7 +374,9 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
       const v = clean(text, 160);
       if (v.length < 3) return stay(T.apptAskWhere);
       d.aWhere = v;
-      return out("APPT_NOTE", d, T.apptAskNote);
+      // no optional note any more: the details are complete, so the card and price the customer saw are kept and the review comes next
+      d.aPrice = offerFor(facts, d.aCard)?.priceXaf;
+      return out("APPT_REVIEW", d, prompt("APPT_REVIEW", d, facts, lang));
     }
     case "APPT_NOTE": {
       d.aNote = has(t, SKIP_WORDS) ? undefined : clean(text, 200) || undefined;
@@ -401,12 +401,31 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
             return out("APPT_REVIEW", d, `${T.apptPriceChanged({ was: typeof was === "number" ? money(lang, was) : null, now: money(lang, live.priceXaf) })}${prompt("APPT_REVIEW", d, facts, lang)}`);
           }
         }
-        return out("APPT_REVIEW", d, "", "create_appointment");
+        // Approved: the customer now chooses how to pay (a request made without a card can only be paid on delivery, so it is booked straight away).
+        return d.aCard ? out("APPT_PAY", d, T.apptPayChoice) : out("APPT_REVIEW", d, "", "create_appointment");
       }
       if (n === 2) {
         const cleared = { ...d, aCard: undefined, aPrice: undefined, aName: undefined, aWhen: undefined, aWhere: undefined, aNote: undefined };
         return facts.offers.length > 0 ? out("APPT_CARD", cleared, apptCardsScreen(lang, facts)) : out("APPT_NAME", cleared, T.apptAskName);
       }
+      return confused();
+    }
+    case "APPT_PAY": {
+      if (!d.aName || !d.aWhen || !d.aWhere) return out("APPT_NAME", d, T.apptAskName);
+      // 1: the regular online order (e-mail, username, Mobile Money number, review, payment request) with the card, name and place already given. Nothing is asked twice.
+      if (n === 1 || has(t, ONLINE_WORDS)) {
+        const live = offerFor(facts, d.aCard);
+        if (!live) {
+          const gone = { ...d, aCard: undefined, aPrice: undefined };
+          return facts.offers.length > 0 ? out("APPT_CARD", gone, `${T.apptCardUnavailable}${apptCardsScreen(lang, facts)}`) : out("WELCOME", { lang, ...(d.langLocked ? { langLocked: true } : {}) }, T.unavailable);
+        }
+        const order: BotData = { lang, tier: live.tier, method: "online", name: d.aName, ...(d.langLocked ? { langLocked: true } : {}) };
+        // the delivery address of the online order needs 5 characters (ASK_ADDRESS); the meeting place only 3
+        if (d.aWhere.length < 5) return out("ASK_ADDRESS", order, T.askAddress);
+        return out("ASK_EMAIL", { ...order, address: d.aWhere }, T.askEmail);
+      }
+      // 2: pay on delivery: the appointment is booked from the details already given. The runner stores it and tells the customer.
+      if (n === 2 || has(t, DELIVERY_WORDS)) return out("APPT_PAY", d, "", "create_appointment");
       return confused();
     }
     case "APPT_DONE": {
@@ -437,13 +456,13 @@ export function step(session: Session, rawText: string, facts: Facts): StepResul
       return confused();
     }
     case "HOW_IT_WORKS": {
-      if (n === 1 || has(t, ORDER_WORDS)) return out("BUY_METHOD", d, T.buyMethod);
-      if (n === 2) return out("BUY_METHOD", d, T.buyMethod); // the old "See the cards": the online-or-agent choice always comes before the plans
+      if (n === 1 || has(t, ORDER_WORDS)) return startBuy();
+      if (n === 2) return startBuy(); // the old "See the cards": the card choice always comes first
       if (n === 3) return out("FAQ", d, T.faqMenu);
       return confused();
     }
     case "FAQ": {
-      if (has(t, ORDER_WORDS)) return out("BUY_METHOD", d, T.buyMethod);
+      if (has(t, ORDER_WORDS)) return startBuy();
       if (has(t, ["faq", "questions", "question"])) return out("FAQ", d, T.faqMenu);
       if (n !== null && n >= 1 && n <= T.faq.length) {
         const answer = n === 9 ? includedAnswer(lang, facts) : T.faq[n - 1];
