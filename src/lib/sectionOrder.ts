@@ -53,8 +53,9 @@ const BY_CATEGORY: Record<string, Flexible[]> = {
   freelancers_creators: OFFER_FIRST,
   construction_home_services: OFFER_FIRST,
   agriculture_agribusiness: OFFER_FIRST,
-  // A church page leads with who they are, then what is coming up; the store (catalogue) comes after the links.
-  church_ministries: ["about", "events", "links", "catalog"],
+  // A church page (below the "Visit us" card ProfileView draws first): what is coming up, then the Church Store (the catalogue), then the links, and the
+  // contact card last. Daily Word and Church Music will slot in ahead of the store when they exist; see lib/church/publicPage.ts.
+  church_ministries: ["events", "catalog", "links", "about"],
 };
 
 // The long-standing order, used for "other" and for any category this module does not know.

@@ -750,6 +750,17 @@ export const CATEGORIES: Category[] = [
         en: "e.g. A welcoming church in Douala with Sunday services",
         fr: "ex. Une église accueillante à Douala avec des cultes le dimanche",
       },
+      // Deep indigo-night hero with a light indigo accent (6:1 on the background, so accent text stays readable) and the Paper panel the church stage puts
+      // below it. Applied once to a brand-new church profile, or later by the explicit "Apply recommended theme" button; never to an existing page.
+      recommendedTheme: {
+        themeColor: "#818CF8",
+        backgroundStyle: "gradient",
+        backgroundColor: "#14112B",
+        backgroundGradientEnd: "#0B0A1A",
+        textColor: "#FAFAF8",
+        buttonStyle: "fill",
+        buttonRadius: "rounded",
+      },
       subcategories: [
         { id: "local_church", emoji: "⛪", label: { en: "Local Church", fr: "Église locale" } },
         { id: "parish", emoji: "🕊️", label: { en: "Parish", fr: "Paroisse" } },

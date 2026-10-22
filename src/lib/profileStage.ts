@@ -9,7 +9,7 @@
 //
 // Seven stages cover the sixteen categories. Categories that share a personality share a stage; "other" and any unknown category get the
 // default, which is exactly what a profile rendered before stages existed.
-export type StageId = "default" | "music" | "event" | "editorial" | "calm" | "expressive" | "structured";
+export type StageId = "default" | "music" | "event" | "editorial" | "calm" | "expressive" | "structured" | "church";
 
 /** The mark around the avatar.
  *  pulse  the looping accent rings: the original, and the neutral default
@@ -82,6 +82,11 @@ const EXPRESSIVE_STAGE: ProfileStage = { ...DEFAULT_STAGE, id: "expressive", ava
 // each section's own compact label.
 const STRUCTURED_STAGE: ProfileStage = { ...DEFAULT_STAGE, id: "structured", avatar: "tile", closingRing: true };
 
+// Churches & Ministries: the same light Paper panel under the dark hero that Music and Events use, so the page reads warm and legible for a mixed
+// congregation (large type, high contrast), with a calm still avatar mark, an image-led cover, the name as written and real section headings.
+// No player cards: a church page has none.
+const CHURCH_STAGE: ProfileStage = { ...DEFAULT_STAGE, id: "church", panel: PAPER_PANEL, avatar: "still", cover: "tall", name: "natural", headings: "editorial", closingRing: true };
+
 const STAGES: Partial<Record<string, ProfileStage>> = {
   music_entertainment: MUSIC_STAGE,
   events_experiences: EVENT_STAGE,
@@ -98,6 +103,7 @@ const STAGES: Partial<Record<string, ProfileStage>> = {
   transport_logistics: STRUCTURED_STAGE,
   construction_home_services: STRUCTURED_STAGE,
   agriculture_agribusiness: STRUCTURED_STAGE,
+  church_ministries: CHURCH_STAGE,
 };
 
 /** The stage for a category id. "other", an unknown id and a missing category all get the default (the original, neutral Ringo foundation). */

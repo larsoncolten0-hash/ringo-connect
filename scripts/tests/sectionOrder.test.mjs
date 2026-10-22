@@ -50,7 +50,7 @@ const EXPECTED_ALL = {
   freelancers_creators: ["catalog", "about", "links", "events"],
   construction_home_services: ["catalog", "about", "links", "events"],
   agriculture_agribusiness: ["catalog", "about", "links", "events"],
-  church_ministries: ["about", "events", "links", "catalog"],
+  church_ministries: ["events", "catalog", "links", "about"],
   other: ["about", "links", "catalog", "events"],
 };
 await test("all 17 canonical categories are covered and each gets its documented order when every section has content", () => {

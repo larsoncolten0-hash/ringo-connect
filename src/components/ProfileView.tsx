@@ -47,6 +47,8 @@ import AppBadgeReset from "./AppBadgeReset";
 import dynamic from "next/dynamic";
 import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 import OptImg from "@/components/ui/OptImg";
+import ChurchVisitCard from "@/components/church/ChurchVisitCard";
+import { CHURCH_CATEGORY, getChurchTypeLabel, getChurchVisit } from "@/lib/church/publicPage";
 
 // The Music artist profile has its own composition (components/music/profile). Loaded only for the music_entertainment category, so every other profile keeps its
 // bundle exactly as before.
@@ -101,6 +103,11 @@ export default function ProfileView({
   const catalogLabel = getCategory(profile.category)?.defaults.catalogLabel?.[locale] || t.profilePage.catalogHeading;
   const isMusic = profileHasCategory(profile, "music_entertainment");
   const isRestaurant = profileHasCategory(profile, "restaurant_food");
+  // Churches & Ministries (Phase 1): the "Visit us" card and the ministry-type label, both built only from fields the profile already has. Every other
+  // category sees none of it. (Church pages have no ticketing yet, so their Events section stays hidden until the events phase.)
+  const isChurch = profileHasCategory(profile, CHURCH_CATEGORY);
+  const churchVisit = isChurch ? getChurchVisit(profile) : null;
+  const churchType = isChurch ? getChurchTypeLabel(profile, locale) : null;
   // Events & Experiences gets the same ticketing toolkit Music &
   // Entertainment already has (events, ticket types, checkout, digital
   // tickets, gate scanning) — see EventsSection below — without picking up
@@ -323,12 +330,13 @@ export default function ProfileView({
                 href: `tel:${profile.about_phone.replace(/[^0-9+]/g, "")}`,
               },
               ...extraPhoneRows,
-              profile.about_location && {
+              // On a church page the location and the hours are the "Visit us" card's job (service times, directions), so they are not repeated here.
+              !churchVisit && profile.about_location && {
                 icon: MapPin,
                 label: t.profilePage.location,
                 value: profile.about_location,
               },
-              profile.about_hours && {
+              !churchVisit && profile.about_hours && {
                 icon: Clock,
                 label: t.profilePage.hours,
                 value: profile.about_hours,
@@ -339,6 +347,8 @@ export default function ProfileView({
             aboutHasContent = !isEmpty;
 
             if (isEmpty) {
+              // A church page whose only details (hours, location) are already in the "Visit us" card has nothing left to say here, and no empty-state note is needed.
+              if (churchVisit) return null;
               return (
                 <p className="text-sm text-center py-8" style={{ opacity: 0.5 }}>
                   {t.profilePage.noAboutInfo}
@@ -792,6 +802,16 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
           </p>
         )}
 
+        {churchType && (
+          // What kind of church or ministry this is, stated as fact (same quiet bordered label Music uses for the artist's role).
+          <p
+            className="mt-2 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold animate-fade-up"
+            style={{ borderColor: hexToRgba(accent, 0.45), color: accent, animationDelay: "110ms" }}
+          >
+            {churchType}
+          </p>
+        )}
+
         {profile.bio && (
           <p
             className="text-sm mt-1 text-center max-w-xs animate-fade-up"
@@ -976,6 +996,18 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               accent={accent}
               radiusClass={radiusClass}
               borderTint={contentBorderTint}
+            />
+          )}
+
+          {churchVisit && (
+            <ChurchVisitCard
+              t={t}
+              visit={churchVisit}
+              accent={accent}
+              accentText={panelAccentText}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              radiusClass={radiusClass}
             />
           )}
 

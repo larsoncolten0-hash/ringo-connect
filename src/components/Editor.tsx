@@ -300,6 +300,7 @@ function EditorCards({
                 initialLocation={profile.about_location}
                 initialHours={profile.about_hours}
                 initialExtraPhones={profile.profile_phone_numbers || []}
+                isChurch={profileHasCategory(draft, "church_ministries")}
               />
             </EditorCardBareGroup>
           </EditorSection>

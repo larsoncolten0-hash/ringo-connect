@@ -45,7 +45,8 @@ const PREVIOUS_16 = [
   check("every sub-type has an emoji and both labels", subs.every((s) => s.emoji && s.label.en && s.label.fr));
   check("sub-types are purely cosmetic (no booking override)", subs.every((s) => !s.booking));
   check("no booking config of its own (falls back to the generic form)", !c?.defaults.booking && CAT.getBookingConfig(ID).buttonLabel.en === CAT.GENERIC_BOOKING_CONFIG.buttonLabel.en);
-  check("no recommended theme is forced", !c?.defaults.recommendedTheme);
+  // Phase 1 added the church look (see churchPublicPage.test.mjs for its contrast checks); Phase 0 shipped without one.
+  check("the recommended theme is a complete ThemeCard value set", !!c?.defaults.recommendedTheme && Object.keys(c.defaults.recommendedTheme).length === 7);
   check("isValidSubcategoryId accepts church sub-types only under the church category", CAT.isValidSubcategoryId(ID, "choir") && !CAT.isValidSubcategoryId("business_ecommerce", "choir") && !CAT.isValidSubcategoryId(ID, "retailer"));
   check("profileHasCategory sees it as primary or extra", CAT.profileHasCategory({ category: ID }, ID) && CAT.profileHasCategory({ category: "other", categories: ["other", ID] }, ID));
   check("it does NOT unlock ticketing (Phase 0 adds no church feature)", !CAT.profileHasTicketing({ category: ID, categories: [ID] }));
@@ -56,7 +57,7 @@ const PREVIOUS_16 = [
   check("Business Toolkit stays OFF for the church category", !DEC.BOOKKEEPING_CATEGORIES.includes(ID) && BIZ.CATEGORY_PROFILES[ID]?.toolkit === false && BIZ.CATEGORY_PROFILES[ID]?.inventory === false);
   check("the AI business registry still agrees with the gate", JSON.stringify(BIZ.registryProblems()) === "[]", JSON.stringify(BIZ.registryProblems()));
   check("inventory stays Business & E-commerce only", JSON.stringify(DEC.INVENTORY_CATEGORIES) === JSON.stringify(["business_ecommerce"]));
-  check("public section order: about, events, links, catalog when all have content", ORDER.orderPublicSections({ category: ID, isMusic: false, isRestaurant: false }, { about: true, links: true, catalog: true, events: true }).join() === "about,events,links,catalog");
+  check("public section order (Phase 1): events, catalog, links, about when all have content", ORDER.orderPublicSections({ category: ID, isMusic: false, isRestaurant: false }, { about: true, links: true, catalog: true, events: true }).join() === "events,catalog,links,about");
   check("profile health group is 'other' (no category-specific criteria were invented)", HEALTH.groupOf(ID) === "other");
   const seo = read("src/lib/seo.ts");
   check("SEO treats a church as an Organization", /ORGANIZATION_CATEGORIES = new Set\(\[[^\]]*"church_ministries"/.test(seo));
@@ -120,7 +121,11 @@ const PREVIOUS_16 = [
     }
   };
   tracked.forEach(walk);
-  check("the only church-named source file is the AI knowledge module (no pages, components or routes)", hits.length === 1 && hits[0].endsWith("ai/knowledge/modules/churchMinistries.ts"), hits.join());
+  // Phase 1 added the public page shell (a card component and its pure helpers); there are still no pages, routes or dashboard screens.
+  // (matched by file name; the pure helpers live in src/lib/church/publicPage.ts, which the next check lists explicitly)
+  const ALLOWED = ["src/lib/ai/knowledge/modules/churchMinistries.ts", "src/components/church/ChurchVisitCard.tsx"];
+  check("the church folders hold only the Phase 1 files", fs.readdirSync(path.join(REPO, "src/lib/church")).join() === "publicPage.ts" && fs.readdirSync(path.join(REPO, "src/components/church")).join() === "ChurchVisitCard.tsx");
+  check("the only church-named source files are the AI knowledge module and the Phase 1 public page shell (no routes or dashboard screens)", hits.length === ALLOWED.length && ALLOWED.every((a) => hits.includes(a)), hits.join());
   check("no church_* table is created by any migration", !fs.readdirSync(path.join(REPO, "supabase/migrations")).some((f) => /create table[^;]*church_/i.test(read(`supabase/migrations/${f}`))));
 }
 

@@ -2378,6 +2378,14 @@ export const fr: Translations = {
       location: "Lieu",
       hours: "Horaires",
       noAboutInfo: "Aucune information supplémentaire pour l'instant.",
+      // Page publique Églises et ministères (Phase 1)
+      church: {
+        visitTitle: "Nous rendre visite",
+        serviceTimes: "Horaires des cultes",
+        location: "Lieu",
+        getDirections: "Itinéraire",
+        directionsTo: (place: string) => `Itinéraire vers ${place}`,
+      },
       linksHeading: "Liens",
       catalogHeading: "Catalogue",
       viewDetails: "Voir les détails",
@@ -5204,6 +5212,7 @@ export const fr: Translations = {
         position: "Poste / Fonction",
         location: "Lieu",
         hours: "Horaires",
+        serviceTimes: "Horaires des cultes (ex. Dim 9h · Mer 18h)",
         extraPhonesLabel: "Autres numéros de téléphone",
         extraPhonesHint: "Affichés sous votre numéro principal sur votre page.",
         allOptionalHint: "Tout est facultatif ici. Ajoutez ce qui aide les visiteurs à vous trouver et à vous contacter.",

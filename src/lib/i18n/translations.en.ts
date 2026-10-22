@@ -2392,6 +2392,14 @@ export const en = {
       location: "Location",
       hours: "Hours",
       noAboutInfo: "No additional info yet.",
+      // Churches & Ministries public page (Phase 1)
+      church: {
+        visitTitle: "Visit us",
+        serviceTimes: "Service times",
+        location: "Location",
+        getDirections: "Get directions",
+        directionsTo: (place: string) => `Get directions to ${place}`,
+      },
       linksHeading: "Links",
       catalogHeading: "Catalog",
       viewDetails: "View details",
@@ -5417,6 +5425,7 @@ export const en = {
         position: "Position / Title",
         location: "Location",
         hours: "Hours",
+        serviceTimes: "Service times (e.g. Sun 9am · Wed 6pm)",
         extraPhonesLabel: "Other phone numbers",
         extraPhonesHint: "Shown below your main number on your live page.",
         allOptionalHint: "Everything here is optional. Add what helps visitors find and contact you.",

@@ -12,7 +12,9 @@ Available when the page has the Churches & Ministries category (local churches, 
 
 What this category has TODAY: the same shared page toolkit every category has — About, links, a catalog labelled "Church Store" / "Boutique de l'église", WhatsApp contact, Community (email and push updates for people who subscribe), QR code and Connect. The default WhatsApp message and the About placeholder are church-worded.
 
-What does NOT exist yet (do not describe these as available, and never suggest the owner can set them up): member or people directory, leaders and volunteers records, departments, daily word / devotional publishing or scheduling, Bible reading programmes, care and support giving, a church-specific public page layout, church attendance, church reports. If asked, say they are planned and not available yet; do not invent steps or screens.
+The public page has a church layout: the ministry type (Local Church, Parish, Ministry, Fellowship, Choir) under the name, and a "Visit us" card that shows the church's SERVICE TIMES and LOCATION with a "Get directions" button. The card reads two existing About fields: the owner writes service times in the About section's hours field (labelled "Service times" for a church; separate several with " · " or a new line, for example "Sun 9am · Wed 6pm") and the address in the location field. If neither is filled in, the card does not appear. A new church page can start from a recommended indigo theme (Editor → Theme, "Apply recommended theme"). Never invent service times or an address: use only what the owner gave.
+
+What does NOT exist yet (do not describe these as available, and never suggest the owner can set them up): member or people directory, leaders and volunteers records, departments, daily word / devotional publishing or scheduling, Bible reading programmes, care and support giving, church attendance, church reports. If asked, say they are planned and not available yet; do not invent steps or screens.
 
 The Business Toolkit (bookkeeping, invoices, reports) is not offered for this category.
 

@@ -26,6 +26,7 @@ export default function AboutCard({
   initialLocation,
   initialHours,
   initialExtraPhones,
+  isChurch = false,
 }: {
   profileId: string;
   initialLongBio: string | null;
@@ -36,6 +37,8 @@ export default function AboutCard({
   initialLocation: string | null;
   initialHours: string | null;
   initialExtraPhones: { id: string; phone_number: string }[];
+  // Churches & Ministries: the single "Hours" line is where a church writes its service times (the public "Visit us" card reads it), so it is labelled that way.
+  isChurch?: boolean;
 }) {
   const supabase = createClient();
   const { t } = useLanguage();
@@ -165,8 +168,8 @@ export default function AboutCard({
               setHours(e.target.value);
               updateDraft({ about_hours: e.target.value });
             }}
-            placeholder={t.editor.about.hours}
-            aria-label={t.editor.about.hours}
+            placeholder={isChurch ? t.editor.about.serviceTimes : t.editor.about.hours}
+            aria-label={isChurch ? t.editor.about.serviceTimes : t.editor.about.hours}
             className={field}
           />
         </div>
