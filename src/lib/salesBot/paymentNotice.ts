@@ -4,6 +4,7 @@ import { computeSignupAmount } from "@/lib/signupPayment";
 import { groupNum, subscriptionLine, type Lang } from "./machine";
 import { resolveSmartCardOffers } from "./offers";
 import { replyRequestId } from "./ids";
+import { recordPaidCardOrder } from "./cardOrders";
 
 // The additive hook behind "payment confirmed": src/lib/signupPayment.ts calls this ONCE, right after the existing payment code has recorded a signup request as paid.
 // It never decides whether anything was paid and never changes a payment, a price or a request. If the request came from the WhatsApp sales bot, it tells that
@@ -29,13 +30,26 @@ export async function notifyWhatsAppOrderPaid(admin: any, signupRequestId: strin
     if (ctxRes.error) { log({ result: "context_failed", code: String(ctxRes.error.code || "rpc_error").slice(0, 20) }); return { result: "context_failed" }; }
     const ctx = (ctxRes.data && typeof ctxRes.data === "object" ? ctxRes.data : {}) as Record<string, unknown>;
     if (ctx.result !== "ok") return { result: "not_from_bot" };
+    // One read of the stored order serves both the paid-orders list and the receipt.
+    const { data: row } = await admin.from("signup_requests").select("full_name, delivery_location, pending_fapshi_trans_id, requested_plan_id, requested_interval, requested_addon_ids").eq("id", signupRequestId).maybeSingle();
+    const owed = row ? await computeSignupAmount(admin, row) : null;
+    // File the order in the team's "paid orders" list (to be marked completed when the card is delivered). Additive and isolated: whatever happens here, the receipt below is unaffected,
+    // and it is filed even when a person has taken the conversation over or the 24-hour window is closed.
+    try {
+      await recordPaidCardOrder(admin, {
+        signupRequestId,
+        name: String(row?.full_name || ""),
+        place: typeof row?.delivery_location === "string" ? row.delivery_location : null,
+        amountXaf: owed && owed.ok ? Math.round(owed.amount) : null,
+      });
+    } catch {
+      log({ result: "order_record_exception" });
+    }
     // A person has taken the conversation over: they own what is said there.
     if (ctx.handoff === true) { log({ result: "skipped_handoff" }); return { result: "skipped_handoff" }; }
 
     const lang: Lang = ctx.lang === "fr" ? "fr" : "en";
     const T = translations[lang].inbox.salesBot;
-    const { data: row } = await admin.from("signup_requests").select("full_name, pending_fapshi_trans_id, requested_plan_id, requested_interval, requested_addon_ids").eq("id", signupRequestId).maybeSingle();
-    const owed = row ? await computeSignupAmount(admin, row) : null;
     if (!owed || !owed.ok) { log({ result: "amount_unavailable" }); return { result: "amount_unavailable" }; }
 
     const tier = ctx.tier === "pro" || ctx.tier === "premium" ? ctx.tier : "standard";

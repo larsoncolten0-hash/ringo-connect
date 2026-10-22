@@ -16,6 +16,7 @@ import { PHASE32_FILES } from "./phase32Files.mjs";
 import { PHASE33_FILES } from "./phase33Files.mjs";
 import { PHASE34_FILES } from "./phase34Files.mjs";
 import { PHASE36_FILES } from "./phase36Files.mjs";
+import { PHASE37_FILES } from "./phase37Files.mjs";
 import { PHASE31_FILES } from "./phase31Files.mjs";
 
 const require = createRequire(import.meta.url);
@@ -349,7 +350,7 @@ await test("mobile: the connection to the storage host (where every picture come
 // =============================================================================== scope
 await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, orders, payouts, commissions and the 10-second preview are not touched", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].filter((f) => !f.startsWith("scripts/tests/_"));
-  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE31_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE37_FILES.has(f) && !PHASE31_FILES.has(f)), [], "only the registered files changed");
   // Files whose NAME looks sensitive but whose change is a read-only performance edit, listed one by one (never by pattern): the public item checkout PAGE's profile read (the checkout flow itself,
   // the payment calls and the order logic are not in it), the shop page, the supabase proposal files and the admin branding save's cache refresh.
   const ALLOWED = new Set([
@@ -388,6 +389,13 @@ await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, ord
     "supabase/migrations/2026-12-20_whatsapp_sales_bot_owner_switch.sql",
     "supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.rollback.sql",
     "supabase/support/2026-12-20_whatsapp_sales_bot_owner_switch.verify.sql",
+    "src/app/api/inbox/orders/[id]/status/route.ts", // the paid orders place (phase37Files.mjs): one authenticated status route, the page, the view and one un-applied additive migration
+    "src/app/dashboard/inbox/orders/page.tsx",
+    "src/components/inbox/OrdersView.tsx",
+    "supabase/migrations/2026-12-25_card_orders.sql",
+    "supabase/support/2026-12-25_card_orders.preflight.sql",
+    "supabase/support/2026-12-25_card_orders.verify.sql",
+    "supabase/support/2026-12-25_card_orders.rollback.sql",
   ]);
   const forbidden = /(^|\/)(middleware|fapshi|stripe|webhook|payout|commission|inventory|checkout|orders?|billing|protection|useTrackPlayback|previewLimit)|\/api\/|^supabase\//i;
   assert.deepEqual(changed.filter((f) => forbidden.test(f) && !ALLOWED.has(f) && !/phase2[0-9]Files|\.test\.mjs$/.test(f)), [], "no sensitive file is among the changed ones");

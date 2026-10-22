@@ -1287,6 +1287,7 @@ export const en = {
       pauseSalesBotFailed: "Could not pause the sales bot. Please try again.",
       salesBotLink: "Sales bot",
       appointmentsLink: "Appointments",
+      ordersLink: "Paid orders",
       appointments: {
         "title": "Meeting requests",
         "intro": "Requests customers sent through the WhatsApp sales bot. A request stays pending until someone on the team confirms or declines it. Nothing here activates a card or records a payment.",
@@ -1335,6 +1336,40 @@ export const en = {
           "failed": "That did not work. Please try again.",
           "invalid_transition": "This request can no longer be changed that way. Reload the page.",
           "not_found": "Request not found."
+        }
+      },
+      cardOrders: {
+        "title": "Paid orders",
+        "intro": "Cards customers paid for through the WhatsApp sales bot. An order stays paid until someone on the team marks it completed once the card has been delivered; the customer is then thanked on WhatsApp. Nothing here changes a payment.",
+        "back": "Back to the inbox",
+        "empty": "No paid orders yet.",
+        "loadFailed": "Paid orders are not available right now. Please try again later.",
+        "alreadyDone": "This order was already completed. Nothing was changed or sent.",
+        "groups": {
+          "paid": "Paid",
+          "completed": "Completed"
+        },
+        "number": "WhatsApp number",
+        "card": "Card",
+        "amount": "Amount paid",
+        "place": "Delivery place",
+        "paidOn": "Paid on",
+        "completedOn": "Completed on",
+        "contact": "Open in WhatsApp",
+        "complete": "Mark as completed (card delivered)",
+        "working": "Working…",
+        "viewOnly": "You can view these orders but not change them (changing needs permission to reply in the Inbox).",
+        "notified": {
+          "sent": "The customer was thanked on WhatsApp.",
+          "window_closed": "Saved. The customer's 24-hour chat window is closed, so they were not thanked: please contact them yourself.",
+          "failed": "Saved. The customer could not be thanked: please contact them yourself.",
+          "none": "The customer has not been thanked yet."
+        },
+        "errors": {
+          "forbidden": "You do not have permission to change this order.",
+          "failed": "That did not work. Please try again.",
+          "invalid_transition": "This order can no longer be changed that way. Reload the page.",
+          "not_found": "Order not found."
         }
       },
       salesBotPage: {
@@ -1509,7 +1544,7 @@ export const en = {
         startButton: "Get started",
         mainMenu: "*Main menu*\n\n1. Buy a card now\n2. Discover Ringo\n3. Know more\n4. Speak with a Ringo agent\n\n👉 *Please type the number of the option you choose and send it.*\n\nFor example: type *1* to buy a card now, *2* to discover Ringo, *3* to know more or *4* to speak with a Ringo agent.\n\nPour le français, tapez *fr*.",
         menuUpdated: "ℹ️ The menu has been updated. Here are the current options.",
-        discover: "🌟 *Discover Ringo*\n\nRingo Connect helps creators, entrepreneurs and small businesses put what they do in one place: your own Ringo profile, with your links and whatever you choose to show. The tools you get depend on the plan you choose.\n\nThe Ringo Connect Smart Card links to your profile: tap it on an NFC-enabled phone or let someone scan its QR code, and your profile opens, with no app and no login.\n\nWhat would you like to do?\n\n1. Buy a card now\n2. Speak with a Ringo agent\n3. Main menu\n\nType the number of your choice and send it.",
+        discover: "🌟 *Discover Ringo*\n\nRingo Connect helps creators, entrepreneurs and small businesses put what they do in one place: your own Ringo profile, with your links and whatever you choose to show. The tools you get depend on the plan you choose.\n\nThe Ringo Connect Smart Card links to your profile: tap it on an NFC-enabled phone or let someone scan its QR code, and your profile opens, with no app and no login.\n\n👀 *See more:*\n🌐 Website: www.ringoconnectltd.com\n👤 Official Ringo profile: www.ringoconnectltd.com/ringoconnectltd\n\nWhat would you like to do?\n\n1. Buy a card now\n2. Speak with a Ringo agent\n3. Main menu\n\nType the number of your choice and send it.",
         apptCardsIntro: "💳 *Choose your Ringo Connect Smart Card:*",
         receiptItem: "Ringo Connect Smart Card",
         apptCardsFooter: "\n\n0. Main menu\n\nType the number of your choice and send it.",
@@ -1530,6 +1565,7 @@ export const en = {
         apptDecision: (to: string, details: string | null, receipt?: { name: string; when: string; where: string; item: string | null; price: string | null }): string => to === "confirmed" ? `✅ *Booking confirmed*\n\nGood news${receipt?.name ? `, ${receipt.name}` : ""}! Your request has been confirmed and booked.\n\n🧾 *Receipt*\n${receipt ? `Name: ${receipt.name}\nDate and time: ${receipt.when}\n${receipt.item ? `Item: ${receipt.item}\n` : ""}${receipt.price ? `Price: ${receipt.price}\n` : ""}Location: ${receipt.where}\n` : ""}${details ? `\nNote from our team: ${details}\n` : ""}\nA Ringo Connect agent will reach out to you.\n\nNB: Transportation shall be covered by you depending on your location.\n\nThanks again for choosing Ringo Connect!\n\nReply *0* for the main menu.` : to === "declined" ? `Our team could not accept your meeting request.${details ? `\n\n${details}` : ""}\n\nYou can send a new request (choose *2*, then *Meet a Ringo agent*), or type *human* to talk to someone.` : `Your meeting request has been *cancelled* by our team.${details ? `\n\n${details}` : ""}\n\nYou can send a new request (choose *2*, then *Meet a Ringo agent*), or type *human* to talk to someone.`,
         apptNoticeTitle: "New meeting request",
         apptNoticeBody: "A customer asked to meet a Ringo agent. Open Appointments to review it.",
+        orderThanks: "🙏 *Thank you for choosing Ringo Connect!*\n\nYour order is now complete. If you need any support or assistance, please feel free to contact us.\n\nReply *0* for the main menu.",
         cardsIntro: "💳 *Ringo Connect Smart Card*\nChoose your card:",
         cardLine: (n: number, label: string, price: string, lines: string[]) => `\n${n}. *${label}* — ${price}\n${lines.map((l) => `   • ${l}`).join("\n")}`,
         cardsFooter: (compareNo: number, chooseNo: number) => `\n\n${compareNo}. ⚖️ Compare the cards\n${chooseNo}. 🧭 Help me choose\n0. Main menu`,
@@ -1557,7 +1593,7 @@ export const en = {
           "You pay by Mobile Money (MTN or Orange). We send a payment request to your phone and you approve it there with your PIN. Never send your PIN or any payment code in this chat.",
         ],
         faqIncluded: (lines: string[]) => `Every order includes the Smart Card itself.\n${lines.map((l) => `• ${l}`).join("\n")}`,
-        faqOptions: "\n\n*faq* to see the questions · *order* to order · 0. Main menu\n\nNeed help? Type *human* to talk to a Ringo team member.",
+        faqOptions: "\n\n👀 *See more:*\n🌐 Website: www.ringoconnectltd.com\n👤 Official Ringo profile: www.ringoconnectltd.com/ringoconnectltd\n\n*faq* to see the questions · *order* to order · 0. Main menu\n\nNeed help? Type *human* to talk to a Ringo team member.",
         rec1: "🧭 *Let me help you choose*\n\nHow long should the included subscription last?\n\n1. About a month\n2. A full year\n0. Main menu",
         rec2: "Do you want the Pro plan included (for the first month)?\n\n1. Yes, Pro\n2. No, Basic is enough\n0. Main menu",
         recResult: (label: string, price: string) => `✅ I recommend *${label}* — ${price}.`,

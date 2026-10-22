@@ -75,6 +75,7 @@ export default function InboxView({ list, selectedId, thread, filter = DEFAULT_F
           <h1 className="font-display text-xl font-medium text-ringo-text">{u.title}</h1>
           <span className="flex flex-wrap items-center gap-2">
             <Link href={`${INBOX_PATH}/appointments`} className="inline-flex min-h-[36px] items-center rounded-full border border-ringo-border px-3 text-xs text-ringo-text hover:bg-ringo-surface">{u.appointmentsLink}</Link>
+            <Link href={`${INBOX_PATH}/orders`} className="inline-flex min-h-[36px] items-center rounded-full border border-ringo-border px-3 text-xs text-ringo-text hover:bg-ringo-surface">{u.ordersLink}</Link>
           {access.kind === "owner" && (
             <>
               <Link href={`${INBOX_PATH}/sales-bot`} className="inline-flex min-h-[36px] items-center rounded-full border border-ringo-border px-3 text-xs text-ringo-text hover:bg-ringo-surface">{u.salesBotLink}</Link>

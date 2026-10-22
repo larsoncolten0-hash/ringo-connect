@@ -1280,6 +1280,7 @@ export const fr: Translations = {
       pauseSalesBotFailed: "Impossible de mettre le bot de vente en pause. Veuillez réessayer.",
       salesBotLink: "Robot de vente",
       appointmentsLink: "Rendez-vous",
+      ordersLink: "Commandes payées",
       appointments: {
         "title": "Demandes de rendez-vous",
         "intro": "Demandes envoyées par les clients via le bot de vente WhatsApp. Une demande reste en attente tant qu’un membre de l’équipe ne l’a pas confirmée ou refusée. Rien ici n’active une carte ni n’enregistre un paiement.",
@@ -1328,6 +1329,40 @@ export const fr: Translations = {
           "failed": "Cela n’a pas fonctionné. Veuillez réessayer.",
           "invalid_transition": "Cette demande ne peut plus être modifiée ainsi. Rechargez la page.",
           "not_found": "Demande introuvable."
+        }
+      },
+      cardOrders: {
+        "title": "Commandes payées",
+        "intro": "Cartes payées par des clients via le bot de vente WhatsApp. Une commande reste « payée » jusqu’à ce que quelqu’un de l’équipe la marque comme terminée, une fois la carte livrée ; le client est alors remercié sur WhatsApp. Rien ici ne modifie un paiement.",
+        "back": "Retour à la boîte de réception",
+        "empty": "Aucune commande payée pour le moment.",
+        "loadFailed": "Les commandes payées ne sont pas disponibles pour le moment. Veuillez réessayer plus tard.",
+        "alreadyDone": "Cette commande était déjà terminée. Rien n’a été modifié ni envoyé.",
+        "groups": {
+          "paid": "Payées",
+          "completed": "Terminées"
+        },
+        "number": "Numéro WhatsApp",
+        "card": "Carte",
+        "amount": "Montant payé",
+        "place": "Lieu de livraison",
+        "paidOn": "Payée le",
+        "completedOn": "Terminée le",
+        "contact": "Ouvrir dans WhatsApp",
+        "complete": "Marquer comme terminée (carte livrée)",
+        "working": "En cours…",
+        "viewOnly": "Vous pouvez consulter ces commandes mais pas les modifier (la modification nécessite l’autorisation de répondre dans la boîte de réception).",
+        "notified": {
+          "sent": "Le client a été remercié sur WhatsApp.",
+          "window_closed": "Enregistré. La fenêtre de discussion de 24 heures du client est fermée, il n’a donc pas été remercié : veuillez le contacter vous-même.",
+          "failed": "Enregistré. Le client n’a pas pu être remercié : veuillez le contacter vous-même.",
+          "none": "Le client n’a pas encore été remercié."
+        },
+        "errors": {
+          "forbidden": "Vous n’avez pas l’autorisation de modifier cette commande.",
+          "failed": "Cela n’a pas fonctionné. Veuillez réessayer.",
+          "invalid_transition": "Cette commande ne peut plus être modifiée ainsi. Rechargez la page.",
+          "not_found": "Commande introuvable."
         }
       },
       salesBotPage: {
@@ -1501,7 +1536,7 @@ export const fr: Translations = {
         startButton: "Commencer",
         mainMenu: "*Menu principal*\n\n1. Acheter une carte maintenant\n2. Découvrir Ringo\n3. En savoir plus\n4. Parler à un agent Ringo\n\n👉 *Veuillez taper le numéro de l’option choisie et l’envoyer.*\n\nPar exemple : tapez *1* pour acheter une carte maintenant, *2* pour découvrir Ringo, *3* pour en savoir plus ou *4* pour parler à un agent Ringo.\n\nFor English, type *en*.",
         menuUpdated: "ℹ️ Le menu a été mis à jour. Voici les options actuelles.",
-        discover: "🌟 *Découvrir Ringo*\n\nRingo Connect aide les créateurs, entrepreneurs et petites entreprises à réunir ce qu’ils font au même endroit : votre propre profil Ringo, avec vos liens et ce que vous choisissez d’afficher. Les outils dont vous disposez dépendent du plan que vous choisissez.\n\nLa Ringo Connect Smart Card renvoie vers votre profil : posez-la sur un téléphone compatible NFC ou faites scanner son QR code, et votre profil s’ouvre, sans application et sans connexion.\n\nQue souhaitez-vous faire ?\n\n1. Acheter une carte maintenant\n2. Parler à un agent Ringo\n3. Menu principal\n\nTapez le numéro de votre choix et envoyez-le.",
+        discover: "🌟 *Découvrir Ringo*\n\nRingo Connect aide les créateurs, entrepreneurs et petites entreprises à réunir ce qu’ils font au même endroit : votre propre profil Ringo, avec vos liens et ce que vous choisissez d’afficher. Les outils dont vous disposez dépendent du plan que vous choisissez.\n\nLa Ringo Connect Smart Card renvoie vers votre profil : posez-la sur un téléphone compatible NFC ou faites scanner son QR code, et votre profil s’ouvre, sans application et sans connexion.\n\n👀 *Pour en voir plus :*\n🌐 Site web : www.ringoconnectltd.com\n👤 Profil officiel Ringo : www.ringoconnectltd.com/ringoconnectltd\n\nQue souhaitez-vous faire ?\n\n1. Acheter une carte maintenant\n2. Parler à un agent Ringo\n3. Menu principal\n\nTapez le numéro de votre choix et envoyez-le.",
         apptCardsIntro: "💳 *Choisissez votre Ringo Connect Smart Card :*",
         receiptItem: "Ringo Connect Smart Card",
         apptCardsFooter: "\n\n0. Menu principal\n\nTapez le numéro de votre choix et envoyez-le.",
@@ -1522,6 +1557,7 @@ export const fr: Translations = {
         apptDecision: (to: string, details: string | null, receipt?: { name: string; when: string; where: string; item: string | null; price: string | null }): string => to === "confirmed" ? `✅ *Réservation confirmée*\n\nBonne nouvelle${receipt?.name ? `, ${receipt.name}` : ""} ! Votre demande a été confirmée et réservée.\n\n🧾 *Reçu*\n${receipt ? `Nom : ${receipt.name}\nDate et heure : ${receipt.when}\n${receipt.item ? `Article : ${receipt.item}\n` : ""}${receipt.price ? `Prix : ${receipt.price}\n` : ""}Lieu : ${receipt.where}\n` : ""}${details ? `\nNote de notre équipe : ${details}\n` : ""}\nUn agent Ringo Connect vous contactera.\n\nNB : Le transport sera à votre charge selon votre localisation.\n\nMerci encore d’avoir choisi Ringo Connect !\n\nRépondez *0* pour le menu principal.` : to === "declined" ? `Notre équipe n’a pas pu accepter votre demande de rendez-vous.${details ? `\n\n${details}` : ""}\n\nVous pouvez envoyer une nouvelle demande (choisissez *2*, puis *Rencontrer un agent Ringo*), ou taper *humain* pour parler à quelqu’un.` : `Votre demande de rendez-vous a été *annulée* par notre équipe.${details ? `\n\n${details}` : ""}\n\nVous pouvez envoyer une nouvelle demande (choisissez *2*, puis *Rencontrer un agent Ringo*), ou taper *humain* pour parler à quelqu’un.`,
         apptNoticeTitle: "Nouvelle demande de rendez-vous",
         apptNoticeBody: "Un client souhaite rencontrer un agent Ringo. Ouvrez Rendez-vous pour la consulter.",
+        orderThanks: "🙏 *Merci d’avoir choisi Ringo Connect !*\n\nVotre commande est maintenant terminée. Si vous avez besoin d’aide ou d’assistance, n’hésitez pas à nous contacter.\n\nRépondez *0* pour le menu principal.",
         cardsIntro: "💳 *Ringo Connect Smart Card*\nChoisissez votre carte :",
         cardLine: (n: number, label: string, price: string, lines: string[]) => `\n${n}. *${label}* — ${price}\n${lines.map((l) => `   • ${l}`).join("\n")}`,
         cardsFooter: (compareNo: number, chooseNo: number) => `\n\n${compareNo}. ⚖️ Comparer les cartes\n${chooseNo}. 🧭 Aidez-moi à choisir\n0. Menu principal`,
@@ -1549,7 +1585,7 @@ export const fr: Translations = {
           "Vous payez par Mobile Money (MTN ou Orange). Nous envoyons une demande de paiement sur votre téléphone et vous l’approuvez là-bas avec votre code PIN. N’envoyez jamais votre PIN ni un code de paiement dans ce chat.",
         ],
         faqIncluded: (lines: string[]) => `Chaque commande inclut la Smart Card elle-même.\n${lines.map((l) => `• ${l}`).join("\n")}`,
-        faqOptions: "\n\n*faq* pour voir les questions · *commander* pour commander · 0. Menu principal\n\nBesoin d’aide ? Tapez *humain* pour parler à un membre de l’équipe Ringo.",
+        faqOptions: "\n\n👀 *Pour en voir plus :*\n🌐 Site web : www.ringoconnectltd.com\n👤 Profil officiel Ringo : www.ringoconnectltd.com/ringoconnectltd\n\n*faq* pour voir les questions · *commander* pour commander · 0. Menu principal\n\nBesoin d’aide ? Tapez *humain* pour parler à un membre de l’équipe Ringo.",
         rec1: "🧭 *Je vous aide à choisir*\n\nCombien de temps l’abonnement inclus doit-il durer ?\n\n1. Environ un mois\n2. Une année entière\n0. Menu principal",
         rec2: "Voulez-vous le forfait Pro inclus (pour le premier mois) ?\n\n1. Oui, Pro\n2. Non, Basic me suffit\n0. Menu principal",
         recResult: (label: string, price: string) => `✅ Je vous recommande *${label}* — ${price}.`,
