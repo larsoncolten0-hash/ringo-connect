@@ -22,6 +22,7 @@ const GROUP_BY_CATEGORY: Record<CategoryId, CategoryGroup> = {
   education_training: "service",
   travel_hospitality: "service",
   construction_home_services: "service",
+  church_ministries: "other",
   other: "other",
 };
 

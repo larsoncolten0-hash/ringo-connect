@@ -159,7 +159,7 @@ test("secondary category adds its offering (restaurant + music)", () => {
 
 test("every category produces a valid result", () => {
   const { CATEGORY_IDS } = jiti(path.join(SRC, "lib/categories.ts"));
-  assert.equal(CATEGORY_IDS.length, 16);
+  assert.equal(CATEGORY_IDS.length, 17);
   for (const category of CATEGORY_IDS) {
     for (const plan of [FREE, PAID]) {
       const h = H.computeProfileHealth({ profile: { category }, plan });

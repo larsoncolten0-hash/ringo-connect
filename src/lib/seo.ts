@@ -201,6 +201,7 @@ const ORGANIZATION_CATEGORIES = new Set([
   "agriculture_agribusiness",
   "education_training",
   "events_experiences",
+  "church_ministries",
 ]);
 const PERSON_CATEGORIES = new Set(["freelancers_creators"]);
 

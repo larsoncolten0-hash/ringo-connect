@@ -53,7 +53,7 @@ const WITH_SUBCATEGORY_IDS = CATEGORY_IDS.filter((id) => !NO_SUBCATEGORY_IDS.inc
 
 // ---------------------------------------------------------------- 2. every other category has a real, bilingual subcategories list
 {
-  check("exactly 13 other categories exist to receive the new mechanism", WITH_SUBCATEGORY_IDS.length === 13, `got ${WITH_SUBCATEGORY_IDS.length}: ${WITH_SUBCATEGORY_IDS.join(",")}`);
+  check("exactly 14 other categories exist to receive the new mechanism", WITH_SUBCATEGORY_IDS.length === 14, `got ${WITH_SUBCATEGORY_IDS.length}: ${WITH_SUBCATEGORY_IDS.join(",")}`);
   for (const id of WITH_SUBCATEGORY_IDS) {
     const cat = getCategory(id);
     const subs = cat?.defaults.subcategories;

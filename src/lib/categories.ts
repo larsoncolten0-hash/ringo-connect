@@ -29,6 +29,7 @@ export type CategoryId =
   | "freelancers_creators"
   | "construction_home_services"
   | "agriculture_agribusiness"
+  | "church_ministries"
   | "other";
 
 type Bilingual = { en: string; fr: string };
@@ -728,6 +729,34 @@ export const CATEGORIES: Category[] = [
         { id: "livestock", emoji: "🐄", label: { en: "Livestock", fr: "Élevage" } },
         { id: "food_producer", emoji: "🌽", label: { en: "Food Producer", fr: "Producteur alimentaire" } },
         { id: "other", emoji: "✨", label: { en: "Other Agriculture & Agro-business", fr: "Autre agriculture & agro-business" } },
+      ],
+    },
+  },
+  {
+    id: "church_ministries",
+    emoji: "⛪",
+    label: { en: "Churches & Ministries", fr: "Églises et ministères" },
+    examples: {
+      en: "Local churches, parishes, ministries, fellowships, choirs…",
+      fr: "Églises locales, paroisses, ministères, fraternités, chorales…",
+    },
+    defaults: {
+      catalogLabel: { en: "Church Store", fr: "Boutique de l'église" },
+      whatsappMessage: {
+        en: "Hi! I'd like to know more about your church.",
+        fr: "Salut ! Je voudrais en savoir plus sur votre église.",
+      },
+      notePlaceholder: {
+        en: "e.g. A welcoming church in Douala with Sunday services",
+        fr: "ex. Une église accueillante à Douala avec des cultes le dimanche",
+      },
+      subcategories: [
+        { id: "local_church", emoji: "⛪", label: { en: "Local Church", fr: "Église locale" } },
+        { id: "parish", emoji: "🕊️", label: { en: "Parish", fr: "Paroisse" } },
+        { id: "ministry", emoji: "🙏", label: { en: "Ministry", fr: "Ministère" } },
+        { id: "fellowship", emoji: "🤝", label: { en: "Fellowship", fr: "Fraternité" } },
+        { id: "choir", emoji: "🎶", label: { en: "Choir", fr: "Chorale" } },
+        { id: "other", emoji: "✨", label: { en: "Other Church or Ministry", fr: "Autre église ou ministère" } },
       ],
     },
   },

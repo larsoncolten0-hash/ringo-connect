@@ -11,7 +11,7 @@ export const categoriesModule: KnowledgeModule = {
   id: "categories",
   version: 1,
   title: "Categories, roles and what each unlocks",
-  summary: "The 16 Ringo categories, music roles, restaurant sub-types, and which toolkits each category gets.",
+  summary: "The 17 Ringo categories, music roles, restaurant sub-types, and which toolkits each category gets.",
   appliesTo: {},
   body: `
 Categories (id: English / French — examples):

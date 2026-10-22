@@ -50,10 +50,11 @@ const EXPECTED_ALL = {
   freelancers_creators: ["catalog", "about", "links", "events"],
   construction_home_services: ["catalog", "about", "links", "events"],
   agriculture_agribusiness: ["catalog", "about", "links", "events"],
+  church_ministries: ["about", "events", "links", "catalog"],
   other: ["about", "links", "catalog", "events"],
 };
-await test("all 16 canonical categories are covered and each gets its documented order when every section has content", () => {
-  assert.equal(CATEGORIES.length, 16);
+await test("all 17 canonical categories are covered and each gets its documented order when every section has content", () => {
+  assert.equal(CATEGORIES.length, 17);
   for (const c of CATEGORIES) {
     if (c.id === "music_entertainment") {
       assert.deepEqual(order(c.id, ALL, { isMusic: true }), ["music", "releases", "catalog", "events", "links", "about"], c.id);
@@ -63,7 +64,7 @@ await test("all 16 canonical categories are covered and each gets its documented
       assert.deepEqual(order(c.id), EXPECTED_ALL[c.id], c.id);
     }
   }
-  assert.equal(Object.keys(EXPECTED_ALL).length, 14, "the other two are the protected specialised layouts");
+  assert.equal(Object.keys(EXPECTED_ALL).length, 15, "the other two are the protected specialised layouts");
 });
 await test("the offer (products / services / listings / courses / rooms / portfolio) leads for every offering category; links never lead except for creators", () => {
   for (const c of ["business_ecommerce", "professional_services", "beauty_wellness", "health_medical", "real_estate", "transport_logistics", "education_training", "travel_hospitality", "creative_media", "freelancers_creators", "construction_home_services", "agriculture_agribusiness"]) {

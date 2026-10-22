@@ -34,6 +34,7 @@ import { creativeMediaModule } from "./modules/creativeMedia";
 import { freelancersCreatorsModule } from "./modules/freelancersCreators";
 import { constructionHomeServicesModule } from "./modules/constructionHomeServices";
 import { agricultureAgribusinessModule } from "./modules/agricultureAgribusiness";
+import { churchMinistriesModule } from "./modules/churchMinistries";
 import { guidanceModule } from "./modules/guidance";
 import { editorSavingModule } from "./modules/editorSaving";
 import { whatsappInboxModule } from "./modules/whatsappInbox";
@@ -76,6 +77,7 @@ export const KNOWLEDGE_MODULES: readonly KnowledgeModule[] = [
   freelancersCreatorsModule,
   constructionHomeServicesModule,
   agricultureAgribusinessModule,
+  churchMinistriesModule,
   guidanceModule,
   editorSavingModule,
   whatsappInboxModule,

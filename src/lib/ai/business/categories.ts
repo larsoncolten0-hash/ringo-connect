@@ -122,6 +122,14 @@ export const CATEGORY_PROFILES: Record<CategoryId, CategoryToolkitProfile> = {
     ],
     notBuilt: ["event budgeting", "vendor management"],
   },
+  church_ministries: {
+    id: "church_ministries", toolkit: false, inventory: false, clientTerm: "member",
+    notes: [
+      "The Business Toolkit is not offered for church pages: church finances (giving, assistance funds, store sales) will have their own tools, not business bookkeeping.",
+      "Never read or discuss individual giving, member records or private pastoral information.",
+    ],
+    notBuilt: ["member management", "giving or donation tracking", "church bookkeeping"],
+  },
   other: {
     id: "other", toolkit: false, inventory: false, clientTerm: "customer",
     notes: ["No category-specific financial tools are offered for this category."],
