@@ -225,13 +225,18 @@ const invite = (iid, role, by, prof = prof1) => `insert into public.organization
   // nothing in the application reads these tables yet: no AI context, analytics, push payload, log or page can expose them
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
   const refs = walk(path.join(REPO, "src")).filter((f) => /\.(ts|tsx|js|mjs|json)$/.test(f)).filter((f) => /church_members|church_groups|church_group_members|church_leadership/.test(fs.readFileSync(f, "utf8")));
-  check("no file under src/ references the new tables (so AI, analytics, push, logs and public pages cannot expose them)", refs.length === 0, refs.join(", "));
+  // Phase 2B (churchPeopleGroupsApi.test.mjs) supersedes "nothing reads them yet": ONLY the church workspace code (its handlers, routes and screens) may, and that test proves no public, AI, analytics, push or log code does.
+  const workspace = (f) => /[\\/]src[\\/](lib[\\/]church|app[\\/]api[\\/]church|components[\\/]church|app[\\/]dashboard[\\/]church)[\\/]/.test(f);
+  check("no file under src/ outside the church workspace references the new tables (so AI, analytics, push, logs and public pages cannot expose them)", refs.filter((f) => !workspace(f)).length === 0, refs.filter((f) => !workspace(f)).join(", "));
   const ALLOWED = new Set([MIG_PATH, `${SUP}.preflight.sql`, `${SUP}.verify.sql`, `${SUP}.rollback.sql`, `${SUP}.retention-policy.md`, "scripts/tests/churchPeopleGroups.test.mjs",
     "scripts/tests/churchCategory.test.mjs", "scripts/tests/churchPublicPage.test.mjs", // the two earlier church tests whose "no church tables / newest migration is Phase 0" assertions this phase supersedes
     "supabase/support/2026-12-26_church_category.verify.sql"]); // its historical "no church_* tables" row now excludes the four known Phase 2A tables
   let changed = [];
   try { changed = execFileSync("git", ["status", "--porcelain"], { cwd: REPO, encoding: "utf8" }).split("\n").filter(Boolean).map((l) => l.slice(3).replace(/"/g, "").trim()); } catch { /* not a git checkout */ }
-  check("scope: the working tree changes only Phase 2A files", changed.every((f) => ALLOWED.has(f)), changed.filter((f) => !ALLOWED.has(f)).join(", "));
+  // Phase 2B adds application code on top; what must stay true is that the Phase 2A database files themselves are never modified.
+  const frozen = [MIG_PATH, `${SUP}.preflight.sql`, `${SUP}.verify.sql`, `${SUP}.rollback.sql`, `${SUP}.retention-policy.md`];
+  check("scope: the Phase 2A migration and its support files are unchanged", changed.every((f) => !frozen.includes(f)), changed.filter((f) => frozen.includes(f)).join(", "));
+  void ALLOWED;
 }
 
 // =========================================================================================================================================================================

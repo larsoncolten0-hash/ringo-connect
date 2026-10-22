@@ -123,6 +123,9 @@ export default async function DashboardLayout({
   // half: /dashboard/team's own layout and every /api/team/* route
   // enforce the exact same two conditions server-side.
   const canManageTeam = !!active && active.teamEnabled && (active.isOwner || active.permissions.includes("staff.view"));
+  // Church workspace (people, groups, leadership): the ACTIVE organization is a Churches & Ministries one and the viewer owns it or is a team member holding a church permission. Only a UX
+  // gate: /dashboard/church/** and /api/church/** resolve the church and the permissions on the server, and the database decides what is read or written.
+  const hasChurch = profileHasCategory(profile, "church_ministries") && !!active && (active.isOwner || (active.teamEnabled && active.permissions.some((p) => String(p).startsWith("church."))));
   // Association Program — entirely independent of Team's active-organization
   // concept (an Association Owner is just the normal profile owner; a
   // Partner is a totally separate relationship — see the migration's own
@@ -243,6 +246,7 @@ export default async function DashboardLayout({
       hasCustomers={hasCustomers}
       hasInbox={hasInbox}
       hasStaffInbox={hasStaffInbox}
+      hasChurch={hasChurch}
       canManageTeam={canManageTeam}
       canManageAssociation={canManageAssociation}
       canUseLoyalty={canUseLoyalty}

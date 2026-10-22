@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireOrgAccessJson } from "@/lib/team/access";
 import { inboxDependencyProblems, inboxPermissionsOf, sanitizePermissions } from "@/lib/team/permissions";
 import { inboxDependencyResponse, inboxOwnerOnlyResponse } from "@/lib/team/inboxOwnerOnly";
+import { churchPermissionDeniedResponse } from "@/lib/team/churchOwnerOnly";
+import { churchPermissionsOf, churchRoleChangeAllowed } from "@/lib/church/permissions";
 import { logOrgActivity } from "@/lib/team/activity";
 
 // PATCH /api/team/roles/[id] — body: { profileId, name?, permissions? }.
@@ -33,6 +35,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (before !== after && !access.isOwner) return inboxOwnerOnlyResponse(); // the owner only (not even a platform admin)
     const missing = inboxDependencyProblems(permissions);
     if (after !== "" && missing.length > 0 && before !== after) return inboxDependencyResponse(missing);
+  }
+
+  // Church permissions: adding, removing or replacing any is checked against the database's grant rule (owner: anything; others: only ordinary ones they hold; an admin: nothing).
+  if (permissions && churchPermissionsOf([...(role.permissions || []), ...permissions]).length > 0) {
+    if (!churchRoleChangeAllowed({ isOwner: access.isOwner, isAdmin: access.isAdmin, held: new Set(access.permissions), before: role.permissions || [], after: permissions })) return churchPermissionDeniedResponse();
   }
 
   if (permissions && !access.isOwner && !access.isAdmin) {

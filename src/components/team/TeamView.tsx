@@ -37,6 +37,7 @@ export default function TeamView({
   profileId,
   organizationName,
   isOwner,
+  showChurchPermissions = false,
   myPermissions,
   initialMembers,
   initialInvitations,
@@ -46,6 +47,8 @@ export default function TeamView({
   profileId: string;
   organizationName: string;
   isOwner: boolean;
+  /** Offer the church.* permissions in the role editor (only for a Churches & Ministries organization). */
+  showChurchPermissions?: boolean;
   myPermissions: Permission[];
   initialMembers: MemberRow[];
   initialInvitations: InvitationRow[];
@@ -136,7 +139,7 @@ export default function TeamView({
         </div>
       )}
 
-      {tab === "roles" && canManage && <RolesPanel profileId={profileId} roles={roles} myPermissions={myPermissions} isOwner={isOwner} onChanged={refreshAll} />}
+      {tab === "roles" && canManage && <RolesPanel profileId={profileId} roles={roles} myPermissions={myPermissions} isOwner={isOwner} showChurchPermissions={showChurchPermissions} onChanged={refreshAll} />}
 
       {showAdd && (
         <AddTeamMemberModal

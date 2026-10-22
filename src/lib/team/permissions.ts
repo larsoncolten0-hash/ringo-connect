@@ -1,4 +1,5 @@
 import type { CategoryId } from "@/lib/categories";
+import { CHURCH_PERMISSIONS } from "@/lib/church/permissions";
 
 // The full permission catalog for Team & Organization Management. Kept
 // deliberately small and grouped by module rather than one permission per
@@ -62,6 +63,9 @@ export const PERMISSIONS = [
   "inbox.ai",
   "inbox.mark_read",
   "inbox.close",
+  // Churches & Ministries People & Groups. Granting the sensitive ones (children.*, members.delete) is owner-only; see src/lib/church/permissions.ts, which mirrors the database guards
+  // (2026-12-27_church_people_groups.sql). Spread from there so the two lists cannot drift.
+  ...CHURCH_PERMISSIONS,
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -82,7 +86,7 @@ export function sanitizePermissions(input: unknown): Permission[] {
 // order and section labels, not a security boundary.
 // `labelKey` (optional) names a group whose heading is translated (English + French) instead of using
 // the plain `label`; only the Loyalty group uses it today, every other group is unchanged.
-export const PERMISSION_GROUPS: { label: string; labelKey?: "loyalty" | "inbox"; permissions: Permission[] }[] = [
+export const PERMISSION_GROUPS: { label: string; labelKey?: "loyalty" | "inbox" | "church"; permissions: Permission[] }[] = [
   { label: "Orders", permissions: ["orders.view", "orders.create", "orders.update", "orders.cancel"] },
   { label: "Menu", permissions: ["menu.view", "menu.manage"] },
   { label: "Kitchen", permissions: ["kitchen.view", "kitchen.update"] },
@@ -99,6 +103,7 @@ export const PERMISSION_GROUPS: { label: string; labelKey?: "loyalty" | "inbox";
   { label: "Reports", permissions: ["reports.view", "analytics.view"] },
   { label: "Loyalty", labelKey: "loyalty", permissions: ["loyalty.scan", "loyalty.manage", "loyalty.reverse"] },
   { label: "Inbox", labelKey: "inbox", permissions: ["inbox.view", "inbox.reply", "inbox.media", "inbox.saved_replies", "inbox.ai", "inbox.mark_read", "inbox.close"] },
+  { label: "Church", labelKey: "church", permissions: [...CHURCH_PERMISSIONS] },
 ];
 
 // ---- WhatsApp Inbox permissions -----------------------------------------------------------------------------------------------------------

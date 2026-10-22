@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { resolveActiveOrganization, ensureDefaultRoles } from "@/lib/team/access";
 import TeamView from "@/components/team/TeamView";
+import { profileHasCategory } from "@/lib/categories";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,7 @@ export default async function TeamPage() {
       profileId={profileId}
       organizationName={active.profile.name || active.profile.username}
       isOwner={active.isOwner}
+      showChurchPermissions={profileHasCategory(active.profile, "church_ministries")}
       myPermissions={active.permissions}
       initialMembers={enrichedMembers as any}
       initialInvitations={(invitations || []) as any}

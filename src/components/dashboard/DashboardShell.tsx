@@ -5,7 +5,7 @@ import Image from "next/image";
 import BrandLogo from "@/components/BrandLogo";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Inbox, FileText, Boxes, FileBarChart, Contact, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound, ReceiptText, BookOpen, House, Lock } from "lucide-react";
+import { Church, Inbox, FileText, Boxes, FileBarChart, Contact, LayoutGrid, BarChart3, CreditCard, Handshake, ClipboardCheck, QrCode, UtensilsCrossed, Music2, CalendarCheck, Users, ExternalLink, Ticket, Nfc, UserCog, AlertTriangle, Info, Award, Gift, ShoppingBag, Megaphone, UsersRound, ReceiptText, BookOpen, House, Lock } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import ReferralPromoBanner from "@/components/dashboard/ReferralPromoBanner";
 import { referralPromoShowsOn } from "@/lib/referralPromo";
@@ -90,6 +90,7 @@ export default function DashboardShell({
   hasCustomers = false,
   hasInbox = false,
   hasStaffInbox = false,
+  hasChurch = false,
   canManageTeam = false,
   canManageAssociation = false,
   canUseLoyalty = false,
@@ -168,6 +169,8 @@ export default function DashboardShell({
   hasInbox?: boolean;
   // Inbox nav entry for a team member with inbox.view in an organization that has WhatsApp (UX only; the server and the database enforce access).
   hasStaffInbox?: boolean;
+  /** Churches & Ministries People / Groups / Leadership (/dashboard/church): the active organization is a church AND the viewer owns it or holds a church permission. UX only; the server re-checks. */
+  hasChurch?: boolean;
   // Team & Organization Management — whether this account can see/manage
   // the Team section: the owner always can, a staff member only with the
   // staff.view permission (see dashboard/layout.tsx). Never trusted as the
@@ -347,6 +350,8 @@ export default function DashboardShell({
       : []),
     // Inbox (WhatsApp, read-only): owners whose profile has a WhatsApp account only (see src/lib/inbox/access.ts). Hidden for staff.
     ...((hasInbox && !organization?.isStaff) || hasStaffInbox ? [{ href: "/dashboard/inbox", label: t.nav.inbox, icon: Inbox, core: false }] : []),
+    // Church workspace (people, groups, leadership): category-gated, org-aware (the pages and /api/church/** resolve the church and the permissions themselves).
+    ...(hasChurch ? [{ href: "/dashboard/church", label: t.churchPeople.nav, icon: Church, core: false }] : []),
     // Same "always visible" reasoning as Bookings above — every category
     // can build a community, so this isn't gated either.
     { href: "/dashboard/community", label: t.nav.community, icon: Users, core: true },

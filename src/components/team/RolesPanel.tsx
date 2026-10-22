@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Loader2, Check, X } from "lucide-react";
 import { INBOX_DEPENDENCIES, INBOX_PERMISSIONS, PERMISSION_GROUPS, inboxDependencyProblems, isInboxPermission, type InboxPermission, type Permission } from "@/lib/team/permissions";
+import { isSensitiveChurchPermissionName } from "@/lib/church/permissions";
 import { useLanguage } from "@/components/LanguageProvider";
 
 export interface RoleRow {
@@ -24,12 +25,14 @@ export default function RolesPanel({
   roles,
   myPermissions,
   isOwner,
+  showChurchPermissions = false,
   onChanged,
 }: {
   profileId: string;
   roles: RoleRow[];
   myPermissions: Permission[];
   isOwner: boolean;
+  showChurchPermissions?: boolean;
   onChanged: () => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -55,6 +58,7 @@ export default function RolesPanel({
           profileId={profileId}
           canGrant={canGrant}
           isOwner={isOwner}
+          showChurchPermissions={showChurchPermissions}
           onCancel={() => setCreating(false)}
           onSaved={() => {
             setCreating(false);
@@ -71,6 +75,7 @@ export default function RolesPanel({
               profileId={profileId}
               canGrant={canGrant}
               isOwner={isOwner}
+              showChurchPermissions={showChurchPermissions}
               existing={role}
               onCancel={() => setEditingId(null)}
               onSaved={() => {
@@ -168,6 +173,7 @@ function RoleForm({
   profileId,
   canGrant,
   isOwner,
+  showChurchPermissions,
   existing,
   onCancel,
   onSaved,
@@ -175,6 +181,7 @@ function RoleForm({
   profileId: string;
   canGrant: (p: Permission) => boolean;
   isOwner: boolean;
+  showChurchPermissions: boolean;
   existing?: RoleRow;
   onCancel: () => void;
   onSaved: () => void;
@@ -188,6 +195,8 @@ function RoleForm({
   const toggle = (p: Permission) => {
     // Inbox permissions: only the business owner can grant or revoke them (the database enforces it too).
     if (isInboxPermission(p) && !isOwner) return;
+    // Church children / delete permissions: owner only (the database enforces it too).
+    if (isSensitiveChurchPermissionName(p) && !isOwner) return;
     if (!canGrant(p) && !selected.has(p)) return; // can't add a permission you don't hold — removing is always allowed
     setSelected((prev) => {
       const next = new Set(prev);
@@ -233,13 +242,14 @@ function RoleForm({
       />
 
       <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-1">
-        {PERMISSION_GROUPS.filter((group) => group.labelKey !== "inbox").map((group) => (
+        {PERMISSION_GROUPS.filter((group) => group.labelKey !== "inbox" && (group.labelKey !== "church" || showChurchPermissions)).map((group) => (
           <div key={group.label}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ringo-muted mb-1">{group.labelKey === "loyalty" ? t.loyalty.permissionGroup : group.label}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ringo-muted mb-1">{group.labelKey === "loyalty" ? t.loyalty.permissionGroup : group.labelKey === "church" ? t.churchPeople.team.group : group.label}</p>
+            {group.labelKey === "church" && <p className="text-[11px] text-ringo-muted mb-1.5">{isOwner ? t.churchPeople.team.ownerIntro : t.churchPeople.team.locked}</p>}
             <div className="flex flex-wrap gap-1.5">
               {group.permissions.map((p) => {
                 const active = selected.has(p);
-                const disabled = !canGrant(p) && !active;
+                const disabled = (!canGrant(p) && !active) || (isSensitiveChurchPermissionName(p) && !isOwner);
                 return (
                   <button
                     key={p}

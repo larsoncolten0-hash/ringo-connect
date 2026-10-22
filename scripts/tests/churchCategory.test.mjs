@@ -123,9 +123,10 @@ const PREVIOUS_16 = [
   tracked.forEach(walk);
   // Phase 1 added the public page shell (a card component and its pure helpers); there are still no pages, routes or dashboard screens.
   // (matched by file name; the pure helpers live in src/lib/church/publicPage.ts, which the next check lists explicitly)
-  const ALLOWED = ["src/lib/ai/knowledge/modules/churchMinistries.ts", "src/components/church/ChurchVisitCard.tsx"];
-  check("the church folders hold only the Phase 1 files", fs.readdirSync(path.join(REPO, "src/lib/church")).join() === "publicPage.ts" && fs.readdirSync(path.join(REPO, "src/components/church")).join() === "ChurchVisitCard.tsx");
-  check("the only church-named source files are the AI knowledge module and the Phase 1 public page shell (no routes or dashboard screens)", hits.length === ALLOWED.length && ALLOWED.every((a) => hits.includes(a)), hits.join());
+  // Phase 2B (People & Groups) adds the files named here; anything else church-named is still a failure.
+  const ALLOWED = ["src/lib/ai/knowledge/modules/churchMinistries.ts", "src/components/church/ChurchVisitCard.tsx", "src/components/church/people/ChurchShell.tsx", "src/lib/team/churchOwnerOnly.ts", "src/lib/church/publicPage.ts"].filter((f) => f !== "src/lib/church/publicPage.ts" || hits.includes(f));
+  check("the church folders hold only the Phase 1 and Phase 2B files", fs.readdirSync(path.join(REPO, "src/lib/church")).join() === "actor.ts,errors.ts,handlers.ts,permissions.ts,publicPage.ts,routeKit.ts,validation.ts" && fs.readdirSync(path.join(REPO, "src/components/church")).join() === "ChurchVisitCard.tsx,people");
+  check("the only church-named source files are the AI knowledge module, the Phase 1 public page shell and the Phase 2B workspace files", hits.length === ALLOWED.length && ALLOWED.every((a) => hits.includes(a)), hits.join());
   // Phase 0 itself creates no table; the only church_* tables are the four people/group tables of Phase 2A (2026-12-27_church_people_groups.sql), created by nothing else.
   const migFiles = fs.readdirSync(path.join(REPO, "supabase/migrations"));
   check("the category migration creates no table, and the only migration creating church_* tables is the Phase 2A people-and-groups one", !/create table/i.test(read("supabase/migrations/2026-12-26_church_category.sql").replace(/--[^\n]*/g, ""))

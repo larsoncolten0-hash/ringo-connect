@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { requireOrgAccessJson, ensureDefaultRoles } from "@/lib/team/access";
 import { inboxDependencyProblems, inboxPermissionsOf, sanitizePermissions } from "@/lib/team/permissions";
 import { inboxDependencyResponse, inboxOwnerOnlyResponse } from "@/lib/team/inboxOwnerOnly";
+import { churchPermissionDeniedResponse } from "@/lib/team/churchOwnerOnly";
+import { churchPermissionsOf, churchRoleChangeAllowed } from "@/lib/church/permissions";
 import { logOrgActivity } from "@/lib/team/activity";
 
 // GET /api/team/roles?profileId=... — every role defined for this
@@ -53,6 +55,11 @@ export async function POST(request: Request) {
     if (!access.isOwner) return inboxOwnerOnlyResponse(); // the owner only (not even a platform admin)
     const missing = inboxDependencyProblems(permissions);
     if (missing.length > 0) return inboxDependencyResponse(missing);
+  }
+
+  // Church permissions: the owner may grant any; anyone else only ordinary ones they hold, never a platform admin (the database enforces the same rule).
+  if (churchPermissionsOf(permissions).length > 0) {
+    if (!churchRoleChangeAllowed({ isOwner: access.isOwner, isAdmin: access.isAdmin, held: new Set(access.permissions), before: [], after: permissions })) return churchPermissionDeniedResponse();
   }
 
   if (!access.isOwner && !access.isAdmin) {
