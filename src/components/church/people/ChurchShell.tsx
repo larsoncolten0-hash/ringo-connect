@@ -15,16 +15,20 @@ export default function ChurchShell({ caps, children }: { caps: ChurchCapabiliti
     { href: "/dashboard/church/people", label: c.tabs.people, show: caps.viewMembers || caps.viewChildren },
     { href: "/dashboard/church/groups", label: c.tabs.groups, show: caps.viewGroups },
     { href: "/dashboard/church/leadership", label: c.tabs.leadership, show: caps.viewLeadership },
+    { href: "/dashboard/church/content", label: t.churchContent.tab, show: caps.viewContent },
   ].filter((x) => x.show);
 
   return (
     <div className="max-w-4xl">
       <header className="mb-5">
         <h1 className="font-display text-xl font-semibold text-ringo-text">{c.title}</h1>
-        <p className="mt-1 flex items-start gap-2 text-sm leading-relaxed text-ringo-muted">
-          <ShieldCheck size={16} className="mt-0.5 shrink-0 text-ringo-indigo" aria-hidden="true" />
-          <span>{c.subtitle}</span>
-        </p>
+        {/* People, Groups and Leadership are private. The Content tab is the opposite (its words become public once published) and says so itself, so the privacy line is not repeated there. */}
+        {!pathname.startsWith("/dashboard/church/content") && (
+          <p className="mt-1 flex items-start gap-2 text-sm leading-relaxed text-ringo-muted">
+            <ShieldCheck size={16} className="mt-0.5 shrink-0 text-ringo-indigo" aria-hidden="true" />
+            <span>{c.subtitle}</span>
+          </p>
+        )}
       </header>
       <nav aria-label={c.tabsLabel} className="mb-5 -mx-1 overflow-x-auto px-1">
         <ul className="flex min-w-max gap-1 border-b border-ringo-border/70">
@@ -49,7 +53,7 @@ export default function ChurchShell({ caps, children }: { caps: ChurchCapabiliti
   );
 }
 
-export function NoAccess({ section }: { section?: "people" | "groups" | "leadership" }) {
+export function NoAccess({ section }: { section?: "people" | "groups" | "leadership" | "content" }) {
   const { t } = useLanguage();
   const c = t.churchPeople;
   return (

@@ -17,8 +17,12 @@ export const CHURCH_ORDINARY_PERMISSIONS = [
 /** Sensitive permissions: only the church OWNER can grant, change or reactivate them. `church.export` is reserved for a later phase and is not offered in this phase. */
 export const CHURCH_SENSITIVE_PERMISSIONS = ["church.children.view", "church.children.manage", "church.members.delete"] as const;
 
+/** Content Studio (Phase 3). Not in the ordinary list, so the database guards treat them as owner-only to grant (any `church.*` string they do not list is sensitive): only the church OWNER
+ *  can give them. view: read every entry incl. drafts; manage: create / edit / delete DRAFTS; publish: publish, schedule, unpublish, and edit or delete a LIVE entry. */
+export const CHURCH_CONTENT_PERMISSIONS = ["church.content.view", "church.content.manage", "church.content.publish"] as const;
+
 /** Every church permission the Team role editor can hand out in this phase. */
-export const CHURCH_PERMISSIONS = [...CHURCH_ORDINARY_PERMISSIONS, ...CHURCH_SENSITIVE_PERMISSIONS] as const;
+export const CHURCH_PERMISSIONS = [...CHURCH_ORDINARY_PERMISSIONS, ...CHURCH_SENSITIVE_PERMISSIONS, ...CHURCH_CONTENT_PERMISSIONS] as const;
 
 export type ChurchPermission = (typeof CHURCH_PERMISSIONS)[number];
 
@@ -61,6 +65,11 @@ export interface ChurchCapabilities {
   manageGroups: boolean;
   viewLeadership: boolean;
   manageLeadership: boolean;
+  /** Mirrors the daily_words SELECT policy: any of the three content permissions opens reading (drafts and scheduled entries included). */
+  viewContent: boolean;
+  /** Create, edit and delete DRAFTS (the publish permission also holds this, as in the daily_words write policies). */
+  manageContent: boolean;
+  publishContent: boolean;
 }
 
 export function churchCapabilities(permissions: readonly string[]): ChurchCapabilities {
@@ -80,6 +89,9 @@ export function churchCapabilities(permissions: readonly string[]): ChurchCapabi
     manageGroups,
     viewLeadership: has("church.leadership.view") || manageLeadership,
     manageLeadership,
+    viewContent: has("church.content.view") || has("church.content.manage") || has("church.content.publish"),
+    manageContent: has("church.content.manage") || has("church.content.publish"),
+    publishContent: has("church.content.publish"),
   };
 }
 

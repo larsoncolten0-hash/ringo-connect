@@ -68,7 +68,8 @@ const PREVIOUS_16 = [
   const m = KNOW.getKnowledgeModule(ID);
   check("a knowledge module exists, loads for church pages, and is marked partial (not live)", !!m && m.status === "partial" && KNOW.getCategoryModules([ID]).some((x) => x.id === ID));
   check("it is not loaded for any other category", PREVIOUS_16.every((id) => !KNOW.getCategoryModules([id]).some((x) => x.id === ID)));
-  check("it says the later-phase features do not exist yet", /does NOT exist yet/.test(m?.body || "") && /member or people directory/.test(m?.body || ""));
+  // Phase 2B/3 supersede the old "no people directory / no daily word" wording: the module now describes People & Groups and Content Studio, and still names the features that do not exist yet.
+  check("it describes People & Groups and Content Studio, and says the later-phase features do not exist yet", /does NOT exist yet/.test(m?.body || "") && /Bible reading programmes/.test(m?.body || "") && /Content Studio/.test(m?.body || "") && /People: the church's own roster/.test(m?.body || "") && !/member or people directory, leaders and volunteers records/.test(m?.body || ""));
   check("it forbids reading giving, member or pastoral data", /never ask for, read or discuss member lists, individual giving/i.test(m?.body || ""));
   check("the categories module reflects 17 categories", /The 17 Ringo categories/.test(KNOW.getKnowledgeModule("categories").summary));
 }
@@ -125,7 +126,7 @@ const PREVIOUS_16 = [
   // (matched by file name; the pure helpers live in src/lib/church/publicPage.ts, which the next check lists explicitly)
   // Phase 2B (People & Groups) adds the files named here; anything else church-named is still a failure.
   const ALLOWED = ["src/lib/ai/knowledge/modules/churchMinistries.ts", "src/components/church/ChurchVisitCard.tsx", "src/components/church/people/ChurchShell.tsx", "src/lib/team/churchOwnerOnly.ts", "src/lib/church/publicPage.ts"].filter((f) => f !== "src/lib/church/publicPage.ts" || hits.includes(f));
-  check("the church folders hold only the Phase 1 and Phase 2B files", fs.readdirSync(path.join(REPO, "src/lib/church")).join() === "actor.ts,errors.ts,handlers.ts,permissions.ts,publicPage.ts,routeKit.ts,validation.ts" && fs.readdirSync(path.join(REPO, "src/components/church")).join() === "ChurchVisitCard.tsx,people");
+  check("the church folders hold only the Phase 1, Phase 2B and Phase 3 files", fs.readdirSync(path.join(REPO, "src/lib/church")).sort().join() === "actor.ts,content,errors.ts,handlers.ts,permissions.ts,publicPage.ts,routeKit.ts,validation.ts" && fs.readdirSync(path.join(REPO, "src/components/church")).sort().join() === "ChurchVisitCard.tsx,DailyWordCard.tsx,content,people");
   check("the only church-named source files are the AI knowledge module, the Phase 1 public page shell and the Phase 2B workspace files", hits.length === ALLOWED.length && ALLOWED.every((a) => hits.includes(a)), hits.join());
   // Phase 0 itself creates no table; the only church_* tables are the four people/group tables of Phase 2A (2026-12-27_church_people_groups.sql), created by nothing else.
   const migFiles = fs.readdirSync(path.join(REPO, "supabase/migrations"));

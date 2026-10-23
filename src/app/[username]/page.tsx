@@ -10,6 +10,8 @@ import { limitPublicRows, isPublicLink, isPublicProduct } from "@/lib/publicCont
 import { computeProfileCheckoutAvailability } from "@/lib/productCheckout/availability";
 import ProfileView from "@/components/ProfileView";
 import { buildProfileJsonLd, serializeJsonLd } from "@/lib/seo";
+import { profileHasCategory } from "@/lib/categories";
+import { loadPublicWords } from "@/lib/church/content/publicWord";
 
 // Per-profile PWA installability (manifest link, iOS home-screen name/
 // icon, theme color) + page title/description — see
@@ -111,7 +113,7 @@ export default async function PublicProfilePage({
   // Stage 2: what needs the profile row runs TOGETHER: the checkout capability, the staff badges, whether this owner's Pixels are active, and the
   // page-view row (RLS allows anonymous inserts; the owner previewing their own page is not a visit, so no row for them, and the click tracking in /api/track
   // is untouched). The page view is only ever recorded after the suspension check above.
-  const [commerceCheckoutAvailable, staffBadges, pixelsEnabled, trackSettled] = await Promise.all([
+  const [commerceCheckoutAvailable, staffBadges, pixelsEnabled, trackSettled, dailyWords] = await Promise.all([
     computeProfileCheckoutAvailability(profile),
     loadStaffBadges(profile),
     pixelConfig.facebookPixelId || pixelConfig.tiktokPixelId ? isPixelsEnabledForUser(profile.user_id) : Promise.resolve(false),
@@ -126,6 +128,8 @@ export default async function PublicProfilePage({
             city,
           }),
     ]),
+    // Churches only: the published Daily Words (the visitor's own session, the public policy decides which rows exist; any failure gives an empty list, never a broken page).
+    profileHasCategory(profile, "church_ministries") ? loadPublicWords(supabase, profile.id) : Promise.resolve([]),
   ]);
   const trackResult = trackSettled[0];
   if (trackResult.status === "rejected") console.error("Page view tracking failed:", trackResult.reason);
@@ -203,6 +207,7 @@ export default async function PublicProfilePage({
         pageViewEventId={pageViewEventId}
         staffBadges={staffBadges}
         isOwner={isOwner}
+        dailyWords={dailyWords}
       />
     </>
   );

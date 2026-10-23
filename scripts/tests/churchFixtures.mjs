@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 export const REPO = fileURLToPath(new URL("../../", import.meta.url));
 const read = (p) => fs.readFileSync(path.join(REPO, p), "utf8").replace(/\r\n/g, "\n");
 export const MIG = read("supabase/migrations/2026-12-27_church_people_groups.sql");
+export const DW_MIG = read("supabase/migrations/2026-12-28_daily_words.sql");
 const TEAM01 = read("supabase/migrations/2026-10-01_team_management.sql").split("\n").slice(27, 261).join("\n");
 const TEAM03 = read("supabase/migrations/2026-10-03_team_rls_enterprise_gate.sql");
 const TEAM04 = read("supabase/migrations/2026-10-04_team_members_read_fix.sql");
@@ -55,17 +56,19 @@ const BASE = `
   create policy "profiles delete by owner or admin" on public.profiles for delete using (auth.uid() = user_id or public.is_admin());
 `;
 
-export async function newDb(PGlite) {
+export async function newDb(PGlite, { dailyWords = false } = {}) {
   const db = new PGlite();
   await db.exec(BASE);
   await db.exec(TEAM01); await db.exec(TEAM03); await db.exec(TEAM04);
   await db.exec(`grant all on all tables in schema public to anon, authenticated, service_role;`);
   await db.exec(CEILING); await db.exec(INBOX);
   await db.exec(MIG);
+  if (dailyWords) await db.exec(DW_MIG);
   return db;
 }
 
 export const svc = async (db, sql) => { await db.exec("set role service_role"); try { const out = await db.exec(sql); return out[out.length - 1]; } finally { await db.exec("reset role"); } };
+export const svcErr = async (db, sql) => { await db.exec("set role service_role"); try { await db.exec(sql); return null; } catch (e) { return { code: e.code, msg: String(e.message) }; } finally { await db.exec("reset role"); } };
 export const svcQuery = async (db, sql) => { await db.exec("set role service_role"); try { return (await db.query(sql)).rows; } finally { await db.exec("reset role"); } };
 
 export async function seed(db) {
@@ -152,21 +155,23 @@ export function sessionFor(db, userId, { role: dbRole = userId ? "authenticated"
     from(table) {
       const st = { cols: "*", where: [], order: [], limit: null, offset: 0, mode: "select", values: null, head: false, count: false, returning: false, inner: false };
       const colSql = () => st.cols === "*" ? "*" : splitCols(st.cols).filter((c) => !c.includes("(")).map((c) => `"${c}"`).join(", ");
+      // like PostgREST, a write returns only the columns that were asked for (RETURNING * would need privileges on columns an API role may not hold)
+      const retSql = () => (st.cols === "*" ? "*" : splitCols(st.cols).filter((c) => !c.includes("(")).map((c) => `"${c}"`).join(", "));
       const whereSql = () => (st.where.length ? ` where ${st.where.join(" and ")}` : "");
       const sql = () => {
         if (st.mode === "insert") {
           const keys = Object.keys(st.values);
           const ins = `insert into public."${table}" (${keys.map((k) => `"${k}"`).join(",")}) values (${keys.map((k) => lit(st.values[k])).join(",")})`;
-          return st.returning ? `with r as (${ins} returning *) select coalesce(json_agg(x), '[]'::json) as j from (select ${colSql()} from r) x` : `${ins}`;
+          return st.returning ? `with r as (${ins} returning ${retSql()}) select coalesce(json_agg(x), '[]'::json) as j from (select ${colSql()} from r) x` : `${ins}`;
         }
         if (st.mode === "update") {
           const set = Object.entries(st.values).map(([k, v]) => `"${k}" = ${lit(v)}`).join(", ");
           const upd = `update public."${table}" as t set ${set}${whereSql()}`;
-          return st.returning ? `with r as (${upd} returning *) select coalesce(json_agg(x), '[]'::json) as j from (select ${colSql()} from r) x` : upd;
+          return st.returning ? `with r as (${upd} returning ${retSql()}) select coalesce(json_agg(x), '[]'::json) as j from (select ${colSql()} from r) x` : upd;
         }
         if (st.mode === "delete") {
           const del = `delete from public."${table}" as t${whereSql()}`;
-          return st.returning ? `with r as (${del} returning *) select coalesce(json_agg(x), '[]'::json) as j from (select ${colSql()} from r) x` : del;
+          return st.returning ? `with r as (${del} returning ${retSql()}) select coalesce(json_agg(x), '[]'::json) as j from (select ${colSql()} from r) x` : del;
         }
         const o = st.order.length ? ` order by ${st.order.join(", ")}` : "";
         const l = st.limit !== null ? ` limit ${st.limit} offset ${st.offset}` : "";
@@ -203,6 +208,7 @@ export function sessionFor(db, userId, { role: dbRole = userId ? "authenticated"
         is(c, v) { st.where.push(`${col(c)} is ${v === null ? "null" : lit(v)}`); return chain; },
         lt(c, v) { st.where.push(`${col(c)} < ${lit(v)}`); return chain; },
         lte(c, v) { st.where.push(`${col(c)} <= ${lit(v)}`); return chain; },
+        gt(c, v) { st.where.push(`${col(c)} > ${lit(v)}`); return chain; },
         gte(c, v) { st.where.push(`${col(c)} >= ${lit(v)}`); return chain; },
         ilike(c, v) { st.where.push(`${col(c)} ilike ${q(v)}`); return chain; },
         or(str) {

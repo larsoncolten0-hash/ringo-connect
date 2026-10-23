@@ -23,6 +23,8 @@ const GUARD_CODES: Record<string, Outcome> = {
   church_membership_link_immutable: { status: 422, code: "invalid" },
   church_tenant_immutable: { status: 422, code: "invalid" },
   church_profile_required: { status: 403, code: "not_available" },
+  daily_word_profile_required: { status: 403, code: "not_available" },
+  daily_word_tenant_immutable: { status: 422, code: "invalid" },
 };
 
 // constraint names -> public code (a unique index surfaces as 23505 with the index name in the message)
@@ -37,6 +39,8 @@ const CONSTRAINT_CODES: Array<[RegExp, Outcome]> = [
   [/church_members_adult_no_guardian_check/, { status: 422, code: "adult_no_guardian" }],
   [/church_members_no_self_guardian_check/, { status: 422, code: "invalid_guardian" }],
   [/church_members_guardian_fk/, { status: 409, code: "guardian_in_use" }],
+  [/daily_words_one_published_per_day_key/, { status: 409, code: "date_taken" }],
+  [/daily_words_publish_content_check/, { status: 422, code: "needs_title_and_body" }],
 ];
 
 export function classifyDbError(error: DbError): Outcome {

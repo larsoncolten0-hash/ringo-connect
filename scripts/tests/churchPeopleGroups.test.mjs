@@ -192,7 +192,8 @@ const invite = (iid, role, by, prof = prof1) => `insert into public.organization
   suite = "[static] ";
   const code = stripComments(MIG);
   const files = fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
-  check("it is the newest migration and follows the church category migration", files[files.length - 1] === "2026-12-27_church_people_groups.sql" && files[files.length - 2] === "2026-12-26_church_category.sql", files.slice(-3).join(","));
+  // Phase 3 adds exactly one later migration (2026-12-28_daily_words.sql); this one must still directly follow the church category migration and be followed by nothing else.
+  check("it follows the church category migration, and only the Phase 3 daily_words migration comes after it", files[files.length - 2] === "2026-12-27_church_people_groups.sql" && files[files.length - 3] === "2026-12-26_church_category.sql" && files[files.length - 1] === "2026-12-28_daily_words.sql", files.slice(-4).join(","));
   check("one transaction with a lock timeout, preconditions and postconditions", /^\s*begin;/m.test(code) && /commit;\s*$/.test(code.trim()) && /set local lock_timeout/.test(code) && /precondition failed/.test(code) && /postcondition failed/.test(code));
   check("the four tables are created and nothing else is created as a table", (code.match(/create table if not exists public\.\w+/g) || []).join(",") === "create table if not exists public.church_members,create table if not exists public.church_groups,create table if not exists public.church_group_members,create table if not exists public.church_leadership");
   check("no existing table is altered, and no existing policy / trigger / function is dropped or replaced", !/alter table public\.(profiles|users|plans|organization_\w+|ringo_customers)/i.test(code)

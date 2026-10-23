@@ -11,5 +11,6 @@ export default async function ChurchIndexPage() {
   if (caps.viewMembers || caps.viewChildren) redirect("/dashboard/church/people");
   if (caps.viewGroups) redirect("/dashboard/church/groups");
   if (caps.viewLeadership) redirect("/dashboard/church/leadership");
+  if (caps.viewContent) redirect("/dashboard/church/content");
   redirect("/dashboard");
 }

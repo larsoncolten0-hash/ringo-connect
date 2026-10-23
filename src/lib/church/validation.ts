@@ -23,11 +23,11 @@ export type Checked<T> = Valid<T> | Invalid;
 const bad = (code: string, field?: string): Invalid => ({ ok: false, code, field });
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const isUuid = (v: unknown): v is string => typeof v === "string" && UUID.test(v);
-const has = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
+export const has = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 const oneOf = <T extends string>(list: readonly T[], v: unknown): v is T => typeof v === "string" && (list as readonly string[]).includes(v);
 
 /** Refuses anything that is not a plain JSON object, and any key outside `allowed`. */
-function plainObject(body: unknown, allowed: readonly string[]): Checked<Record<string, unknown>> {
+export function plainObject(body: unknown, allowed: readonly string[]): Checked<Record<string, unknown>> {
   if (!body || typeof body !== "object" || Array.isArray(body)) return bad("invalid_body");
   for (const k of Object.keys(body)) if (!allowed.includes(k)) return bad("unexpected_field", k);
   return { ok: true, value: body as Record<string, unknown> };
@@ -43,7 +43,7 @@ function text(v: unknown, field: string, min: number, max: number): Checked<stri
   return { ok: true, value: s };
 }
 
-function optionalText(v: unknown, field: string, max: number, multiline = false): Checked<string | null> {
+export function optionalText(v: unknown, field: string, max: number, multiline = false): Checked<string | null> {
   if (v === null || v === undefined) return { ok: true, value: null };
   if (typeof v !== "string") return bad("invalid_" + field, field);
   const s = (multiline ? v.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ") : v.replace(/\s+/g, " ")).trim();

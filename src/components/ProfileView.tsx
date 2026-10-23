@@ -48,6 +48,8 @@ import dynamic from "next/dynamic";
 import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 import OptImg from "@/components/ui/OptImg";
 import ChurchVisitCard from "@/components/church/ChurchVisitCard";
+import DailyWordCard from "@/components/church/DailyWordCard";
+import type { PublicWord } from "@/lib/church/content/publicWord";
 import { CHURCH_CATEGORY, getChurchTypeLabel, getChurchVisit } from "@/lib/church/publicPage";
 
 // The Music artist profile has its own composition (components/music/profile). Loaded only for the music_entertainment category, so every other profile keeps its
@@ -72,6 +74,7 @@ export default function ProfileView({
   preview = false,
   isOwner = false,
   staffBadges = [],
+  dailyWords = [],
 }: {
   profile: any;
   pixelsEnabled?: boolean;
@@ -97,6 +100,8 @@ export default function ProfileView({
   // real render beyond just passing an empty array from the dashboard's
   // live preview, which doesn't fetch this at all.
   staffBadges?: { orgUsername: string; orgName: string; orgAvatarUrl: string | null; roleName: string }[];
+  // Churches only: the published Daily Words (newest first), loaded server-side in src/app/[username]/page.tsx. Empty everywhere else, and in the editor preview.
+  dailyWords?: PublicWord[];
 }) {
   const { t, locale } = useLanguage();
   const [showCatalog, setShowCatalog] = useState(true);
@@ -1003,6 +1008,19 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             <ChurchVisitCard
               t={t}
               visit={churchVisit}
+              accent={accent}
+              accentText={panelAccentText}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              radiusClass={radiusClass}
+            />
+          )}
+
+          {isChurch && dailyWords.length > 0 && (
+            <DailyWordCard
+              t={t}
+              locale={locale}
+              words={dailyWords}
               accent={accent}
               accentText={panelAccentText}
               textColor={contentTextColor}
