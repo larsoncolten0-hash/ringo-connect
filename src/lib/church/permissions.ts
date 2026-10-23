@@ -21,8 +21,28 @@ export const CHURCH_SENSITIVE_PERMISSIONS = ["church.children.view", "church.chi
  *  can give them. view: read every entry incl. drafts; manage: create / edit / delete DRAFTS; publish: publish, schedule, unpublish, and edit or delete a LIVE entry. */
 export const CHURCH_CONTENT_PERMISSIONS = ["church.content.view", "church.content.manage", "church.content.publish"] as const;
 
-/** Every church permission the Team role editor can hand out in this phase. */
-export const CHURCH_PERMISSIONS = [...CHURCH_ORDINARY_PERMISSIONS, ...CHURCH_SENSITIVE_PERMISSIONS, ...CHURCH_CONTENT_PERMISSIONS] as const;
+/** Events & Announcements (Phase 4). view: read every entry incl. drafts; manage: create / edit / delete DRAFTS; publish: publish, unpublish, and edit or delete a LIVE entry. Owner-only to grant, like every `church.*` string the 2A guards do not list. */
+export const CHURCH_EVENTS_PERMISSIONS = ["church.events.view", "church.events.manage", "church.events.publish"] as const;
+
+/** Bible programs (Phase 5). Same three levels as events. Staff never see WHO takes part in a program: only counts. Owner-only to grant. */
+export const CHURCH_BIBLE_PERMISSIONS = ["church.bible.view", "church.bible.manage", "church.bible.publish"] as const;
+
+/** Attendance (Phase 7). view: read the attendance of an event; manage: record and remove it. Recording also needs the People view permission (the roster picker). Owner-only to grant. */
+export const CHURCH_ATTENDANCE_PERMISSIONS = ["church.attendance.view", "church.attendance.manage"] as const;
+
+/** Church Music (Phase 8). manage: add, edit, hide and remove the music links of the church page. Owner-only to grant. */
+export const CHURCH_MUSIC_PERMISSIONS = ["church.music.manage"] as const;
+
+/** Every church permission the Team role editor can hand out. */
+export const CHURCH_PERMISSIONS = [
+  ...CHURCH_ORDINARY_PERMISSIONS,
+  ...CHURCH_SENSITIVE_PERMISSIONS,
+  ...CHURCH_CONTENT_PERMISSIONS,
+  ...CHURCH_EVENTS_PERMISSIONS,
+  ...CHURCH_BIBLE_PERMISSIONS,
+  ...CHURCH_ATTENDANCE_PERMISSIONS,
+  ...CHURCH_MUSIC_PERMISSIONS,
+] as const;
 
 export type ChurchPermission = (typeof CHURCH_PERMISSIONS)[number];
 
@@ -70,6 +90,19 @@ export interface ChurchCapabilities {
   /** Create, edit and delete DRAFTS (the publish permission also holds this, as in the daily_words write policies). */
   manageContent: boolean;
   publishContent: boolean;
+  /** Events & Announcements: any of the three opens reading (drafts included); manage also holds with publish, as in the ministry_* write policies. */
+  viewEvents: boolean;
+  manageEvents: boolean;
+  publishEvents: boolean;
+  /** Bible programs. */
+  viewBible: boolean;
+  manageBible: boolean;
+  publishBible: boolean;
+  /** Attendance. */
+  viewAttendance: boolean;
+  manageAttendance: boolean;
+  /** Church Music links. */
+  manageMusic: boolean;
 }
 
 export function churchCapabilities(permissions: readonly string[]): ChurchCapabilities {
@@ -92,6 +125,15 @@ export function churchCapabilities(permissions: readonly string[]): ChurchCapabi
     viewContent: has("church.content.view") || has("church.content.manage") || has("church.content.publish"),
     manageContent: has("church.content.manage") || has("church.content.publish"),
     publishContent: has("church.content.publish"),
+    viewEvents: has("church.events.view") || has("church.events.manage") || has("church.events.publish"),
+    manageEvents: has("church.events.manage") || has("church.events.publish"),
+    publishEvents: has("church.events.publish"),
+    viewBible: has("church.bible.view") || has("church.bible.manage") || has("church.bible.publish"),
+    manageBible: has("church.bible.manage") || has("church.bible.publish"),
+    publishBible: has("church.bible.publish"),
+    viewAttendance: has("church.attendance.view") || has("church.attendance.manage"),
+    manageAttendance: has("church.attendance.manage"),
+    manageMusic: has("church.music.manage"),
   };
 }
 

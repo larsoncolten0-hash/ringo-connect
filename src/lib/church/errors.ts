@@ -25,6 +25,31 @@ const GUARD_CODES: Record<string, Outcome> = {
   church_profile_required: { status: 403, code: "not_available" },
   daily_word_profile_required: { status: 403, code: "not_available" },
   daily_word_tenant_immutable: { status: 422, code: "invalid" },
+  // Phase 4 (events and announcements)
+  ministry_profile_required: { status: 403, code: "not_available" },
+  ministry_tenant_immutable: { status: 422, code: "invalid" },
+  // Phase 7 (attendance)
+  attendance_immutable: { status: 409, code: "invalid" },
+  attendance_tenant_immutable: { status: 422, code: "invalid" },
+  attendance_event_missing: { status: 404, code: "not_found" },
+  attendance_member_missing: { status: 404, code: "member_not_found" },
+  attendance_event_not_published: { status: 409, code: "event_not_open" },
+  attendance_event_cancelled: { status: 409, code: "event_cancelled" },
+  attendance_event_not_started: { status: 409, code: "event_not_started" },
+  attendance_child_not_allowed: { status: 422, code: "child_not_allowed" },
+  attendance_member_not_active: { status: 422, code: "member_not_active" },
+  // Phase 5 (Bible programs)
+  bible_profile_required: { status: 403, code: "not_available" },
+  bible_tenant_immutable: { status: 422, code: "invalid" },
+  bible_program_needs_sessions: { status: 422, code: "needs_sessions" },
+  bible_session_limit: { status: 422, code: "session_limit" },
+  bible_program_unavailable: { status: 409, code: "program_unavailable" },
+  bible_enrollment_immutable: { status: 409, code: "invalid" },
+  bible_progress_immutable: { status: 409, code: "invalid" },
+  // Phase 8 (music links)
+  music_profile_required: { status: 403, code: "not_available" },
+  music_tenant_immutable: { status: 422, code: "invalid" },
+  music_link_limit: { status: 422, code: "music_link_limit" },
 };
 
 // constraint names -> public code (a unique index surfaces as 23505 with the index name in the message)
@@ -41,6 +66,25 @@ const CONSTRAINT_CODES: Array<[RegExp, Outcome]> = [
   [/church_members_guardian_fk/, { status: 409, code: "guardian_in_use" }],
   [/daily_words_one_published_per_day_key/, { status: 409, code: "date_taken" }],
   [/daily_words_publish_content_check/, { status: 422, code: "needs_title_and_body" }],
+  // Phase 4
+  [/ministry_events_times_check/, { status: 422, code: "invalid_time_range" }],
+  [/ministry_events_online_url_check/, { status: 422, code: "invalid_online_url" }],
+  [/ministry_events_publish_content_check/, { status: 422, code: "needs_title" }],
+  [/ministry_announcements_publish_content_check/, { status: 422, code: "needs_title_and_body" }],
+  // Phase 7: an event that has attendance cannot be deleted (the foreign key is NO ACTION); recording twice is a unique-key conflict; a count outside its range
+  [/update or delete on table "ministry_events" violates foreign key constraint "ministry_attendance(_counts)?_event_fk"/, { status: 409, code: "event_has_attendance" }],
+  [/ministry_attendance_event_member_key/, { status: 409, code: "already_recorded" }],
+  [/ministry_attendance_counts_(visitors|children)_check/, { status: 422, code: "invalid_count" }],
+  // Phase 5: a programme without a title cannot be published; a session needs a title; a position is taken; a programme with participants cannot be deleted
+  [/bible_programs_publish_content_check/, { status: 422, code: "needs_title" }],
+  [/bible_program_sessions_title_check/, { status: 422, code: "session_needs_title" }],
+  [/bible_program_sessions_position_key/, { status: 409, code: "try_again" }],
+  [/update or delete on table "bible_programs" violates foreign key constraint "bible_enrollments_program_fk"/, { status: 409, code: "program_has_participants" }],
+  // Phase 8: the same address twice; a bad address, label, platform or order
+  [/ministry_music_links_profile_url_key/, { status: 409, code: "link_exists" }],
+  [/ministry_music_links_url_check/, { status: 422, code: "invalid_url" }],
+  [/ministry_music_links_title_check/, { status: 422, code: "invalid_title" }],
+  [/ministry_music_links_platform_check/, { status: 422, code: "invalid_platform" }],
 ];
 
 export function classifyDbError(error: DbError): Outcome {

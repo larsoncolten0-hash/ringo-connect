@@ -10,6 +10,10 @@ export const REPO = fileURLToPath(new URL("../../", import.meta.url));
 const read = (p) => fs.readFileSync(path.join(REPO, p), "utf8").replace(/\r\n/g, "\n");
 export const MIG = read("supabase/migrations/2026-12-27_church_people_groups.sql");
 export const DW_MIG = read("supabase/migrations/2026-12-28_daily_words.sql");
+export const EV_MIG = read("supabase/migrations/2026-12-29_ministry_events_announcements.sql");
+export const BI_MIG = read("supabase/migrations/2026-12-30_bible_programs.sql");
+export const AT_MIG = read("supabase/migrations/2026-12-31_ministry_attendance.sql");
+export const MU_MIG = read("supabase/migrations/2027-01-01_ministry_music_links.sql");
 const TEAM01 = read("supabase/migrations/2026-10-01_team_management.sql").split("\n").slice(27, 261).join("\n");
 const TEAM03 = read("supabase/migrations/2026-10-03_team_rls_enterprise_gate.sql");
 const TEAM04 = read("supabase/migrations/2026-10-04_team_members_read_fix.sql");
@@ -45,7 +49,7 @@ const BASE = `
   alter default privileges in schema public grant execute on functions to public;
   create table public.plans (id uuid primary key default gen_random_uuid(), name text, team_enabled boolean not null default false);
   create table public.users (id uuid primary key, role text not null default 'user', plan_id uuid references public.plans(id));
-  create table public.profiles (id uuid primary key, user_id uuid not null references public.users(id) on delete cascade, category text, categories text[] not null default '{}', published boolean not null default true,
+  create table public.profiles (id uuid primary key, user_id uuid not null references public.users(id) on delete cascade, category text, categories text[] not null default '{}', published boolean not null default true, username text, name text, is_demo boolean not null default false,
     constraint profiles_category_check check (category is null or category in ('music_entertainment', 'other', 'church_ministries')));
   create table public.ringo_customers (id uuid primary key default gen_random_uuid());
   create function public.is_admin() returns boolean language sql stable security definer as $$ select exists (select 1 from public.users where id = auth.uid() and role = 'admin') $$;
@@ -56,7 +60,7 @@ const BASE = `
   create policy "profiles delete by owner or admin" on public.profiles for delete using (auth.uid() = user_id or public.is_admin());
 `;
 
-export async function newDb(PGlite, { dailyWords = false } = {}) {
+export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false } = {}) {
   const db = new PGlite();
   await db.exec(BASE);
   await db.exec(TEAM01); await db.exec(TEAM03); await db.exec(TEAM04);
@@ -64,6 +68,10 @@ export async function newDb(PGlite, { dailyWords = false } = {}) {
   await db.exec(CEILING); await db.exec(INBOX);
   await db.exec(MIG);
   if (dailyWords) await db.exec(DW_MIG);
+  if (events) await db.exec(EV_MIG);
+  if (bible) await db.exec(BI_MIG);
+  if (attendance) await db.exec(AT_MIG);
+  if (music) await db.exec(MU_MIG);
   return db;
 }
 
@@ -152,6 +160,14 @@ export function sessionFor(db, userId, { role: dbRole = userId ? "authenticated"
   return {
     log,
     auth: { getUser: async () => ({ data: { user: userId ? { id: userId } : null } }) },
+    // like supabase-js: a named-argument call of a database function (public schema); the answer is the function's value
+    async rpc(fn, args = {}) {
+      const named = Object.entries(args).map(([k, v]) => `"${k}" => ${lit(v)}`).join(", ");
+      try {
+        const r = await run(`select to_jsonb(public."${fn}"(${named})) as j`);
+        return { data: r.rows[0] ? r.rows[0].j : null, error: null };
+      } catch (e) { return { data: null, error: dbErr(e) }; }
+    },
     from(table) {
       const st = { cols: "*", where: [], order: [], limit: null, offset: 0, mode: "select", values: null, head: false, count: false, returning: false, inner: false };
       const colSql = () => st.cols === "*" ? "*" : splitCols(st.cols).filter((c) => !c.includes("(")).map((c) => `"${c}"`).join(", ");
@@ -160,8 +176,10 @@ export function sessionFor(db, userId, { role: dbRole = userId ? "authenticated"
       const whereSql = () => (st.where.length ? ` where ${st.where.join(" and ")}` : "");
       const sql = () => {
         if (st.mode === "insert") {
-          const keys = Object.keys(st.values);
-          const ins = `insert into public."${table}" (${keys.map((k) => `"${k}"`).join(",")}) values (${keys.map((k) => lit(st.values[k])).join(",")})`;
+          // like PostgREST, an array inserts several rows in ONE statement (all or none)
+          const list = Array.isArray(st.values) ? st.values : [st.values];
+          const keys = Object.keys(list[0]);
+          const ins = `insert into public."${table}" (${keys.map((k) => `"${k}"`).join(",")}) values ${list.map((row) => `(${keys.map((k) => lit(row[k])).join(",")})`).join(",")}`;
           return st.returning ? `with r as (${ins} returning ${retSql()}) select coalesce(json_agg(x), '[]'::json) as j from (select ${colSql()} from r) x` : `${ins}`;
         }
         if (st.mode === "update") {

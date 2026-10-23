@@ -13,5 +13,9 @@ export default async function ChurchLayout({ children }: { children: React.React
   const { actor } = access;
   // a group leader is a person on the roster, not a dashboard user: they have no church workspace here
   if (actor.kind === "leader") return <NoAccess />;
-  return <ChurchShell caps={actor.caps}>{children}</ChurchShell>;
+  return (
+    <ChurchShell caps={actor.caps} isOwner={actor.kind === "owner"}>
+      {children}
+    </ChurchShell>
+  );
 }

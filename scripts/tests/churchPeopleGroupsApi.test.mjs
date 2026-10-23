@@ -767,11 +767,13 @@ section = "H. privacy of the public surface and static guarantees (scenario 14):
   // line comments FIRST: a comment such as "/api/church/**" must not be mistaken for the start of a block comment
   const noComments = (t) => t.replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/\/\*[\s\S]*?\*\//g, "");
   const bad = (re) => churchCode.filter((f) => re.test(noComments(fs.readFileSync(f, "utf8")))).map(rel);
-  eq("no service-role client in church code", bad(/createAdminClient|SUPABASE_SERVICE_ROLE_KEY/), []);
+  // Phase 5: the visitor-side Bible journey routes act for a signed-in My Ringo CUSTOMER (not a staff user), so they are the one place that uses the service client, behind the customer session and same-origin check.
+  eq("no service-role client in church code", bad(/createAdminClient|SUPABASE_SERVICE_ROLE_KEY/), ["src/lib/church/bible/customerRoute.ts"]);
   eq("no has_org_permission / platform-admin helper in church code", bad(/has_org_permission|getOrgAccess|requireOrgAccess|assertAdmin|is_admin/), []);
   eq("no select(\"*\") on a church table", bad(/select\(\s*["'`]\*["'`]/), []);
   eq("no export / download / csv code", bad(/\bcsv\b|text\/csv|Content-Disposition|\.xlsx|church\.export/i), []);
-  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), []);
+  // Phase 5: two named database functions (bible_program_stats, bible_session_move) are called through the caller's own session; there is no raw SQL anywhere.
+  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), ["src/lib/church/bible/handlers.ts"]);
   eq("no profile id read from a request in the church routes", files.filter((f) => rel(f).startsWith("src/app/api/church/") && /profileId|profile_id|searchParams/.test(fs.readFileSync(f, "utf8").replace(/\/\/.*$/gm, ""))).map(rel), []);
   eq("no use of localStorage / sessionStorage / console.log in church code", bad(/localStorage|sessionStorage|console\.log/), []);
   // the public profile surface is untouched

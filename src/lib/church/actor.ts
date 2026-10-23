@@ -33,7 +33,7 @@ export interface ChurchActor {
 export type ChurchActorResult = { ok: true; actor: ChurchActor } | { ok: false; reason: ChurchDenial };
 
 /** The slice of the Supabase client the church code uses (structural, so tests can supply a database-backed double). */
-export type ChurchDb = { from(table: string): any; auth: { getUser(): Promise<{ data: { user: { id: string } | null } }> } };
+export type ChurchDb = { from(table: string): any; rpc(fn: string, args?: Record<string, unknown>): PromiseLike<{ data: any; error: any }>; auth: { getUser(): Promise<{ data: { user: { id: string } | null } }> } };
 
 interface Candidate {
   kind: ChurchActorKind;

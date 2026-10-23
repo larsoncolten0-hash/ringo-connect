@@ -73,7 +73,8 @@ const en = translations.en.churchPeople, fr = translations.fr.churchPeople;
   for (const k of [...codes]) if (k.endsWith("_")) codes.delete(k); // "invalid_" + field is expanded below
   codes.delete("invalid_q"); codes.delete("invalid_group_id"); codes.delete("invalid_current"); // list-query problems a screen cannot produce (its controls only send valid values)
   // the shared church codes live here; the Content Studio's own codes (date_taken, needs_title_and_body ...) live in churchContent.errors and are checked, with the content routes' codes, in churchContentUi.test.mjs
-  const has = (loc, c) => !!(translations[loc].churchPeople.errors[c] || translations[loc].churchContent.errors[c]);
+  // the later phases keep their own sentences in their own namespaces (each is checked with its routes in its own suite); a code must still exist in BOTH languages
+  const has = (loc, c) => !!(translations[loc].churchPeople.errors[c] || translations[loc].churchContent.errors[c] || translations[loc].churchEvents.errors[c] || translations[loc].churchAttendance.errors[c] || translations[loc].churchBible.errors[c] || translations[loc].churchMusic.errors[c]);
   const missing = [...codes].filter((c) => !has("en", c) || !has("fr", c));
   check("every code the server can send has a sentence in English AND French", missing.length === 0, missing.join(", "));
   check("generic fallback exists in both languages", !!en.errors.generic && !!fr.errors.generic);

@@ -50,6 +50,10 @@ import OptImg from "@/components/ui/OptImg";
 import ChurchVisitCard from "@/components/church/ChurchVisitCard";
 import DailyWordCard from "@/components/church/DailyWordCard";
 import type { PublicWord } from "@/lib/church/content/publicWord";
+import { ChurchAnnouncementsCard, ChurchEventsCard } from "@/components/church/ChurchEventsCards";
+import ChurchBibleCard from "@/components/church/ChurchBibleCard";
+import ChurchMusicCard from "@/components/church/ChurchMusicCard";
+import { EMPTY_CHURCH_PUBLIC, type ChurchPublicExtras } from "@/lib/church/public";
 import { CHURCH_CATEGORY, getChurchTypeLabel, getChurchVisit } from "@/lib/church/publicPage";
 
 // The Music artist profile has its own composition (components/music/profile). Loaded only for the music_entertainment category, so every other profile keeps its
@@ -75,6 +79,7 @@ export default function ProfileView({
   isOwner = false,
   staffBadges = [],
   dailyWords = [],
+  churchPublic = EMPTY_CHURCH_PUBLIC,
 }: {
   profile: any;
   pixelsEnabled?: boolean;
@@ -102,6 +107,8 @@ export default function ProfileView({
   staffBadges?: { orgUsername: string; orgName: string; orgAvatarUrl: string | null; roleName: string }[];
   // Churches only: the published Daily Words (newest first), loaded server-side in src/app/[username]/page.tsx. Empty everywhere else, and in the editor preview.
   dailyWords?: PublicWord[];
+  // Churches only: events, announcements and the other church modules, loaded server-side in src/app/[username]/page.tsx. Empty everywhere else, and in the editor preview.
+  churchPublic?: ChurchPublicExtras;
 }) {
   const { t, locale } = useLanguage();
   const [showCatalog, setShowCatalog] = useState(true);
@@ -1021,6 +1028,57 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               t={t}
               locale={locale}
               words={dailyWords}
+              accent={accent}
+              accentText={panelAccentText}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              radiusClass={radiusClass}
+            />
+          )}
+
+          {isChurch && churchPublic.announcements.length > 0 && (
+            <ChurchAnnouncementsCard
+              t={t}
+              locale={locale}
+              announcements={churchPublic.announcements}
+              accent={accent}
+              accentText={panelAccentText}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              radiusClass={radiusClass}
+            />
+          )}
+
+          {isChurch && churchPublic.events.length > 0 && (
+            <ChurchEventsCard
+              t={t}
+              locale={locale}
+              events={churchPublic.events}
+              accent={accent}
+              accentText={panelAccentText}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              radiusClass={radiusClass}
+            />
+          )}
+
+          {isChurch && churchPublic.programs.length > 0 && (
+            <ChurchBibleCard
+              t={t}
+              locale={locale}
+              programs={churchPublic.programs}
+              accent={accent}
+              accentText={panelAccentText}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              radiusClass={radiusClass}
+            />
+          )}
+
+          {isChurch && churchPublic.music.length > 0 && (
+            <ChurchMusicCard
+              t={t}
+              links={churchPublic.music}
               accent={accent}
               accentText={panelAccentText}
               textColor={contentTextColor}
