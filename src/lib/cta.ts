@@ -58,6 +58,8 @@ const CATEGORY_PRESETS: Record<string, CtaPresetId[]> = {
   music_entertainment: ["buy_now", "shop_now", "get_yours"],
   business_ecommerce: ["buy_now", "shop_now", "get_yours"],
   agriculture_agribusiness: ["buy_now", "shop_now", "get_yours"],
+  // The Church Store sells books, media and church items: members can buy directly (digital or physical).
+  church_ministries: ["buy_now", "shop_now", "get_yours"],
   restaurant_food: ["order_now", "place_order"],
   beauty_wellness: ["book_now", "book_treatment", "reserve_now", "request_booking"],
   health_medical: ["book_appointment", "book_consultation", "request_booking"],

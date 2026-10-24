@@ -104,6 +104,11 @@ export default function CatalogCard({
       whatsapp_message: null,
       available: true,
       inventory_count: null,
+      // A church's new product starts with the same fields a saved one already has, so "Physical / Digital" and the customer action (Buy now) are there from the first tap. Every other category
+      // adds exactly the row it always did (the save only sends these fields when the row carries them, so nothing else changes).
+      ...(profileHasCategory(draft, "church_ministries")
+        ? { product_type: "physical", digital_file_path: null, digital_file_name: null, digital_file_size_bytes: null, digital_file_mime: null, cta_preset: null, cta_label: null }
+        : {}),
     } as any);
     setJustAddedId(row.id);
   };

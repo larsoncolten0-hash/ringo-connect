@@ -7129,7 +7129,7 @@ export const fr: Translations = {
           unsaved: "Vous avez des modifications non enregistrées.",
           leaveWarning: "Vous avez des modifications non enregistrées. Quitter sans enregistrer ?",
           publishTitle: "Publier cette annonce maintenant ?",
-          publishBody: "Elle devient publique sur votre page tout de suite. Elle y reste jusqu'à son dernier jour, ou jusqu'à ce que vous la dépubliiez.",
+          publishBody: "Elle devient publique sur votre page tout de suite. Elle y reste jusqu'à son dernier jour, ou jusqu'à ce que vous la dépubliez.",
           publishConfirm: "Publier",
           published: "Publiée. Elle est maintenant publique sur votre page.",
           unpublishTitle: "Dépublier cette annonce ?",
@@ -7146,7 +7146,7 @@ export const fr: Translations = {
           loadError: "Nous n'avons pas pu ouvrir cette annonce.",
         },
         fields: {
-          expires_on: { label: "Dernier jour d'affichage", help: "Après ce jour, l'avis disparaît de votre page tout seul. Laissez vide pour le garder jusqu'à ce que vous le dépubliiez." },
+          expires_on: { label: "Combien de temps l'afficher ?", help: "Après le dernier jour, l'annonce quitte votre page publique toute seule (heure du Cameroun). « Cette semaine » se termine dimanche à minuit ; publiée un dimanche, elle reste une semaine entière.", options: { week: "Cette semaine", month: "1 mois", year: "1 an", none: "Sans date de fin", date: "Dernier jour d'affichage" } },
           title: { label: "Titre", placeholder: "ex. Inscriptions à la retraite des jeunes" },
           body: { label: "Message", placeholder: "Rédigez l'avis" },
         },
@@ -7205,6 +7205,15 @@ export const fr: Translations = {
         contactTitle: "Nous contacter",
         resourcesTitle: "Plus de notre part",
         backToTop: "Retour en haut",
+        slides: {
+          pause: "Mettre le diaporama en pause",
+          play: "Lancer le diaporama",
+          previous: "Précédent",
+          next: "Suivant",
+          goTo: (n: number) => `Afficher l'élément ${n}`,
+          position: (n: number, total: number) => `${n} sur ${total}`,
+          announcementsLabel: "Annonces",
+        },
       },
       home: {
         title: "Église",

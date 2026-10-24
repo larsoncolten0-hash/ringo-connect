@@ -116,7 +116,7 @@ section("D. PRIVACY: counts only, nothing about a person, a child, care or money
   const src = fs.readFileSync(path.join(REPO, "src/lib/ai/tools/definitions/churchReport.ts"), "utf8").replace(/\/\/[^\n]*/g, "");
   check("the tool code references no care, beneficiary, consent, payment or admin-client code", !/ministry_care|beneficiar|consent|fapshi|stripe|payment|contribution|ledger|createAdminClient|church_members|full_name/i.test(src), (src.match(/ministry_care|beneficiar|consent|fapshi|stripe|payment|contribution|ledger|createAdminClient|church_members|full_name/i) || [""])[0]);
   const know = fs.readFileSync(path.join(REPO, "src/lib/ai/knowledge/modules/churchMinistries.ts"), "utf8");
-  check("the knowledge module is version 5 and states the AI's limits", /version: 5,/.test(know) && /get_my_church_report/.test(know) && /no access to individual people, children/i.test(know));
+  check("the knowledge module is version 6 (announcement durations, weekly testimonies, store) and still states the AI's limits", /version: 6,/.test(know) && /get_my_church_report/.test(know) && /no access to individual people, children/i.test(know));
   check("the knowledge no longer claims reports do not exist", !/church reports, exports, attendance reports/.test(know) && !/no attendance reports or exports yet/.test(know));
   check("the knowledge still says care and giving are not available", /care and support[^.]*not available yet/.test(know) && /giving or donations/.test(know));
 }

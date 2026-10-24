@@ -21,6 +21,8 @@ export interface FieldDef {
   optional?: boolean;
   /** Shown in two columns beside the next field on wide screens. */
   half?: boolean;
+  /** For a "date": quick choices that fill it in. "announcement" = This week (until Sunday midnight), 1 month, 1 year, No end date (labels in the field text's `options`: week, month, year, none, date). */
+  presets?: "announcement";
 }
 
 export interface FieldText {

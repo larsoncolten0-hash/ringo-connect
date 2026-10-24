@@ -24,7 +24,7 @@ type Reader = { from(table: string): any; rpc(fn: string, args?: Record<string, 
 
 export async function loadChurchPublic(supabase: Reader, profileId: string, now: number = Date.now()): Promise<ChurchPublicExtras> {
   try {
-    const [events, announcements, programs, music, care, testimonies] = await Promise.all([loadPublicEvents(supabase, profileId, now), loadPublicAnnouncements(supabase, profileId, now), loadPublicPrograms(supabase, profileId), loadPublicMusic(supabase, profileId), loadPublicCare(supabase, profileId), loadPublicTestimonies(supabase, profileId)]);
+    const [events, announcements, programs, music, care, testimonies] = await Promise.all([loadPublicEvents(supabase, profileId, now), loadPublicAnnouncements(supabase, profileId, now), loadPublicPrograms(supabase, profileId), loadPublicMusic(supabase, profileId), loadPublicCare(supabase, profileId), loadPublicTestimonies(supabase, profileId, now)]);
     return { events, announcements, programs, music, care, testimonies };
   } catch {
     return EMPTY_CHURCH_PUBLIC;

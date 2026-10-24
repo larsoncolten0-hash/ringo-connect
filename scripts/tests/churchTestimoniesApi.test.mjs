@@ -301,7 +301,7 @@ section("H. NOTHING PRIVATE LEAKS TO THE PUBLIC: ");
   check("shape: a blank name becomes null", S([good(4, { display_name: "   " })])[0].display_name === null);
   const fake = (res, seen = {}) => ({ rpc: async (fn, args) => { seen.fn = fn; seen.args = args; return res; } });
   const seen = {};
-  check("loader: calls the one public function with only the church id", (await PT.loadPublicTestimonies(fake({ data: [good(5)], error: null }, seen), prof.c1)).length === 1 && seen.fn === "ministry_testimonies_public" && JSON.stringify(seen.args) === JSON.stringify({ p_profile_id: prof.c1 }));
+  check("loader: calls the one public function with only the church id", (await PT.loadPublicTestimonies(fake({ data: [good(5, { published_at: new Date().toISOString() })], error: null }, seen), prof.c1)).length === 1 && seen.fn === "ministry_testimonies_public" && JSON.stringify(seen.args) === JSON.stringify({ p_profile_id: prof.c1 }));
   check("loader: an error or a throw gives []", (await PT.loadPublicTestimonies(fake({ data: null, error: { code: "42883" } }), prof.c1)).length === 0 && (await PT.loadPublicTestimonies({ rpc() { throw new Error("x"); } }, prof.c1)).length === 0);
   const src = fs.readFileSync(path.join(REPO, "src/lib/church/public/testimonies.ts"), "utf8").replace(/\/\/[^\n]*/g, "");
   check("the public loader reads no table at all (only the function)", !/\.from\(/.test(src) && !/createAdminClient/.test(src));
@@ -332,7 +332,7 @@ section("I. text and scope: ");
   const reports = ["period", "build", "csv", "handlers"].map((f) => fs.readFileSync(path.join(REPO, `src/lib/church/reports/${f}.ts`), "utf8")).join("\n").replace(/\/\/[^\n]*/g, "");
   check("Ringo AI's tool and the reports never read a testimony", !/ministry_testimon/i.test(aiTool) && !/ministry_testimon/i.test(reports));
   const know = fs.readFileSync(path.join(REPO, "src/lib/ai/knowledge/modules/churchMinistries.ts"), "utf8");
-  check("the knowledge says testimonies exist, are private, and that Ringo AI cannot see them", /version: 5,/.test(know) && /Share your testimony/.test(know) && /Ringo AI has NO access to testimonies/.test(know) && /Nobody, not even the owner, can grant that permission/.test(know));
+  check("the knowledge says testimonies exist, are private, and that Ringo AI cannot see them", /version: 6,/.test(know) && /Share your testimony/.test(know) && /Ringo AI has NO access to testimonies/.test(know) && /Nobody, not even the owner, can grant that permission/.test(know));
   eq("the service-role client was never used by a staff route", globalThis.__adminClientCalls, 0);
 }
 

@@ -327,7 +327,7 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
           {hasNews && (
             <div id={anchor("news")} className={`${sectionCls} grid gap-12 lg:gap-14 ${churchPublic.events.length > 0 && churchPublic.announcements.length > 0 ? "lg:grid-cols-[1fr_1.45fr]" : ""}`}>
               {/* the notes first (they are short and current), then the dated events in the wider column */}
-              {churchPublic.announcements.length > 0 && <ChurchAnnouncementsCard t={t} locale={locale} announcements={churchPublic.announcements} {...card} />}
+              {churchPublic.announcements.length > 0 && <ChurchAnnouncementsCard t={t} locale={locale} announcements={churchPublic.announcements} rotate {...card} />}
               {churchPublic.events.length > 0 && <ChurchEventsCard t={t} locale={locale} events={churchPublic.events} {...card} />}
             </div>
           )}

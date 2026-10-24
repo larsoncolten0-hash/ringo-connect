@@ -8,6 +8,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import type { ChurchCapabilities } from "@/lib/church/permissions";
 import { Badge, BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY, ConfirmDialog, ErrorLine, Field, INPUT, ListSkeleton, NoticeBar, churchApi, useNotice } from "../people/shared";
 import { churchErrorText } from "./errorText";
+import { ANNOUNCEMENT_DURATIONS, announcementEnd } from "@/lib/church/week";
 import PreviewDialog from "./PreviewDialog";
 import type { FieldDef, FormValues, Lang, LifecycleConfig } from "./types";
 
@@ -192,6 +193,39 @@ export default function LifecycleEditor({ id, caps, config, extra }: { id?: stri
       );
     }
     const common = { id: fid, className: INPUT, value, disabled: readOnly, placeholder: tx.placeholder, onChange: (e: { target: { value: string } }) => set(key, e.target.value) };
+    if (def.kind === "date" && def.presets === "announcement") {
+      // How long an announcement stays on the public page: quick choices that fill in the last day (counted from today, Cameroon time), or a date picked by hand.
+      const today = doualaToday();
+      const chips: { id: string; value: string }[] = [...ANNOUNCEMENT_DURATIONS.map((d) => ({ id: d as string, value: announcementEnd(d, today) ?? "" })), { id: "none", value: "" }];
+      return (
+        <Field key={key} id={fid} label={tx.label} hint={tx.help}>
+          <div role="group" aria-labelledby={`${fid}-label`} className="flex flex-wrap gap-1.5">
+            <span id={`${fid}-label`} className="sr-only">
+              {tx.label}
+            </span>
+            {chips.map((chip) => {
+              const on = value === chip.value;
+              return (
+                <button
+                  key={chip.id}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={readOnly}
+                  onClick={() => set(key, chip.value)}
+                  className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ringo-indigo/40 disabled:opacity-60 ${on ? "border-ringo-indigo bg-ringo-indigo/10 text-ringo-indigo" : "border-ringo-border text-ringo-muted hover:text-ringo-text"}`}
+                >
+                  {tx.options?.[chip.id] ?? chip.id}
+                </button>
+              );
+            })}
+          </div>
+          <label htmlFor={fid} className="mt-2 text-xs font-medium text-ringo-muted">
+            {tx.options?.date ?? tx.label}
+          </label>
+          <input {...common} type="date" autoComplete="off" min="2020-01-01" max="2100-12-31" aria-describedby={tx.help ? `${fid}-hint` : undefined} />
+        </Field>
+      );
+    }
     return (
       <Field key={key} id={fid} label={tx.label} hint={tx.help} optional={def.optional}>
         {def.kind === "textarea" ? (

@@ -7403,7 +7403,7 @@ export const en = {
           loadError: "We couldn't open this announcement.",
         },
         fields: {
-          expires_on: { label: "Last day shown", help: "After this day the notice disappears from your page by itself. Leave empty to keep it until you unpublish it." },
+          expires_on: { label: "How long should it show?", help: "After the last day it leaves your public page by itself (Cameroon time). \"This week\" ends on Sunday at midnight; posted on a Sunday, it stays a full week.", options: { week: "This week", month: "1 month", year: "1 year", none: "No end date", date: "Last day shown" } },
           title: { label: "Title", placeholder: "e.g. Youth retreat registration" },
           body: { label: "Message", placeholder: "Write the notice" },
         },
@@ -7463,6 +7463,15 @@ export const en = {
         contactTitle: "Get in touch",
         resourcesTitle: "More from us",
         backToTop: "Back to top",
+        slides: {
+          pause: "Pause slideshow",
+          play: "Play slideshow",
+          previous: "Previous",
+          next: "Next",
+          goTo: (n: number) => `Show item ${n}`,
+          position: (n: number, total: number) => `${n} of ${total}`,
+          announcementsLabel: "Announcements",
+        },
       },
       home: {
         title: "Church",

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { safeHttpsUrl } from "@/lib/church/lifecycle/validation";
+import { announcementEnd } from "@/lib/church/week";
 import type { PublicAnnouncement, PublicEvent } from "@/lib/church/public/events";
 import { ChurchAnnouncementsCard, ChurchEventsCard } from "../ChurchEventsCards";
 import type { FieldDef, FormValues, LifecycleConfig } from "../lifecycle/types";
@@ -28,7 +29,7 @@ const EVENT_FIELDS: FieldDef[] = [
   { key: "description", bilingual: true, kind: "textarea", max: 2000, rows: 6, optional: true },
 ];
 const ANNOUNCEMENT_FIELDS: FieldDef[] = [
-  { key: "expires_on", kind: "date", optional: true },
+  { key: "expires_on", kind: "date", presets: "announcement" },
   { key: "title", bilingual: true, kind: "text", max: 120 },
   { key: "body", bilingual: true, kind: "textarea", max: 2000, rows: 7 },
 ];
@@ -87,7 +88,8 @@ export function useAnnouncementsConfig(): LifecycleConfig {
       views: ["all", "drafts", "published", "expired"],
       fields: ANNOUNCEMENT_FIELDS,
       ready: (form, lang) => filled(s(form, `title_${lang}`)) && filled(s(form, `body_${lang}`)),
-      blank: () => ({ expires_on: "", title_en: "", title_fr: "", body_en: "", body_fr: "" }),
+      // a new announcement defaults to "This week": it leaves the public page on Sunday at midnight unless the church chooses a month, a year or a date
+      blank: (today) => ({ expires_on: announcementEnd("week", today) ?? "", title_en: "", title_fr: "", body_en: "", body_fr: "" }),
       renderPreview: (form, lang, tr) => {
         const a: PublicAnnouncement = {
           id: PREVIEW_ID,

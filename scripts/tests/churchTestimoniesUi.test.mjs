@@ -80,7 +80,7 @@ const item = (n, o = {}) => ({ id: uid(n), display_name: "Marie Ngono", body: "G
     check(`slideshow (${lang}): with ONE testimony there are no controls`, !one.includes(c.previous) && !one.includes(c.next));
     const three = html(Card, { t, testimonies: [item(1), item(2, { display_name: null, body: "Second testimony without any name." }), item(3, { body: "Third testimony text goes right here." })], ...cardTheme }, lang);
     check(`slideshow (${lang}): previous and next buttons, one dot per testimony, labelled in ${lang}`, three.includes(`aria-label="${c.previous}"`) && three.includes(`aria-label="${c.next}"`) && [1, 2, 3].every((i) => three.includes(`aria-label="${c.goTo(i)}"`)) && three.includes(`aria-label="${c.position(1, 3)}"`));
-    check(`slideshow (${lang}): the current dot is marked and every control is a real button of at least 44px`, (three.match(/aria-current="true"/g) || []).length === 1 && (three.match(/<button type="button"/g) || []).length === 5 && !/<button(?![^>]*type=)/.test(three) && /h-11 w-11/.test(three));
+    check(`slideshow (${lang}): the current dot is marked and every control (previous, one dot per testimony, pause, next) is a real button of at least 44px`, (three.match(/aria-current="true"/g) || []).length === 1 && (three.match(/<button type="button"/g) || []).length === 6 && !/<button(?![^>]*type=)/.test(three) && /h-11 w-11/.test(three));
     check(`slideshow (${lang}): only the FIRST slide's text is in the page (one at a time)`, three.includes("God healed me") && !three.includes("Second testimony") && !three.includes("Third testimony"));
     const anon = html(Card, { t, testimonies: [item(4, { display_name: null })], ...cardTheme }, lang);
     check(`slideshow (${lang}): no name when none was allowed`, !anon.includes("<footer") && !anon.includes("—"));
@@ -91,8 +91,10 @@ const item = (n, o = {}) => ({ id: uid(n), display_name: "Marie Ngono", body: "G
     check(`slideshow (${lang}): nothing at all when there are no testimonies`, html(Card, { t, testimonies: [], ...cardTheme }, lang) === "");
   }
   const src = noComments(read("src/components/church/ChurchTestimoniesCard.tsx"));
-  check("the slideshow has no timer, interval, animation loop or autoplay", !/setInterval|setTimeout|requestAnimationFrame|autoplay|autoPlay/i.test(src));
-  check("the arrow keys move between testimonies and wrap around", /ArrowRight/.test(src) && /ArrowLeft/.test(src) && /\(\(to % n\) \+ n\) % n/.test(src));
+  // The slideshow now ROTATES by itself (owner request, 2026-10-24), but only through the shared useRotation hook: the card owns no timer, loop or autoplay of its own.
+  const hook = noComments(read("src/components/church/site/useRotation.ts"));
+  check("the card owns no timer or animation loop of its own: rotation comes only from useRotation", !/setInterval|setTimeout|requestAnimationFrame|autoplay|autoPlay/i.test(src) && /useRotation\(/.test(src));
+  check("the arrow keys move between testimonies and the rotation wraps around", /ArrowRight/.test(src) && /ArrowLeft/.test(src) && /\(\(to % count\) \+ count\) % count/.test(hook));
   const problems = sourceProblems(path.join(SRC, "components/church/ChurchTestimoniesCard.tsx"));
   check("the card: no hard-coded text, no storage, no raw HTML, typed buttons", problems.length === 0, problems.join(" ; "));
 }
