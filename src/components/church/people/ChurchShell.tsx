@@ -7,7 +7,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import type { ChurchCapabilities } from "@/lib/church/permissions";
 
 // The sections whose content is (or becomes) PUBLIC on the church page: they carry their own explanation, so the privacy line of the private sections is not repeated there.
-const PUBLIC_SECTIONS = ["/dashboard/church/content", "/dashboard/church/events", "/dashboard/church/announcements", "/dashboard/church/bible", "/dashboard/church/music", "/dashboard/church/reports", "/dashboard/church/care", "/dashboard/church/store"];
+const PUBLIC_SECTIONS = ["/dashboard/church/content", "/dashboard/church/events", "/dashboard/church/announcements", "/dashboard/church/bible", "/dashboard/church/music", "/dashboard/church/reports", "/dashboard/church/care", "/dashboard/church/testimonies", "/dashboard/church/store"];
 
 // Heading and section tabs of the church workspace (/dashboard/church/**). A tab only appears for a section the signed-in person may open; the server re-checks on every page and every request.
 // `isOwner` only decides whether the Store tab is offered: the Shop it links to is owner-only.
@@ -27,6 +27,7 @@ export default function ChurchShell({ caps, isOwner = false, children }: { caps:
     { href: "/dashboard/church/music", label: t.churchWorkspace.tabs.music, show: caps.manageMusic },
     { href: "/dashboard/church/reports", label: t.churchWorkspace.tabs.reports, show: caps.viewReports },
     { href: "/dashboard/church/care", label: t.churchWorkspace.tabs.care, show: caps.viewCare },
+    { href: "/dashboard/church/testimonies", label: t.churchWorkspace.tabs.testimonies, show: caps.viewTestimonies },
     { href: "/dashboard/church/store", label: t.churchWorkspace.tabs.store, show: isOwner },
   ].filter((x) => x.show);
 
@@ -65,7 +66,7 @@ export default function ChurchShell({ caps, isOwner = false, children }: { caps:
   );
 }
 
-export function NoAccess({ section }: { section?: "people" | "groups" | "leadership" | "content" | "events" | "bible" | "attendance" | "music" | "reports" | "care" | "store" }) {
+export function NoAccess({ section }: { section?: "people" | "groups" | "leadership" | "content" | "events" | "bible" | "attendance" | "music" | "reports" | "care" | "testimonies" | "store" }) {
   const { t } = useLanguage();
   const c = t.churchPeople;
   return (

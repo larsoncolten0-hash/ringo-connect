@@ -775,7 +775,8 @@ section = "H. privacy of the public surface and static guarantees (scenario 14):
   eq("no export / download / csv code outside the Phase 10 reports", bad(/\bcsv\b|text\/csv|Content-Disposition|\.xlsx|church\.export/i), ["src/app/api/church/reports/route.ts", "src/components/church/reports/ReportsView.tsx", "src/lib/church/reports/csv.ts", "src/lib/church/reports/handlers.ts"]);
   // Phase 5: two named database functions (bible_program_stats, bible_session_move) are called through the caller's own session; there is no raw SQL anywhere.
   // Phase 10: the report calls the SAME named function (bible_program_stats) through the caller's own session, only to show how many people follow a programme.
-  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), ["src/lib/church/bible/handlers.ts", "src/lib/church/reports/build.ts"]);
+  // Testimonies: the public loader calls the one narrow database function (ministry_testimonies_public) that returns only approved, published, consented testimonies; visitors have no table access at all.
+  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), ["src/lib/church/bible/handlers.ts", "src/lib/church/public/testimonies.ts", "src/lib/church/reports/build.ts"]);
   eq("no profile id read from a request in the church routes", files.filter((f) => rel(f).startsWith("src/app/api/church/") && /profileId|profile_id|searchParams/.test(fs.readFileSync(f, "utf8").replace(/\/\/.*$/gm, ""))).map(rel), []);
   eq("no use of localStorage / sessionStorage / console.log in church code", bad(/localStorage|sessionStorage|console\.log/), []);
   // the public profile surface is untouched

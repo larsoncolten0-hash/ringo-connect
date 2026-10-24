@@ -54,6 +54,8 @@ import { ChurchAnnouncementsCard, ChurchEventsCard } from "@/components/church/C
 import ChurchBibleCard from "@/components/church/ChurchBibleCard";
 import ChurchMusicCard from "@/components/church/ChurchMusicCard";
 import ChurchCareCard from "@/components/church/ChurchCareCard";
+import ChurchTestimoniesCard from "@/components/church/ChurchTestimoniesCard";
+import ShareTestimony from "@/components/church/ShareTestimony";
 import { EMPTY_CHURCH_PUBLIC, type ChurchPublicExtras } from "@/lib/church/public";
 import { CHURCH_CATEGORY, getChurchTypeLabel, getChurchVisit } from "@/lib/church/publicPage";
 
@@ -1093,6 +1095,31 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               t={t}
               locale={locale}
               cases={churchPublic.care}
+              accent={accent}
+              accentText={panelAccentText}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              radiusClass={radiusClass}
+            />
+          )}
+
+          {isChurch && (churchPublic.testimonies ?? []).length > 0 && (
+            <ChurchTestimoniesCard
+              t={t}
+              testimonies={churchPublic.testimonies}
+              accent={accent}
+              accentText={panelAccentText}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              radiusClass={radiusClass}
+            />
+          )}
+
+          {isChurch && !preview && (
+            <ShareTestimony
+              t={t}
+              locale={locale}
+              username={profile.username}
               accent={accent}
               accentText={panelAccentText}
               textColor={contentTextColor}

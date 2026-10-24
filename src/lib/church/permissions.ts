@@ -39,6 +39,9 @@ export const CHURCH_REPORTS_PERMISSIONS = ["church.reports.view"] as const;
 /** Care & Support (Phase 9, data layer only: no payment of any kind). view: read every care case incl. drafts and the consent record; manage: create / edit / delete DRAFT cases and record consent; publish: publish, unpublish, and edit or delete a LIVE case. Owner-only to grant. */
 export const CHURCH_CARE_PERMISSIONS = ["church.care.view", "church.care.manage", "church.care.publish"] as const;
 
+/** Testimonies (visitors share a testimony with the church). view: read every testimony, its phone number and its moderation history; manage: review, correct the public text, note, unpublish, record a withdrawal of consent; publish: also publish an approved testimony whose submitter consented. Owner-only to grant. */
+export const CHURCH_TESTIMONIES_PERMISSIONS = ["church.testimonies.view", "church.testimonies.manage", "church.testimonies.publish"] as const;
+
 /** Every church permission the Team role editor can hand out. */
 export const CHURCH_PERMISSIONS = [
   ...CHURCH_ORDINARY_PERMISSIONS,
@@ -50,6 +53,7 @@ export const CHURCH_PERMISSIONS = [
   ...CHURCH_MUSIC_PERMISSIONS,
   ...CHURCH_REPORTS_PERMISSIONS,
   ...CHURCH_CARE_PERMISSIONS,
+  ...CHURCH_TESTIMONIES_PERMISSIONS,
 ] as const;
 
 export type ChurchPermission = (typeof CHURCH_PERMISSIONS)[number];
@@ -117,6 +121,10 @@ export interface ChurchCapabilities {
   viewCare: boolean;
   manageCare: boolean;
   publishCare: boolean;
+  /** Testimonies: private submissions (names, phone numbers) and their moderation. */
+  viewTestimonies: boolean;
+  manageTestimonies: boolean;
+  publishTestimonies: boolean;
 }
 
 export function churchCapabilities(permissions: readonly string[]): ChurchCapabilities {
@@ -152,6 +160,9 @@ export function churchCapabilities(permissions: readonly string[]): ChurchCapabi
     viewCare: has("church.care.view") || has("church.care.manage") || has("church.care.publish"),
     manageCare: has("church.care.manage") || has("church.care.publish"),
     publishCare: has("church.care.publish"),
+    viewTestimonies: has("church.testimonies.view") || has("church.testimonies.manage") || has("church.testimonies.publish"),
+    manageTestimonies: has("church.testimonies.manage") || has("church.testimonies.publish"),
+    publishTestimonies: has("church.testimonies.publish"),
   };
 }
 

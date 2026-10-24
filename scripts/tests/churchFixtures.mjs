@@ -15,6 +15,7 @@ export const BI_MIG = read("supabase/migrations/2026-12-30_bible_programs.sql");
 export const AT_MIG = read("supabase/migrations/2026-12-31_ministry_attendance.sql");
 export const MU_MIG = read("supabase/migrations/2027-01-01_ministry_music_links.sql");
 export const CA_MIG = read("supabase/migrations/2027-01-02_ministry_care_cases.sql");
+export const TE_MIG = read("supabase/migrations/2027-01-03_ministry_testimonies.sql");
 const TEAM01 = read("supabase/migrations/2026-10-01_team_management.sql").split("\n").slice(27, 261).join("\n");
 const TEAM03 = read("supabase/migrations/2026-10-03_team_rls_enterprise_gate.sql");
 const TEAM04 = read("supabase/migrations/2026-10-04_team_members_read_fix.sql");
@@ -61,7 +62,7 @@ const BASE = `
   create policy "profiles delete by owner or admin" on public.profiles for delete using (auth.uid() = user_id or public.is_admin());
 `;
 
-export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false } = {}) {
+export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false, testimonies = false } = {}) {
   const db = new PGlite();
   await db.exec(BASE);
   await db.exec(TEAM01); await db.exec(TEAM03); await db.exec(TEAM04);
@@ -74,6 +75,7 @@ export async function newDb(PGlite, { dailyWords = false, events = false, attend
   if (attendance) await db.exec(AT_MIG);
   if (music) await db.exec(MU_MIG);
   if (care) await db.exec(CA_MIG);
+  if (testimonies) await db.exec(TE_MIG);
   return db;
 }
 
@@ -166,6 +168,12 @@ export function sessionFor(db, userId, { role: dbRole = userId ? "authenticated"
     async rpc(fn, args = {}) {
       const named = Object.entries(args).map(([k, v]) => `"${k}" => ${lit(v)}`).join(", ");
       try {
+        // like PostgREST, a function that returns a SET of rows answers with an array of rows
+        const meta = await run(`select bool_or(proretset) as s from pg_proc where proname = '${fn.replace(/'/g, "")}' and pronamespace = 'public'::regnamespace`);
+        if (meta.rows[0] && meta.rows[0].s === true) {
+          const rs = await run(`select coalesce(json_agg(t), '[]'::json) as j from public."${fn}"(${named}) t`);
+          return { data: rs.rows[0].j, error: null };
+        }
         const r = await run(`select to_jsonb(public."${fn}"(${named})) as j`);
         return { data: r.rows[0] ? r.rows[0].j : null, error: null };
       } catch (e) { return { data: null, error: dbErr(e) }; }

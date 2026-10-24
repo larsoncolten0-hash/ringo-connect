@@ -57,6 +57,14 @@ const GUARD_CODES: Record<string, Outcome> = {
   care_consent_immutable: { status: 409, code: "invalid" },
   care_member_missing: { status: 404, code: "member_not_found" },
   care_child_not_allowed: { status: 422, code: "care_child_not_allowed" },
+  // Testimonies
+  testimony_profile_required: { status: 403, code: "not_available" },
+  testimony_original_immutable: { status: 422, code: "invalid" },
+  testimony_consent_cannot_be_granted: { status: 403, code: "consent_cannot_be_granted" },
+  testimony_status_invalid: { status: 422, code: "invalid" },
+  testimony_cannot_publish: { status: 409, code: "cannot_publish" },
+  testimony_publish_permission: { status: 403, code: "forbidden" },
+  testimony_history_immutable: { status: 409, code: "invalid" },
 };
 
 // constraint names -> public code (a unique index surfaces as 23505 with the index name in the message)
@@ -96,6 +104,9 @@ const CONSTRAINT_CODES: Array<[RegExp, Outcome]> = [
   [/ministry_care_cases_publish_content_check/, { status: 422, code: "needs_title_and_summary" }],
   [/ministry_care_cases_category_check/, { status: 422, code: "invalid_category" }],
   [/ministry_care_beneficiaries_pkey/, { status: 409, code: "conflict" }],
+  // Testimonies: a corrected text or a note outside its limits
+  [/ministry_testimonies_public_body_check/, { status: 422, code: "invalid_public_body" }],
+  [/ministry_testimonies_note_check/, { status: 422, code: "invalid_note" }],
 ];
 
 export function classifyDbError(error: DbError): Outcome {

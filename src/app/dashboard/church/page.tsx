@@ -18,5 +18,6 @@ export default async function ChurchIndexPage() {
   if (caps.manageMusic) redirect("/dashboard/church/music");
   if (caps.viewReports) redirect("/dashboard/church/reports");
   if (caps.viewCare) redirect("/dashboard/church/care");
+  if (caps.viewTestimonies) redirect("/dashboard/church/testimonies");
   redirect("/dashboard");
 }
