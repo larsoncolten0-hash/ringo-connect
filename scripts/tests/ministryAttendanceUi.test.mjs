@@ -135,7 +135,7 @@ overrideExport("components/church/people/shared.tsx", "ConfirmDialog", (p) => Re
   for (const lang of ["en", "fr"]) {
     const t = translations[lang];
     const all = html(Shell, { caps: caps(...PERM.CHURCH_PERMISSIONS), isOwner: true, children: null }, lang);
-    check(`shell (${lang}): the owner sees every tab, in order`, tabs(all).join() === "/dashboard/church/people,/dashboard/church/groups,/dashboard/church/leadership,/dashboard/church/content,/dashboard/church/events,/dashboard/church/announcements,/dashboard/church/bible,/dashboard/church/attendance,/dashboard/church/music,/dashboard/church/store", tabs(all).join());
+    check(`shell (${lang}): the owner sees every tab, in order`, tabs(all).join() === "/dashboard/church/people,/dashboard/church/groups,/dashboard/church/leadership,/dashboard/church/content,/dashboard/church/events,/dashboard/church/announcements,/dashboard/church/bible,/dashboard/church/attendance,/dashboard/church/music,/dashboard/church/reports,/dashboard/church/care,/dashboard/church/store", tabs(all).join());
     check(`shell (${lang}): the new tabs are labelled in ${lang}`, all.includes(t.churchWorkspace.tabs.events) && all.includes(t.churchWorkspace.tabs.announcements) && all.includes(t.churchWorkspace.tabs.bible) && all.includes(t.churchWorkspace.tabs.attendance) && all.includes(t.churchWorkspace.tabs.music) && all.includes(t.churchWorkspace.tabs.store));
     const staff = html(Shell, { caps: caps("church.attendance.view"), isOwner: false, children: null }, lang);
     check(`shell (${lang}): staff holding only attendance.view see only that tab`, tabs(staff).join() === "/dashboard/church/attendance", tabs(staff).join());

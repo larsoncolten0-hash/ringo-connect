@@ -50,6 +50,13 @@ const GUARD_CODES: Record<string, Outcome> = {
   music_profile_required: { status: 403, code: "not_available" },
   music_tenant_immutable: { status: 422, code: "invalid" },
   music_link_limit: { status: 422, code: "music_link_limit" },
+  // Phase 9 (care cases and consent)
+  care_profile_required: { status: 403, code: "not_available" },
+  care_tenant_immutable: { status: 422, code: "invalid" },
+  care_consent_required: { status: 422, code: "needs_consent" },
+  care_consent_immutable: { status: 409, code: "invalid" },
+  care_member_missing: { status: 404, code: "member_not_found" },
+  care_child_not_allowed: { status: 422, code: "care_child_not_allowed" },
 };
 
 // constraint names -> public code (a unique index surfaces as 23505 with the index name in the message)
@@ -85,6 +92,10 @@ const CONSTRAINT_CODES: Array<[RegExp, Outcome]> = [
   [/ministry_music_links_url_check/, { status: 422, code: "invalid_url" }],
   [/ministry_music_links_title_check/, { status: 422, code: "invalid_title" }],
   [/ministry_music_links_platform_check/, { status: 422, code: "invalid_platform" }],
+  // Phase 9: a case needs a title and a summary in one language to be published; the category is a fixed list
+  [/ministry_care_cases_publish_content_check/, { status: 422, code: "needs_title_and_summary" }],
+  [/ministry_care_cases_category_check/, { status: 422, code: "invalid_category" }],
+  [/ministry_care_beneficiaries_pkey/, { status: 409, code: "conflict" }],
 ];
 
 export function classifyDbError(error: DbError): Outcome {

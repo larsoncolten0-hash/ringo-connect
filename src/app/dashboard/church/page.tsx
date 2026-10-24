@@ -16,5 +16,7 @@ export default async function ChurchIndexPage() {
   if (caps.viewBible) redirect("/dashboard/church/bible");
   if (caps.viewAttendance) redirect("/dashboard/church/attendance");
   if (caps.manageMusic) redirect("/dashboard/church/music");
+  if (caps.viewReports) redirect("/dashboard/church/reports");
+  if (caps.viewCare) redirect("/dashboard/church/care");
   redirect("/dashboard");
 }

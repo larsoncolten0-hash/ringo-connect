@@ -37,7 +37,7 @@ function toForm(config: LifecycleConfig, item: Record<string, any>, today: strin
 // Create or edit one entry (event, announcement, Bible program). ONE explicit "Save draft" button (no hidden autosave). Publish, unpublish and delete are separate, confirmed actions that act on the
 // SAVED version (unsaved changes must be saved first, so what was reviewed is what goes live) and carry the updated_at that was loaded, so they are refused if someone else changed the entry
 // meanwhile. The server and the database decide what is allowed; the buttons only reflect it.
-export default function LifecycleEditor({ id, caps, config, extra }: { id?: string; caps: ChurchCapabilities; config: LifecycleConfig; extra?: (meta: Meta, can: Can) => ReactNode }) {
+export default function LifecycleEditor({ id, caps, config, extra }: { id?: string; caps: ChurchCapabilities; config: LifecycleConfig; extra?: (meta: Meta, can: Can, helpers: { dirty: boolean; reload: () => void }) => ReactNode }) {
   const { t, locale } = useLanguage();
   const router = useRouter();
   const c = config.texts.editor;
@@ -178,6 +178,19 @@ export default function LifecycleEditor({ id, caps, config, extra }: { id?: stri
       );
     }
     const value = String(form[key] ?? "");
+    if (def.kind === "select") {
+      return (
+        <Field key={key} id={fid} label={tx.label} hint={tx.help} optional={def.optional}>
+          <select id={fid} className={INPUT} value={value} disabled={readOnly} onChange={(e) => set(key, e.target.value)}>
+            {(def.choices ?? []).map((v) => (
+              <option key={v} value={v}>
+                {tx.options?.[v] ?? v}
+              </option>
+            ))}
+          </select>
+        </Field>
+      );
+    }
     const common = { id: fid, className: INPUT, value, disabled: readOnly, placeholder: tx.placeholder, onChange: (e: { target: { value: string } }) => set(key, e.target.value) };
     return (
       <Field key={key} id={fid} label={tx.label} hint={tx.help} optional={def.optional}>
@@ -295,7 +308,7 @@ export default function LifecycleEditor({ id, caps, config, extra }: { id?: stri
         </div>
       </div>
 
-      {meta && extra ? extra(meta, can) : null}
+      {meta && extra ? extra(meta, can, { dirty, reload: load }) : null}
 
       {previewing && <PreviewDialog config={config} form={form} initialLanguage={lang} onClose={() => setPreviewing(false)} />}
       {pending === "publish" && <ConfirmDialog title={c.publishTitle} body={c.publishBody} confirmLabel={c.publishConfirm} onCancel={() => setPending(null)} onConfirm={() => act("publish")} />}

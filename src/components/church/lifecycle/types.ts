@@ -11,7 +11,9 @@ export interface FieldDef {
   /** The column. A bilingual field is stored as `<key>_en` and `<key>_fr`. */
   key: string;
   bilingual?: boolean;
-  kind: "text" | "textarea" | "date" | "time" | "url" | "checkbox";
+  kind: "text" | "textarea" | "date" | "time" | "url" | "checkbox" | "select";
+  /** For a "select": the allowed values, in display order (their labels are in the field text's `options`). */
+  choices?: readonly string[];
   max?: number;
   /** Textarea height in rows. */
   rows?: number;
@@ -25,6 +27,8 @@ export interface FieldText {
   label: string;
   placeholder?: string;
   help?: string;
+  /** For a "select": the label of each choice. */
+  options?: Record<string, string>;
 }
 
 export interface LifecycleTexts {

@@ -771,9 +771,11 @@ section = "H. privacy of the public surface and static guarantees (scenario 14):
   eq("no service-role client in church code", bad(/createAdminClient|SUPABASE_SERVICE_ROLE_KEY/), ["src/lib/church/bible/customerRoute.ts"]);
   eq("no has_org_permission / platform-admin helper in church code", bad(/has_org_permission|getOrgAccess|requireOrgAccess|assertAdmin|is_admin/), []);
   eq("no select(\"*\") on a church table", bad(/select\(\s*["'`]\*["'`]/), []);
-  eq("no export / download / csv code", bad(/\bcsv\b|text\/csv|Content-Disposition|\.xlsx|church\.export/i), []);
+  // Phase 10: the church REPORTS export aggregate counts (no names) as CSV. These four files are the only ones that may, and churchReports.test.mjs proves the files hold no person.
+  eq("no export / download / csv code outside the Phase 10 reports", bad(/\bcsv\b|text\/csv|Content-Disposition|\.xlsx|church\.export/i), ["src/app/api/church/reports/route.ts", "src/components/church/reports/ReportsView.tsx", "src/lib/church/reports/csv.ts", "src/lib/church/reports/handlers.ts"]);
   // Phase 5: two named database functions (bible_program_stats, bible_session_move) are called through the caller's own session; there is no raw SQL anywhere.
-  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), ["src/lib/church/bible/handlers.ts"]);
+  // Phase 10: the report calls the SAME named function (bible_program_stats) through the caller's own session, only to show how many people follow a programme.
+  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), ["src/lib/church/bible/handlers.ts", "src/lib/church/reports/build.ts"]);
   eq("no profile id read from a request in the church routes", files.filter((f) => rel(f).startsWith("src/app/api/church/") && /profileId|profile_id|searchParams/.test(fs.readFileSync(f, "utf8").replace(/\/\/.*$/gm, ""))).map(rel), []);
   eq("no use of localStorage / sessionStorage / console.log in church code", bad(/localStorage|sessionStorage|console\.log/), []);
   // the public profile surface is untouched

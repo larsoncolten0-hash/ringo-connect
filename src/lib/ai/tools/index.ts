@@ -12,6 +12,7 @@ import { getMyRestaurantPayments } from "./definitions/restaurantPayments";
 import { getMyRestaurantSales } from "./definitions/restaurantSales";
 import { getMyMusicSales } from "./definitions/musicSales";
 import { getMyEventSales } from "./definitions/eventSales";
+import { getMyChurchReport } from "./definitions/churchReport";
 import { BUSINESS_AI_TOOLS } from "./definitions/business";
 import { BUSINESS_DRAFT_TOOLS } from "./definitions/businessDrafts";
 import { lookupRingoHelp } from "./definitions/lookupHelp";
@@ -50,6 +51,8 @@ export const AI_TOOLS: readonly AiTool<any>[] = [
   getMyRestaurantPayments,
   getMyMusicSales,
   getMyEventSales,
+  // Churches & Ministries (Phase 10): aggregate church report numbers only, through the person's own session; never a person, a child, care or money.
+  getMyChurchReport,
   // Business Toolkit read tools (Phase A): offered only to Business Toolkit workspaces and re-gated on the server when they run.
   ...BUSINESS_AI_TOOLS,
   // Business Toolkit DRAFT tools (Phase B/C): they only prepare a review card; the owner's Confirm & Apply click applies it through the Toolkit's own functions.

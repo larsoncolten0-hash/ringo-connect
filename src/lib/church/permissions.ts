@@ -33,6 +33,12 @@ export const CHURCH_ATTENDANCE_PERMISSIONS = ["church.attendance.view", "church.
 /** Church Music (Phase 8). manage: add, edit, hide and remove the music links of the church page. Owner-only to grant. */
 export const CHURCH_MUSIC_PERMISSIONS = ["church.music.manage"] as const;
 
+/** Church Reports (Phase 10). view: read the church's AGGREGATE reports (counts only, never names) and download them as CSV. A section is only included when the person also holds the permission for the data behind it (for example attendance numbers need church.attendance.view). Owner-only to grant. */
+export const CHURCH_REPORTS_PERMISSIONS = ["church.reports.view"] as const;
+
+/** Care & Support (Phase 9, data layer only: no payment of any kind). view: read every care case incl. drafts and the consent record; manage: create / edit / delete DRAFT cases and record consent; publish: publish, unpublish, and edit or delete a LIVE case. Owner-only to grant. */
+export const CHURCH_CARE_PERMISSIONS = ["church.care.view", "church.care.manage", "church.care.publish"] as const;
+
 /** Every church permission the Team role editor can hand out. */
 export const CHURCH_PERMISSIONS = [
   ...CHURCH_ORDINARY_PERMISSIONS,
@@ -42,6 +48,8 @@ export const CHURCH_PERMISSIONS = [
   ...CHURCH_BIBLE_PERMISSIONS,
   ...CHURCH_ATTENDANCE_PERMISSIONS,
   ...CHURCH_MUSIC_PERMISSIONS,
+  ...CHURCH_REPORTS_PERMISSIONS,
+  ...CHURCH_CARE_PERMISSIONS,
 ] as const;
 
 export type ChurchPermission = (typeof CHURCH_PERMISSIONS)[number];
@@ -103,6 +111,12 @@ export interface ChurchCapabilities {
   manageAttendance: boolean;
   /** Church Music links. */
   manageMusic: boolean;
+  /** Church Reports (aggregates only). */
+  viewReports: boolean;
+  /** Care & Support cases (private by default; consent is required before anything is public). */
+  viewCare: boolean;
+  manageCare: boolean;
+  publishCare: boolean;
 }
 
 export function churchCapabilities(permissions: readonly string[]): ChurchCapabilities {
@@ -134,6 +148,10 @@ export function churchCapabilities(permissions: readonly string[]): ChurchCapabi
     viewAttendance: has("church.attendance.view") || has("church.attendance.manage"),
     manageAttendance: has("church.attendance.manage"),
     manageMusic: has("church.music.manage"),
+    viewReports: has("church.reports.view"),
+    viewCare: has("church.care.view") || has("church.care.manage") || has("church.care.publish"),
+    manageCare: has("church.care.manage") || has("church.care.publish"),
+    publishCare: has("church.care.publish"),
   };
 }
 

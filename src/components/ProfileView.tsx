@@ -53,6 +53,7 @@ import type { PublicWord } from "@/lib/church/content/publicWord";
 import { ChurchAnnouncementsCard, ChurchEventsCard } from "@/components/church/ChurchEventsCards";
 import ChurchBibleCard from "@/components/church/ChurchBibleCard";
 import ChurchMusicCard from "@/components/church/ChurchMusicCard";
+import ChurchCareCard from "@/components/church/ChurchCareCard";
 import { EMPTY_CHURCH_PUBLIC, type ChurchPublicExtras } from "@/lib/church/public";
 import { CHURCH_CATEGORY, getChurchTypeLabel, getChurchVisit } from "@/lib/church/publicPage";
 
@@ -1079,6 +1080,19 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             <ChurchMusicCard
               t={t}
               links={churchPublic.music}
+              accent={accent}
+              accentText={panelAccentText}
+              textColor={contentTextColor}
+              borderTint={contentBorderTint}
+              radiusClass={radiusClass}
+            />
+          )}
+
+          {isChurch && (churchPublic.care ?? []).length > 0 && (
+            <ChurchCareCard
+              t={t}
+              locale={locale}
+              cases={churchPublic.care}
               accent={accent}
               accentText={panelAccentText}
               textColor={contentTextColor}
