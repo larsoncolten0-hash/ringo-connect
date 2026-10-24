@@ -121,7 +121,8 @@ const item = (n, o = {}) => ({ id: uid(n), display_name: "Marie Ngono", body: "G
     check("the page never prints a phone number or a private field even if the bundle carried them", !/237670999888|Secret Group/.test(page("church_ministries", "en", { ...none, testimonies: [{ ...item(31), phone: "237670999888", group_label: "Secret Group" }] })));
   }
   const view = read("src/components/ProfileView.tsx");
-  check("ProfileView: both are gated on the church flag; the form also on not being a preview", (/isChurch && \(churchPublic\.testimonies \?\? \[\]\)\.length > 0/.test(view) && /isChurch && !preview && \(\s*<ShareTestimony/.test(view)));
+  const site = read("src/components/church/site/ChurchSiteView.tsx");
+  check("ProfileView: both are gated on the church flag (the church template); the slideshow on having testimonies, the form on not being a preview", /isChurch \? \(\s*<ChurchSiteView/.test(view) && /const testimonies = churchPublic\.testimonies \?\? \[\]/.test(site) && /\{testimonies\.length > 0 && \(\s*<ChurchTestimoniesCard/.test(site) && /\{!preview && <ShareTestimony/.test(site));
   const pageSrc = read("src/app/[username]/page.tsx");
   check("the public route loads the bundle for churches only (unchanged), which now carries the testimonies", /profileHasCategory\(profile, "church_ministries"\) \? loadChurchPublic\(supabase, profile\.id\)/.test(pageSrc) && !/ministry_testimon/.test(pageSrc));
 }

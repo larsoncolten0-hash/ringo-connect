@@ -232,7 +232,7 @@ overrideExport("components/church/people/shared.tsx", "ConfirmDialog", (p) => Re
   }
   const pageSrc = read("src/app/[username]/page.tsx");
   check("the public route is unchanged by Phase 5 (the aggregate loader carries the programmes)", /loadChurchPublic\(supabase, profile\.id\)/.test(pageSrc) && !/bible_/.test(pageSrc));
-  check("ProfileView: the card is gated on the church flag and on having programmes", /\{isChurch && churchPublic\.programs\.length > 0 && \(/.test(read("src/components/ProfileView.tsx")));
+  check("ProfileView: the card is gated on the church flag (the church template) and on having programmes", /isChurch \? \(\s*<ChurchSiteView/.test(read("src/components/ProfileView.tsx")) && /\{churchPublic\.programs\.length > 0 && \(/.test(read("src/components/church/site/ChurchSiteView.tsx")));
 }
 
 console.log(`\n${fail === 0 ? "OK" : "FAILED"}: ${pass} checks passed, ${fail} failed`);

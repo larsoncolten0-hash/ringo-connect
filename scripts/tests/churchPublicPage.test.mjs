@@ -147,7 +147,8 @@ const html = (Comp, props, lang) => {
     check("church page: no Events section and no ticketing UI (church has no ticketing yet)", !/Upcoming|Get Ticket|Launch night|Nuit de lancement/.test(en));
     check("church page: no Daily Word, music, giving, Bible or group-messaging UI, and no placeholder text", !/Daily Word|Parole du jour|Bible|Donate|Don\b|Give|WhatsApp group|groupe WhatsApp|Coming soon|Bientôt|Lorem/i.test(en + fr), (en + fr).match(/Daily Word|Parole du jour|Bible|Donate|Give|WhatsApp group|Coming soon|Lorem/i)?.[0]);
     check("church page: the location and hours are shown once, in the Visit card, not repeated in the contact card", (en.match(/Sunday 9am – 11:30am/g) || []).length === 1);
-    check("church page: uses the shared Paper panel (content sits on the light panel)", en.includes("rounded-ringo-xl") && en.includes("rgb(var(--rc-paper))"));
+    // The church template paints its own warm paper ground (components/church/site/churchTheme.ts) instead of the shared Paper panel.
+    check("church page: the church template, on its own warm paper ground", en.includes("church-site") && /background-color:#F7F2E9/.test(en));
     check("church page keeps the shared behaviour: skip link, Connect, share, language selector, footer", en.includes('href="#profile-content"') && en.includes('id="profile-content"') && /<footer/.test(en));
 
     const minimal = page("church_ministries", "en", { minimal: true });
@@ -190,7 +191,8 @@ const html = (Comp, props, lang) => {
   // Phase 1 added no migration: the first one after the Phase 0 category migration is the later Phase 2A people-and-groups one.
   check("no migration or schema change in Phase 1 (the first migration after the Phase 0 one is the Phase 2A one)", migs[migs.indexOf("2026-12-26_church_category.sql") + 1] === "2026-12-27_church_people_groups.sql");
   const view = read("src/components/ProfileView.tsx");
-  check("ProfileView: every church addition is gated on the church flag", /const churchVisit = isChurch \? getChurchVisit\(profile\) : null/.test(view) && /const churchType = isChurch \? getChurchTypeLabel\(profile, locale\) : null/.test(view) && /\{churchVisit && \(\s*<ChurchVisitCard/.test(view) && /\{churchType && \(/.test(view));
+  const site = read("src/components/church/site/ChurchSiteView.tsx");
+  check("ProfileView: every church addition is gated on the church flag (churches get their own template)", /const churchVisit = isChurch \? getChurchVisit\(profile\) : null/.test(view) && /const churchType = isChurch \? getChurchTypeLabel\(profile, locale\) : null/.test(view) && /isChurch \? \(\s*<ChurchSiteView/.test(view) && /\{churchVisit && \(\s*<div id=\{anchor\("visit"\)\} className=\{sectionCls\}>\s*<ChurchVisitCard/.test(site) && /\{churchType && \(/.test(site));
   const touched = ["src/components/church/ChurchVisitCard.tsx", "src/lib/church/publicPage.ts"].map(read).join("\n").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1"); // code only: a comment may say "stripe" (an accent stripe)
   check("no payment, auth, database, fetch or tracking code in the new files", !/supabase|fetch\(|createClient|process\.env|localStorage|document\.cookie|\.rpc\(|stripe|fapshi/i.test(touched));
   check("no WhatsApp group feature anywhere in the new files", !/whatsapp/i.test(touched));

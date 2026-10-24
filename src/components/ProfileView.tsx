@@ -47,15 +47,9 @@ import AppBadgeReset from "./AppBadgeReset";
 import dynamic from "next/dynamic";
 import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 import OptImg from "@/components/ui/OptImg";
-import ChurchVisitCard from "@/components/church/ChurchVisitCard";
-import DailyWordCard from "@/components/church/DailyWordCard";
 import type { PublicWord } from "@/lib/church/content/publicWord";
-import { ChurchAnnouncementsCard, ChurchEventsCard } from "@/components/church/ChurchEventsCards";
-import ChurchBibleCard from "@/components/church/ChurchBibleCard";
-import ChurchMusicCard from "@/components/church/ChurchMusicCard";
-import ChurchCareCard from "@/components/church/ChurchCareCard";
-import ChurchTestimoniesCard from "@/components/church/ChurchTestimoniesCard";
-import ShareTestimony from "@/components/church/ShareTestimony";
+import ChurchSiteView from "@/components/church/site/ChurchSiteView";
+import { CH as CHURCH_COLORS } from "@/components/church/site/churchTheme";
 import { EMPTY_CHURCH_PUBLIC, type ChurchPublicExtras } from "@/lib/church/public";
 import { CHURCH_CATEGORY, getChurchTypeLabel, getChurchVisit } from "@/lib/church/publicPage";
 
@@ -118,8 +112,8 @@ export default function ProfileView({
   const catalogLabel = getCategory(profile.category)?.defaults.catalogLabel?.[locale] || t.profilePage.catalogHeading;
   const isMusic = profileHasCategory(profile, "music_entertainment");
   const isRestaurant = profileHasCategory(profile, "restaurant_food");
-  // Churches & Ministries (Phase 1): the "Visit us" card and the ministry-type label, both built only from fields the profile already has. Every other
-  // category sees none of it. (Church pages have no ticketing yet, so their Events section stays hidden until the events phase.)
+  // Churches & Ministries: the church has its own template (components/church/site/ChurchSiteView), with the "Visit us" card and the ministry-type label built
+  // only from fields the profile already has. Every other category sees none of it. (Church pages have no ticketing yet, so the ticketed Events section stays hidden.)
   const isChurch = profileHasCategory(profile, CHURCH_CATEGORY);
   const churchVisit = isChurch ? getChurchVisit(profile) : null;
   const churchType = isChurch ? getChurchTypeLabel(profile, locale) : null;
@@ -285,7 +279,7 @@ export default function ProfileView({
   // the same dark theme continuing all the way down. Fixed structure made of Ringo foundation tokens, not theme-driven: ThemeCard's
   // background/text color fields still fully control the hero zone above, and the creator's accent is used as it is. A category with
   // no stage (every other category today) has no panel and renders exactly as before.
-  const stage = getProfileStage(isMusic ? "music_entertainment" : profile.category);
+  const stage = getProfileStage(isMusic ? "music_entertainment" : isChurch ? CHURCH_CATEGORY : profile.category);
   const panel = stage.panel;
   const contentTextColor = panel ? panel.textHex : textColor;
   const contentBorderTint = panel ? panel.border : borderTint;
@@ -303,6 +297,8 @@ export default function ProfileView({
     ["--theme" as any]: accent,
     // The Music profile paints its own ground (its view is a full-bleed composition); the artist's accent still drives every action in it.
     ...(isMusic ? { backgroundImage: "none", background: "#120B10", backgroundColor: "#120B10", color: "#F3E9DC" } : {}),
+    // So does the church template: warm linen paper and ink (components/church/site/churchTheme.ts); the owner's accent still drives its actions.
+    ...(isChurch ? { backgroundImage: "none", background: CHURCH_COLORS.paper, backgroundColor: CHURCH_COLORS.paper, color: CHURCH_COLORS.ink } : {}),
   };
 
   // First word gets the page's default text color, the rest picks up the
@@ -539,7 +535,7 @@ export default function ProfileView({
               checkoutAvailable={!!(profile as any).commerceCheckoutAvailable}
               isDemo={profile.is_demo === true}
               preview={preview}
-              fadeColor={panel ? panel.background : profile.background_style === "gradient" ? undefined : bgColor}
+              fadeColor={isChurch ? CHURCH_COLORS.paper : panel ? panel.background : profile.background_style === "gradient" ? undefined : bgColor}
               onOpen={(product) =>
                 logClick("product", product.id, {
                   name: product.name,
@@ -661,6 +657,21 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             showPinnedSupport,
             latestRelease,
           }}
+        />
+      ) : isChurch ? (
+        <ChurchSiteView
+          profile={profile}
+          preview={preview}
+          isOwner={isOwner}
+          staffBadges={staffBadges}
+          accent={accent}
+          churchVisit={churchVisit}
+          churchType={churchType}
+          dailyWords={dailyWords}
+          churchPublic={churchPublic}
+          socialLinks={socialLinks}
+          shared={{ about: aboutHasContent ? sections.about : null, links: sections.links || null, catalog: sections.catalog || null }}
+          onWhatsappClick={() => logClick("whatsapp", undefined, { name: "WhatsApp" })}
         />
       ) : (
       <>
@@ -814,16 +825,6 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
             style={{ borderColor: hexToRgba(accent, 0.45), color: accent, animationDelay: "110ms" }}
           >
             {getMusicRole(profile.music_role)!.label[locale]}
-          </p>
-        )}
-
-        {churchType && (
-          // What kind of church or ministry this is, stated as fact (same quiet bordered label Music uses for the artist's role).
-          <p
-            className="mt-2 inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold animate-fade-up"
-            style={{ borderColor: hexToRgba(accent, 0.45), color: accent, animationDelay: "110ms" }}
-          >
-            {churchType}
           </p>
         )}
 
@@ -1011,120 +1012,6 @@ fbq('track', 'PageView', {}, {eventID: '${pageViewEventId}'});
               accent={accent}
               radiusClass={radiusClass}
               borderTint={contentBorderTint}
-            />
-          )}
-
-          {churchVisit && (
-            <ChurchVisitCard
-              t={t}
-              visit={churchVisit}
-              accent={accent}
-              accentText={panelAccentText}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              radiusClass={radiusClass}
-            />
-          )}
-
-          {isChurch && dailyWords.length > 0 && (
-            <DailyWordCard
-              t={t}
-              locale={locale}
-              words={dailyWords}
-              accent={accent}
-              accentText={panelAccentText}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              radiusClass={radiusClass}
-            />
-          )}
-
-          {isChurch && churchPublic.announcements.length > 0 && (
-            <ChurchAnnouncementsCard
-              t={t}
-              locale={locale}
-              announcements={churchPublic.announcements}
-              accent={accent}
-              accentText={panelAccentText}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              radiusClass={radiusClass}
-            />
-          )}
-
-          {isChurch && churchPublic.events.length > 0 && (
-            <ChurchEventsCard
-              t={t}
-              locale={locale}
-              events={churchPublic.events}
-              accent={accent}
-              accentText={panelAccentText}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              radiusClass={radiusClass}
-            />
-          )}
-
-          {isChurch && churchPublic.programs.length > 0 && (
-            <ChurchBibleCard
-              t={t}
-              locale={locale}
-              programs={churchPublic.programs}
-              accent={accent}
-              accentText={panelAccentText}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              radiusClass={radiusClass}
-            />
-          )}
-
-          {isChurch && churchPublic.music.length > 0 && (
-            <ChurchMusicCard
-              t={t}
-              links={churchPublic.music}
-              accent={accent}
-              accentText={panelAccentText}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              radiusClass={radiusClass}
-            />
-          )}
-
-          {isChurch && (churchPublic.care ?? []).length > 0 && (
-            <ChurchCareCard
-              t={t}
-              locale={locale}
-              cases={churchPublic.care}
-              accent={accent}
-              accentText={panelAccentText}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              radiusClass={radiusClass}
-            />
-          )}
-
-          {isChurch && (churchPublic.testimonies ?? []).length > 0 && (
-            <ChurchTestimoniesCard
-              t={t}
-              testimonies={churchPublic.testimonies}
-              accent={accent}
-              accentText={panelAccentText}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              radiusClass={radiusClass}
-            />
-          )}
-
-          {isChurch && !preview && (
-            <ShareTestimony
-              t={t}
-              locale={locale}
-              username={profile.username}
-              accent={accent}
-              accentText={panelAccentText}
-              textColor={contentTextColor}
-              borderTint={contentBorderTint}
-              radiusClass={radiusClass}
             />
           )}
 

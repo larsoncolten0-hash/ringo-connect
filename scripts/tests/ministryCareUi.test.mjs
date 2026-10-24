@@ -73,7 +73,8 @@ const caseRow = (n, o = {}) => ({ id: uid(n), category: "medical", title_en: "He
     check("the editor's live preview (nothing passed) shows no card", !html(PV, { profile: buildPreviewProfile(opts("church_ministries", "en")), pageViewEventId: "preview", preview: true }, "en").includes("church-care-heading"));
   }
   const view = read("src/components/ProfileView.tsx");
-  check("ProfileView: the card is gated on the church flag and on having cases, and sits after the Music card", /isChurch && \(churchPublic\.care \?\? \[\]\)\.length > 0/.test(view) && view.indexOf("<ChurchCareCard") > view.indexOf("<ChurchMusicCard"));
+  const site = read("src/components/church/site/ChurchSiteView.tsx");
+  check("ProfileView: the card is gated on the church flag (the church template) and on having cases, and sits after the Music card", /isChurch \? \(\s*<ChurchSiteView/.test(view) && /const care = churchPublic\.care \?\? \[\]/.test(site) && /\{care\.length > 0 && \(/.test(site) && site.indexOf("<ChurchCareCard") > site.indexOf("<ChurchMusicCard"));
 }
 
 // ---------------------------------------------------------------- 3. the public data rules

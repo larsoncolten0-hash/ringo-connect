@@ -93,7 +93,8 @@ const { buildPreviewProfile } = jiti(path.join(SRC, "app/dev-preview-profile/fix
   check("long text wraps instead of overflowing on a phone", /\[overflow-wrap:anywhere\]/.test(cards));
   check("the one outbound link opens safely (noopener noreferrer) and only for a live, https event", /target="_blank"/.test(cards) && /rel="noopener noreferrer"/.test(cards) && /e\.online_url && !e\.is_cancelled/.test(cards));
   const shell = noComments(read("src/components/church/people/ChurchShell.tsx"));
-  check("the tab bar scrolls sideways on a phone and each tab is touch-sized", /overflow-x-auto/.test(shell) && /min-h-\[44px\]/.test(shell));
+  // The church redesign replaced the sideways-scrolling tab bar: every section is reachable without a horizontal scroll (a sidebar on a wide screen, an in-place grid on a phone).
+  check("the section navigation never scrolls sideways and each entry is touch-sized", !/overflow-x-auto/.test(shell) && /min-h-\[44px\]/.test(shell));
   check("the new tabs appear only for people allowed to open them", /show: caps\.viewEvents/.test(shell) && /show: caps\.viewBible/.test(shell) && /show: caps\.viewAttendance/.test(shell) && /show: caps\.manageMusic/.test(shell) && /show: isOwner/.test(shell));
 }
 
@@ -192,7 +193,8 @@ const { buildPreviewProfile } = jiti(path.join(SRC, "app/dev-preview-profile/fix
   check("the public route loads the church modules only for a church profile, in the existing parallel stage, and fails safe", /profileHasCategory\(profile, "church_ministries"\) \? loadChurchPublic\(supabase, profile\.id\) : Promise\.resolve\(EMPTY_CHURCH_PUBLIC\)/.test(pageSrc) && /churchPublic=\{churchPublic\}/.test(pageSrc));
   check("the existing profile query is unchanged (no ministry_* embed)", /`\*, social_links\(\*\), links\(\*\), products\(\*\), profile_phone_numbers\(\*\), tracks\(\*\), events\(\*, event_ticket_types\(\*\)\), menu_items\(\*\), music_releases\(\*\), booking_services\(\*\)`/.test(pageSrc) && !/ministry_/.test(pageSrc));
   const view = read("src/components/ProfileView.tsx");
-  check("ProfileView: the cards are gated on the church flag and on having content", /\{isChurch && churchPublic\.announcements\.length > 0 && \(/.test(view) && /\{isChurch && churchPublic\.events\.length > 0 && \(/.test(view) && /churchPublic = EMPTY_CHURCH_PUBLIC,/.test(view));
+  const site = read("src/components/church/site/ChurchSiteView.tsx");
+  check("ProfileView: the cards are gated on the church flag (the church template) and on having content", /isChurch \? \(\s*<ChurchSiteView/.test(view) && /\{churchPublic\.announcements\.length > 0 && <ChurchAnnouncementsCard/.test(site) && /\{churchPublic\.events\.length > 0 && <ChurchEventsCard/.test(site) && /churchPublic = EMPTY_CHURCH_PUBLIC,/.test(view));
   check("the section order of every category is unchanged (the cards are drawn beside 'Visit us', not as a section)", /church_ministries: \["events", "catalog", "links", "about"\],/.test(read("src/lib/sectionOrder.ts")));
   check("the ticketing events section stays hidden on a church page (hasTicketing is music-only)", /Church pages have no ticketing yet/.test(view));
 }

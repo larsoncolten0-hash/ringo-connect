@@ -72,7 +72,8 @@ overrideExport("components/church/people/shared.tsx", "ConfirmDialog", (p) => Re
   const cardSrc = noComments(read("src/components/church/ChurchMusicCard.tsx"));
   check("the public card opens each link in a new tab safely (noopener, noreferrer, nofollow)", /target="_blank"/.test(cardSrc) && /rel="noopener noreferrer nofollow"/.test(cardSrc));
   check("the public card draws nothing without links and has no audio, player or download", /links\.length === 0\) return null/.test(cardSrc) && !/<audio|<video|<iframe|download|autoPlay/i.test(cardSrc));
-  check("the public card is wired into ProfileView for churches only, after the Bible card", /isChurch && churchPublic\.music\.length > 0/.test(read("src/components/ProfileView.tsx")) && read("src/components/ProfileView.tsx").indexOf("<ChurchMusicCard") > read("src/components/ProfileView.tsx").indexOf("<ChurchBibleCard"));
+  const site = read("src/components/church/site/ChurchSiteView.tsx");
+  check("the public card is wired into the church template (ProfileView, churches only), after the Bible card", /isChurch \? \(\s*<ChurchSiteView/.test(read("src/components/ProfileView.tsx")) && /\{churchPublic\.music\.length > 0 && \(/.test(site) && site.indexOf("<ChurchMusicCard") > site.indexOf("<ChurchBibleCard"));
 }
 
 // ---------------------------------------------------------------- 3. the real screen, in every state

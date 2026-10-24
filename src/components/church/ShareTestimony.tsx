@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CheckCircle2, Loader2, MessageSquareHeart } from "lucide-react";
-import { hexToRgba } from "@/lib/color";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { hexToRgba, readableOn } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
 import PhoneCountryInput from "@/components/editor/PhoneCountryInput";
 import { TESTIMONY_MAX } from "@/lib/church/testimonies/limits";
+import { SERIF } from "@/components/church/site/churchTheme";
 
 // "Share your testimony" on the public church page. A welcoming card with a button that opens the form IN PLACE (no modal, so it works well on a phone). The visitor needs no account.
 //   * The testimony is sent privately to the church. It is public only if the church approves it AND the visitor ticks the publication box, which is UNCHECKED by default and separate from sending.
@@ -85,21 +86,19 @@ export default function ShareTestimony({
   };
 
   const headingId = "church-testimony-share-heading";
+  // the button text is whichever of ink or white reads on the owner's accent (a gold accent with white text would fail contrast)
+  const onAccent = readableOn(accent);
   return (
     <section aria-labelledby={headingId} className={`relative overflow-hidden ${radiusClass}`} style={{ border: `1px solid ${borderTint}`, backgroundColor: hexToRgba(textColor, 0.03) }}>
-      <div className="h-1.5 w-full" style={{ backgroundColor: accent }} aria-hidden="true" />
-      <div className="p-5">
-        <div className="flex items-center gap-2">
-          <MessageSquareHeart size={15} className="shrink-0" style={{ color: accent }} aria-hidden="true" />
-          <h2 id={headingId} className="text-[11px] uppercase tracking-wider" style={{ opacity: 0.5 }}>
-            {c.shareTitle}
-          </h2>
-        </div>
+      <div className="p-5 sm:p-7">
+        <h2 id={headingId} className="text-[1.4rem] font-semibold leading-tight tracking-[-0.01em]" style={{ fontFamily: SERIF }}>
+          {c.shareTitle}
+        </h2>
 
         {!open ? (
           <>
-            <p className="mt-2 text-sm leading-relaxed" style={{ opacity: 0.85 }}>{c.shareIntro}</p>
-            <button type="button" onClick={() => setOpen(true)} aria-expanded={false} aria-controls="church-testimony-form" className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full px-5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2" style={{ backgroundColor: accent, color: "#fff" }}>
+            <p className="mt-2 max-w-[60ch] text-[0.95rem] leading-relaxed" style={{ opacity: 0.85 }}>{c.shareIntro}</p>
+            <button type="button" onClick={() => setOpen(true)} aria-expanded={false} aria-controls="church-testimony-form" className="mt-5 inline-flex min-h-[48px] items-center justify-center rounded-full px-6 text-sm font-semibold transition hover:brightness-95 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2" style={{ backgroundColor: accent, color: onAccent }}>
               {c.shareButton}
             </button>
           </>
@@ -124,7 +123,7 @@ export default function ShareTestimony({
             <div className="flex flex-col gap-1.5">
               <label htmlFor="ct-name" className="text-sm font-semibold">{f.fullName}</label>
               <input id="ct-name" className={field} style={fieldStyle} value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoComplete="name" placeholder={f.fullNamePlaceholder} required aria-invalid={!!errorFor("full_name")} aria-describedby={errorFor("full_name") ? "ct-name-err" : undefined} disabled={status === "sending"} />
-              {errorFor("full_name") && <p id="ct-name-err" role="alert" className="text-xs font-medium text-red-500">{errorFor("full_name")}</p>}
+              {errorFor("full_name") && <p id="ct-name-err" role="alert" className="text-xs font-medium text-[#B42318]">{errorFor("full_name")}</p>}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -133,7 +132,7 @@ export default function ShareTestimony({
                 <PhoneCountryInput value={phone} onChange={setPhone} placeholder={f.phone} />
               </div>
               <p className="text-xs" style={{ opacity: 0.65 }}>{f.phoneHint}</p>
-              {errorFor("phone") && <p role="alert" className="text-xs font-medium text-red-500">{errorFor("phone")}</p>}
+              {errorFor("phone") && <p role="alert" className="text-xs font-medium text-[#B42318]">{errorFor("phone")}</p>}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -142,14 +141,14 @@ export default function ShareTestimony({
               </label>
               <input id="ct-group" className={field} style={fieldStyle} value={group} onChange={(e) => setGroup(e.target.value)} maxLength={80} placeholder={f.groupPlaceholder} aria-describedby="ct-group-hint" disabled={status === "sending"} />
               <p id="ct-group-hint" className="text-xs" style={{ opacity: 0.65 }}>{f.groupHint}</p>
-              {errorFor("group_label") && <p role="alert" className="text-xs font-medium text-red-500">{errorFor("group_label")}</p>}
+              {errorFor("group_label") && <p role="alert" className="text-xs font-medium text-[#B42318]">{errorFor("group_label")}</p>}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="ct-body" className="text-sm font-semibold">{f.testimony}</label>
               <textarea id="ct-body" className={`${field} resize-y`} style={{ ...fieldStyle, minHeight: "9rem" }} value={body} onChange={(e) => setBody(e.target.value)} maxLength={TESTIMONY_MAX} placeholder={f.testimonyPlaceholder} required aria-invalid={!!errorFor("body")} disabled={status === "sending"} />
               <span className="text-[11px]" style={{ opacity: 0.6 }}>{f.characters(body.length, TESTIMONY_MAX)}</span>
-              {errorFor("body") && <p role="alert" className="text-xs font-medium text-red-500">{errorFor("body")}</p>}
+              {errorFor("body") && <p role="alert" className="text-xs font-medium text-[#B42318]">{errorFor("body")}</p>}
             </div>
 
             <fieldset className="flex flex-col gap-3 rounded-xl p-3" style={{ border: `1px solid ${borderTint}` }}>
@@ -167,7 +166,7 @@ export default function ShareTestimony({
                 </label>
               )}
               <p className="text-xs" style={{ opacity: 0.65 }}>{f.consentNote}</p>
-              {errorFor("publish_consent") && <p role="alert" className="text-xs font-medium text-red-500">{errorFor("publish_consent")}</p>}
+              {errorFor("publish_consent") && <p role="alert" className="text-xs font-medium text-[#B42318]">{errorFor("publish_consent")}</p>}
             </fieldset>
 
             {/* a trap for bots: invisible and unreachable for people */}
@@ -175,10 +174,10 @@ export default function ShareTestimony({
               <input id="ct-website" tabIndex={-1} autoComplete="off" value={trap} onChange={(e) => setTrap(e.target.value)} />
             </div>
 
-            {error && !error.field && <p role="alert" className="text-sm font-medium text-red-500">{f.errors[error.code] ?? f.errors.generic}</p>}
+            {error && !error.field && <p role="alert" className="text-sm font-medium text-[#B42318]">{f.errors[error.code] ?? f.errors.generic}</p>}
 
             <div className="flex flex-wrap gap-2">
-              <button type="submit" disabled={status === "sending"} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60" style={{ backgroundColor: accent, color: "#fff" }}>
+              <button type="submit" disabled={status === "sending"} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60" style={{ backgroundColor: accent, color: onAccent }}>
                 {status === "sending" && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
                 {status === "sending" ? f.sending : f.submit}
               </button>

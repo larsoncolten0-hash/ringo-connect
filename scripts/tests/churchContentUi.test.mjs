@@ -192,7 +192,7 @@ const noComments = (t) => t.replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/\/\*[\s\
     const c = t.churchContent.public;
     check(`card (${lang}): heading, title, scripture, reference, reflection and prayer, all in ${lang}`, h.includes(c.heading) && h.includes(lang === "en" ? "Be still" : "Restez tranquilles") && h.includes(lang === "en" ? "Psalm 46:10" : "Psaume 46:11") && h.includes(lang === "en" ? "Rest in Him." : "Reposez-vous en lui.") && h.includes(c.prayer) && h.includes(lang === "en" ? "Lord, quiet our hearts." : "Seigneur, apaise nos cœurs."), h.slice(0, 300));
     check(`card (${lang}): no text of the other language, no fallback note`, !h.includes(lang === "en" ? "Restez tranquilles" : "Be still") && !h.includes(c.shownIn(c.languageName.en)) && !h.includes(c.shownIn(c.languageName.fr)));
-    check(`card (${lang}): a labelled section, a real h2 and h3, a <time> with the date, decorative icon hidden`, /<section aria-labelledby="church-daily-word-heading"/.test(h) && /<h2 id="church-daily-word-heading"/.test(h) && /<h3 /.test(h) && /<time dateTime="2026-10-22"|<time datetime="2026-10-22"/.test(h) && /aria-hidden="true"/.test(h));
+    check(`card (${lang}): a labelled section, a real h2 and h3, a <time> with the date`, /<section aria-labelledby="church-daily-word-heading"/.test(h) && /<h2 id="church-daily-word-heading"/.test(h) && /<h3 /.test(h) && /<time dateTime="2026-10-22"|<time datetime="2026-10-22"/.test(h));
     check(`card (${lang}): the date is written in ${lang}`, lang === "en" ? /Thursday,? 22 October 2026/.test(h) : /jeudi 22 octobre 2026/.test(h), h.match(/<time[^>]*>[^<]*/)?.[0]);
     check(`card (${lang}): paragraphs are preserved as text`, h.includes("whitespace-pre-line") && h.includes("Second paragraph.") === (lang === "en"));
   }
@@ -229,7 +229,7 @@ const noComments = (t) => t.replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/\/\*[\s\
   check("the public route loads words only for a church profile, in the existing parallel stage, and fails safe", /profileHasCategory\(profile, "church_ministries"\) \? loadPublicWords\(supabase, profile\.id\) : Promise\.resolve\(\[\]\)/.test(pageSrc) && /dailyWords=\{dailyWords\}/.test(pageSrc));
   check("the existing profile query is unchanged (no daily_words embed)", /`\*, social_links\(\*\), links\(\*\), products\(\*\), profile_phone_numbers\(\*\), tracks\(\*\), events\(\*, event_ticket_types\(\*\)\), menu_items\(\*\), music_releases\(\*\), booking_services\(\*\)`/.test(pageSrc) && !/daily_words/.test(pageSrc));
   const view = read("src/components/ProfileView.tsx");
-  check("ProfileView: the card is gated on the church flag and on having words", /\{isChurch && dailyWords\.length > 0 && \(\s*<DailyWordCard/.test(view) && /dailyWords = \[\],/.test(view));
+  check("ProfileView: the card is gated on the church flag (the church template) and on having words", /isChurch \? \(\s*<ChurchSiteView/.test(view) && /\{dailyWords\.length > 0 && \([\s\S]{0,120}<DailyWordCard/.test(read("src/components/church/site/ChurchSiteView.tsx")) && /dailyWords = \[\],/.test(view));
   check("the section order of every category is unchanged (the card is drawn beside 'Visit us', not as a section)", /church_ministries: \["events", "catalog", "links", "about"\],/.test(read("src/lib/sectionOrder.ts")));
 }
 

@@ -143,7 +143,8 @@ overrideExport("components/church/people/shared.tsx", "ConfirmDialog", (p) => Re
     check(`shell (${lang}): events permissions open Events and Announcements`, tabs(ev).join() === "/dashboard/church/events,/dashboard/church/announcements");
     const music = html(Shell, { caps: caps("church.music.manage"), isOwner: false, children: null }, lang);
     check(`shell (${lang}): music.manage opens Music only; the Store tab never appears for staff`, tabs(music).join() === "/dashboard/church/music" && !tabs(staff).includes("/dashboard/church/store"));
-    check(`shell (${lang}): the tab bar scrolls sideways on a phone`, /overflow-x-auto/.test(all));
+    // The church redesign replaced the sideways-scrolling tab bar with a sidebar (wide screens) and an in-place grid (phones).
+    check(`shell (${lang}): the section navigation never scrolls sideways`, !/overflow-x-auto/.test(all));
     for (const section of ["events", "bible", "attendance", "music", "store"]) {
       const na = html(NoAccess, { section }, lang);
       check(`no access (${lang}): ${section}`, na.includes(t.churchWorkspace.restricted[section]));
