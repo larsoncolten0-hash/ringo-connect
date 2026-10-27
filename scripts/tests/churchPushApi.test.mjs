@@ -248,7 +248,9 @@ section("F. the cron route and privacy (static): ");
   const wrong = await ghosts.GET(new Request("http://t/api/cron/church-push", { headers: { authorization: "Bearer nope" } }));
   check("with a wrong secret: 401", wrong.status === 401);
   const vercel = JSON.parse(fs.readFileSync(path.join(SRC, "..", "vercel.json"), "utf8"));
-  check("the job is scheduled every 15 minutes in vercel.json", vercel.crons.some((c) => c.path === "/api/cron/church-push" && c.schedule === "*/15 * * * *"));
+  check("the job is scheduled once a day at 06:00 UTC (07:00 in Cameroon) in vercel.json", vercel.crons.some((c) => c.path === "/api/cron/church-push" && c.schedule === "0 6 * * *"));
+  // the Vercel Hobby plan refuses any cron that would run more than once a day: a fixed minute and a fixed hour, every other field "*"
+  check("every cron in vercel.json runs at most once a day (Hobby plan)", vercel.crons.length > 0 && vercel.crons.every((c) => /^\d{1,2} \d{1,2} \* \* \*$/.test(c.schedule)), vercel.crons.map((c) => c.schedule).join(" | "));
   const run = code("lib/church/push/run.ts");
   check("the job writes only through the queue functions (no direct insert into a visitor table)", !/\.insert\(|\.update\(|\.delete\(/.test(run));
   const prefs = code("lib/church/push/prefs.ts");

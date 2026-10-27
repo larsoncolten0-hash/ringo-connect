@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { sendPushToCustomer } from "@/lib/customer/push";
 import { discover, dispatch, type Db } from "@/lib/church/push/run";
 
-// Every 15 minutes: queue what is new in the churches (announcements, group notices, events, testimonies, the Daily Word, the daily Bible reading, care needs, new products) and send what is due to the
+// Once a day at 06:00 UTC (07:00 in Cameroon, when the Daily Word and the Bible reading are due; the Vercel Hobby plan allows one run per day): queue what is new in the churches (announcements, group notices, events, testimonies, the Daily Word, the daily Bible reading, care needs, new products) and send what is due to the
 // people who chose to hear about it. Same CRON_SECRET bearer-auth pattern as every other cron route of this project. Safe to run twice or at once: the queue is unique per church, kind and item, a
 // claim is atomic, and a person who was already notified is never notified again. See lib/church/push/run.ts.
 export const dynamic = "force-dynamic";

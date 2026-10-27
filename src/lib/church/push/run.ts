@@ -179,7 +179,7 @@ async function stillPublic(db: Db, row: Row): Promise<boolean> {
   }
 }
 
-export async function dispatch(db: Db, send: Sender, now: number = Date.now(), limit = 20, budgetMs = 45_000): Promise<DispatchResult> {
+export async function dispatch(db: Db, send: Sender, now: number = Date.now(), limit = 100, budgetMs = 45_000): Promise<DispatchResult> {
   const out: DispatchResult = { claimed: 0, sent: 0, skipped: 0, failed: 0 };
   const started = Date.now();
   const { data: claimed, error } = await db.rpc("church_push_claim", { p_limit: limit });
