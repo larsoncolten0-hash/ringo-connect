@@ -481,7 +481,7 @@ section = "F. static guarantees about the new code: ";
   check("no notification, email, push or AI code is reached from the content handlers", !/notification|sendAnnouncement|push|anthropic|openai|resend/i.test(h));
   check("publishing and unpublishing demand the publish capability and an explicit confirmation", /caps\.publishContent/.test(h) && (h.match(/parseConfirm\(body\)/g) || []).length === 2);
   const mig = nc(read("supabase/migrations/2026-12-28_daily_words.sql"));
-  check("the daily_words migration is this phase's only schema change (the later church migrations of Phases 4, 5, 7, 8, 9 and Testimonies follow it, in order)", fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((f) => f >= "2026-12-28").join() === "2026-12-28_daily_words.sql,2026-12-29_ministry_events_announcements.sql,2026-12-30_bible_programs.sql,2026-12-31_ministry_attendance.sql,2027-01-01_ministry_music_links.sql,2027-01-02_ministry_care_cases.sql,2027-01-03_ministry_testimonies.sql" && mig.length > 500);
+  check("the daily_words migration is this phase's only schema change (the later church migrations of Phases 4, 5, 7, 8, 9, Testimonies and the landing images follow it, in order)", fs.readdirSync(path.join(REPO, "supabase/migrations")).filter((f) => f >= "2026-12-28").join() === "2026-12-28_daily_words.sql,2026-12-29_ministry_events_announcements.sql,2026-12-30_bible_programs.sql,2026-12-31_ministry_attendance.sql,2027-01-01_ministry_music_links.sql,2027-01-02_ministry_care_cases.sql,2027-01-03_ministry_testimonies.sql,2027-01-04_church_landing_images.sql" && mig.length > 500);
   check("the Phase 2A migration and support files are untouched by this phase", true);
 }
 

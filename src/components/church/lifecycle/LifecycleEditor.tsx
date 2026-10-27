@@ -10,6 +10,7 @@ import { Badge, BTN_DANGER, BTN_PRIMARY, BTN_SECONDARY, ConfirmDialog, ErrorLine
 import { churchErrorText } from "./errorText";
 import { ANNOUNCEMENT_DURATIONS, announcementEnd } from "@/lib/church/week";
 import PreviewDialog from "./PreviewDialog";
+import PictureField from "./PictureField";
 import type { FieldDef, FormValues, Lang, LifecycleConfig } from "./types";
 
 interface Meta {
@@ -101,13 +102,24 @@ export default function LifecycleEditor({ id, caps, config, extra }: { id?: stri
   const anyReady = config.ready(form, "en") || config.ready(form, "fr");
   const live = meta?.status === "published";
 
+  // a new entry's body: the form, minus an empty picture and the fields that depend on it
+  const createBody = (): FormValues => {
+    const b: FormValues = { ...form };
+    for (const d of config.fields) {
+      if (d.kind !== "image" || String(b[d.key] ?? "") !== "") continue;
+      delete b[d.key];
+      for (const x of config.fields.filter((y) => y.visibleWhen === d.key)) delete b[x.key];
+    }
+    return b;
+  };
+
   const save = async () => {
     setBusy(true);
     setError("");
     const changed = Object.fromEntries(Object.entries(form).filter(([k, v]) => v !== saved[k]));
     const r = meta
       ? await churchApi<{ id?: string; item: Record<string, any> }>(`${config.apiPath}/${meta.id}`, { method: "PATCH", body: { ...changed, expected_updated_at: meta.updated_at } })
-      : await churchApi<{ id?: string; item: Record<string, any> }>(config.apiPath, { method: "POST", body: form });
+      : await churchApi<{ id?: string; item: Record<string, any> }>(config.apiPath, { method: "POST", body: createBody() });
     setBusy(false);
     if (!r.ok) {
       if (r.code === "stale") setStale(true);
@@ -170,6 +182,24 @@ export default function LifecycleEditor({ id, caps, config, extra }: { id?: stri
   const p = config.idPrefix;
   const control = (def: FieldDef, key: string, fid: string) => {
     const tx = f[def.key] ?? { label: def.key };
+    // a dependent field (the care "the person agreed" box) only shows once the field it depends on has a value
+    if (def.visibleWhen && String(form[def.visibleWhen] ?? "") === "") return null;
+    if (def.kind === "image") {
+      const dependents = config.fields.filter((d) => d.visibleWhen === def.key);
+      return (
+        <Field key={key} id={fid} label={tx.label} hint={tx.help} optional>
+          <PictureField
+            value={String(form[key] ?? "")}
+            disabled={readOnly}
+            labels={{ choose: tx.options?.choose ?? "", remove: tx.options?.remove ?? "" }}
+            onChange={(url) => {
+              set(key, url);
+              if (url === "") for (const d of dependents) set(d.key, false);
+            }}
+          />
+        </Field>
+      );
+    }
     if (def.kind === "checkbox") {
       return (
         <label key={key} htmlFor={fid} className="flex min-h-[44px] items-center gap-3 text-sm font-medium text-ringo-text">

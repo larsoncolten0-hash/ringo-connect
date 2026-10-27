@@ -1,4 +1,5 @@
 import { has, optionalText, parseDate, plainObject, type Checked } from "../validation";
+import { safeChurchImageUrl } from "../images";
 
 // Strict input validation shared by the Events, Announcements and Bible-program routes. Pure: no I/O.
 //
@@ -98,6 +99,15 @@ export function safeHttpsUrl(v: unknown): string | null {
   if (!/^https:\/\/[^\s/@?#]+\.[^\s/@?#]+([/?#]\S*)?$/.test(s)) return null; // the exact shape the database check accepts
   return s;
 }
+
+/** An optional picture: an address in this platform's own public storage (see lib/church/images.ts), or nothing (null / "" clears it). */
+export const imageUrlField: FieldSpec = {
+  check: (v, field) => {
+    if (v === null || v === undefined || (typeof v === "string" && v.trim() === "")) return { ok: true, value: null };
+    const s = safeChurchImageUrl(v);
+    return s ? { ok: true, value: s } : { ok: false, code: "invalid_image_url", field };
+  },
+};
 
 export const httpsUrlField: FieldSpec = {
   check: (v, field) => {

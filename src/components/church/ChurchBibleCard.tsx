@@ -4,6 +4,7 @@ import type { Translations } from "@/lib/i18n/translations";
 import { isProgramReadable, resolveLanguage, type PublicProgram } from "@/lib/church/public/bible";
 import type { PublicLang } from "@/lib/church/public/events";
 import { SERIF } from "@/components/church/site/churchTheme";
+import SeeMore from "@/components/church/site/SeeMore";
 
 // "Bible programmes" on the public church page (Phase 5), also drawn in the dashboard preview from an unsaved draft. Rendered on the church site only for the Churches & Ministries category and only when a
 // programme is published. A programme shows its title, description and how many days it has, and one link: the programme's own page, where a visitor signs in to My Ringo to follow it (their progress is
@@ -19,6 +20,9 @@ export default function ChurchBibleCard({
   borderTint,
   radiusClass,
   preview = false,
+  headingLevel = "h2",
+  seeMoreHref,
+  intro,
 }: {
   t: Translations;
   /** The language the visitor reads (in the dashboard preview: the language being previewed). */
@@ -31,6 +35,12 @@ export default function ChurchBibleCard({
   radiusClass: string;
   /** In the dashboard preview the link goes nowhere (the programme is not public yet). */
   preview?: boolean;
+  /** "h1" when the card IS the page (the landing page). */
+  headingLevel?: "h1" | "h2";
+  /** Where "See more" goes; none in the dashboard preview. */
+  seeMoreHref?: string;
+  /** One line under the heading (the landing page). */
+  intro?: string;
 }) {
   const c = t.churchBible.public;
   const shown = programs
@@ -38,12 +48,18 @@ export default function ChurchBibleCard({
     .filter((x): x is { p: PublicProgram; r: { lang: PublicLang; fallback: boolean } } => x.r !== null);
   if (shown.length === 0) return null;
   const headingId = "church-bible-heading";
+  const H = headingLevel;
   const action = "mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-full px-4 text-sm font-semibold";
   return (
     <section aria-labelledby={headingId} className={`relative ${radiusClass}`} style={{ color: textColor }}>
-      <h2 id={headingId} className="text-[1.65rem] font-semibold leading-tight tracking-[-0.01em]" style={{ fontFamily: SERIF }}>
+      <H id={headingId} className={`${H === "h1" ? "text-[2rem] sm:text-[2.4rem]" : "text-[1.65rem]"} font-semibold leading-tight tracking-[-0.01em]`} style={{ fontFamily: SERIF }}>
         {c.heading}
-      </h2>
+      </H>
+      {intro && (
+        <p className="mt-2 max-w-[65ch] text-[0.95rem] leading-relaxed" style={{ opacity: 0.8 }}>
+          {intro}
+        </p>
+      )}
       <ul className="mt-5 grid gap-3 sm:grid-cols-2">
         {shown.map(({ p, r }) => {
           const description = p[`description_${r.lang}`];
@@ -94,6 +110,7 @@ export default function ChurchBibleCard({
       <p className="mt-4 text-sm" style={{ opacity: 0.75 }}>
         {c.privacy}
       </p>
+      {seeMoreHref && <SeeMore t={t} href={seeMoreHref} subject={c.heading} color={accentText} borderColor={borderTint} className="mt-4" />}
     </section>
   );
 }

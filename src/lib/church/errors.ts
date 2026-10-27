@@ -84,6 +84,9 @@ const CONSTRAINT_CODES: Array<[RegExp, Outcome]> = [
   // Phase 4
   [/ministry_events_times_check/, { status: 422, code: "invalid_time_range" }],
   [/ministry_events_online_url_check/, { status: 422, code: "invalid_online_url" }],
+  // Phase 2 (pictures): the address shape, and a care picture without the recorded confirmation
+  [/ministry_(events|announcements|care_cases)_image_url_check/, { status: 422, code: "invalid_image_url" }],
+  [/ministry_care_cases_image_consent_check/, { status: 422, code: "image_consent_required" }],
   [/ministry_events_publish_content_check/, { status: 422, code: "needs_title" }],
   [/ministry_announcements_publish_content_check/, { status: 422, code: "needs_title_and_body" }],
   // Phase 7: an event that has attendance cannot be deleted (the foreign key is NO ACTION); recording twice is a unique-key conflict; a count outside its range

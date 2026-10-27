@@ -84,8 +84,8 @@ overrideExport("components/church/people/shared.tsx", "ConfirmDialog", (p) => Re
   check("the progress is exposed as a labelled progressbar", /role="progressbar"/.test(body) && /aria-valuenow=\{data\.done\}/.test(body) && /aria-labelledby="journey-progress-label"/.test(body));
   check("the visitor view sends only the session and the done flag (never a visitor or a programme owner)", /body: \{ session_id: s\.id, done \}/.test(body) && !/customer_id|profile_id/.test(body));
   const card = noComments(read("src/components/church/ChurchBibleCard.tsx"));
-  check("the card renders text as text, has a labelled section, a real heading and touch-sized links", /whitespace-pre-line/.test(card) && !/dangerouslySetInnerHTML/.test(card) && /aria-labelledby=\{headingId\}/.test(card) && /<h2 id=\{headingId\}/.test(card) && /min-h-\[44px\]/.test(card) && /\[overflow-wrap:anywhere\]/.test(card));
-  check("the card links only to the programme's own page", /href=\{`\/my-ringo\/journey\/\$\{p\.id\}`\}/.test(card) && (card.match(/href=/g) || []).length === 1);
+  check("the card renders text as text, has a labelled section, a real heading and touch-sized links", /whitespace-pre-line/.test(card) && !/dangerouslySetInnerHTML/.test(card) && /aria-labelledby=\{headingId\}/.test(card) && /<H id=\{headingId\}/.test(card) && /headingLevel = "h2"/.test(card) && /min-h-\[44px\]/.test(card) && /\[overflow-wrap:anywhere\]/.test(card));
+  check("the card links only to the programme's own page", /href=\{`\/my-ringo\/journey\/\$\{p\.id\}`\}/.test(card) && (card.replace(/<SeeMore [^>]*\/>/g, "").match(/href=/g) || []).length === 1 && /<SeeMore t=\{t\} href=\{seeMoreHref\}/.test(card));
   // the pages
   const listPage = noComments(read("src/app/my-ringo/journey/page.tsx"));
   const programPage = noComments(read("src/app/my-ringo/journey/[programId]/page.tsx"));

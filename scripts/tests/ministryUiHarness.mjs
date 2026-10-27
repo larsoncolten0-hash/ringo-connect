@@ -32,6 +32,8 @@ export const routerCalls = [];
 const stubs = {
   "@/components/LanguageProvider": { useLanguage: () => ({ locale: LOCALE, t: translations[LOCALE], setLocale() {} }), LanguageProvider: ({ children }) => children },
   "next/navigation": { usePathname: () => "/dashboard/church/events", useRouter: () => ({ refresh() {}, push: (p) => routerCalls.push(["push", p]), replace: (p) => routerCalls.push(["replace", p]) }), useSearchParams: () => new URLSearchParams() },
+  // The picture field of the editors builds a browser client while rendering; a static render has no project URL or key, so it gets an inert one.
+  "@/lib/supabase/client": { createClient: () => ({ auth: { getUser: () => Promise.resolve({ data: { user: null } }) }, storage: { from: () => ({ upload: () => Promise.resolve({ error: null }), getPublicUrl: () => ({ data: { publicUrl: "" } }) }) } }) },
   "next/script": { __esModule: true, default: Null },
   "next/dynamic": { __esModule: true, default: () => Null },
   "next/image": { __esModule: true, default: (p) => React.createElement("img", { src: p.src, alt: p.alt || "" }) },

@@ -26,6 +26,8 @@ export interface LifecycleSpec {
   logScope: string;
   /** Columns of ONE entry (no audit columns). */
   cols: string;
+  /** The same columns minus any that a database without the newest migration does not have yet (pictures). Used only when the database says a column is missing, so a deployed page keeps working until the owner applies the SQL. */
+  fallbackCols?: string;
   /** Columns of a list row. */
   listCols: string;
   caps: { view: (c: ChurchCapabilities) => boolean; manage: (c: ChurchCapabilities) => boolean; publish: (c: ChurchCapabilities) => boolean };
@@ -76,8 +78,10 @@ export function makeLifecycle(spec: LifecycleSpec) {
   const shape = spec.answer ?? spec.detail;
 
   async function readRow(a: ChurchActor, id: string, cols = spec.cols) {
-    const { data, error } = await q(a).select(cols).eq("id", id).eq("profile_id", a.profileId).maybeSingle();
-    return { row: (data as Row | null) ?? null, error };
+    let res = await q(a).select(cols).eq("id", id).eq("profile_id", a.profileId).maybeSingle();
+    // 42703 = undefined column: the database has not got the newest columns yet, so read the ones it has
+    if (res.error && cols === spec.cols && spec.fallbackCols && String((res.error as any).code) === "42703") res = await q(a).select(spec.fallbackCols).eq("id", id).eq("profile_id", a.profileId).maybeSingle();
+    return { row: (res.data as Row | null) ?? null, error: res.error };
   }
 
   /** What the caller may do with this row. UX hints only; the database decides. */

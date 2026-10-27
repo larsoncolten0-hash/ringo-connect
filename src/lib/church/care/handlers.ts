@@ -2,7 +2,7 @@ import type { ChurchActor } from "../actor";
 import { classifyDbError, failure } from "../errors";
 import type { Result } from "../handlers";
 import { makeLifecycle, type LifecycleSpec } from "../lifecycle/engine";
-import { makeBodyParser } from "../lifecycle/validation";
+import { booleanField, imageUrlField, makeBodyParser } from "../lifecycle/validation";
 import { has, isUuid, plainObject } from "../validation";
 
 // Churches & Ministries Care & Support (Phase 9): the CASE and CONSENT data layer behind /api/church/care/**. There is NO money here: no amount, no contribution, no payment, no payout. Collecting
@@ -44,11 +44,18 @@ export const parseCase = makeBodyParser({
     summary_en: { max: 2000, multiline: true, code: "invalid_summary" },
     summary_fr: { max: 2000, multiline: true, code: "invalid_summary" },
   },
-  fields: { category: { check: (v, field) => (oneOf(CARE_CATEGORIES, v) ? { ok: true, value: v } : { ok: false, code: "invalid_category", field }) } },
+  fields: {
+    category: { check: (v, field) => (oneOf(CARE_CATEGORIES, v) ? { ok: true, value: v } : { ok: false, code: "invalid_category", field }) },
+    // an optional picture, held to the same consent standard as the case: it can only be stored together with image_consent = true (the database refuses it otherwise)
+    image_url: imageUrlField,
+    image_consent: booleanField,
+  },
 });
 
 const complete = (title: unknown, summary: unknown): boolean => filled(title) && filled(summary);
-const CASE_COLS = "id, status, category, title_en, title_fr, summary_en, summary_fr, consent_state, published_at, created_at, updated_at";
+// the list needs no picture; one entry carries the picture and its confirmation (and falls back to the list's columns on a database that has not got them yet)
+const CASE_LIST_COLS = "id, status, category, title_en, title_fr, summary_en, summary_fr, consent_state, published_at, created_at, updated_at";
+const CASE_COLS = "id, status, category, title_en, title_fr, summary_en, summary_fr, image_url, image_consent, consent_state, published_at, created_at, updated_at";
 
 const caseShape = (r: Row): Record<string, unknown> => ({
   ...r,
@@ -61,7 +68,8 @@ export const caseSpec: LifecycleSpec = {
   table: "ministry_care_cases",
   logScope: "church_care",
   cols: CASE_COLS,
-  listCols: CASE_COLS,
+  fallbackCols: CASE_LIST_COLS,
+  listCols: CASE_LIST_COLS,
   caps: { view: (c) => c.viewCare, manage: (c) => c.manageCare, publish: (c) => c.publishCare },
   parse: parseCase,
   views: {

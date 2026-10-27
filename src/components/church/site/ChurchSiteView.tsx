@@ -11,6 +11,7 @@ import { isUsablePhone } from "@/lib/heroAction";
 import type { PublicWord } from "@/lib/church/content/publicWord";
 import type { ChurchPublicExtras } from "@/lib/church/public";
 import type { ChurchVisit } from "@/lib/church/publicPage";
+import { landingPath, type ChurchLandingKind } from "@/lib/church/public/landing";
 import OptImg from "@/components/ui/OptImg";
 import SocialIcon from "@/components/SocialIcon";
 import ShareButton from "@/components/ShareButton";
@@ -87,6 +88,8 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
   const order: SectionId[] = ["visit", "news", "word", "testimonies", "bible", "music", "care", "store", "links", "contact"];
   const nav = order.filter((id) => present[id]);
   const anchor = (id: SectionId) => `church-${id}`;
+  // "See more" opens the section's landing page; the dashboard preview has no page to open, so it draws no link
+  const see = (kind: ChurchLandingKind): string | undefined => (preview ? undefined : landingPath(profile.username, kind));
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -327,8 +330,8 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
           {hasNews && (
             <div id={anchor("news")} className={`${sectionCls} grid gap-12 lg:gap-14 ${churchPublic.events.length > 0 && churchPublic.announcements.length > 0 ? "lg:grid-cols-[1fr_1.45fr]" : ""}`}>
               {/* the notes first (they are short and current), then the dated events in the wider column */}
-              {churchPublic.announcements.length > 0 && <ChurchAnnouncementsCard t={t} locale={locale} announcements={churchPublic.announcements} rotate {...card} />}
-              {churchPublic.events.length > 0 && <ChurchEventsCard t={t} locale={locale} events={churchPublic.events} {...card} />}
+              {churchPublic.announcements.length > 0 && <ChurchAnnouncementsCard t={t} locale={locale} announcements={churchPublic.announcements} rotate seeMoreHref={see("announcements")} {...card} />}
+              {churchPublic.events.length > 0 && <ChurchEventsCard t={t} locale={locale} events={churchPublic.events} seeMoreHref={see("events")} {...card} />}
             </div>
           )}
 
@@ -350,6 +353,7 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
                   borderTint="rgba(244, 238, 228, 0.16)"
                   radiusClass="rounded-[28px]"
                   surface={CH.night}
+                  seeMoreHref={see("testimonies")}
                 />
               )}
               {!preview && <ShareTestimony t={t} locale={locale} username={profile.username} {...card} />}
@@ -358,7 +362,7 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
 
           {churchPublic.programs.length > 0 && (
             <div id={anchor("bible")} className={sectionCls}>
-              <ChurchBibleCard t={t} locale={locale} programs={churchPublic.programs} {...card} />
+              <ChurchBibleCard t={t} locale={locale} programs={churchPublic.programs} seeMoreHref={see("bible")} {...card} />
             </div>
           )}
 
@@ -370,7 +374,7 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
 
           {care.length > 0 && (
             <div id={anchor("care")} className={sectionCls}>
-              <ChurchCareCard t={t} locale={locale} cases={care} {...card} />
+              <ChurchCareCard t={t} locale={locale} cases={care} seeMoreHref={see("care")} {...card} />
             </div>
           )}
 

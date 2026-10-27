@@ -89,7 +89,7 @@ const { buildPreviewProfile } = jiti(path.join(SRC, "app/dev-preview-profile/fix
   check("controls are touch-sized (44px) on the list rows and the editor", /min-h-\[72px\]/.test(list) && /min-h-\[44px\]/.test(editor));
   const cards = noComments(read("src/components/church/ChurchEventsCards.tsx"));
   check("the public cards render text as text (whitespace-pre-line), never as markup", /whitespace-pre-line/.test(cards) && !/dangerouslySetInnerHTML/.test(cards));
-  check("the public cards have labelled sections, real headings and real <time> elements", (cards.match(/aria-labelledby/g) || []).length >= 1 && /<h2 id=\{headingId\}/.test(cards) && /<h3 /.test(cards) && /<time\b/.test(cards));
+  check("the public cards have labelled sections, real headings and real <time> elements", (cards.match(/aria-labelledby/g) || []).length >= 1 && /<H id=\{headingId\}/.test(cards) && /headingLevel \?\? "h2"/.test(cards) && /<h3 /.test(cards) && /<time\b/.test(cards));
   check("long text wraps instead of overflowing on a phone", /\[overflow-wrap:anywhere\]/.test(cards));
   check("the one outbound link opens safely (noopener noreferrer) and only for a live, https event", /target="_blank"/.test(cards) && /rel="noopener noreferrer"/.test(cards) && /e\.online_url && !e\.is_cancelled/.test(cards));
   const shell = noComments(read("src/components/church/people/ChurchShell.tsx"));

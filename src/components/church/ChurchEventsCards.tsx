@@ -3,9 +3,12 @@
 import { ChevronLeft, ChevronRight, Clock, ExternalLink, MapPin, Pause, Play } from "lucide-react";
 import { hexToRgba } from "@/lib/color";
 import type { Translations } from "@/lib/i18n/translations";
-import { isAnnouncementReadable, isEventReadable, resolveLanguage, type PublicAnnouncement, type PublicEvent, type PublicLang } from "@/lib/church/public/events";
+import { groupAnnouncements, isAnnouncementReadable, isEventReadable, resolveLanguage, type PublicAnnouncement, type PublicEvent, type PublicLang } from "@/lib/church/public/events";
+import { doualaToday } from "@/lib/church/week";
 import { SERIF } from "@/components/church/site/churchTheme";
 import { useRotation } from "@/components/church/site/useRotation";
+import ChurchPicture from "@/components/church/site/ChurchPicture";
+import SeeMore from "@/components/church/site/SeeMore";
 
 // "Upcoming events" and "Announcements" on the public church page (Phase 4), also drawn in the dashboard preview from an unsaved draft. Rendered on the church site only for the Churches & Ministries
 // category and only when something is published. Everything is PLAIN TEXT (paragraphs are kept, markup is never interpreted); the one link is an https address that already passed the same check the
@@ -21,6 +24,12 @@ interface Theme {
   textColor: string;
   borderTint: string;
   radiusClass: string;
+  /** "h1" when the card IS the page (a landing page); "h2" (default) when it is a section of the church page. */
+  headingLevel?: "h1" | "h2";
+  /** Where "See more" goes (the section's landing page). Not given in the dashboard preview, so no link is drawn there. */
+  seeMoreHref?: string;
+  /** One line under the heading (the landing page). */
+  intro?: string;
 }
 
 const dateParts = (iso: string, lang: PublicLang) => {
@@ -34,14 +43,23 @@ const dateParts = (iso: string, lang: PublicLang) => {
   };
 };
 
-const Shell = ({ theme, headingId, heading, children }: { theme: Theme; headingId: string; heading: string; children: React.ReactNode }) => (
-  <section aria-labelledby={headingId} className={`relative min-w-0 ${theme.radiusClass}`} style={{ color: theme.textColor }}>
-    <h2 id={headingId} className="text-[1.65rem] font-semibold leading-tight tracking-[-0.01em]" style={{ fontFamily: SERIF }}>
-      {heading}
-    </h2>
-    {children}
-  </section>
-);
+const Shell = ({ theme, headingId, heading, children }: { theme: Theme; headingId: string; heading: string; children: React.ReactNode }) => {
+  const H = theme.headingLevel ?? "h2";
+  return (
+    <section aria-labelledby={headingId} className={`relative min-w-0 ${theme.radiusClass}`} style={{ color: theme.textColor }}>
+      <H id={headingId} className={`${H === "h1" ? "text-[2rem] sm:text-[2.4rem]" : "text-[1.65rem]"} font-semibold leading-tight tracking-[-0.01em] [text-wrap:balance]`} style={{ fontFamily: SERIF }}>
+        {heading}
+      </H>
+      {theme.intro && (
+        <p className="mt-2 max-w-[65ch] text-[0.95rem] leading-relaxed" style={{ opacity: 0.8 }}>
+          {theme.intro}
+        </p>
+      )}
+      {children}
+      {theme.seeMoreHref && <SeeMore t={theme.t} href={theme.seeMoreHref} subject={heading} color={theme.accentText} borderColor={theme.borderTint} className="mt-5" />}
+    </section>
+  );
+};
 
 export function ChurchEventsCard({ events, ...theme }: Theme & { events: PublicEvent[] }) {
   const c = theme.t.churchEvents.public;
@@ -57,7 +75,9 @@ export function ChurchEventsCard({ events, ...theme }: Theme & { events: PublicE
           const description = e[`description_${r.lang}`];
           const when = e.start_time && e.end_time ? c.range(e.start_time, e.end_time) : e.start_time ? c.from(e.start_time) : null;
           return (
-            <li key={e.id} className={`flex items-start gap-4 border p-4 sm:p-5 ${theme.radiusClass}`} style={{ borderColor: theme.borderTint, backgroundColor: hexToRgba("#FFFFFF", 0.6), opacity: e.is_cancelled ? 0.8 : 1 }}>
+            <li key={e.id} className={`overflow-hidden border ${theme.radiusClass}`} style={{ borderColor: theme.borderTint, backgroundColor: hexToRgba("#FFFFFF", 0.6), opacity: e.is_cancelled ? 0.8 : 1 }}>
+              <ChurchPicture src={e.image_url} />
+              <div className="flex items-start gap-4 p-4 sm:p-5">
               <div className="flex w-14 shrink-0 flex-col items-center rounded-2xl py-2 text-center leading-none" style={{ backgroundColor: hexToRgba(theme.accent, 0.12) }} aria-hidden="true">
                 <span className="text-[1.6rem] font-semibold tabular-nums" style={{ fontFamily: SERIF }}>
                   {dp.day}
@@ -113,6 +133,7 @@ export function ChurchEventsCard({ events, ...theme }: Theme & { events: PublicE
                   </p>
                 )}
               </div>
+              </div>
             </li>
           );
         })}
@@ -145,7 +166,9 @@ function AnnouncementsSlideshow({ shown, theme }: { shown: ShownAnnouncement[]; 
         }}
       >
         <div role="group" aria-roledescription="slide" aria-label={sl.position(rot.index + 1, n)} aria-live={rot.live} className="min-h-[8.5rem]">
-          <article key={a.id} className={`min-w-0 border p-5 sm:p-6 animate-fade-up motion-reduce:animate-none ${theme.radiusClass}`} style={{ borderColor: theme.borderTint, backgroundColor: hexToRgba("#FFFFFF", 0.6) }}>
+          <article key={a.id} className={`min-w-0 overflow-hidden border animate-fade-up motion-reduce:animate-none ${theme.radiusClass}`} style={{ borderColor: theme.borderTint, backgroundColor: hexToRgba("#FFFFFF", 0.6) }}>
+            <ChurchPicture src={a.image_url} />
+            <div className="p-5 sm:p-6">
             <h3 className="text-[1.2rem] font-semibold leading-snug [overflow-wrap:anywhere]" style={{ fontFamily: SERIF }}>
               {a[`title_${r.lang}`]}
             </h3>
@@ -160,6 +183,7 @@ function AnnouncementsSlideshow({ shown, theme }: { shown: ShownAnnouncement[]; 
                 {c.shownIn(c.languageName[r.lang])}
               </p>
             )}
+            </div>
           </article>
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
@@ -188,18 +212,20 @@ function AnnouncementsSlideshow({ shown, theme }: { shown: ShownAnnouncement[]; 
 }
 
 /** `rotate` (the church site) turns several announcements into a rotating slideshow; without it (the dashboard preview) they are a plain list. */
-export function ChurchAnnouncementsCard({ announcements, rotate = false, ...theme }: Theme & { announcements: PublicAnnouncement[]; rotate?: boolean }) {
+export function ChurchAnnouncementsCard({ announcements, rotate = false, grouped = false, ...theme }: Theme & { announcements: PublicAnnouncement[]; rotate?: boolean; /** The landing page: "This week" and "Ongoing" under their own labels. */ grouped?: boolean }) {
   const c = theme.t.churchEvents.public;
   const shown = announcements
     .map((a) => ({ a, r: resolveLanguage((l) => isAnnouncementReadable(a, l), theme.locale) }))
     .filter((x): x is ShownAnnouncement => x.r !== null);
   if (shown.length === 0) return null;
   if (rotate && shown.length > 1) return <AnnouncementsSlideshow shown={shown} theme={theme} />;
-  return (
-    <Shell theme={theme} headingId="church-announcements-heading" heading={c.announcementsHeading}>
+  const land = theme.t.churchSite.public.landing;
+  const groups = grouped ? groupAnnouncements(shown.map((x) => x.a), doualaToday()) : null;
+  const list = (rows: typeof shown) => (
       <ul className="mt-4 flex flex-col">
-        {shown.map(({ a, r }, i) => (
+        {rows.map(({ a, r }, i) => (
           <li key={a.id} className="min-w-0 py-4" style={i > 0 ? { borderTop: `1px solid ${theme.borderTint}` } : undefined}>
+            <ChurchPicture src={a.image_url} className={`mb-3 ${theme.radiusClass}`} />
             <h3 className="text-[1.05rem] font-semibold leading-snug [overflow-wrap:anywhere]">{a[`title_${r.lang}`]}</h3>
             <p className="mt-1.5 max-w-[65ch] text-[0.95rem] leading-relaxed whitespace-pre-line [overflow-wrap:anywhere]">{a[`body_${r.lang}`]}</p>
             {a.expires_on && (
@@ -215,6 +241,27 @@ export function ChurchAnnouncementsCard({ announcements, rotate = false, ...them
           </li>
         ))}
       </ul>
+  );
+  return (
+    <Shell theme={theme} headingId="church-announcements-heading" heading={c.announcementsHeading}>
+      {groups ? (
+        <>
+          {([["thisWeek", land.thisWeek], ["ongoing", land.ongoing]] as const).map(([key, label]) => {
+            const ids = new Set(groups[key].map((x) => x.id));
+            const rows = shown.filter((x) => ids.has(x.a.id));
+            return rows.length === 0 ? null : (
+              <div key={key} className="mt-6">
+                <h2 className="text-sm font-semibold" style={{ color: theme.accentText }}>
+                  {label}
+                </h2>
+                {list(rows)}
+              </div>
+            );
+          })}
+        </>
+      ) : (
+        list(shown)
+      )}
     </Shell>
   );
 }

@@ -3,6 +3,8 @@ import type { Translations } from "@/lib/i18n/translations";
 import { isCareReadable, resolveLanguage, type PublicCareCase } from "@/lib/church/public/care";
 import type { PublicLang } from "@/lib/church/public/events";
 import { SERIF } from "@/components/church/site/churchTheme";
+import ChurchPicture from "@/components/church/site/ChurchPicture";
+import SeeMore from "@/components/church/site/SeeMore";
 
 // "Care and support" on the public church page (Phase 9), also drawn in the dashboard preview. Rendered on the church site only for the Churches & Ministries category and only when at least one case is
 // published. A published case always has the beneficiary's recorded consent (the database enforces it and takes the case down the moment consent is withdrawn). It shows the church's own title and description
@@ -16,6 +18,8 @@ export default function ChurchCareCard({
   textColor,
   borderTint,
   radiusClass,
+  headingLevel = "h2",
+  seeMoreHref,
 }: {
   t: Translations;
   locale: PublicLang;
@@ -25,6 +29,10 @@ export default function ChurchCareCard({
   textColor: string;
   borderTint: string;
   radiusClass: string;
+  /** "h1" when the card IS the page (the landing page). */
+  headingLevel?: "h1" | "h2";
+  /** Where "See more" goes; none in the dashboard preview. */
+  seeMoreHref?: string;
 }) {
   const c = t.churchCare;
   const shown = cases
@@ -32,17 +40,20 @@ export default function ChurchCareCard({
     .filter((v): v is { x: PublicCareCase; r: { lang: PublicLang; fallback: boolean } } => v.r !== null);
   if (shown.length === 0) return null;
   const headingId = "church-care-heading";
+  const H = headingLevel;
   return (
     <section aria-labelledby={headingId} className={`relative ${radiusClass}`} style={{ color: textColor }}>
-      <h2 id={headingId} className="text-[1.65rem] font-semibold leading-tight tracking-[-0.01em]" style={{ fontFamily: SERIF }}>
+      <H id={headingId} className={`${H === "h1" ? "text-[2rem] sm:text-[2.4rem]" : "text-[1.65rem]"} font-semibold leading-tight tracking-[-0.01em]`} style={{ fontFamily: SERIF }}>
         {c.public.heading}
-      </h2>
+      </H>
       <p className="mt-2 max-w-[65ch] text-[0.95rem] leading-relaxed" style={{ opacity: 0.8 }}>
         {c.public.intro}
       </p>
       <ul className="mt-5 grid gap-3 sm:grid-cols-2">
         {shown.map(({ x, r }) => (
-          <li key={x.id} className={`min-w-0 border p-5 ${radiusClass}`} style={{ borderColor: borderTint, backgroundColor: hexToRgba(accent, 0.05) }}>
+          <li key={x.id} className={`min-w-0 overflow-hidden border ${radiusClass}`} style={{ borderColor: borderTint, backgroundColor: hexToRgba(accent, 0.05) }}>
+            <ChurchPicture src={x.image_url} />
+            <div className="p-5">
             <p className="text-sm font-semibold" style={{ color: accentText }}>
               {(c.categories as Record<string, string>)[x.category] ?? x.category}
             </p>
@@ -55,9 +66,11 @@ export default function ChurchCareCard({
                 {c.public.shownIn(t.churchEvents.public.languageName[r.lang])}
               </p>
             )}
+            </div>
           </li>
         ))}
       </ul>
+      {seeMoreHref && <SeeMore t={t} href={seeMoreHref} subject={c.public.heading} color={accentText} borderColor={borderTint} className="mt-5" />}
     </section>
   );
 }

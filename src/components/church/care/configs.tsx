@@ -17,6 +17,8 @@ const orNull = (v: string): string | null => (filled(v) ? v : null);
 
 const CARE_FIELDS: FieldDef[] = [
   { key: "category", kind: "select", choices: CARE_CATEGORY_IDS },
+  { key: "image_url", kind: "image" },
+  { key: "image_consent", kind: "checkbox", visibleWhen: "image_url" },
   { key: "title", bilingual: true, kind: "text", max: 120 },
   { key: "summary", bilingual: true, kind: "textarea", max: 2000, rows: 7 },
 ];
@@ -32,10 +34,10 @@ export function useCareConfig(): LifecycleConfig {
       views: ["all", "drafts", "published"],
       fields: CARE_FIELDS,
       ready: (form, lang) => filled(s(form, `title_${lang}`)) && filled(s(form, `summary_${lang}`)),
-      blank: () => ({ category: "other", title_en: "", title_fr: "", summary_en: "", summary_fr: "" }),
+      blank: () => ({ category: "other", image_url: "", image_consent: false, title_en: "", title_fr: "", summary_en: "", summary_fr: "" }),
       renderPreview: (form, lang, tr) => {
         const category = (CARE_CATEGORY_IDS as readonly string[]).includes(s(form, "category")) ? (s(form, "category") as CareCategoryId) : "other";
-        const c: PublicCareCase = { id: PREVIEW_ID, category, title_en: orNull(s(form, "title_en")), title_fr: orNull(s(form, "title_fr")), summary_en: orNull(s(form, "summary_en")), summary_fr: orNull(s(form, "summary_fr")) };
+        const c: PublicCareCase = { id: PREVIEW_ID, category, title_en: orNull(s(form, "title_en")), title_fr: orNull(s(form, "title_fr")), summary_en: orNull(s(form, "summary_en")), summary_fr: orNull(s(form, "summary_fr")), image_url: form.image_consent === true ? orNull(s(form, "image_url")) : null };
         return <ChurchCareCard t={tr} locale={lang} cases={[c]} {...THEME} />;
       },
       subline: (row) => (t.churchCare.categories as Record<string, string>)[row.category] ?? "",

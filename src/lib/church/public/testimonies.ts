@@ -39,6 +39,22 @@ export function shapePublicTestimonies(rows: unknown, limit: number = PUBLIC_TES
 
 type Reader = { rpc(fn: string, args?: Record<string, unknown>): PromiseLike<{ data: any; error: any }> };
 
+/** How many testimonies the "all of this week" landing page reads at most (the database function itself never returns more than 100). */
+export const PUBLIC_TESTIMONY_LANDING_LIMIT = 100;
+
+/** The testimonies of this church week for the LANDING page: up to 100 through ministry_testimonies_public_week (the same conditions as the profile's function). While that function is not in the database yet
+ *  (the owner applies the SQL after the code is deployed) it falls back to the profile's own newest twelve, so the page works either way. FAIL-SAFE: any error gives []. */
+export async function loadPublicTestimoniesWeek(supabase: Reader, profileId: string, now: number = Date.now()): Promise<PublicTestimony[]> {
+  const since = churchWeekStartMs(now);
+  try {
+    const { data, error } = await supabase.rpc("ministry_testimonies_public_week", { p_profile_id: profileId, p_since: new Date(since).toISOString(), p_limit: PUBLIC_TESTIMONY_LANDING_LIMIT });
+    if (!error) return shapePublicTestimonies(data, PUBLIC_TESTIMONY_LANDING_LIMIT, since);
+  } catch {
+    /* fall through to the profile's own function */
+  }
+  return loadPublicTestimonies(supabase, profileId, now);
+}
+
 /** The published, consented testimonies of one church for its PUBLIC page, published since this church week began (Monday 00:00 Cameroon time). FAIL-SAFE: any error gives []. */
 export async function loadPublicTestimonies(supabase: Reader, profileId: string, now: number = Date.now()): Promise<PublicTestimony[]> {
   try {

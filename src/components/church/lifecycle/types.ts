@@ -11,7 +11,7 @@ export interface FieldDef {
   /** The column. A bilingual field is stored as `<key>_en` and `<key>_fr`. */
   key: string;
   bilingual?: boolean;
-  kind: "text" | "textarea" | "date" | "time" | "url" | "checkbox" | "select";
+  kind: "text" | "textarea" | "date" | "time" | "url" | "checkbox" | "select" | "image";
   /** For a "select": the allowed values, in display order (their labels are in the field text's `options`). */
   choices?: readonly string[];
   max?: number;
@@ -23,6 +23,8 @@ export interface FieldDef {
   half?: boolean;
   /** For a "date": quick choices that fill it in. "announcement" = This week (until Sunday midnight), 1 month, 1 year, No end date (labels in the field text's `options`: week, month, year, none, date). */
   presets?: "announcement";
+  /** Shown only while this other field has a value (the care picture's "the person agreed" box appears once a picture is chosen). Clearing that field also clears this one. */
+  visibleWhen?: string;
 }
 
 export interface FieldText {

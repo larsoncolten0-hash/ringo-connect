@@ -5,7 +5,9 @@
 // page. Any failure while loading gives an empty list: a church page can never break because of this feature.
 
 import { safeHttpsUrl } from "../lifecycle/validation";
+import { pictureOf } from "../images";
 import { doualaDate } from "../content/publicWord";
+import { endOfChurchWeek } from "../week";
 
 export type PublicLang = "en" | "fr";
 
@@ -22,6 +24,8 @@ export interface PublicEvent {
   address: string | null;
   online_url: string | null;
   is_cancelled: boolean;
+  /** An optional picture, only ever an address in this platform's own storage (lib/church/images.ts). Absent when there is none. */
+  image_url?: string | null;
 }
 export interface PublicAnnouncement {
   id: string;
@@ -30,10 +34,14 @@ export interface PublicAnnouncement {
   body_en: string | null;
   body_fr: string | null;
   expires_on: string | null;
+  image_url?: string | null;
 }
 
+// The columns WITH the picture are tried first; a database that has not got the picture column yet (the migration is applied after the code is deployed) answers with an error, and the loaders then ask again without it.
 export const PUBLIC_EVENT_COLUMNS = "id, event_date, start_time, end_time, title_en, title_fr, description_en, description_fr, venue, address, online_url, is_cancelled";
+export const PUBLIC_EVENT_IMAGE_COLUMNS = `${PUBLIC_EVENT_COLUMNS}, image_url`;
 export const PUBLIC_ANNOUNCEMENT_COLUMNS = "id, title_en, title_fr, body_en, body_fr, expires_on, published_at";
+export const PUBLIC_ANNOUNCEMENT_IMAGE_COLUMNS = `${PUBLIC_ANNOUNCEMENT_COLUMNS}, image_url`;
 /** How many of each a public page carries. */
 export const PUBLIC_EVENT_LIMIT = 8;
 export const PUBLIC_ANNOUNCEMENT_LIMIT = 5;
@@ -74,6 +82,7 @@ export function shapePublicEvents(rows: unknown, today: string = doualaDate(), l
       address: text(r.address, 240),
       online_url: safeHttpsUrl(r.online_url), // an unsafe or malformed link is dropped, never shown
       is_cancelled: r.is_cancelled === true,
+      ...pictureOf(r),
     };
     if (!isEventReadable(e, "en") && !isEventReadable(e, "fr")) continue;
     out.push(e);
@@ -97,6 +106,7 @@ export function shapePublicAnnouncements(rows: unknown, today: string = doualaDa
       title_en: text(r.title_en, 120), title_fr: text(r.title_fr, 120),
       body_en: text(r.body_en, 2000), body_fr: text(r.body_fr, 2000),
       expires_on: expires,
+      ...pictureOf(r),
     };
     if (!isAnnouncementReadable(a, "en") && !isAnnouncementReadable(a, "fr")) continue;
     out.push(a);
@@ -104,42 +114,57 @@ export function shapePublicAnnouncements(rows: unknown, today: string = doualaDa
   return out.slice(0, limit);
 }
 
+/** Announcements split into "this week" (their last day is the coming Sunday or earlier) and "ongoing" (a month, a year, or no end). Nothing is dropped or duplicated; the order inside each group is kept. */
+export function groupAnnouncements(list: PublicAnnouncement[], today: string = doualaDate()): { thisWeek: PublicAnnouncement[]; ongoing: PublicAnnouncement[] } {
+  const end = endOfChurchWeek(today);
+  const thisWeek: PublicAnnouncement[] = [];
+  const ongoing: PublicAnnouncement[] = [];
+  for (const a of list) (end !== null && a.expires_on !== null && a.expires_on <= end ? thisWeek : ongoing).push(a);
+  return { thisWeek, ongoing };
+}
+
 /** The slice of a Supabase client the loaders need (structural, so a test can hand them a database-backed double). */
 type Reader = { from(table: string): any };
 
 /** The published upcoming events of one church for its PUBLIC page. Uses the visitor's own session: the database's public policy decides which rows exist for them. FAIL-SAFE: any error gives []. */
-export async function loadPublicEvents(supabase: Reader, profileId: string, now: number = Date.now()): Promise<PublicEvent[]> {
+export async function loadPublicEvents(supabase: Reader, profileId: string, now: number = Date.now(), limit: number = PUBLIC_EVENT_LIMIT): Promise<PublicEvent[]> {
   try {
     const today = doualaDate(now);
-    const { data, error } = await supabase
-      .from("ministry_events")
-      .select(PUBLIC_EVENT_COLUMNS)
-      .eq("profile_id", profileId)
-      .eq("status", "published")
-      .gte("event_date", today)
-      .order("event_date", { ascending: true })
-      .limit(PUBLIC_EVENT_LIMIT);
+    const run = (cols: string) =>
+      supabase
+        .from("ministry_events")
+        .select(cols)
+        .eq("profile_id", profileId)
+        .eq("status", "published")
+        .gte("event_date", today)
+        .order("event_date", { ascending: true })
+        .limit(limit);
+    let { data, error } = await run(PUBLIC_EVENT_IMAGE_COLUMNS);
+    if (error) ({ data, error } = await run(PUBLIC_EVENT_COLUMNS)); // no picture column yet: ask again without it
     if (error) return [];
-    return shapePublicEvents(data, today);
+    return shapePublicEvents(data, today, limit);
   } catch {
     return [];
   }
 }
 
 /** The published, unexpired announcements of one church for its PUBLIC page, newest first. FAIL-SAFE: any error gives []. */
-export async function loadPublicAnnouncements(supabase: Reader, profileId: string, now: number = Date.now()): Promise<PublicAnnouncement[]> {
+export async function loadPublicAnnouncements(supabase: Reader, profileId: string, now: number = Date.now(), limit: number = PUBLIC_ANNOUNCEMENT_LIMIT): Promise<PublicAnnouncement[]> {
   try {
     const today = doualaDate(now);
-    const { data, error } = await supabase
-      .from("ministry_announcements")
-      .select(PUBLIC_ANNOUNCEMENT_COLUMNS)
-      .eq("profile_id", profileId)
-      .eq("status", "published")
-      .or(`expires_on.is.null,expires_on.gte.${today}`)
-      .order("published_at", { ascending: false })
-      .limit(PUBLIC_ANNOUNCEMENT_LIMIT);
+    const run = (cols: string) =>
+      supabase
+        .from("ministry_announcements")
+        .select(cols)
+        .eq("profile_id", profileId)
+        .eq("status", "published")
+        .or(`expires_on.is.null,expires_on.gte.${today}`)
+        .order("published_at", { ascending: false })
+        .limit(limit);
+    let { data, error } = await run(PUBLIC_ANNOUNCEMENT_IMAGE_COLUMNS);
+    if (error) ({ data, error } = await run(PUBLIC_ANNOUNCEMENT_COLUMNS)); // no picture column yet: ask again without it
     if (error) return [];
-    return shapePublicAnnouncements(data, today);
+    return shapePublicAnnouncements(data, today, limit);
   } catch {
     return [];
   }

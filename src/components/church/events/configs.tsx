@@ -25,11 +25,13 @@ const EVENT_FIELDS: FieldDef[] = [
   { key: "venue", kind: "text", max: 160, optional: true },
   { key: "address", kind: "text", max: 240, optional: true },
   { key: "online_url", kind: "url", max: 500, optional: true },
+  { key: "image_url", kind: "image" },
   { key: "title", bilingual: true, kind: "text", max: 120 },
   { key: "description", bilingual: true, kind: "textarea", max: 2000, rows: 6, optional: true },
 ];
 const ANNOUNCEMENT_FIELDS: FieldDef[] = [
   { key: "expires_on", kind: "date", presets: "announcement" },
+  { key: "image_url", kind: "image" },
   { key: "title", bilingual: true, kind: "text", max: 120 },
   { key: "body", bilingual: true, kind: "textarea", max: 2000, rows: 7 },
 ];
@@ -45,7 +47,7 @@ export function useEventsConfig(): LifecycleConfig {
       views: ["all", "drafts", "upcoming", "past"],
       fields: EVENT_FIELDS,
       ready: (form, lang) => filled(s(form, `title_${lang}`)),
-      blank: (today) => ({ event_date: today, start_time: "", end_time: "", is_cancelled: false, venue: "", address: "", online_url: "", title_en: "", title_fr: "", description_en: "", description_fr: "" }),
+      blank: (today) => ({ event_date: today, start_time: "", end_time: "", is_cancelled: false, venue: "", address: "", online_url: "", image_url: "", title_en: "", title_fr: "", description_en: "", description_fr: "" }),
       renderPreview: (form, lang, tr) => {
         const e: PublicEvent = {
           id: PREVIEW_ID,
@@ -58,6 +60,7 @@ export function useEventsConfig(): LifecycleConfig {
           address: orNull(s(form, "address")),
           online_url: safeHttpsUrl(s(form, "online_url")),
           is_cancelled: form.is_cancelled === true,
+          image_url: orNull(s(form, "image_url")),
         };
         return <ChurchEventsCard t={tr} locale={lang} events={[e]} {...THEME} />;
       },
@@ -89,13 +92,14 @@ export function useAnnouncementsConfig(): LifecycleConfig {
       fields: ANNOUNCEMENT_FIELDS,
       ready: (form, lang) => filled(s(form, `title_${lang}`)) && filled(s(form, `body_${lang}`)),
       // a new announcement defaults to "This week": it leaves the public page on Sunday at midnight unless the church chooses a month, a year or a date
-      blank: (today) => ({ expires_on: announcementEnd("week", today) ?? "", title_en: "", title_fr: "", body_en: "", body_fr: "" }),
+      blank: (today) => ({ expires_on: announcementEnd("week", today) ?? "", image_url: "", title_en: "", title_fr: "", body_en: "", body_fr: "" }),
       renderPreview: (form, lang, tr) => {
         const a: PublicAnnouncement = {
           id: PREVIEW_ID,
           title_en: orNull(s(form, "title_en")), title_fr: orNull(s(form, "title_fr")),
           body_en: orNull(s(form, "body_en")), body_fr: orNull(s(form, "body_fr")),
           expires_on: orNull(s(form, "expires_on")),
+          image_url: orNull(s(form, "image_url")),
         };
         return <ChurchAnnouncementsCard t={tr} locale={lang} announcements={[a]} {...THEME} />;
       },

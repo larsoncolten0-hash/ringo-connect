@@ -48,16 +48,16 @@ export function shapePublicPrograms(rows: unknown, counts: Map<string, number> |
 type Reader = { from(table: string): any };
 
 /** The published programmes of one church for its PUBLIC page. Uses the visitor's own session: the database's public policy decides which rows exist. FAIL-SAFE: any error gives []. */
-export async function loadPublicPrograms(supabase: Reader, profileId: string): Promise<PublicProgram[]> {
+export async function loadPublicPrograms(supabase: Reader, profileId: string, limit: number = PUBLIC_PROGRAM_LIMIT): Promise<PublicProgram[]> {
   try {
-    const { data, error } = await supabase.from("bible_programs").select(PUBLIC_PROGRAM_COLUMNS).eq("profile_id", profileId).eq("status", "published").order("published_at", { ascending: false }).limit(PUBLIC_PROGRAM_LIMIT);
+    const { data, error } = await supabase.from("bible_programs").select(PUBLIC_PROGRAM_COLUMNS).eq("profile_id", profileId).eq("status", "published").order("published_at", { ascending: false }).limit(limit);
     if (error || !Array.isArray(data) || data.length === 0) return [];
     const ids = (data as { id: string }[]).map((r) => r.id);
     const { data: sessions, error: e2 } = await supabase.from("bible_program_sessions").select("program_id").in("program_id", ids).limit(5000);
     if (e2) return [];
     const counts = new Map<string, number>();
     for (const s of (sessions as { program_id: string }[]) || []) counts.set(s.program_id, (counts.get(s.program_id) ?? 0) + 1);
-    return shapePublicPrograms(data, counts);
+    return shapePublicPrograms(data, counts, limit);
   } catch {
     return [];
   }

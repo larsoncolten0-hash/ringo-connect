@@ -6,6 +6,7 @@ import type { Translations } from "@/lib/i18n/translations";
 import type { PublicTestimony } from "@/lib/church/public/testimonies";
 import { SERIF } from "@/components/church/site/churchTheme";
 import { useRotation } from "@/components/church/site/useRotation";
+import SeeMore from "@/components/church/site/SeeMore";
 
 // "Testimonies" on the public church page: a slideshow of the testimonies the church approved and published with the submitter's consent (the database function behind it re-checks that on every
 // request). One testimony is shown at a time and the slideshow ROTATES by itself (see useRotation): it holds still on hover, on keyboard focus, in a hidden tab and for visitors who prefer reduced
@@ -21,6 +22,7 @@ export default function ChurchTestimoniesCard({
   borderTint,
   radiusClass,
   surface,
+  seeMoreHref,
 }: {
   t: Translations;
   testimonies: PublicTestimony[];
@@ -31,6 +33,8 @@ export default function ChurchTestimoniesCard({
   radiusClass: string;
   /** The card's own fill (the church site's evening band); a faint tint of the text colour otherwise. */
   surface?: string;
+  /** Where "See more" goes (all of this week's testimonies); none in the dashboard preview. */
+  seeMoreHref?: string;
 }) {
   const c = t.churchTestimonies.public;
   const sl = t.churchSite.public.slides;
@@ -77,6 +81,8 @@ export default function ChurchTestimoniesCard({
             )}
           </blockquote>
         </div>
+
+        {seeMoreHref && <SeeMore t={t} href={seeMoreHref} subject={c.heading} color={accentText} borderColor={borderTint} className="mt-6" />}
 
         {n > 1 && (
           <div className="mt-7 flex items-center justify-between gap-3 border-t pt-4" style={{ borderColor: borderTint }}>

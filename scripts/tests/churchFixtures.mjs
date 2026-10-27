@@ -16,6 +16,7 @@ export const AT_MIG = read("supabase/migrations/2026-12-31_ministry_attendance.s
 export const MU_MIG = read("supabase/migrations/2027-01-01_ministry_music_links.sql");
 export const CA_MIG = read("supabase/migrations/2027-01-02_ministry_care_cases.sql");
 export const TE_MIG = read("supabase/migrations/2027-01-03_ministry_testimonies.sql");
+export const LI_MIG = read("supabase/migrations/2027-01-04_church_landing_images.sql");
 const TEAM01 = read("supabase/migrations/2026-10-01_team_management.sql").split("\n").slice(27, 261).join("\n");
 const TEAM03 = read("supabase/migrations/2026-10-03_team_rls_enterprise_gate.sql");
 const TEAM04 = read("supabase/migrations/2026-10-04_team_members_read_fix.sql");
@@ -62,7 +63,7 @@ const BASE = `
   create policy "profiles delete by owner or admin" on public.profiles for delete using (auth.uid() = user_id or public.is_admin());
 `;
 
-export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false, testimonies = false } = {}) {
+export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false, testimonies = false, landing = false } = {}) {
   const db = new PGlite();
   await db.exec(BASE);
   await db.exec(TEAM01); await db.exec(TEAM03); await db.exec(TEAM04);
@@ -76,6 +77,7 @@ export async function newDb(PGlite, { dailyWords = false, events = false, attend
   if (music) await db.exec(MU_MIG);
   if (care) await db.exec(CA_MIG);
   if (testimonies) await db.exec(TE_MIG);
+  if (landing) await db.exec(LI_MIG);
   return db;
 }
 
