@@ -95,7 +95,9 @@ const { buildPreviewProfile } = jiti(path.join(SRC, "app/dev-preview-profile/fix
   const shell = noComments(read("src/components/church/people/ChurchShell.tsx"));
   // The church redesign replaced the sideways-scrolling tab bar: every section is reachable without a horizontal scroll (a sidebar on a wide screen, an in-place grid on a phone).
   check("the section navigation never scrolls sideways and each entry is touch-sized", !/overflow-x-auto/.test(shell) && /min-h-\[44px\]/.test(shell));
-  check("the new tabs appear only for people allowed to open them", /show: caps\.viewEvents/.test(shell) && /show: caps\.viewBible/.test(shell) && /show: caps\.viewAttendance/.test(shell) && /show: caps\.manageMusic/.test(shell) && /show: isOwner/.test(shell));
+  // the sections and who may open each one now live in ONE list, src/lib/church/modules.ts (the shell, the home grid and the index all read it)
+  const mods = noComments(read("src/lib/church/modules.ts"));
+  check("the new tabs appear only for people allowed to open them", /key: "events"[^}]*c\.viewEvents/.test(mods) && /key: "bible"[^}]*c\.viewBible/.test(mods) && /key: "attendance"[^}]*c\.viewAttendance/.test(mods) && /key: "music"[^}]*c\.manageMusic/.test(mods) && /key: "store"[^}]*isOwner/.test(mods) && /accessibleChurchModules/.test(shell));
 }
 
 // ---------------------------------------------------------------- 3. the public helpers
@@ -112,13 +114,14 @@ const { buildPreviewProfile } = jiti(path.join(SRC, "app/dev-preview-profile/fix
   check("announcements: at most five", PE.shapePublicAnnouncements(Array.from({ length: 9 }, (_, i) => ann(i + 1)), "2026-10-22").length === 5);
   check("language: own when readable, else the other flagged, else nothing", (() => { const e = PE.shapePublicEvents([row(1, "2026-10-25")], "2026-10-22")[0]; return PE.resolveLanguage((l) => PE.isEventReadable(e, l), "en").fallback === false && PE.resolveLanguage((l) => PE.isEventReadable(e, l), "fr").lang === "en" && PE.resolveLanguage((l) => PE.isEventReadable(e, l), "fr").fallback === true && PE.resolveLanguage(() => false, "en") === null; })());
   const calls = [];
-  const client = (result) => ({ from(t) { calls.push(["from", t]); const q = { select(c) { calls.push(["select", c]); return q; }, eq(c, v) { calls.push(["eq", c, v]); return q; }, gte(c, v) { calls.push(["gte", c, v]); return q; }, or(s) { calls.push(["or", s]); return q; }, order(c, o) { calls.push(["order", c, o]); return q; }, limit(n) { calls.push(["limit", n]); return q; }, then(res, rej) { return Promise.resolve().then(result).then(res, rej); } }; return q; } });
+  const client = (result) => ({ from(t) { calls.push(["from", t]); const q = { select(c) { calls.push(["select", c]); return q; }, eq(c, v) { calls.push(["eq", c, v]); return q; }, gte(c, v) { calls.push(["gte", c, v]); return q; }, is(c, v) { calls.push(["is", c, v]); return q; }, or(s) { calls.push(["or", s]); return q; }, order(c, o) { calls.push(["order", c, o]); return q; }, limit(n) { calls.push(["limit", n]); return q; }, then(res, rej) { return Promise.resolve().then(result).then(res, rej); } }; return q; } });
   const ok = await PE.loadPublicEvents(client(() => ({ data: [row(1, "2026-10-25")], error: null })), uid(99), Date.parse("2026-10-22T10:00:00Z"));
   check("event loader: returns the shaped events", ok.length === 1 && ok[0].title_en === "T1");
   check("event loader: asks only for this church's published events from today on, soonest first, limited", calls.some((c) => c[0] === "from" && c[1] === "ministry_events") && calls.some((c) => c[0] === "eq" && c[1] === "profile_id" && c[2] === uid(99)) && calls.some((c) => c[0] === "eq" && c[1] === "status" && c[2] === "published") && calls.some((c) => c[0] === "gte" && c[1] === "event_date" && c[2] === "2026-10-22") && calls.some((c) => c[0] === "limit" && c[1] === 8));
   check("event loader: selects only the public columns", !/created_by|updated_by|published_by|\*/.test(calls.find((c) => c[0] === "select")[1]));
   calls.length = 0;
   await PE.loadPublicAnnouncements(client(() => ({ data: [], error: null })), uid(99), Date.parse("2026-10-22T10:00:00Z"));
+  check("announcement loader: only church-wide notices (a notice for one group is left out)", calls.some((c) => c[0] === "is" && c[1] === "public_group_id" && c[2] === null));
   check("announcement loader: published, not past its last day, newest first, limited, public columns only", calls.some((c) => c[0] === "from" && c[1] === "ministry_announcements") && calls.some((c) => c[0] === "or" && /expires_on\.gte\.2026-10-22/.test(c[1])) && calls.some((c) => c[0] === "order" && c[1] === "published_at" && c[2].ascending === false) && !/created_by|updated_by|published_by|\*/.test(calls.find((c) => c[0] === "select")[1]));
   for (const loader of [PE.loadPublicEvents, PE.loadPublicAnnouncements]) {
     check(`${loader.name}: FAIL-SAFE on a database error, on a missing table and on a thrown error`, (await loader(client(() => ({ data: null, error: { code: "42P01", message: "relation does not exist" } })), uid(99))).length === 0 && (await loader(client(() => { throw new Error("boom"); }), uid(99))).length === 0 && (await loader({ from() { throw new Error("boom"); } }, uid(99))).length === 0);

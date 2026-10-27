@@ -1,5 +1,5 @@
 import { makeLifecycle, type LifecycleSpec } from "./engine";
-import { booleanField, dateField, httpsUrlField, imageUrlField, makeBodyParser, timeField } from "./validation";
+import { booleanField, dateField, httpsUrlField, imageUrlField, makeBodyParser, timeField, uuidOrNullField } from "./validation";
 
 // Events and Announcements of a church (Phase 4): the two specs plugged into the shared lifecycle. See src/lib/church/lifecycle/engine.ts for the rules every entity follows.
 // Both are DISPLAY content: nothing here sends a message, takes a booking, sells a ticket or records who attends (attendance is Phase 7 and is private).
@@ -27,7 +27,7 @@ export const parseEvent = makeBodyParser({
 export const eventStateOf = (r: Row, today: string): "draft" | "upcoming" | "past" => (r.status !== "published" ? "draft" : r.event_date < today ? "past" : "upcoming");
 
 const EVENT_COLS = "id, event_date, start_time, end_time, status, title_en, title_fr, description_en, description_fr, venue, address, online_url, image_url, is_cancelled, published_at, created_at, updated_at";
-const withoutPictures = (cols: string): string => cols.split(", ").filter((c) => c !== "image_url" && c !== "image_consent").join(", ");
+const withoutPictures = (cols: string): string => cols.split(", ").filter((c) => c !== "image_url" && c !== "image_consent" && c !== "public_group_id").join(", ");
 const EVENT_LIST_COLS = "id, event_date, start_time, end_time, status, title_en, title_fr, venue, is_cancelled, updated_at";
 
 const eventShape = (r: Row, today: string): Record<string, unknown> => ({
@@ -74,14 +74,14 @@ export const parseAnnouncement = makeBodyParser({
     body_en: { max: 2000, multiline: true, code: "invalid_message" },
     body_fr: { max: 2000, multiline: true, code: "invalid_message" },
   },
-  fields: { expires_on: { check: (v, field) => (v === null || v === undefined || v === "" ? { ok: true, value: null } : dateField.check(v, field)) }, image_url: imageUrlField },
+  fields: { expires_on: { check: (v, field) => (v === null || v === undefined || v === "" ? { ok: true, value: null } : dateField.check(v, field)) }, image_url: imageUrlField, public_group_id: uuidOrNullField },
 });
 
 /** draft; published (shown); expired (published, but its last day has passed). */
 export const announcementStateOf = (r: Row, today: string): "draft" | "published" | "expired" =>
   r.status !== "published" ? "draft" : r.expires_on && r.expires_on < today ? "expired" : "published";
 
-const ANN_COLS = "id, status, title_en, title_fr, body_en, body_fr, expires_on, image_url, published_at, created_at, updated_at";
+const ANN_COLS = "id, status, title_en, title_fr, body_en, body_fr, expires_on, image_url, public_group_id, published_at, created_at, updated_at";
 const ANN_LIST_COLS = "id, status, title_en, title_fr, body_en, body_fr, expires_on, updated_at";
 
 const announcementShape = (r: Row, today: string): Record<string, unknown> => ({

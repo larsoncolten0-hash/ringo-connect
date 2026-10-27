@@ -31,6 +31,7 @@ const EVENT_FIELDS: FieldDef[] = [
 ];
 const ANNOUNCEMENT_FIELDS: FieldDef[] = [
   { key: "expires_on", kind: "date", presets: "announcement" },
+  { key: "public_group_id", kind: "audience", optional: true },
   { key: "image_url", kind: "image" },
   { key: "title", bilingual: true, kind: "text", max: 120 },
   { key: "body", bilingual: true, kind: "textarea", max: 2000, rows: 7 },
@@ -92,7 +93,7 @@ export function useAnnouncementsConfig(): LifecycleConfig {
       fields: ANNOUNCEMENT_FIELDS,
       ready: (form, lang) => filled(s(form, `title_${lang}`)) && filled(s(form, `body_${lang}`)),
       // a new announcement defaults to "This week": it leaves the public page on Sunday at midnight unless the church chooses a month, a year or a date
-      blank: (today) => ({ expires_on: announcementEnd("week", today) ?? "", image_url: "", title_en: "", title_fr: "", body_en: "", body_fr: "" }),
+      blank: (today) => ({ expires_on: announcementEnd("week", today) ?? "", public_group_id: "", image_url: "", title_en: "", title_fr: "", body_en: "", body_fr: "" }),
       renderPreview: (form, lang, tr) => {
         const a: PublicAnnouncement = {
           id: PREVIEW_ID,

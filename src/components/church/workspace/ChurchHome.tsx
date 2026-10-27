@@ -69,7 +69,7 @@ export default function ChurchHome({ caps, isOwner, church }: { caps: ChurchCapa
                         <ChevronRight size={16} className="text-ringo-muted transition group-hover:translate-x-0.5 group-hover:text-ringo-indigo motion-reduce:transition-none" aria-hidden="true" />
                       </span>
                       <span className="mt-3 text-[0.95rem] font-semibold leading-snug text-ringo-text [overflow-wrap:anywhere]">{m.label}</span>
-                      <span className="mt-1 text-xs leading-relaxed text-ringo-muted">{h.modules[m.key]}</span>
+                      <span className="mt-1 text-xs leading-relaxed text-ringo-muted">{({ ...h.modules, ...t.churchExpansion.modules, members: t.churchExpansion.members.module, features: t.churchExpansion.features.module, counselling: t.churchExpansion.counselling.module, giving: t.churchExpansion.giving.module } as Record<string, string>)[m.key]}</span>
                     </Link>
                   </li>
                 );

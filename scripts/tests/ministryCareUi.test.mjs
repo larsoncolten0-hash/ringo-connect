@@ -129,7 +129,8 @@ const caseRow = (n, o = {}) => ({ id: uid(n), category: "medical", title_en: "He
     check(`${page}: resolves the actor on the server, refuses a group leader, shows NoAccess without ${cap}`, /resolveChurchActor/.test(p) && new RegExp(`caps\\.${cap}`).test(p) && /kind === "leader"/.test(p) && new RegExp(`NoAccess section="${sec}"`).test(p));
   }
   const idx = noComments(read("src/app/dashboard/church/page.tsx"));
-  check("the church index opens Care for a person whose only section is Care", /caps\.viewCare\) redirect\("\/dashboard\/church\/care"\)/.test(idx));
+  // the index now reads the one shared module list (src/lib/church/modules.ts): a person with a single section is sent straight to it
+  check("the church index opens Care for a person whose only section is Care", /sections\.length <= 1\) redirect\(sections\[0\]\?\.href/.test(idx) && /key: "care", href: "\/dashboard\/church\/care".*c\.viewCare/.test(read("src/lib/church/modules.ts")));
   const ed = noComments(read("src/components/church/lifecycle/LifecycleEditor.tsx"));
   check("the shared editor's new 'select' kind is closed over a fixed list of choices", /def\.kind === "select"/.test(ed) && /def\.choices/.test(ed));
 }

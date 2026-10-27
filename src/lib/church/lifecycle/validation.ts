@@ -1,4 +1,4 @@
-import { has, optionalText, parseDate, plainObject, type Checked } from "../validation";
+import { has, isUuid, optionalText, parseDate, plainObject, type Checked } from "../validation";
 import { safeChurchImageUrl } from "../images";
 
 // Strict input validation shared by the Events, Announcements and Bible-program routes. Pure: no I/O.
@@ -107,6 +107,11 @@ export const imageUrlField: FieldSpec = {
     const s = safeChurchImageUrl(v);
     return s ? { ok: true, value: s } : { ok: false, code: "invalid_image_url", field };
   },
+};
+
+/** An optional id (a public group): a UUID, or nothing (null / "" clears it). */
+export const uuidOrNullField: FieldSpec = {
+  check: (v, field) => (v === null || v === undefined || v === "" ? { ok: true, value: null } : typeof v === "string" && isUuid(v) ? { ok: true, value: v } : { ok: false, code: "invalid_body", field }),
 };
 
 export const httpsUrlField: FieldSpec = {

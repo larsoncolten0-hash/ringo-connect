@@ -17,7 +17,7 @@ import ChurchLandingView from "@/components/church/site/ChurchLandingView";
 
 const TITLES: Record<ChurchLandingKind, string> = { announcements: "Announcements", events: "Upcoming events", testimonies: "Testimonies this week", care: "Care and support", bible: "Bible programmes" };
 
-const load = memoPerRequest(async function load(username: string) {
+export const loadChurchProfile = memoPerRequest(async function load(username: string) {
   const supabase = createClient();
   const [{ data: profile }, suspended] = await Promise.all([
     supabase.from("profiles").select("id, username, name, bio, avatar_url, theme_color, category, categories").eq("username", username).eq("published", true).single(),
@@ -28,15 +28,25 @@ const load = memoPerRequest(async function load(username: string) {
 });
 
 export async function landingMetadata(kind: ChurchLandingKind, { params }: { params: { username: string } }, parent: ResolvingMetadata): Promise<Metadata> {
-  const profile = await load(params.username);
+  const profile = await loadChurchProfile(params.username);
   // a page that would 404 advertises nothing of its own
   if (!profile) return { robots: NOINDEX };
   const base = await generateProfileMetadata({ params }, parent);
   return withItemSeo(base, { path: landingPath(params.username, kind), title: `${TITLES[kind]} — ${profile.name || profile.username}`, description: profile.bio, image: profile.avatar_url });
 }
 
+/** The metadata of a page the church expansion adds (groups, one group, pastors): the church's own metadata with this page's title and address. A church that would 404 advertises nothing. */
+export async function churchPageMetadata(path: (username: string) => string, title: string, { params }: { params: { username: string } }, parent: ResolvingMetadata): Promise<Metadata> {
+  const profile = await loadChurchProfile(params.username);
+  if (!profile) return { robots: NOINDEX };
+  const base = await generateProfileMetadata({ params }, parent);
+  return withItemSeo(base, { path: path(params.username), title: `${title} — ${profile.name || profile.username}`, description: profile.bio, image: profile.avatar_url });
+}
+
+export const churchOf = (profile: any) => ({ name: profile.name || profile.username, username: profile.username as string, avatarUrl: (profile.avatar_url ?? null) as string | null, accent: safeAccent(profile.theme_color) });
+
 export async function ChurchLandingPage({ kind, params }: { kind: ChurchLandingKind; params: { username: string } }) {
-  const profile = await load(params.username);
+  const profile = await loadChurchProfile(params.username);
   if (!profile) return notFound();
   const data = await loadChurchLanding(createClient(), profile.id, kind);
   return <ChurchLandingView kind={kind} church={{ name: profile.name || profile.username, username: profile.username, avatarUrl: profile.avatar_url ?? null, accent: safeAccent(profile.theme_color) }} data={data} />;

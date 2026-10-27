@@ -351,7 +351,7 @@ check("logs: every automation line is a structured inbox_automation entry (ids, 
   const cr = code("src/app/api/cron/inbox-follow-ups/route.ts");
   check("cron: bearer CRON_SECRET, GET only, never imports a sender, service client created after authorization", /CRON_SECRET/.test(cr) && /export async function GET/.test(cr) && !/export async function (POST|PUT|PATCH|DELETE)/.test(cr) && !/sendReply|graph\.facebook|WHATSAPP_/.test(cr) && cr.indexOf("createAdminClient()") > cr.indexOf("unauthorized"));
   const v = JSON.parse(read("vercel.json"));
-  check("vercel.json: the follow-up cron is scheduled once a day, next to the existing ones, none removed", v.crons.filter((x) => x.path === "/api/cron/inbox-follow-ups").length === 1 && v.crons.find((x) => x.path === "/api/cron/inbox-follow-ups").schedule === "0 10 * * *" && v.crons.length === 8 && v.crons.some((x) => x.path === "/api/cron/invoice-reminders"));
+  check("vercel.json: the follow-up cron is scheduled once a day, next to the existing ones, none removed", v.crons.filter((x) => x.path === "/api/cron/inbox-follow-ups").length === 1 && v.crons.find((x) => x.path === "/api/cron/inbox-follow-ups").schedule === "0 10 * * *" && v.crons.length === 9 && v.crons.some((x) => x.path === "/api/cron/invoice-reminders"));
   const cat = src("lib/notificationCategories.ts");
   check("notifications: the three inbox types map to the Messages tab", ["inbox_new_conversation", "inbox_failed_message", "inbox_follow_up"].every((t) => cat.categorizeNotification(t) === "messages"));
   const sr = code("src/app/api/inbox/settings/route.ts");

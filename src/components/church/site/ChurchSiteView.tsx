@@ -28,6 +28,12 @@ import ChurchMusicCard from "@/components/church/ChurchMusicCard";
 import ChurchCareCard from "@/components/church/ChurchCareCard";
 import ChurchTestimoniesCard from "@/components/church/ChurchTestimoniesCard";
 import ShareTestimony from "@/components/church/ShareTestimony";
+import { ChurchGroupsCard } from "./ChurchGroupsPublic";
+import { ChurchPastorsCard } from "./ChurchPastorsPublic";
+import ChurchMembershipJoin from "./ChurchMembershipJoin";
+import ChurchNotificationsCard from "./ChurchNotificationsCard";
+import ChurchBibleYearCard from "./ChurchBibleYearCard";
+import ChurchCounsellingForm from "./ChurchCounsellingForm";
 import { CH, SERIF, SERIF_HREF, churchCardTheme, churchHeroTheme, churchPalette, safeAccent } from "./churchTheme";
 import Monogram from "./Monogram";
 
@@ -37,7 +43,7 @@ import Monogram from "./Monogram";
 // Nothing is invented: a section with no content is not on the page and not in the navigation. The shared sections (contact card, links, store) are built once by
 // ProfileView and passed in, so their behaviour (analytics, checkout, the public-content filters) is unchanged.
 
-type SectionId = "visit" | "news" | "word" | "testimonies" | "bible" | "music" | "care" | "store" | "links" | "contact";
+type SectionId = "visit" | "news" | "word" | "groups" | "pastors" | "testimonies" | "bible" | "bibleYear" | "counselling" | "music" | "care" | "store" | "links" | "contact";
 
 export interface ChurchSiteProps {
   profile: any;
@@ -68,6 +74,8 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
   const wa = isUsablePhone(profile.whatsapp_number) ? String(profile.whatsapp_number).trim() : null;
   const phone = isUsablePhone(profile.about_phone) ? String(profile.about_phone).trim() : null;
   const care = churchPublic.care ?? [];
+  const groups = churchPublic.groups ?? [];
+  const pastors = churchPublic.pastors ?? [];
   const testimonies = churchPublic.testimonies ?? [];
   const hasNews = churchPublic.announcements.length > 0 || churchPublic.events.length > 0;
   const hasContact = !!shared.about || socialLinks.length > 0 || !isOwner;
@@ -77,19 +85,25 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
     visit: !!churchVisit,
     news: hasNews,
     word: dailyWords.length > 0,
+    groups: groups.length > 0,
+    pastors: pastors.length > 0,
     testimonies: testimonies.length > 0 || !preview,
     bible: churchPublic.programs.length > 0,
+    bibleYear: churchPublic.features?.bible_year === true,
+    counselling: churchPublic.features?.counselling === true,
     music: churchPublic.music.length > 0,
     care: care.length > 0,
     store: !!shared.catalog,
     links: !!shared.links,
     contact: hasContact,
   };
-  const order: SectionId[] = ["visit", "news", "word", "testimonies", "bible", "music", "care", "store", "links", "contact"];
+  const order: SectionId[] = ["visit", "news", "word", "groups", "pastors", "testimonies", "bible", "bibleYear", "counselling", "music", "care", "store", "links", "contact"];
   const nav = order.filter((id) => present[id]);
   const anchor = (id: SectionId) => `church-${id}`;
   // "See more" opens the section's landing page; the dashboard preview has no page to open, so it draws no link
   const see = (kind: ChurchLandingKind): string | undefined => (preview ? undefined : landingPath(profile.username, kind));
+  // the group pages and the Pastors page have their own addresses beside the landing pages
+  const seePage = (page: "groups" | "pastors" | "bible-year"): string | undefined => (preview ? undefined : `/${encodeURIComponent(profile.username)}/church/${page}`);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -341,6 +355,18 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
             </div>
           )}
 
+          {groups.length > 0 && (
+            <div id={anchor("groups")} className={sectionCls}>
+              <ChurchGroupsCard t={t} locale={locale} groups={groups} username={profile.username} seeMoreHref={seePage("groups")} {...card} />
+            </div>
+          )}
+
+          {pastors.length > 0 && (
+            <div id={anchor("pastors")} className={sectionCls}>
+              <ChurchPastorsCard t={t} locale={locale} pastors={pastors} seeMoreHref={seePage("pastors")} {...card} />
+            </div>
+          )}
+
           {present.testimonies && (
             <div id={anchor("testimonies")} className={`${sectionCls} flex flex-col gap-4`}>
               {testimonies.length > 0 && (
@@ -363,6 +389,18 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
           {churchPublic.programs.length > 0 && (
             <div id={anchor("bible")} className={sectionCls}>
               <ChurchBibleCard t={t} locale={locale} programs={churchPublic.programs} seeMoreHref={see("bible")} {...card} />
+            </div>
+          )}
+
+          {present.bibleYear && (
+            <div id={anchor("bibleYear")} className={sectionCls}>
+              <ChurchBibleYearCard t={t} href={seePage("bible-year")} accent={pal.accent} accentText={pal.accentText} textColor={CH.ink} borderTint={CH.line} radiusClass="rounded-[22px]" />
+            </div>
+          )}
+
+          {present.counselling && (
+            <div id={anchor("counselling")} className={`${sectionCls} max-w-2xl`}>
+              <ChurchCounsellingForm username={profile.username} accent={pal.accent} accentText={pal.accentText} textColor={CH.ink} borderTint={CH.line} radiusClass="rounded-[22px]" preview={preview} />
             </div>
           )}
 
@@ -408,6 +446,12 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
               {!isOwner && (
                 <div className="lg:pt-14">
                   <ConnectButton profile={{ id: profile.id, name }} accent={accent} radiusClass="rounded-[22px]" buttonStyle={outline} borderTint={CH.line} textColor={CH.ink} preview={preview} variant="card" />
+                  <div className="mt-4">
+                    <ChurchMembershipJoin profile={{ id: profile.id, name }} accent={pal.accent} accentText={pal.accentText} textColor={CH.ink} borderTint={CH.line} radiusClass="rounded-[22px]" preview={preview} />
+                  </div>
+                  <div className="mt-4">
+                    <ChurchNotificationsCard profile={{ id: profile.id, name }} accent={pal.accent} accentText={pal.accentText} textColor={CH.ink} borderTint={CH.line} radiusClass="rounded-[22px]" preview={preview} />
+                  </div>
                 </div>
               )}
             </section>

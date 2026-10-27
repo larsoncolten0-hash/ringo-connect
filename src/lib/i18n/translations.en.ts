@@ -1,6 +1,7 @@
 // The English dictionary (one half of what used to be the single translations.ts; see translations.ts, which re-assembles both for server code and tests).
 // Kept in its own module so the browser can load it only for a visitor who reads English (components/LanguageProvider.tsx).
 import { registerDictionary } from "./dictionaryRegistry";
+import { churchExpansionEn } from "./churchExpansion.en";
 
 export const en = {
     // Design foundation (src/components/brand/*): the Ring's accessible names and the technical micro-language shown on the
@@ -7405,6 +7406,7 @@ export const en = {
         },
         fields: {
           expires_on: { label: "How long should it show?", help: "After the last day it leaves your public page by itself (Cameroon time). \"This week\" ends on Sunday at midnight; posted on a Sunday, it stays a full week.", options: { week: "This week", month: "1 month", year: "1 year", none: "No end date", date: "Last day shown" } },
+          public_group_id: { label: "Who is it for?", help: "The whole church, or one group page (Men, Women, Youths, Children). A group notice shows on that group's page only. Unpublish a notice before you change who it is for.", options: { all: "The whole church", group: "A group" } },
           image_url: { label: "Picture", help: "Optional. A picture shown with this announcement on your public page.", options: { choose: "Choose a picture", remove: "Remove picture" } },
           title: { label: "Title", placeholder: "e.g. Youth retreat registration" },
           body: { label: "Message", placeholder: "Write the notice" },
@@ -7452,7 +7454,7 @@ export const en = {
         navLabel: "Church sections",
         menu: "Menu",
         closeMenu: "Close menu",
-        sections: { visit: "Visit", word: "Daily Word", news: "News & events", bible: "Bible", testimonies: "Testimonies", care: "Care", music: "Music", store: "Store", links: "Links", contact: "Contact" },
+        sections: { visit: "Visit", word: "Daily Word", news: "News & events", groups: "Groups", pastors: "Pastors", bible: "Bible", bibleYear: "Bible in a year", counselling: "Counselling", testimonies: "Testimonies", care: "Care", music: "Music", store: "Store", links: "Links", contact: "Contact" },
         planVisit: "Plan a visit",
         getDirections: "Get directions",
         whatsapp: "WhatsApp",
@@ -7959,6 +7961,7 @@ export const en = {
         invalid_note: "The note must be 500 characters or fewer.",
       },
     },
+    churchExpansion: churchExpansionEn,
     churchMusic: {
       title: "Church Music",
       subtitle: "Add links to where your church's music already lives: a worship playlist, your choir's channel, a recording. Visitors see them on your public page and open them on that platform. Nothing is uploaded, played or sold here.",

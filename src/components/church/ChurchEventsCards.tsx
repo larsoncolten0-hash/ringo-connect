@@ -30,6 +30,8 @@ interface Theme {
   seeMoreHref?: string;
   /** One line under the heading (the landing page). */
   intro?: string;
+  /** Replaces the section's own title (the announcements of a group page are titled "Group announcements"). */
+  heading?: string;
 }
 
 const dateParts = (iso: string, lang: PublicLang) => {
@@ -153,7 +155,7 @@ function AnnouncementsSlideshow({ shown, theme }: { shown: ShownAnnouncement[]; 
   const { a, r } = shown[rot.index];
   const btn = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2";
   return (
-    <Shell theme={theme} headingId="church-announcements-heading" heading={c.announcementsHeading}>
+    <Shell theme={theme} headingId="church-announcements-heading" heading={theme.heading ?? c.announcementsHeading}>
       <div
         aria-roledescription="carousel"
         aria-label={sl.announcementsLabel}
@@ -243,7 +245,7 @@ export function ChurchAnnouncementsCard({ announcements, rotate = false, grouped
       </ul>
   );
   return (
-    <Shell theme={theme} headingId="church-announcements-heading" heading={c.announcementsHeading}>
+    <Shell theme={theme} headingId="church-announcements-heading" heading={theme.heading ?? c.announcementsHeading}>
       {groups ? (
         <>
           {([["thisWeek", land.thisWeek], ["ongoing", land.ongoing]] as const).map(([key, label]) => {

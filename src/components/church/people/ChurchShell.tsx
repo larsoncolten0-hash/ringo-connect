@@ -3,18 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Award, BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronLeft, ClipboardCheck, HeartHandshake, LayoutGrid, Megaphone, MessageSquareQuote, Music2, Network, PenLine, ShieldCheck, ShoppingBag, Users, type LucideIcon } from "lucide-react";
+import { Award, BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronLeft, ClipboardCheck, HandCoins, HandHeart, HeartHandshake, LayoutGrid, Megaphone, MessageSquareQuote, Music2, Network, PenLine, ShieldCheck, ShoppingBag, SlidersHorizontal, UserCheck, UserRound, Users, UsersRound, type LucideIcon } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import type { ChurchCapabilities } from "@/lib/church/permissions";
+import { accessibleChurchModules, type ChurchModuleGroup, type ChurchModuleKey } from "@/lib/church/modules";
 import type { Translations } from "@/lib/i18n/translations";
 
 // The sections whose content is (or becomes) PUBLIC on the church page: they carry their own explanation, so the privacy line of the private sections is not repeated there.
-const PUBLIC_SECTIONS = ["/dashboard/church/content", "/dashboard/church/events", "/dashboard/church/announcements", "/dashboard/church/bible", "/dashboard/church/music", "/dashboard/church/reports", "/dashboard/church/care", "/dashboard/church/testimonies", "/dashboard/church/store"];
+const PUBLIC_SECTIONS = ["/dashboard/church/content", "/dashboard/church/events", "/dashboard/church/announcements", "/dashboard/church/bible", "/dashboard/church/music", "/dashboard/church/reports", "/dashboard/church/care", "/dashboard/church/testimonies", "/dashboard/church/store", "/dashboard/church/group-pages", "/dashboard/church/pastors", "/dashboard/church/features", "/dashboard/church/counselling", "/dashboard/church/giving"];
 
 export const CHURCH_HOME = "/dashboard/church";
 
-export type ChurchModuleKey = "people" | "groups" | "leadership" | "content" | "events" | "announcements" | "bible" | "attendance" | "music" | "reports" | "care" | "testimonies" | "store";
-export type ChurchModuleGroup = "community" | "ministry" | "care" | "business";
+export type { ChurchModuleGroup, ChurchModuleKey };
 export interface ChurchModule {
   key: ChurchModuleKey;
   href: string;
@@ -31,22 +31,30 @@ export const CHURCH_GROUP_ORDER: ChurchModuleGroup[] = ["community", "ministry",
 export function churchModules(t: Translations, caps: ChurchCapabilities, isOwner: boolean): ChurchModule[] {
   const c = t.churchPeople;
   const w = t.churchWorkspace.tabs;
-  const tabs = [
-    { key: "people", href: "/dashboard/church/people", label: c.tabs.people, group: "community", icon: Users, show: caps.viewMembers || caps.viewChildren },
-    { key: "groups", href: "/dashboard/church/groups", label: c.tabs.groups, group: "community", icon: Network, show: caps.viewGroups },
-    { key: "leadership", href: "/dashboard/church/leadership", label: c.tabs.leadership, group: "community", icon: Award, show: caps.viewLeadership },
-    { key: "content", href: "/dashboard/church/content", label: t.churchContent.tab, group: "ministry", icon: PenLine, show: caps.viewContent },
-    { key: "events", href: "/dashboard/church/events", label: w.events, group: "ministry", icon: CalendarDays, show: caps.viewEvents },
-    { key: "announcements", href: "/dashboard/church/announcements", label: w.announcements, group: "ministry", icon: Megaphone, show: caps.viewEvents },
-    { key: "bible", href: "/dashboard/church/bible", label: w.bible, group: "ministry", icon: BookOpen, show: caps.viewBible },
-    { key: "attendance", href: "/dashboard/church/attendance", label: w.attendance, group: "ministry", icon: ClipboardCheck, show: caps.viewAttendance },
-    { key: "music", href: "/dashboard/church/music", label: w.music, group: "ministry", icon: Music2, show: caps.manageMusic },
-    { key: "reports", href: "/dashboard/church/reports", label: w.reports, group: "care", icon: BarChart3, show: caps.viewReports },
-    { key: "care", href: "/dashboard/church/care", label: w.care, group: "care", icon: HeartHandshake, show: caps.viewCare },
-    { key: "testimonies", href: "/dashboard/church/testimonies", label: w.testimonies, group: "care", icon: MessageSquareQuote, show: caps.viewTestimonies },
-    { key: "store", href: "/dashboard/church/store", label: w.store, group: "business", icon: ShoppingBag, show: isOwner },
-  ] as const;
-  return tabs.filter((x) => x.show).map(({ show: _show, ...m }) => m as ChurchModule);
+  const x = t.churchExpansion.tabs;
+  // the label and the icon of each section; WHICH sections a person may open, and in what order, is src/lib/church/modules.ts
+  const look: Record<ChurchModuleKey, { label: string; icon: LucideIcon }> = {
+    people: { label: c.tabs.people, icon: Users },
+    members: { label: t.churchExpansion.members.tab, icon: UserCheck },
+    groups: { label: c.tabs.groups, icon: Network },
+    leadership: { label: c.tabs.leadership, icon: Award },
+    content: { label: t.churchContent.tab, icon: PenLine },
+    events: { label: w.events, icon: CalendarDays },
+    announcements: { label: w.announcements, icon: Megaphone },
+    pubgroups: { label: x.pubGroups, icon: UsersRound },
+    pastors: { label: x.pastors, icon: UserRound },
+    bible: { label: w.bible, icon: BookOpen },
+    attendance: { label: w.attendance, icon: ClipboardCheck },
+    music: { label: w.music, icon: Music2 },
+    reports: { label: w.reports, icon: BarChart3 },
+    care: { label: w.care, icon: HeartHandshake },
+    testimonies: { label: w.testimonies, icon: MessageSquareQuote },
+    counselling: { label: t.churchExpansion.counselling.tab, icon: HandHeart },
+    giving: { label: t.churchExpansion.giving.tab, icon: HandCoins },
+    features: { label: t.churchExpansion.features.tab, icon: SlidersHorizontal },
+    store: { label: w.store, icon: ShoppingBag },
+  };
+  return accessibleChurchModules(caps, isOwner).map((m) => ({ key: m.key, href: m.href, group: m.group, label: look[m.key].label, icon: look[m.key].icon }));
 }
 
 const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -144,12 +152,12 @@ export default function ChurchShell({ caps, isOwner = false, children }: { caps:
   );
 }
 
-export function NoAccess({ section }: { section?: "people" | "groups" | "leadership" | "content" | "events" | "bible" | "attendance" | "music" | "reports" | "care" | "testimonies" | "store" }) {
+export function NoAccess({ section }: { section?: "people" | "members" | "features" | "counselling" | "giving" | "groups" | "leadership" | "content" | "events" | "pubgroups" | "pastors" | "bible" | "attendance" | "music" | "reports" | "care" | "testimonies" | "store" }) {
   const { t } = useLanguage();
   const c = t.churchPeople;
   return (
     <div className="rounded-3xl border border-dashed border-ringo-border bg-ringo-surface/60 px-6 py-12 text-center">
-      <h2 className="font-display text-base font-semibold text-ringo-text">{section ? ({ ...c.restricted, ...t.churchWorkspace.restricted } as Record<string, string>)[section] : c.noAccess.title}</h2>
+      <h2 className="font-display text-base font-semibold text-ringo-text">{section ? ({ ...c.restricted, ...t.churchWorkspace.restricted, ...t.churchExpansion.restricted, members: t.churchExpansion.members.restricted, features: t.churchExpansion.features.restricted, counselling: t.churchExpansion.counselling.restricted, giving: t.churchExpansion.giving.restricted } as Record<string, string>)[section] : c.noAccess.title}</h2>
       {!section && <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ringo-muted">{c.noAccess.body}</p>}
       <Link href="/dashboard" className="ringo-tactile mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full border border-ringo-border px-5 text-sm font-semibold text-ringo-text hover:border-ringo-indigo/40">
         {c.noAccess.back}

@@ -17,6 +17,13 @@ export const MU_MIG = read("supabase/migrations/2027-01-01_ministry_music_links.
 export const CA_MIG = read("supabase/migrations/2027-01-02_ministry_care_cases.sql");
 export const TE_MIG = read("supabase/migrations/2027-01-03_ministry_testimonies.sql");
 export const LI_MIG = read("supabase/migrations/2027-01-04_church_landing_images.sql");
+export const GP_MIG = read("supabase/migrations/2027-01-05_church_groups_pastors.sql");
+export const MR_MIG = read("supabase/migrations/2027-01-06_church_membership_requests.sql");
+export const BY_MIG = read("supabase/migrations/2027-01-07_church_bible_year.sql");
+export const PU_MIG = read("supabase/migrations/2027-01-08_church_push.sql");
+export const CO_MIG = read("supabase/migrations/2027-01-09_church_counselling.sql");
+export const GV_MIG = read("supabase/migrations/2027-01-10_church_giving.sql");
+export const GL_MIG = read("supabase/migrations/2027-01-11_church_giving_lock.sql");
 const TEAM01 = read("supabase/migrations/2026-10-01_team_management.sql").split("\n").slice(27, 261).join("\n");
 const TEAM03 = read("supabase/migrations/2026-10-03_team_rls_enterprise_gate.sql");
 const TEAM04 = read("supabase/migrations/2026-10-04_team_members_read_fix.sql");
@@ -63,7 +70,30 @@ const BASE = `
   create policy "profiles delete by owner or admin" on public.profiles for delete using (auth.uid() = user_id or public.is_admin());
 `;
 
-export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false, testimonies = false, landing = false } = {}) {
+/** The columns and the connections table of the real visitor account (supabase/migrations/2026-10-17_ringo_customers_core.sql), reduced to what the church phases read. */
+export const CUSTOMERS_SQL = `
+  alter table public.ringo_customers add column if not exists name text not null default 'Visitor';
+  alter table public.ringo_customers add column if not exists email text;
+  alter table public.ringo_customers add column if not exists phone text;
+  alter table public.ringo_customers add column if not exists preferred_language text;
+  create table if not exists public.customer_connections (
+    id uuid primary key default gen_random_uuid(),
+    customer_id uuid not null references public.ringo_customers(id) on delete cascade,
+    profile_id uuid not null references public.profiles(id) on delete cascade,
+    status text not null default 'active' check (status in ('active', 'disconnected')),
+    connected_at timestamptz not null default now(),
+    unique (customer_id, profile_id)
+  );
+  create table if not exists public.customer_push_subscriptions (
+    id uuid primary key default gen_random_uuid(),
+    customer_id uuid not null references public.ringo_customers(id) on delete cascade,
+    endpoint text not null unique,
+    p256dh text not null,
+    auth text not null
+  );
+`;
+
+export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false, testimonies = false, landing = false, groupsPastors = false, customers = false, membership = false, bibleYear = false, push = false, counselling = false, giving = false, givingLock = false } = {}) {
   const db = new PGlite();
   await db.exec(BASE);
   await db.exec(TEAM01); await db.exec(TEAM03); await db.exec(TEAM04);
@@ -78,6 +108,15 @@ export async function newDb(PGlite, { dailyWords = false, events = false, attend
   if (care) await db.exec(CA_MIG);
   if (testimonies) await db.exec(TE_MIG);
   if (landing) await db.exec(LI_MIG);
+  if (groupsPastors) await db.exec(GP_MIG);
+  // the visitor account tables the later phases read (the base fixture only has the id of ringo_customers, which is all the roster needs)
+  if (customers || membership) await db.exec(CUSTOMERS_SQL);
+  if (membership) await db.exec(MR_MIG);
+  if (bibleYear || push || giving || givingLock) { await db.exec(CUSTOMERS_SQL); await db.exec(BY_MIG); }
+  if (push) await db.exec(PU_MIG);
+  if (counselling) await db.exec(CO_MIG);
+  if (giving || givingLock) await db.exec(GV_MIG);
+  if (givingLock) await db.exec(GL_MIG);
   return db;
 }
 
@@ -150,7 +189,7 @@ export async function seed(db) {
 
 // ---- a PostgREST-style client that runs as a given signed-in user -----------------------------------------------------------------------------------------------------
 export const q = (v) => (v === null || v === undefined ? "null" : `'${String(v).replace(/'/g, "''")}'`);
-export const lit = (v) => (v === null || v === undefined ? "null" : typeof v === "number" || typeof v === "boolean" ? String(v) : typeof v === "object" ? `${q(JSON.stringify(v))}::jsonb` : q(v));
+export const lit = (v) => (v === null || v === undefined ? "null" : typeof v === "number" || typeof v === "boolean" ? String(v) : Array.isArray(v) && v.every((x) => typeof x === "string") ? (v.length ? `array[${v.map(q).join(",")}]::text[]` : "'{}'::text[]") : typeof v === "object" ? `${q(JSON.stringify(v))}::jsonb` : q(v));
 const splitCols = (sel) => { const out = []; let depth = 0, cur = ""; for (const ch of String(sel)) { if (ch === "(") depth++; if (ch === ")") depth--; if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; } else cur += ch; } if (cur.trim()) out.push(cur.trim()); return out; };
 const dbErr = (e) => ({ code: e.code, message: String(e.message).split("\n")[0], details: e.detail || null });
 

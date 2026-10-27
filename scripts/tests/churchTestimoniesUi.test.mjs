@@ -169,7 +169,8 @@ const item = (n, o = {}) => ({ id: uid(n), display_name: "Marie Ngono", body: "G
     const p = noComments(read(`src/app/dashboard/church/${pg}`));
     check(`${pg}: resolves the actor on the server, refuses a group leader, shows NoAccess without ${cap}`, /resolveChurchActor/.test(p) && new RegExp(`caps\\.${cap}`).test(p) && /kind === "leader"/.test(p) && /NoAccess section="testimonies"/.test(p));
   }
-  check("the church index opens Testimonies for a person whose only section is Testimonies", /caps\.viewTestimonies\) redirect\("\/dashboard\/church\/testimonies"\)/.test(noComments(read("src/app/dashboard/church/page.tsx"))));
+  // the index now reads the one shared module list (src/lib/church/modules.ts): a person with a single section is sent straight to it
+  check("the church index opens Testimonies for a person whose only section is Testimonies", /sections\.length <= 1\) redirect\(sections\[0\]\?\.href/.test(noComments(read("src/app/dashboard/church/page.tsx"))) && /key: "testimonies", href: "\/dashboard\/church\/testimonies".*c\.viewTestimonies/.test(read("src/lib/church/modules.ts")));
 }
 
 // ---------------------------------------------------------------- 6. the workspace shell

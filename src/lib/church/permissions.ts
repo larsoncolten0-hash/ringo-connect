@@ -15,7 +15,7 @@ export const CHURCH_ORDINARY_PERMISSIONS = [
 ] as const;
 
 /** Sensitive permissions: only the church OWNER can grant, change or reactivate them. `church.export` is reserved for a later phase and is not offered in this phase. */
-export const CHURCH_SENSITIVE_PERMISSIONS = ["church.children.view", "church.children.manage", "church.members.delete"] as const;
+export const CHURCH_SENSITIVE_PERMISSIONS = ["church.children.view", "church.children.manage", "church.members.delete", "church.export"] as const;
 
 /** Content Studio (Phase 3). Not in the ordinary list, so the database guards treat them as owner-only to grant (any `church.*` string they do not list is sensitive): only the church OWNER
  *  can give them. view: read every entry incl. drafts; manage: create / edit / delete DRAFTS; publish: publish, schedule, unpublish, and edit or delete a LIVE entry. */
@@ -42,6 +42,15 @@ export const CHURCH_CARE_PERMISSIONS = ["church.care.view", "church.care.manage"
 /** Testimonies (visitors share a testimony with the church). view: read every testimony, its phone number and its moderation history; manage: review, correct the public text, note, unpublish, record a withdrawal of consent; publish: also publish an approved testimony whose submitter consented. Owner-only to grant. */
 export const CHURCH_TESTIMONIES_PERMISSIONS = ["church.testimonies.view", "church.testimonies.manage", "church.testimonies.publish"] as const;
 
+/** Pastors page (Phase 3 of the expansion). manage: write the pastors (photo, name, short word, biography) and the church's vision and mission. Owner-only to grant. */
+export const CHURCH_PASTORS_PERMISSIONS = ["church.pastors.manage"] as const;
+
+/** Counselling requests (expansion Phase 6). view: read the requests, with the reason and the contact details; manage: approve, decline, write a private note and delete. Owner-only to grant, and nothing else opens them. */
+export const CHURCH_COUNSELLING_PERMISSIONS = ["church.counselling.view", "church.counselling.manage"] as const;
+
+/** Giving and care funds (expansion Phase 7). manage: write the funds a church wants to raise money for (titles, descriptions, goals). Owner-only to grant. It never opens money: collecting is a separate, later step. */
+export const CHURCH_GIVING_PERMISSIONS = ["church.giving.manage"] as const;
+
 /** Every church permission the Team role editor can hand out. */
 export const CHURCH_PERMISSIONS = [
   ...CHURCH_ORDINARY_PERMISSIONS,
@@ -54,6 +63,9 @@ export const CHURCH_PERMISSIONS = [
   ...CHURCH_REPORTS_PERMISSIONS,
   ...CHURCH_CARE_PERMISSIONS,
   ...CHURCH_TESTIMONIES_PERMISSIONS,
+  ...CHURCH_PASTORS_PERMISSIONS,
+  ...CHURCH_COUNSELLING_PERMISSIONS,
+  ...CHURCH_GIVING_PERMISSIONS,
 ] as const;
 
 export type ChurchPermission = (typeof CHURCH_PERMISSIONS)[number];
@@ -125,6 +137,15 @@ export interface ChurchCapabilities {
   viewTestimonies: boolean;
   manageTestimonies: boolean;
   publishTestimonies: boolean;
+  /** The Pastors page and the church's vision and mission. */
+  managePastors: boolean;
+  /** Download a PDF list of members, leadership or groups. Needs the matching view permission as well. Owner-only to grant. */
+  exportLists: boolean;
+  /** Counselling requests: read (reason and contact details included) and decide. */
+  viewCounselling: boolean;
+  manageCounselling: boolean;
+  /** Giving and care funds: write the fund definitions (no money moves). */
+  manageGiving: boolean;
 }
 
 export function churchCapabilities(permissions: readonly string[]): ChurchCapabilities {
@@ -163,6 +184,11 @@ export function churchCapabilities(permissions: readonly string[]): ChurchCapabi
     viewTestimonies: has("church.testimonies.view") || has("church.testimonies.manage") || has("church.testimonies.publish"),
     manageTestimonies: has("church.testimonies.manage") || has("church.testimonies.publish"),
     publishTestimonies: has("church.testimonies.publish"),
+    managePastors: has("church.pastors.manage"),
+    exportLists: has("church.export"),
+    viewCounselling: has("church.counselling.view") || has("church.counselling.manage"),
+    manageCounselling: has("church.counselling.manage"),
+    manageGiving: has("church.giving.manage"),
   };
 }
 

@@ -11,6 +11,7 @@ import { churchErrorText } from "./errorText";
 import { ANNOUNCEMENT_DURATIONS, announcementEnd } from "@/lib/church/week";
 import PreviewDialog from "./PreviewDialog";
 import PictureField from "./PictureField";
+import AudienceField from "./AudienceField";
 import type { FieldDef, FormValues, Lang, LifecycleConfig } from "./types";
 
 interface Meta {
@@ -197,6 +198,13 @@ export default function LifecycleEditor({ id, caps, config, extra }: { id?: stri
               if (url === "") for (const d of dependents) set(d.key, false);
             }}
           />
+        </Field>
+      );
+    }
+    if (def.kind === "audience") {
+      return (
+        <Field key={key} id={fid} label={tx.label} hint={tx.help} optional>
+          <AudienceField id={fid} value={String(form[key] ?? "")} onChange={(v) => set(key, v)} disabled={readOnly} labels={tx.options ?? {}} />
         </Field>
       );
     }

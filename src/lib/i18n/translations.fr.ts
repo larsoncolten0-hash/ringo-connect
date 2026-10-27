@@ -2,6 +2,7 @@
 // browser always has; its shape is checked against the English dictionary (`Translations`), so a missing or extra key is a compile error exactly as before.
 import type { Translations } from "./translations";
 import { registerDictionary } from "./dictionaryRegistry";
+import { churchExpansionFr } from "./churchExpansion.fr";
 
 export const fr: Translations = {
     brand: {
@@ -7148,6 +7149,7 @@ export const fr: Translations = {
         },
         fields: {
           expires_on: { label: "Combien de temps l'afficher ?", help: "Après le dernier jour, l'annonce quitte votre page publique toute seule (heure du Cameroun). « Cette semaine » se termine dimanche à minuit ; publiée un dimanche, elle reste une semaine entière.", options: { week: "Cette semaine", month: "1 mois", year: "1 an", none: "Sans date de fin", date: "Dernier jour d'affichage" } },
+          public_group_id: { label: "À qui s'adresse-t-elle ?", help: "Toute l'église, ou la page d'un groupe (Hommes, Femmes, Jeunes, Enfants). Une annonce de groupe s'affiche uniquement sur la page de ce groupe. Retirez une annonce de la page avant de changer son public.", options: { all: "Toute l'église", group: "Un groupe" } },
           image_url: { label: "Image", help: "Facultatif. Une image affichée avec cette annonce sur votre page publique.", options: { choose: "Choisir une image", remove: "Supprimer l'image" } },
           title: { label: "Titre", placeholder: "ex. Inscriptions à la retraite des jeunes" },
           body: { label: "Message", placeholder: "Rédigez l'avis" },
@@ -7194,7 +7196,7 @@ export const fr: Translations = {
         navLabel: "Sections de l'église",
         menu: "Menu",
         closeMenu: "Fermer le menu",
-        sections: { visit: "Visite", word: "Parole du jour", news: "Actualités", bible: "Bible", testimonies: "Témoignages", care: "Entraide", music: "Musique", store: "Boutique", links: "Liens", contact: "Contact" },
+        sections: { visit: "Visite", word: "Parole du jour", news: "Actualités", groups: "Groupes", pastors: "Pasteurs", bible: "Bible", bibleYear: "Bible en un an", counselling: "Accompagnement", testimonies: "Témoignages", care: "Entraide", music: "Musique", store: "Boutique", links: "Liens", contact: "Contact" },
         planVisit: "Préparer ma visite",
         getDirections: "Itinéraire",
         whatsapp: "WhatsApp",
@@ -7701,6 +7703,7 @@ export const fr: Translations = {
         invalid_note: "La note doit faire 500 caractères au maximum.",
       },
     },
+    churchExpansion: churchExpansionFr,
     churchMusic: {
       title: "Musique de l'église",
       subtitle: "Ajoutez des liens vers les endroits où la musique de votre église se trouve déjà : une playlist de louange, la chaîne de votre chorale, un enregistrement. Les visiteurs les voient sur votre page publique et les ouvrent sur cette plateforme. Rien n'est téléversé, lu ou vendu ici.",

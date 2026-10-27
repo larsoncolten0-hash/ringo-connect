@@ -332,7 +332,7 @@ section("I. text and scope: ");
   const reports = ["period", "build", "csv", "handlers"].map((f) => fs.readFileSync(path.join(REPO, `src/lib/church/reports/${f}.ts`), "utf8")).join("\n").replace(/\/\/[^\n]*/g, "");
   check("Ringo AI's tool and the reports never read a testimony", !/ministry_testimon/i.test(aiTool) && !/ministry_testimon/i.test(reports));
   const know = fs.readFileSync(path.join(REPO, "src/lib/ai/knowledge/modules/churchMinistries.ts"), "utf8");
-  check("the knowledge says testimonies exist, are private, and that Ringo AI cannot see them", /version: 6,/.test(know) && /Share your testimony/.test(know) && /Ringo AI has NO access to testimonies/.test(know) && /Nobody, not even the owner, can grant that permission/.test(know));
+  check("the knowledge says testimonies exist, are private, and that Ringo AI cannot see them", /version: 7,/.test(know) && /Share your testimony/.test(know) && /Ringo AI has NO access to testimonies/.test(know) && /Nobody, not even the owner, can grant that permission/.test(know));
   eq("the service-role client was never used by a staff route", globalThis.__adminClientCalls, 0);
 }
 

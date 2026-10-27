@@ -65,6 +65,13 @@ const GUARD_CODES: Record<string, Outcome> = {
   testimony_cannot_publish: { status: 409, code: "cannot_publish" },
   testimony_publish_permission: { status: 403, code: "forbidden" },
   testimony_history_immutable: { status: 409, code: "invalid" },
+  // Phase 3 of the expansion (public groups, photos, pastors)
+  church_group_kind_immutable: { status: 422, code: "invalid" },
+  church_children_photo_caption: { status: 422, code: "children_photo_caption" },
+  church_group_photo_limit: { status: 422, code: "photo_limit" },
+  church_pastor_limit: { status: 422, code: "pastor_limit" },
+  church_group_mismatch: { status: 422, code: "invalid" },
+  church_group_locked: { status: 409, code: "unpublish_first" },
 };
 
 // constraint names -> public code (a unique index surfaces as 23505 with the index name in the message)
@@ -110,6 +117,9 @@ const CONSTRAINT_CODES: Array<[RegExp, Outcome]> = [
   // Testimonies: a corrected text or a note outside its limits
   [/ministry_testimonies_public_body_check/, { status: 422, code: "invalid_public_body" }],
   [/ministry_testimonies_note_check/, { status: 422, code: "invalid_note" }],
+  // Phase 3 of the expansion: one public group per kind; addresses of photos; texts outside their limits
+  [/church_public_groups_kind_key/, { status: 409, code: "group_exists" }],
+  [/church_(public_groups_leader_photo|group_photos_image|pastors_photo)_check/, { status: 422, code: "invalid_image_url" }],
 ];
 
 export function classifyDbError(error: DbError): Outcome {

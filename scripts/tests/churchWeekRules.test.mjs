@@ -74,7 +74,7 @@ const CAT = jiti(path.join(SRC, "lib/categories.ts"));
   check("a malformed last day fails closed (the announcement is not shown)", E.shapePublicAnnouncements([row(2, "tomorrow"), row(3, "2024-13-45x")], "2024-01-10").length === 0);
   // the database filter the loader sends uses the same Cameroon day
   const seen = [];
-  const chain = (data) => { const q = { select: () => q, eq: () => q, or: (f) => { seen.push(f); return q; }, order: () => q, limit: () => Promise.resolve({ data, error: null }) }; return q; };
+  const chain = (data) => { const q = { select: () => q, eq: () => q, is: () => q, or: (f) => { seen.push(f); return q; }, order: () => q, limit: () => Promise.resolve({ data, error: null }) }; return q; };
   const db = { from: () => chain([row(4, "2024-01-14")]) };
   const sunLate = T("2024-01-14T22:59:59Z"), monStart = T("2024-01-14T23:00:00Z");
   check("loader: asks the database for last days on or after the Cameroon day (Sunday 23:59 -> Sunday, Monday 00:00 -> Monday)", (await E.loadPublicAnnouncements(db, "p", sunLate)).length === 1 && (await E.loadPublicAnnouncements(db, "p", monStart)).length === 0 && seen[0] === "expires_on.is.null,expires_on.gte.2024-01-14" && seen[1] === "expires_on.is.null,expires_on.gte.2024-01-15", seen.join(" | "));

@@ -66,7 +66,7 @@ const noComments = (t) => t.replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/\/\*[\s\
   grab(routeKit, /error: "([a-z_]+)"/g);
   for (const c of ["invalid_date", "invalid_page", "invalid_view", "invalid_body", "unexpected_field", "empty_update"]) codes.add(c);
   // the later phases keep their own sentences in their own namespaces (each is checked with its routes in its own suite); a code must still exist in BOTH languages
-  const has = (loc, c) => !!(translations[loc].churchContent.errors[c] || translations[loc].churchPeople.errors[c] || translations[loc].churchEvents.errors[c] || translations[loc].churchAttendance.errors[c] || translations[loc].churchBible.errors[c] || translations[loc].churchMusic.errors[c] || translations[loc].churchCare.errors[c] || translations[loc].churchTestimonies.errors[c]);
+  const has = (loc, c) => !!(translations[loc].churchContent.errors[c] || translations[loc].churchPeople.errors[c] || translations[loc].churchEvents.errors[c] || translations[loc].churchAttendance.errors[c] || translations[loc].churchBible.errors[c] || translations[loc].churchMusic.errors[c] || translations[loc].churchCare.errors[c] || translations[loc].churchTestimonies.errors[c] || translations[loc].churchExpansion.errors[c]);
   const missing = [...codes].filter((c) => !has("en", c) || !has("fr", c));
   check("every code the content routes can send has a sentence in English AND French", missing.length === 0, missing.join(", "));
   check("no content error sentence leaks internals", [...Object.values(en.errors), ...Object.values(fr.errors)].every((s) => !/daily_words|policy|trigger|RLS|row-level|supabase|postgres|SQL|church\.content|42501/i.test(s)));

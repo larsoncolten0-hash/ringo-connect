@@ -72,13 +72,13 @@ const { buildPreviewProfile } = jiti(path.join(SRC, "app/dev-preview-profile/fix
   const caps = (...p) => PERM.churchCapabilities(p);
   const all = caps(...PERM.CHURCH_PERMISSIONS);
   const church = { name: "Grace Community Church", username: "grace", avatarUrl: null };
-  const hrefs = (h) => [...h.matchAll(/<a href="(\/dashboard\/church\/[a-z]+)"/g)].map((m) => m[1]);
+  const hrefs = (h) => [...h.matchAll(/<a href="(\/dashboard\/church\/[a-z-]+)"/g)].map((m) => m[1]);
   const pageExists = (href) => fs.existsSync(path.join(REPO, "src/app", href.replace(/^\//, ""), "page.tsx"));
   for (const lang of ["en", "fr"]) {
     const t = translations[lang];
     const owner = html(Home, { caps: all, isOwner: true, church }, lang);
     const list = hrefs(owner);
-    check(`home (${lang}): the owner sees 13 section cards, no duplicates`, list.length === 13 && new Set(list).size === 13, list.join());
+    check(`home (${lang}): the owner sees 19 section cards, no duplicates`, list.length === 19 && new Set(list).size === 19, list.join());
     check(`home (${lang}): every card goes to a page that exists`, list.every(pageExists), list.filter((h) => !pageExists(h)).join());
     check(`home (${lang}): the four groups are present, labelled in ${lang}`, ["community", "ministry", "care", "business"].every((g) => owner.includes(t.churchSite.home.groups[g])));
     check(`home (${lang}): each card carries its title and its one-line explanation`, Object.entries(t.churchSite.home.modules).every(([, text]) => owner.includes(text)));
@@ -88,7 +88,7 @@ const { buildPreviewProfile } = jiti(path.join(SRC, "app/dev-preview-profile/fix
     check(`home (${lang}): a church with no logo shows its initial, never a broken image`, owner.includes(">G<") && !/default-avatar/.test(owner));
     check(`home (${lang}): nothing scrolls sideways`, !/overflow-x-auto|overflow-x-scroll|snap-x/.test(owner));
     const shell = html(Shell, { caps: all, isOwner: true, children: null }, lang);
-    check(`shell (${lang}): one navigation with the same 13 sections, current page marked`, hrefs(shell).length === 13 && /aria-current="page"/.test(shell) && hrefs(shell).join() === list.join(), hrefs(shell).join());
+    check(`shell (${lang}): one navigation with the same 19 sections, current page marked`, hrefs(shell).length === 19 && /aria-current="page"/.test(shell) && hrefs(shell).join() === list.join(), hrefs(shell).join());
     check(`shell (${lang}): the phone menu is a real button that says what it controls, closed at first`, /aria-expanded="false"/.test(shell) && /aria-controls="church-sections"/.test(shell) && /id="church-sections"/.test(shell));
     check(`shell (${lang}): the groups are labelled`, ["community", "ministry", "care", "business"].every((g) => shell.includes(t.churchSite.home.groups[g])));
     check(`shell (${lang}): nothing scrolls sideways, and every link is at least 44px tall`, !/overflow-x-auto|snap-x/.test(shell) && (shell.match(/min-h-\[44px\]/g) || []).length >= 13);
@@ -96,7 +96,7 @@ const { buildPreviewProfile } = jiti(path.join(SRC, "app/dev-preview-profile/fix
   // the list behind both screens is the permission map, section by section
   const t = translations.en;
   const only = (perm) => churchModules(t, caps(perm), false).map((m) => m.key).join();
-  const expect = { "church.members.view": "people", "church.groups.view": "groups", "church.leadership.view": "leadership", "church.content.view": "content", "church.events.view": "events,announcements", "church.bible.view": "bible", "church.attendance.view": "attendance", "church.music.manage": "music", "church.reports.view": "reports", "church.care.view": "care", "church.testimonies.view": "testimonies" };
+  const expect = { "church.members.view": "people,members", "church.groups.view": "groups,pubgroups", "church.leadership.view": "leadership", "church.content.view": "content", "church.events.view": "events,announcements", "church.bible.view": "bible", "church.attendance.view": "attendance", "church.music.manage": "music", "church.reports.view": "reports", "church.care.view": "care", "church.testimonies.view": "testimonies" };
   for (const [perm, keys] of Object.entries(expect)) if (PERM.CHURCH_PERMISSIONS.includes(perm)) check(`${perm} opens exactly: ${keys}`, only(perm) === keys, only(perm));
   check("the Store is offered to the owner only", churchModules(t, all, false).every((m) => m.key !== "store") && churchModules(t, all, true).some((m) => m.key === "store"));
   // the index page mirrors the list on the server (a client module's function cannot be called there): the same capabilities, in the same order
@@ -107,7 +107,7 @@ const { buildPreviewProfile } = jiti(path.join(SRC, "app/dev-preview-profile/fix
   const indexCaps = [...arr.matchAll(/caps\.(\w+)|isOwner/g)].map((x) => x[1] || "isOwner");
   const dedupe = (a) => a.filter((x, i) => a[i - 1] !== x || false);
   check("the church index counts the same capabilities, in the same order, as the section list", JSON.stringify(dedupe(showCaps)) === JSON.stringify(dedupe(indexCaps)), `${showCaps.join()} vs ${indexCaps.join()}`);
-  check("a person with a single section still goes straight to it", /sections <= 1/.test(indexSrc) && /redirect\("\/dashboard\/church\/attendance"\)/.test(indexSrc) && /redirect\("\/dashboard"\)/.test(indexSrc));
+  check("a person with a single section still goes straight to it", /sections\.length <= 1/.test(indexSrc) && /redirect\(sections\[0\]\?\.href \?\? "\/dashboard"\)/.test(indexSrc));
   check("the home page reads nothing but the church's own public name, picture and username", /select\("name, username, avatar_url"\)/.test(indexSrc) && !/church_members|church_groups|ministry_|daily_words/.test(indexSrc));
   for (const f of ["components/church/workspace/ChurchHome.tsx", "components/church/people/ChurchShell.tsx"]) {
     const problems = sourceProblems(path.join(SRC, f));

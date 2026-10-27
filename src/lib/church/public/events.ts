@@ -148,21 +148,42 @@ export async function loadPublicEvents(supabase: Reader, profileId: string, now:
   }
 }
 
-/** The published, unexpired announcements of one church for its PUBLIC page, newest first. FAIL-SAFE: any error gives []. */
+/**
+ * The published, unexpired announcements of one church for its PUBLIC page, newest first. Notices addressed to ONE group (public_group_id) are not church-wide and are left out. FAIL-SAFE: any error gives [].
+ * The query is tried with the picture and group columns first; a database that has not got the newest columns yet (the SQL is applied after the code is deployed) answers with an error, and the loader then asks again with fewer.
+ */
 export async function loadPublicAnnouncements(supabase: Reader, profileId: string, now: number = Date.now(), limit: number = PUBLIC_ANNOUNCEMENT_LIMIT): Promise<PublicAnnouncement[]> {
   try {
     const today = doualaDate(now);
-    const run = (cols: string) =>
-      supabase
-        .from("ministry_announcements")
-        .select(cols)
-        .eq("profile_id", profileId)
-        .eq("status", "published")
-        .or(`expires_on.is.null,expires_on.gte.${today}`)
-        .order("published_at", { ascending: false })
-        .limit(limit);
-    let { data, error } = await run(PUBLIC_ANNOUNCEMENT_IMAGE_COLUMNS);
-    if (error) ({ data, error } = await run(PUBLIC_ANNOUNCEMENT_COLUMNS)); // no picture column yet: ask again without it
+    const run = (cols: string, churchWide: boolean) => {
+      let q = supabase.from("ministry_announcements").select(cols).eq("profile_id", profileId).eq("status", "published");
+      if (churchWide) q = q.is("public_group_id", null);
+      return q.or(`expires_on.is.null,expires_on.gte.${today}`).order("published_at", { ascending: false }).limit(limit);
+    };
+    let { data, error } = await run(PUBLIC_ANNOUNCEMENT_IMAGE_COLUMNS, true);
+    if (error) ({ data, error } = await run(PUBLIC_ANNOUNCEMENT_IMAGE_COLUMNS, false)); // no group column yet (so no group notices exist)
+    if (error) ({ data, error } = await run(PUBLIC_ANNOUNCEMENT_COLUMNS, false)); // no picture column yet either
+    if (error) return [];
+    return shapePublicAnnouncements(data, today, limit);
+  } catch {
+    return [];
+  }
+}
+
+/** The published, unexpired announcements addressed to ONE public group, newest first. The caller has already checked that the group is public. FAIL-SAFE: any error gives []. */
+export async function loadGroupAnnouncements(supabase: Reader, profileId: string, groupId: string, now: number = Date.now(), limit: number = PUBLIC_ANNOUNCEMENT_LIMIT): Promise<PublicAnnouncement[]> {
+  try {
+    if (!UUID.test(groupId)) return [];
+    const today = doualaDate(now);
+    const { data, error } = await supabase
+      .from("ministry_announcements")
+      .select(PUBLIC_ANNOUNCEMENT_IMAGE_COLUMNS)
+      .eq("profile_id", profileId)
+      .eq("public_group_id", groupId)
+      .eq("status", "published")
+      .or(`expires_on.is.null,expires_on.gte.${today}`)
+      .order("published_at", { ascending: false })
+      .limit(limit);
     if (error) return [];
     return shapePublicAnnouncements(data, today, limit);
   } catch {

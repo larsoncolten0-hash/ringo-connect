@@ -11,7 +11,7 @@ export interface FieldDef {
   /** The column. A bilingual field is stored as `<key>_en` and `<key>_fr`. */
   key: string;
   bilingual?: boolean;
-  kind: "text" | "textarea" | "date" | "time" | "url" | "checkbox" | "select" | "image";
+  kind: "text" | "textarea" | "date" | "time" | "url" | "checkbox" | "select" | "image" | "audience";
   /** For a "select": the allowed values, in display order (their labels are in the field text's `options`). */
   choices?: readonly string[];
   max?: number;

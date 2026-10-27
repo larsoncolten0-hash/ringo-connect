@@ -122,7 +122,8 @@ section = "A. pure modules: ";
   eq("capabilities: children.manage alone does not open reading children", PERM.churchCapabilities(["church.children.manage"]).viewChildren, false);
   eq("capabilities: groups.manage implies group reading", PERM.churchCapabilities(["church.groups.manage"]).viewGroups, true);
   check("catalogue: church permissions are in the Team catalogue", PERM.CHURCH_PERMISSIONS.every((p) => TEAMPERM.PERMISSIONS.includes(p)));
-  check("catalogue: church.export is NOT offered in this phase", !TEAMPERM.PERMISSIONS.includes("church.export"));
+  // Phase 4 of the expansion registered church.export on purpose (PDF lists): it is offered, and it is sensitive, so only the owner can grant it.
+  check("catalogue: church.export is offered since Phase 4 and is owner-only to grant", TEAMPERM.PERMISSIONS.includes("church.export") && PERM.isSensitiveChurchPermissionName("church.export"));
   check("catalogue: sensitive naming", PERM.isSensitiveChurchPermissionName("Church.Children.View") && PERM.isSensitiveChurchPermissionName(" church.export ") && !PERM.isSensitiveChurchPermissionName("church.members.view"));
   check("catalogue: the church group exists", TEAMPERM.PERMISSION_GROUPS.some((x) => x.labelKey === "church"));
   // errors never echo database text
@@ -749,7 +750,7 @@ await fresh();
   check(`a church admin removing a sensitive permission: app (${appAllows}) matches the database (${dbAllows})`, appAllows === dbAllows, JSON.stringify(res));
   // existing Team gating is untouched: the catalogue still contains every pre-existing permission
   for (const p of ["orders.view", "staff.manage", "settings.manage", "inbox.view", "inbox.close", "loyalty.scan"]) check(`Team catalogue still has ${p}`, TEAMPERM.PERMISSIONS.includes(p));
-  check("sanitizePermissions keeps church permissions and drops unknown church strings", JSON.stringify(TEAMPERM.sanitizePermissions(["church.members.view", "church.export", "church.bogus", "Church.Children.View"])) === JSON.stringify(["church.members.view"]));
+  check("sanitizePermissions keeps church permissions and drops unknown church strings", JSON.stringify(TEAMPERM.sanitizePermissions(["church.members.view", "church.export", "church.bogus", "Church.Children.View"])) === JSON.stringify(["church.members.view", "church.export"]));
 }
 
 // =================================================================================================================================================================
@@ -772,12 +773,14 @@ section = "H. privacy of the public surface and static guarantees (scenario 14):
   eq("no has_org_permission / platform-admin helper in church code", bad(/has_org_permission|getOrgAccess|requireOrgAccess|assertAdmin|is_admin/), []);
   eq("no select(\"*\") on a church table", bad(/select\(\s*["'`]\*["'`]/), []);
   // Phase 10: the church REPORTS export aggregate counts (no names) as CSV. These four files are the only ones that may, and churchReports.test.mjs proves the files hold no person.
-  eq("no export / download / csv code outside the Phase 10 reports", bad(/\bcsv\b|text\/csv|Content-Disposition|\.xlsx|church\.export/i), ["src/app/api/church/reports/route.ts", "src/components/church/reports/ReportsView.tsx", "src/lib/church/reports/csv.ts", "src/lib/church/reports/handlers.ts"]);
+  eq("no export / download / csv code outside the Phase 10 reports", bad(/\bcsv\b|text\/csv|Content-Disposition|\.xlsx|church\.export/i), ["src/app/api/church/lists/[kind]/route.ts", "src/app/api/church/reports/route.ts", "src/components/church/members/MembersView.tsx", "src/components/church/reports/ReportsView.tsx", "src/lib/church/permissions.ts", "src/lib/church/reports/csv.ts", "src/lib/church/reports/handlers.ts"]);
+  // Phase 4/5B of the expansion add named functions too (church_request_membership; church_push_enqueue, claim, finish, recipients, record), all through the visitor-scoped or service client, never raw SQL.
+  // Church lists route: it reads only ?lang= from the query and rejects any other key; the church comes from the session, so it is the one allowed searchParams reader.
   // Phase 5: two named database functions (bible_program_stats, bible_session_move) are called through the caller's own session; there is no raw SQL anywhere.
   // Phase 10: the report calls the SAME named function (bible_program_stats) through the caller's own session, only to show how many people follow a programme.
   // Testimonies: the public loader calls the one narrow database function (ministry_testimonies_public) that returns only approved, published, consented testimonies; visitors have no table access at all.
-  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), ["src/lib/church/bible/handlers.ts", "src/lib/church/public/testimonies.ts", "src/lib/church/reports/build.ts"]);
-  eq("no profile id read from a request in the church routes", files.filter((f) => rel(f).startsWith("src/app/api/church/") && /profileId|profile_id|searchParams/.test(fs.readFileSync(f, "utf8").replace(/\/\/.*$/gm, ""))).map(rel), []);
+  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), ["src/lib/church/bible/handlers.ts", "src/lib/church/membership/request.ts", "src/lib/church/public/testimonies.ts", "src/lib/church/push/run.ts", "src/lib/church/reports/build.ts"]);
+  eq("no profile id read from a request in the church routes", files.filter((f) => rel(f).startsWith("src/app/api/church/") && /profileId|profile_id|searchParams/.test(fs.readFileSync(f, "utf8").replace(/\/\/.*$/gm, ""))).map(rel), ["src/app/api/church/lists/[kind]/route.ts"]);
   eq("no use of localStorage / sessionStorage / console.log in church code", bad(/localStorage|sessionStorage|console\.log/), []);
   // the public profile surface is untouched
   const profileFiles = files.filter((f) => /src\/app\/\[username\]|src\/app\/api\/public|src\/components\/profile|src\/lib\/church\/publicPage/.test(f.replace(/\\/g, "/")));
