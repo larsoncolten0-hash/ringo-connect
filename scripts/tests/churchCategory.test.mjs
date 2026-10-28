@@ -54,9 +54,9 @@ const PREVIOUS_16 = [
 
 // ------------------------------------------------------------------ 2. keyed maps and gates
 {
-  check("Business Toolkit stays OFF for the church category", !DEC.BOOKKEEPING_CATEGORIES.includes(ID) && BIZ.CATEGORY_PROFILES[ID]?.toolkit === false && BIZ.CATEGORY_PROFILES[ID]?.inventory === false);
+  check("Business Toolkit is ON for the church category (bookkeeping, invoices, customers, reports, stock), and the AI registry agrees; giving stays out of the books", DEC.BOOKKEEPING_CATEGORIES.includes(ID) && BIZ.CATEGORY_PROFILES[ID]?.toolkit === true && BIZ.CATEGORY_PROFILES[ID]?.inventory === true && BIZ.CATEGORY_PROFILES[ID]?.minimizeNames === true && BIZ.CATEGORY_PROFILES[ID].notes.join(" ").includes("NEVER recorded in the books"));
   check("the AI business registry still agrees with the gate", JSON.stringify(BIZ.registryProblems()) === "[]", JSON.stringify(BIZ.registryProblems()));
-  check("inventory stays Business & E-commerce only", JSON.stringify(DEC.INVENTORY_CATEGORIES) === JSON.stringify(["business_ecommerce"]));
+  check("inventory is Business & E-commerce and Churches & Ministries (the database check is widened by 2027-01-15_church_inventory.sql)", JSON.stringify(DEC.INVENTORY_CATEGORIES) === JSON.stringify(["business_ecommerce", "church_ministries"]));
   check("public section order (Phase 1): events, catalog, links, about when all have content", ORDER.orderPublicSections({ category: ID, isMusic: false, isRestaurant: false }, { about: true, links: true, catalog: true, events: true }).join() === "events,catalog,links,about");
   check("profile health group is 'other' (no category-specific criteria were invented)", HEALTH.groupOf(ID) === "other");
   const seo = read("src/lib/seo.ts");

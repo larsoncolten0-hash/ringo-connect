@@ -23,11 +23,12 @@ export const BOOKKEEPING_CATEGORIES: readonly CategoryId[] = [
   "creative_media",
   "transport_logistics",
   "health_medical",
+  "church_ministries", // church bookkeeping, invoices, customers and reports (giving and church store sales are owned by their own systems and are never copied into the books)
 ];
 
 /** Stock tracking (Phase 4) is enforced for Business & E-commerce profiles by the database functions themselves (inv_start_tracking raises category_not_enabled
  *  for any other category), so the Inventory screens and the Ringo AI stock tools/drafts are offered only here until a migration widens that SQL check. */
-export const INVENTORY_CATEGORIES: readonly CategoryId[] = ["business_ecommerce"];
+export const INVENTORY_CATEGORIES: readonly CategoryId[] = ["business_ecommerce", "church_ministries"]; // church_ministries needs supabase/migrations/2027-01-15_church_inventory.sql applied first
 
 /** Pure: whether a profile's categories include one with stock tracking. */
 export function categoryHasInventory(profile: { category?: string | null; categories?: string[] | null } | null | undefined): boolean {

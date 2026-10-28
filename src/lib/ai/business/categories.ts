@@ -123,12 +123,13 @@ export const CATEGORY_PROFILES: Record<CategoryId, CategoryToolkitProfile> = {
     notBuilt: ["event budgeting", "vendor management"],
   },
   church_ministries: {
-    id: "church_ministries", toolkit: false, inventory: false, clientTerm: "member",
+    id: "church_ministries", toolkit: true, inventory: true, clientTerm: "member", minimizeNames: true,
     notes: [
-      "The Business Toolkit is not offered for church pages: church finances (giving, assistance funds, store sales) will have their own tools, not business bookkeeping.",
-      "Never read or discuss individual giving, member records or private pastoral information.",
+      "Financial layer only, for the church's own running costs and billing: expenses (supplies, equipment, rent, utilities, events), invoices and payments for things the church sells or hires out, and reports. Record work as an invoice or an entry.",
+      "Giving (offerings, tithes, gifts to a fund) is owned by the Church Giving system and its own ledger and payouts: it is NEVER recorded in the books, never copied into entries, and its totals are not part of Business Toolkit reports. Shop orders paid through Ringo checkout (the church store) are counted automatically: never record them as manual sales. Stock tracking applies to church store products.",
+      "Names are shown as initials in lists. Never read or discuss individual giving or donors, member records, counselling or care requests, or private pastoral information.",
     ],
-    notBuilt: ["member management", "giving or donation tracking", "church bookkeeping"],
+    notBuilt: ["member management", "giving or donation tracking in the books", "payroll", "a fund-accounting or tax-receipt system"],
   },
   other: {
     id: "other", toolkit: false, inventory: false, clientTerm: "customer",

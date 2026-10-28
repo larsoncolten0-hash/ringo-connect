@@ -177,7 +177,7 @@ const S = (id, amount, paidAt, currency = "XAF") => ({ id, source: "product_orde
   eq("other category denied", d({ profile: prof({ category: "restaurant_food" }) }).reason, "category_not_enabled");
   check("secondary category counts", d({ profile: prof({ category: "restaurant_food", categories: ["business_ecommerce"] }) }).ok);
   for (const p of [false, null, undefined]) eq(`plan flag ${p} denied (fail closed)`, d({ planEnabled: p }).reason, "plan_not_enabled");
-  eq("enabled for Business & E-commerce plus the finance-layer categories; never restaurant, music or events (they own their revenue)", [...BOOKKEEPING_CATEGORIES], ["business_ecommerce","professional_services","freelancers_creators","beauty_wellness","construction_home_services","real_estate","agriculture_agribusiness","education_training","travel_hospitality","creative_media","transport_logistics","health_medical"]);
+  eq("enabled for Business & E-commerce, the finance-layer categories and Churches & Ministries (giving and the church store keep their own ledgers); never restaurant, music or events (they own their revenue)", [...BOOKKEEPING_CATEGORIES], ["business_ecommerce","professional_services","freelancers_creators","beauty_wellness","construction_home_services","real_estate","agriculture_agribusiness","education_training","travel_hospitality","creative_media","transport_logistics","health_medical","church_ministries"]);
 }
 
 // =============================================================== loader: scoping + pagination
