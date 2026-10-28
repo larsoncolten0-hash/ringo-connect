@@ -7,6 +7,7 @@ import { FUND_LIMIT, FUND_TEMPLATES } from "@/lib/church/giving/kinds";
 import { churchErrorText } from "../lifecycle/errorText";
 import { Badge, BTN_PRIMARY, BTN_SECONDARY, ConfirmDialog, EmptyState, ErrorLine, Field, INPUT, ListSkeleton, NoticeBar, churchApi, useNotice } from "../people/shared";
 import GiftsPanel from "./GiftsPanel";
+import GivingSwitch from "./GivingSwitch";
 
 interface FundRow {
   id: string;
@@ -199,6 +200,7 @@ export default function GivingView() {
           {c.add}
         </button>
       </header>
+      <GivingSwitch />
       <p role="note" className="rounded-card border border-ringo-border bg-ringo-surface p-3 text-sm leading-relaxed text-ringo-muted">
         {available ? g.availableNote : c.notAvailable}
       </p>

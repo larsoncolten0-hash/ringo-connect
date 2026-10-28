@@ -13,14 +13,13 @@ interface Row {
   updated_at: string | null;
 }
 
-// The church's feature switches. Only the church owner reaches this screen (the server checks again). Everything is off until switched on. The giving switch is shown but cannot be turned on yet, with the
-// reason, because online giving waits for the payment rules to be agreed. One Save button saves all the switches together, naming the version they were based on.
+// The church's feature switches. Only the church owner reaches this screen (the server checks again). Everything is off until switched on. Giving is NOT switched here any more: its row only links to the Giving menu,
+// where the owner turns it on or off beside the funds. One Save button saves all the switches together, naming the version they were based on.
 export default function FeaturesView() {
   const { t } = useLanguage();
   const c = t.churchExpansion.features;
   const [row, setRow] = useState<Row | null>(null);
   const [saved, setSaved] = useState<Row | null>(null);
-  const [givingAvailable, setGivingAvailable] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -32,7 +31,6 @@ export default function FeaturesView() {
     if (!r.ok) return setLoadError(churchErrorText(t, r.code));
     setRow(r.body.item);
     setSaved(r.body.item);
-    setGivingAvailable(r.body.giving_available === true);
   }, [t]);
   useEffect(() => {
     load();
@@ -43,7 +41,6 @@ export default function FeaturesView() {
     setSaving(true);
     setError("");
     const body: Record<string, unknown> = { bible_year: row.bible_year, counselling: row.counselling };
-    if (givingAvailable) body.giving = row.giving;
     if (saved?.updated_at) body.expected_updated_at = saved.updated_at;
     const r = await churchApi<{ item: Row }>("/api/church/features", { method: "PUT", body });
     setSaving(false);
@@ -56,8 +53,8 @@ export default function FeaturesView() {
     show(c.saved);
   };
 
-  const dirty = !!row && !!saved && (row.bible_year !== saved.bible_year || row.counselling !== saved.counselling || row.giving !== saved.giving);
-  const toggle = (id: "bible_year" | "counselling" | "giving", label: string, help: string, locked?: string) => (
+  const dirty = !!row && !!saved && (row.bible_year !== saved.bible_year || row.counselling !== saved.counselling);
+  const toggle = (id: "bible_year" | "counselling", label: string, help: string, locked?: string) => (
     <li key={id} className="flex items-start gap-3 rounded-card border border-ringo-border bg-ringo-surface p-4">
       <input
         id={`feature-${id}`}
@@ -103,7 +100,15 @@ export default function FeaturesView() {
           <ul className="flex flex-col gap-3">
             {toggle("bible_year", c.bibleYear.label, c.bibleYear.help)}
             {toggle("counselling", c.counselling.label, c.counselling.help)}
-            {toggle("giving", c.giving.label, c.giving.help, givingAvailable ? undefined : c.giving.unavailable)}
+            <li key="giving" className="flex items-start gap-3 rounded-card border border-ringo-border bg-ringo-surface p-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-ringo-text">{c.giving.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-ringo-muted">{t.churchExpansion.gifts.activation.featuresLink}</p>
+              </div>
+              <a href="/dashboard/church/giving" className="inline-flex min-h-[44px] shrink-0 items-center rounded-full px-3 text-sm font-semibold text-ringo-indigo hover:bg-ringo-indigo/[0.06]">
+                {t.churchExpansion.gifts.activation.featuresOpen}
+              </a>
+            </li>
           </ul>
           <ErrorLine message={error} />
           <div>

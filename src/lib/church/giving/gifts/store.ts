@@ -88,16 +88,6 @@ export function createSupabaseGiftStore(admin: Admin): GiftStore {
       return !error && Array.isArray(data) && data.length > 0;
     },
 
-    async insertRefundRequest(row) {
-      const { error } = await admin.from("church_gift_refund_requests").insert(row);
-      if (!error) return "created";
-      if (error.code === "23505") return "exists";
-      const m = msg(error);
-      if (m.includes("refund_window_closed")) return "window_closed";
-      if (m.includes("refund_gift_not_refundable")) return "not_refundable";
-      return "error";
-    },
-
     async listOpenGifts({ sinceIso, limit, profileId }) {
       let q = admin
         .from("church_gifts")

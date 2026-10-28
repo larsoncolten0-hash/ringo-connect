@@ -40,23 +40,14 @@ interface PayoutRow {
   status: string;
   requested_at: string;
 }
-interface RefundRow {
-  id: string;
-  gift_id: string;
-  reason: string;
-  status: string;
-  requested_at: string;
-}
-
 const tone = (s: string) => (s === "succeeded" || s === "paid" ? "active" : s === "failed" || s === "rejected" || s === "declined" ? "inactive" : "pending");
 
-// The money side of the giving screen: the gifts of the church, the totals of a period, the reconciliation, the owner's balance and payouts, and the refund requests. It only DISPLAYS what the server and the
+// The money side of the giving screen: the gifts of the church, the totals of a period, the reconciliation, the owner's balance and payouts. It only DISPLAYS what the server and the
 // database return (row-level security decides who sees what: staff never get the commission or the balance, and an anonymous donor has no name). It computes no money itself.
 export default function GiftsPanel() {
   const { t, locale } = useLanguage();
   const d = t.churchExpansion.gifts.dashboard;
   const p = t.churchExpansion.gifts.payouts;
-  const rf = t.churchExpansion.gifts.refunds;
   const ge = t.churchExpansion.gifts.errors;
   const err = (code: string) => ge[code] ?? churchErrorText(t, code);
   const [from, setFrom] = useState("");
@@ -72,7 +63,6 @@ export default function GiftsPanel() {
   const [ownerOnly, setOwnerOnly] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [payoutError, setPayoutError] = useState("");
-  const [refunds, setRefunds] = useState<RefundRow[]>([]);
   const { notice, show } = useNotice();
   const money = (n: number | string) => `${new Intl.NumberFormat(locale === "fr" ? "fr-FR" : "en-US").format(Number(n) || 0)} XAF`;
   const when = (iso: string) => new Date(iso).toLocaleString(locale === "fr" ? "fr-FR" : "en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Douala" });
@@ -97,8 +87,6 @@ export default function GiftsPanel() {
       setPayouts(b.body.payouts);
       setOwnerOnly(false);
     } else if (b.status === 403) setOwnerOnly(true);
-    const q = await churchApi<{ items: RefundRow[] }>("/api/church/gift-refunds");
-    if (q.ok) setRefunds(q.body.items);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from, to, status, t]);
   useEffect(() => {
@@ -311,28 +299,6 @@ export default function GiftsPanel() {
               </ul>
             )}
           </>
-        )}
-      </div>
-
-      <div className="rounded-card border border-ringo-border bg-ringo-surface p-4">
-        <h3 className="text-sm font-semibold text-ringo-text">{rf.title}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-ringo-muted">{rf.intro}</p>
-        {refunds.length === 0 ? (
-          <p className="mt-2 text-sm text-ringo-muted">{rf.none}</p>
-        ) : (
-          <ul className="mt-2 flex flex-col gap-2">
-            {refunds.map((x) => (
-              <li key={x.id} className="text-sm text-ringo-text">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={tone(x.status)}>{rf.statuses[x.status] ?? x.status}</Badge>
-                  <span className="ml-auto text-xs text-ringo-muted">{when(x.requested_at)}</span>
-                </div>
-                <p className="mt-0.5 text-xs text-ringo-muted">
-                  {rf.reason}: {x.reason}
-                </p>
-              </li>
-            ))}
-          </ul>
         )}
       </div>
     </section>

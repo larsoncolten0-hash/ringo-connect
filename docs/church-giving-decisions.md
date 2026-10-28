@@ -2,6 +2,12 @@
 
 Status: **built, switched OFF.** The money code exists but no church can collect: `GIVING_AVAILABLE` is `false`, `church_giving_collection_open()` answers `false`, and no church has `giving` on. Nothing in this document is applied to any database. Activation needs the owner's explicit approval (checklist at the end).
 
+## Update: general release (after the successful pilot)
+
+- **Every church may collect.** `2027-01-14_church_giving_general.sql` replaces ONE function, `church_giving_profile_allowed(uuid)`, so it answers true for any Churches & Ministries profile instead of only the pilot list. The platform master switch (`church_giving_enabled`), each church's own giving switch, and the "open AND published fund" rule are unchanged; no fund is opened or published for anyone. The pilot-list column stays in place, unused. Verify: `supabase/support/2027-01-14_church_giving_general.verify.sql`; rollback restores the pilot restriction.
+- **No donor refund request.** A gift is a gift to the church. The donor screen, the public refund-request route and the dashboard refund panel were removed. The refund tables and the administrator correction functions/routes remain for records and corrections only; existing receipts and gifts are untouched. Shop refunds are not affected.
+- **The giving switch lives in Dashboard → Church → Giving** (owner only, same secure `/api/church/features` flow). The Features page only links to it.
+
 ## Approved decisions (the owner's, replacing the earlier proposals)
 
 | # | Decision | Approved | Where it lives |

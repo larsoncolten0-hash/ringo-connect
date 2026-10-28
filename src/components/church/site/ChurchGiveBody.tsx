@@ -10,7 +10,7 @@ import { SERIF } from "./churchTheme";
 
 // The public giving page of a church (/{username}/church/give): choose a fund, an amount and a Mobile Money number, approve the payment on the phone, then see the receipt.
 // This screen NEVER decides that a gift is paid. It starts the gift, then asks the server (which asks Fapshi) every few seconds; only a "succeeded" answer from the server shows a receipt. The donor's key
-// to the gift (an access token) is kept in this tab and in the page address so a refresh or a bookmark still shows the receipt. The payer's number is sent once and never shown again.
+// to the gift (an access token) is kept in this tab and in the page address so a refresh or a bookmark still shows the receipt. A gift is a gift to the church: there is no refund request here. The payer's number is sent once and never shown again.
 
 type Theme = { accent: string; accentText: string; textColor: string; borderTint: string; radiusClass: string };
 type Receipt = {
@@ -26,7 +26,7 @@ type Receipt = {
   donor_name: string | null;
   reference: string;
 };
-type View = { gift_id: string; state: "pending" | "succeeded" | "failed" | "expired" | "review" | "refunded"; amount_xaf: number; expires_at: string; receipt?: Receipt; refund_open?: boolean };
+type View = { gift_id: string; state: "pending" | "succeeded" | "failed" | "expired" | "review" | "refunded"; amount_xaf: number; expires_at: string; receipt?: Receipt};
 
 const POLL_FIRST_MS = 3_000;
 const POLL_MS = 12_000; // Fapshi limits status requests per transaction: the server also enforces a minimum gap
@@ -51,9 +51,6 @@ export default function ChurchGiveBody({ church, funds, theme }: { church: { nam
   const [error, setError] = useState("");
   const [gift, setGift] = useState<{ id: string; token: string } | null>(null);
   const [view, setView] = useState<View | null>(null);
-  const [reason, setReason] = useState("");
-  const [refundMsg, setRefundMsg] = useState("");
-  const [refundBusy, setRefundBusy] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fund = funds.find((f) => f.id === fundId) ?? null;
@@ -156,20 +153,6 @@ export default function ChurchGiveBody({ church, funds, theme }: { church: { nam
     }
   };
 
-  const refund = async () => {
-    if (!gift) return;
-    setRefundBusy(true);
-    setRefundMsg("");
-    try {
-      const res = await fetch(`/api/public/church-gifts/${encodeURIComponent(gift.id)}/refund-request`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ t: gift.token, reason }) });
-      const d = await res.json().catch(() => null);
-      setRefundMsg(res.ok && d?.ok ? g.refundSent : say(d?.error ?? "server_error"));
-    } catch {
-      setRefundMsg(say("server_error"));
-    }
-    setRefundBusy(false);
-  };
-
   const card = `border p-5 sm:p-6 ${theme.radiusClass}`;
   const cardStyle = { borderColor: theme.borderTint, backgroundColor: hexToRgba("#FFFFFF", 0.6) };
   const input = "block min-h-[48px] w-full rounded-xl border bg-white px-3 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
@@ -246,32 +229,6 @@ export default function ChurchGiveBody({ church, funds, theme }: { church: { nam
                   <Printer size={16} aria-hidden="true" />
                   {g.print}
                 </button>
-              </div>
-              <div className="mt-6 border-t pt-4 print:hidden" style={{ borderColor: theme.borderTint }}>
-                <h3 className="text-sm font-semibold">{g.refundTitle}</h3>
-                {view.refund_open ? (
-                  <>
-                    <p className="mt-1 text-sm leading-relaxed" style={{ opacity: 0.8 }}>
-                      {g.refundHelp}
-                    </p>
-                    <label htmlFor="gv-reason" className="mt-3 block text-sm font-medium">
-                      {g.refundReason}
-                    </label>
-                    <textarea id="gv-reason" rows={2} maxLength={500} className={`${input} mt-1 py-2`} style={inputStyle} value={reason} onChange={(e) => setReason(e.target.value)} />
-                    <button type="button" disabled={refundBusy || reason.trim() === ""} onClick={refund} className={`${btn} mt-3`} style={btnStyle}>
-                      {refundBusy ? g.refundSending : g.refundSend}
-                    </button>
-                  </>
-                ) : (
-                  <p className="mt-1 text-sm" style={{ opacity: 0.8 }}>
-                    {g.refundClosed}
-                  </p>
-                )}
-                {refundMsg && (
-                  <p role="status" className="mt-2 text-sm">
-                    {refundMsg}
-                  </p>
-                )}
               </div>
             </div>
           ) : (

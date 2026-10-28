@@ -1,4 +1,4 @@
-// Church giving, the money part: the gift flow. Start a payment, ask Fapshi, settle exactly once, request a refund. Server only.
+// Church giving, the money part: the gift flow. Start a payment, ask Fapshi, settle exactly once. Server only.
 //
 // The same discipline as the Shop checkout, in a SEPARATE lane:
 //   * the browser supplies only the fund, the amount, who pays and what the donor chooses to share. The church, the rates and the status come from the server and the database, never from the request;
@@ -16,7 +16,6 @@ import {
   formatGiftReceiptNumber,
   isUuid,
   parseGiftInput,
-  refundWindowOpen,
   stateOf,
   type GiftErrorCode,
   type GiftInput,
@@ -74,7 +73,8 @@ export interface GiftRow {
 export type NewGift = Omit<GiftRow, "receipt_number" | "confirmed_at" | "receipt_emailed_at" | "provider_transaction_id" | "provider_status" | "failure_reason"> & { donor_contact: string | null };
 export type SettleResult = { status: "succeeded"; settled_now: boolean; earning: boolean } | { status: "review" } | { status: "not_found" };
 
-/** Persistence boundary. Every mutation is conditional so callers claim state exactly once. */
+/** Persistence boundary. (Donors cannot ask for refunds in Church Giving: a gift is a gift to the church. The refund tables and the administrator correction functions remain for records and corrections.)
+ *   Every mutation is conditional so callers claim state exactly once. */
 export interface GiftStore {
   getSettings(): Promise<GiftSettings>;
   getChurchByUsername(username: string): Promise<ChurchRow | null>;
@@ -90,7 +90,6 @@ export interface GiftStore {
   settle(giftId: string, providerAmount: number | null): Promise<SettleResult>;
   /** Marks the receipt email as sent for the first caller only. */
   claimReceiptEmail(giftId: string): Promise<boolean>;
-  insertRefundRequest(row: { gift_id: string; profile_id: string; reason: string }): Promise<"created" | "exists" | "window_closed" | "not_refundable" | "error">;
   /** Gifts a sweep should look at: open attempts first, then recently expired or cancelled ones. */
   listOpenGifts(args: { sinceIso: string; limit: number; profileId?: string }): Promise<GiftRow[]>;
 }
@@ -235,10 +234,9 @@ export interface GiftView {
   amount_xaf: number;
   expires_at: string;
   receipt?: ReceiptView;
-  refund_open?: boolean;
 }
 
-async function buildView(deps: GiftDeps, gift: GiftRow, settings: GiftSettings): Promise<GiftView> {
+async function buildView(deps: GiftDeps, gift: GiftRow): Promise<GiftView> {
   const state = stateOf(gift.status);
   const view: GiftView = { gift_id: gift.id, state, amount_xaf: gift.amount_xaf, expires_at: gift.expires_at };
   if (state === "succeeded") {
@@ -258,7 +256,6 @@ async function buildView(deps: GiftDeps, gift: GiftRow, settings: GiftSettings):
       donor_name: gift.is_anonymous ? null : gift.donor_name,
       reference: gift.external_id,
     };
-    view.refund_open = refundWindowOpen(gift.confirmed_at, deps.now().getTime(), settings.refundWindowHours);
   }
   return view;
 }
@@ -320,25 +317,8 @@ export async function checkGift(deps: GiftDeps, giftId: string, token: unknown):
   if (!isUuid(giftId)) return fail("gift_not_found");
   const gift = await deps.store.getGift(giftId);
   if (!gift || !tokenMatches(gift, token)) return fail("gift_not_found");
-  const settings = await deps.store.getSettings();
   const after = await refreshGift(deps, gift);
-  return ok(await buildView(deps, after, settings));
-}
-
-/** POST /api/public/church-gifts/[id]/refund-request. Records the request only: no money moves and nothing is sent to Fapshi. */
-export async function requestRefund(deps: GiftDeps, giftId: string, token: unknown, rawReason: unknown): Promise<Result<{ status: "requested" }>> {
-  if (!isUuid(giftId)) return fail("gift_not_found");
-  const gift = await deps.store.getGift(giftId);
-  if (!gift || !tokenMatches(gift, token)) return fail("gift_not_found");
-  const reason = typeof rawReason === "string" ? rawReason.replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim() : "";
-  if (reason.length < 1 || reason.length > 500) return fail("invalid_reason");
-  if (gift.status !== "succeeded") return fail("refund_not_available");
-  const settings = await deps.store.getSettings();
-  if (!refundWindowOpen(gift.confirmed_at, deps.now().getTime(), settings.refundWindowHours)) return fail("refund_window_closed");
-  const r = await deps.store.insertRefundRequest({ gift_id: gift.id, profile_id: gift.profile_id, reason });
-  if (r === "created" || r === "exists") return ok({ status: "requested" });
-  if (r === "window_closed") return fail("refund_window_closed");
-  return fail(r === "not_refundable" ? "refund_not_available" : "server_error");
+  return ok(await buildView(deps, after));
 }
 
 /** A sweep over open and recently expired gifts (the reconciliation job and the dashboard "check pending" button). Bounded, one status request per gift per run. */

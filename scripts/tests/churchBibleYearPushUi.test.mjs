@@ -49,7 +49,7 @@ for (const block of ["bibleYear", "features", "push"]) {
   check("the notification card only calls its own route and the existing device route", nurls.length > 0 && nurls.every((u) => u === "/api/customer/church-push" || u === "/api/customer/push/subscribe"), nurls.join());
   check("the notification card asks for the browser's permission only from a click (subscribe is inside a click handler)", /const enableDevice = async/.test(nc) && !/useEffect\([^)]*subscribeToPush/.test(nc) && (nc.match(/subscribeToPush\(/g) || []).length === 1);
   const fv = noComments(read("src/components/church/features/FeaturesView.tsx"));
-  check("the owner's switches only call /api/church/features, and the giving switch is locked unless the server says so", /\/api\/church\/features/.test(fv) && /givingAvailable/.test(fv) && /disabled=\{!!locked/.test(fv));
+  check("the owner's switches only call /api/church/features, and giving is no longer switched here: its row only links to the Giving menu (GivingSwitch there uses the same server flow)", /\/api\/church\/features/.test(fv) && !/givingAvailable/.test(fv) && !/body\.giving/.test(fv) && /\/dashboard\/church\/giving/.test(fv));
   const site = noComments(read("src/components/church/site/ChurchSiteView.tsx"));
   check("the church page shows the Bible-in-one-year section only when the owner switched it on", /bibleYear: churchPublic\.features\?\.bible_year === true/.test(site) && /\{present\.bibleYear && \(/.test(site));
 }

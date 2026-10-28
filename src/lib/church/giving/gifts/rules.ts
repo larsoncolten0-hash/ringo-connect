@@ -93,9 +93,6 @@ export type GiftErrorCode =
   | "rate_limited"
   | "gift_not_found"
   | "payment_failed"
-  | "refund_window_closed"
-  | "refund_not_available"
-  | "invalid_reason"
   | "server_error";
 
 export const GIFT_HTTP_STATUS: Record<GiftErrorCode, number> = {
@@ -116,9 +113,6 @@ export const GIFT_HTTP_STATUS: Record<GiftErrorCode, number> = {
   rate_limited: 429,
   gift_not_found: 404,
   payment_failed: 502,
-  refund_window_closed: 409,
-  refund_not_available: 409,
-  invalid_reason: 400,
   server_error: 500,
 };
 

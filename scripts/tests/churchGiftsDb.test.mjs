@@ -20,6 +20,8 @@ const MIG = F.GI_MIG;
 const SUP = "supabase/support/2027-01-12_church_gifts";
 const PRE = read(`${SUP}.preflight.sql`), VER = read(`${SUP}.verify.sql`), ROLL = read(`${SUP}.rollback.sql`);
 const ACTIVATE = read("supabase/support/2027-01-13_church_giving_activate.PROPOSED.sql");
+const GENERAL = read("supabase/migrations/2027-01-14_church_giving_general.sql");
+const GEN_VER = read("supabase/support/2027-01-14_church_giving_general.verify.sql"), GEN_ROLL = read("supabase/support/2027-01-14_church_giving_general.rollback.sql");
 const rows = (db, sql) => F.svcQuery(db, sql);
 const S = (db, who) => F.sessionFor(db, who);
 const attempt = async (db, sql) => { try { await db.exec(sql); return null; } catch (e) { try { await db.exec("rollback"); } catch { /* nothing to roll back */ } return String(e.message); } };
@@ -375,7 +377,7 @@ section = "H. refund requests: ";
   check("after 48 hours a refund can no longer be requested", late && late.msg.includes("refund_window_closed"), JSON.stringify(late));
 }
 
-section = "P. the pilot list: only listed churches can collect: ";
+section = "P. before the general release, the pilot list decides which churches can collect: ";
 {
   const db = await fresh({ open: true });
   const f = await fund(db);
@@ -400,6 +402,41 @@ section = "P. the pilot list: only listed churches can collect: ";
   await F.svc(act, "update public.platform_settings set church_giving_enabled = false");
   const closedFund = await fund(act, { status: "draft" });
   check("switching the platform kill switch off refuses new gifts at once", (await gift(act, { fund: closedFund })).err !== null);
+}
+
+section = "Q. general release: every church may collect, the master switch and each church's own switch still decide: ";
+{
+  const db = await fresh();
+  await db.exec(ACTIVATE);
+  check("the general-release migration applies on top of the activation", (await attempt(db, GENERAL)) === null);
+  check("...and is re-runnable", (await attempt(db, GENERAL)) === null);
+  check("its verify file is all true and read-only", allOk(await rows(db, GEN_VER)) && /^with\b/m.test(GEN_VER.replace(/^--.*$/gm, "").trim()) && !/^\s*(insert|update|delete|drop|alter|create|grant|revoke|truncate)\b/im.test(GEN_VER.replace(/^--.*$/gm, "")), JSON.stringify((await rows(db, GEN_VER)).filter((x) => !x.ok)));
+  check("it changes only one function (static)", !/create table|alter table|create (or replace )?trigger|drop /i.test(GENERAL.replace(/^--.*$/gm, "")) && (GENERAL.replace(/^--.*$/gm, "").match(/create or replace function/gi) || []).length === 1);
+  eq("the pilot list is empty and no longer matters", (await rows(db, "select cardinality(church_giving_pilot_profiles)::int n from public.platform_settings"))[0].n, 0);
+  const closed = await F.svcErr(db, `insert into public.church_features (profile_id, giving) values ('${prof.c1}', true)`);
+  check("with the master switch OFF no church can switch giving on", closed && /giving_collection_not_available/.test(closed.msg), JSON.stringify(closed));
+  await F.svc(db, "update public.platform_settings set church_giving_enabled = true");
+  check("with the master switch ON a church (not on any list) can switch giving on for itself", (await F.svcErr(db, `insert into public.church_features (profile_id, giving) values ('${prof.c1}', true)`)) === null);
+  check("...and so can another church, independently", (await F.svcErr(db, `insert into public.church_features (profile_id, giving) values ('${prof.c2}', true)`)) === null);
+  const notChurch = await F.svcErr(db, `insert into public.church_features (profile_id, giving) values ('${prof.nc}', true)`);
+  check("a profile that is NOT a Churches & Ministries profile still cannot", notChurch !== null, JSON.stringify(notChurch));
+  const f1 = await fund(db, { profile: prof.c1 }), f2 = await fund(db, { profile: prof.c2 });
+  const g1 = await gift(db, { fund: f1 }), g2 = await gift(db, { fund: f2, profile: prof.c2 });
+  check("each church takes gifts on its own funds", g1.err === null && g2.err === null, JSON.stringify([g1.err, g2.err]));
+  const cross = await gift(db, { fund: f2, profile: prof.c1 });
+  check("a church cannot take a gift on ANOTHER church's fund", cross.err && cross.err.msg.includes("gift_fund_not_open"), JSON.stringify(cross.err));
+  const nf = await fund(db, { status: "draft" }), draftGift = await gift(db, { fund: nf });
+  check("a draft fund still takes nothing (funds are not opened or published for anyone automatically)", draftGift.err && draftGift.err.msg.includes("gift_fund_not_open"));
+  await F.svc(db, `update public.church_features set giving = false where profile_id = '${prof.c2}'`);
+  const off = await gift(db, { fund: f2, profile: prof.c2 });
+  check("a church that switches its own giving OFF takes no new gifts, the other keeps going", off.err && off.err.msg.includes("gift_giving_not_enabled") && (await gift(db, { fund: f1 })).err === null, JSON.stringify(off.err));
+  const earn = (await rows(db, "select profile_id, count(*)::int n from public.church_gift_earnings group by 1"));
+  eq("earnings stay per church (none settled yet here)", earn.length, 0);
+  await F.svc(db, "update public.platform_settings set church_giving_enabled = false");
+  check("the master switch OFF stops every church at once", (await gift(db, { fund: f1 })).err !== null);
+  check("the rollback puts the pilot restriction back (and applies)", (await attempt(db, GEN_ROLL)) === null);
+  await F.svc(db, "update public.platform_settings set church_giving_enabled = true");
+  check("after the rollback a church outside the pilot list is refused again", (await gift(db, { fund: f1 })).err !== null);
 }
 
 section = "I. the Shop is untouched: ";

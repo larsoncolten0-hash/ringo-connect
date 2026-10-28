@@ -2,9 +2,10 @@
 // migrations (2027-01-10 .. 2027-01-12). Fapshi is replaced by a recording double: NO REAL PAYMENT IS MADE, so this proves our side of the contract only. It does NOT prove Fapshi's behaviour.
 //   * start: the church comes from the page, the fund must belong to it, nothing from the client decides money, anonymous gifts carry no name; refusals call Fapshi never;
 //   * confirm: a gift is paid ONLY after the server asked Fapshi and was told SUCCESSFUL; repeated and parallel checks settle once; failures, mismatches and late confirmations;
-//   * receipts, refunds (a record only), reconciliation sweeps, rate limits, XAF arithmetic against the database function;
+//   * receipts, administrator corrections (no donor refund), reconciliation sweeps, rate limits, XAF arithmetic against the database function;
 //   * the dashboard: who sees which gifts, the owner-only balance, cross-church isolation, date ranges in Douala time.
 //   Run:  node scripts/tests/churchGiftsFlow.test.mjs
+import fs from "fs";
 import path from "path";
 import { createHarness, kit, SRC } from "./ministryApiHarness.mjs";
 
@@ -302,33 +303,27 @@ section("J. abuse limits: ");
   check("a limiter outage fails OPEN (a genuine gift is never blocked)", open.ok, JSON.stringify(open));
 }
 
-section("K. refund requests are a record, not a payment: ");
+section("K. a gift is a gift: there is no donor refund entry point, only an administrator correction: ");
 {
   const w = await world();
   const f = await w.mkFund();
   const s = await FLOW.startGift(w.deps, body(f));
   const id = s.data.gift_id, t = s.data.access_token;
-  const early = await FLOW.requestRefund(w.deps, id, t, "mistake");
-  check("a gift that is not paid cannot be the subject of a refund request", !early.ok && early.code === "refund_not_available", JSON.stringify(early));
   w.provider.plan.TX1 = { status: "SUCCESSFUL", amount: 10000 };
-  await FLOW.checkGift(w.deps, id, t);
-  check("a wrong token is refused", (await FLOW.requestRefund(w.deps, id, "0".repeat(48), "mistake")).code === "gift_not_found");
-  check("an empty or huge reason is refused", (await FLOW.requestRefund(w.deps, id, t, "   ")).code === "invalid_reason" && (await FLOW.requestRefund(w.deps, id, t, "x".repeat(501))).code === "invalid_reason");
-  const ok1 = await FLOW.requestRefund(w.deps, id, t, "I gave the wrong amount");
-  check("inside the window the request is recorded", ok1.ok && ok1.data.status === "requested", JSON.stringify(ok1));
-  check("asking again is harmless (one open request)", (await FLOW.requestRefund(w.deps, id, t, "again")).ok && (await H.rows("select count(*)::int n from public.church_gift_refund_requests"))[0].n === 1);
-  eq("NO money moved: the gift is still succeeded, the earning still recorded, Fapshi never asked to refund", [(await giftRow(id)).status, (await earningOf(id))[0].status, w.provider.payCalls.length], ["succeeded", "recorded", 1]);
+  const paid = await FLOW.checkGift(w.deps, id, t);
+  check("the paid gift view carries no refund offer", paid.ok && paid.data.state === "succeeded" && !("refund_open" in paid.data), JSON.stringify(paid.data));
+  check("the flow exports no donor refund function", FLOW.requestRefund === undefined);
+  check("the donor refund route no longer exists", !fs.existsSync(path.join(SRC, "app/api/public/church-gifts/[id]/refund-request/route.ts")));
+  check("the donor screen has no refund-request button, text or call (it only shows an already-refunded gift as refunded)", !/refund-request|refundSend|refundReason|refundTitle|refundHelp|requestRefund|refund_open|reason/i.test(fs.readFileSync(path.join(SRC, "components/church/site/ChurchGiveBody.tsx"), "utf8").replace(/\/\/.*$/gm, "")));
+  check("the donor strings carry no refund-request text (English and French)", ["en", "fr"].every((l) => { const t2 = fs.readFileSync(path.join(SRC, `lib/i18n/churchExpansion.${l}.ts`), "utf8"); const pub = t2.slice(t2.indexOf("    public: {", t2.indexOf("  gifts: {"))); return !/refundTitle|refundSend|refundReason|refundSent|refundClosed|refund_window_closed|refund_not_available/.test(pub); }));
+  // the administrator correction stays (a mistaken or fraudulent payment must be fixable): a record is created by an administrator, never by the donor
+  await H.rows(`insert into public.church_gift_refund_requests (gift_id, profile_id, reason) values ('${id}','${prof.c1}','administrator correction')`);
   const rid = (await H.rows("select id from public.church_gift_refund_requests"))[0].id;
-  const approved = (await H.rows(`select (public.church_gift_refund_decide('${rid}', 'refunded', '${u.admin}', 'returned by hand')).status s`))[0].s;
-  eq("an administrator records the manual refund", [approved, (await giftRow(id)).status, (await earningOf(id))[0].status], ["refunded", "refunded", "reversed"]);
+  const done = (await H.rows(`select (public.church_gift_refund_decide('${rid}', 'refunded', '${u.admin}', 'corrected by hand')).status s`))[0].s;
+  eq("an administrator can still record a correction: the gift is refunded and the church earning reversed", [done, (await giftRow(id)).status, (await earningOf(id))[0].status], ["refunded", "refunded", "reversed"]);
   const view = await FLOW.checkGift(w.deps, id, t);
-  check("the donor then sees the gift as refunded, with no receipt", view.ok && view.data.state === "refunded" && !view.data.receipt, JSON.stringify(view));
-  const s2 = await FLOW.startGift(w.deps, body(f));
-  w.provider.plan.TX2 = { status: "SUCCESSFUL", amount: 10000 };
-  await FLOW.checkGift(w.deps, s2.data.gift_id, s2.data.access_token);
-  w.clock.t += 49 * 3_600_000;
-  const lateReq = await FLOW.requestRefund(w.deps, s2.data.gift_id, s2.data.access_token, "too late");
-  check("after 48 hours the request is refused", !lateReq.ok && lateReq.code === "refund_window_closed", JSON.stringify(lateReq));
+  check("the history is intact: the donor sees the gift as refunded, with no receipt", view.ok && view.data.state === "refunded" && !view.data.receipt, JSON.stringify(view));
+  eq("Fapshi was never asked to refund anything", w.provider.payCalls.length, 1);
 }
 
 section("L. the reconciliation sweep: ");
@@ -467,10 +462,7 @@ section("O. the routes: ");
   check("the status with the right token returns the receipt, and nothing about the payer", right.status === 200 && right.body.state === "succeeded" && right.body.receipt.receipt_number.startsWith("CG-") && !JSON.stringify(right.body).includes("jean@x.cm") && !JSON.stringify(right.body).includes(PHONE), JSON.stringify(right.body));
   const noTok = await get("public/church-gifts/[id]", "", { id });
   eq("no token is the same plain 404", noTok.status, 404);
-  eq("a cross-site refund request is refused", (globalThis.__sameOrigin = false, (await post("public/church-gifts/[id]/refund-request", { method: "POST", headers: json, body: JSON.stringify({ t, reason: "x" }) }, { id })).status), 403);
-  globalThis.__sameOrigin = true;
-  const ref = await post("public/church-gifts/[id]/refund-request", { method: "POST", headers: json, body: JSON.stringify({ t, reason: "Wrong amount" }) }, { id });
-  eq("a refund request with the token is recorded", [ref.status, ref.body.status], [201, "requested"]);
+  await H.rows(`insert into public.church_gift_refund_requests (gift_id, profile_id, reason) values ('${id}','${prof.c1}','administrator correction')`);
 
   const asUser = (user) => { globalThis.__churchSession = F.sessionFor(H.db, user); };
   asUser(u.owner1);
