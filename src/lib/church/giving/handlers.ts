@@ -2,19 +2,22 @@ import type { ChurchActor } from "../actor";
 import { makeCrud } from "../crud";
 import { failure } from "../errors";
 import type { Result } from "../handlers";
+import { GIVING_AVAILABLE } from "../features/handlers";
 import { booleanField, makeBodyParser, type FieldSpec } from "../lifecycle/validation";
 import { has, type Checked } from "../validation";
 import { FUND_LIMIT, GIVING_KINDS, GOAL_MAX_XAF, GOAL_MIN_XAF, type GivingKind } from "./kinds";
 
 // Churches & Ministries expansion, Phase 7: the DEFINITIONS of a church's giving and care funds. Everything behind /api/church/giving-funds/**.
 //
-// THIS COLLECTS NO MONEY. A fund is a title, a short description, an optional goal and a published flag. There is no amount received, no donor, no payment, no receipt, no refund and no payout here, and
+// A fund is a DEFINITION. THIS FILE COLLECTS NO MONEY (gifts live in ./gifts). A fund is a title, a short description, an optional goal and a published flag. There is no amount received, no donor, no payment, no receipt, no refund and no payout here, and
 // nothing in this folder imports the Shop ledger or Fapshi. Collecting is a later step that needs five business decisions (docs/church-giving-decisions.md). Until then a fund can only be a draft or closed:
 // "open" is refused here (409 giving_unavailable) and again by the database (church_giving_collection_open() answers false). Same rules as every church handler: the church is actor.profileId, the user's own
 // session decides through row-level security, a refusal is a short code, the version being changed is mandatory.
 
 export { GIVING_KINDS, FUND_LIMIT, GOAL_MIN_XAF, GOAL_MAX_XAF, type GivingKind } from "./kinds";
 export const GIVING_STATUSES_SETTABLE = ["draft", "closed"] as const;
+/** "open" (a fund that takes gifts) is settable only once collection is available; until then it is refused here (409 giving_unavailable) and again by the database. */
+const settable = (): readonly string[] => (GIVING_AVAILABLE ? [...GIVING_STATUSES_SETTABLE, "open"] : GIVING_STATUSES_SETTABLE);
 
 const isKind = (v: unknown): v is GivingKind => typeof v === "string" && (GIVING_KINDS as readonly string[]).includes(v);
 const fail = (status: number, code: string, field?: string): Result => failure(status, code, field);
@@ -34,7 +37,7 @@ const goalField: FieldSpec = {
     return typeof v === "number" && Number.isInteger(v) && v >= GOAL_MIN_XAF && v <= GOAL_MAX_XAF ? { ok: true, value: v } : { ok: false, code: "invalid_goal", field };
   },
 };
-const statusField: FieldSpec = { check: (v, field) => (typeof v === "string" && (GIVING_STATUSES_SETTABLE as readonly string[]).includes(v) ? { ok: true, value: v } : { ok: false, code: "invalid_status", field }) };
+const statusField: FieldSpec = { check: (v, field) => (typeof v === "string" && settable().includes(v) ? { ok: true, value: v } : { ok: false, code: "invalid_status", field }) };
 
 const parseBase = makeBodyParser({
   texts: { description_en: { max: 600, multiline: true, code: "invalid_description" }, description_fr: { max: 600, multiline: true, code: "invalid_description" } },
@@ -77,7 +80,7 @@ export async function createFund(a: ChurchActor, body: unknown): Promise<Result>
 }
 
 export async function updateFund(a: ChurchActor, id: string, body: unknown): Promise<Result> {
-  // opening a fund means collecting money, which is not available: answer plainly, before touching the database
-  if (body && typeof body === "object" && !Array.isArray(body) && (body as Record<string, unknown>).status === "open") return fail(409, "giving_unavailable", "status");
+  // opening a fund means collecting money: while it is not available, answer plainly before touching the database
+  if (!GIVING_AVAILABLE && body && typeof body === "object" && !Array.isArray(body) && (body as Record<string, unknown>).status === "open") return fail(409, "giving_unavailable", "status");
   return funds.update(a, id, body);
 }

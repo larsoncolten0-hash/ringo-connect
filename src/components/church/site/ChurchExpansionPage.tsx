@@ -10,6 +10,8 @@ import Monogram from "./Monogram";
 import { ChurchGroupBody, ChurchGroupsCard } from "./ChurchGroupsPublic";
 import { ChurchPastorsBody } from "./ChurchPastorsPublic";
 import ChurchBibleYearBody from "./ChurchBibleYearBody";
+import ChurchGiveBody from "./ChurchGiveBody";
+import type { PublicFund } from "@/lib/church/public/giving";
 import { CH, SERIF, SERIF_HREF, churchCardTheme, churchPalette } from "./churchTheme";
 
 // The pages the church expansion adds to a church's public site, in the church's own template (linen, serif): the groups index, one group, and the Pastors page. Each is the same frame as a landing
@@ -20,7 +22,8 @@ export type ChurchExpansionPageData =
   | { mode: "groups"; groups: PublicGroup[] }
   | { mode: "group"; page: PublicGroupPage }
   | { mode: "pastors"; pastors: PublicPastor[]; about: PublicAbout | null }
-  | { mode: "bibleYear"; profile: { id: string; name: string } };
+  | { mode: "bibleYear"; profile: { id: string; name: string } }
+  | { mode: "give"; funds: PublicFund[] };
 
 export default function ChurchExpansionPage({ church, data }: { church: { name: string; username: string; avatarUrl: string | null; accent: string }; data: ChurchExpansionPageData }) {
   const { t, locale } = useLanguage();
@@ -65,6 +68,8 @@ export default function ChurchExpansionPage({ church, data }: { church: { name: 
           )
         ) : data.mode === "group" ? (
           <ChurchGroupBody {...common} page={data.page} />
+        ) : data.mode === "give" ? (
+          <ChurchGiveBody church={church} funds={data.funds} theme={card} />
         ) : data.mode === "bibleYear" ? (
           <ChurchBibleYearBody profile={data.profile} username={church.username} theme={card} />
         ) : data.pastors.length > 0 ? (

@@ -7196,7 +7196,7 @@ export const fr: Translations = {
         navLabel: "Sections de l'église",
         menu: "Menu",
         closeMenu: "Fermer le menu",
-        sections: { visit: "Visite", word: "Parole du jour", news: "Actualités", groups: "Groupes", pastors: "Pasteurs", bible: "Bible", bibleYear: "Bible en un an", counselling: "Accompagnement", testimonies: "Témoignages", care: "Entraide", music: "Musique", store: "Boutique", links: "Liens", contact: "Contact" },
+        sections: { visit: "Visite", word: "Parole du jour", news: "Actualités", groups: "Groupes", pastors: "Pasteurs", bible: "Bible", bibleYear: "Bible en un an", giving: "Donner", counselling: "Accompagnement", testimonies: "Témoignages", care: "Entraide", music: "Musique", store: "Boutique", links: "Liens", contact: "Contact" },
         planVisit: "Préparer ma visite",
         getDirections: "Itinéraire",
         whatsapp: "WhatsApp",

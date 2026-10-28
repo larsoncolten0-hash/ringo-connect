@@ -25,6 +25,25 @@ export function shapeFund(r: Row): PublicFund | null {
   return { id: r.id, kind: r.kind, title_en: en, title_fr: fr, description_en: text(r.description_en, 600), description_fr: text(r.description_fr, 600), goal_xaf: goal };
 }
 
+/** The funds a visitor can GIVE to right now: published AND open. (The database already hides everything while the church has giving switched off.) Fail-safe: any error gives an empty list. */
+export async function loadOpenFunds(supabase: { from(table: string): any }, profileId: string): Promise<PublicFund[]> {
+  try {
+    const { data, error } = await supabase
+      .from("church_giving_funds")
+      .select("id, kind, title_en, title_fr, description_en, description_fr, goal_xaf, is_published, status")
+      .eq("profile_id", profileId)
+      .eq("is_published", true)
+      .eq("status", "open")
+      .order("kind", { ascending: true })
+      .order("created_at", { ascending: true })
+      .limit(40);
+    if (error || !Array.isArray(data)) return [];
+    return (data as Row[]).map(shapeFund).filter((f): f is PublicFund => f !== null);
+  } catch {
+    return [];
+  }
+}
+
 export async function loadPublicFunds(supabase: { from(table: string): any }, profileId: string): Promise<PublicFund[]> {
   try {
     const { data, error } = await supabase

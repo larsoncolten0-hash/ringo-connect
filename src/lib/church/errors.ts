@@ -12,6 +12,8 @@ export interface Outcome {
 
 // guard-trigger exception names (raise exception '<name>') -> public code
 const GUARD_CODES: Record<string, Outcome> = {
+  // church giving: the database refused to collect (collection closed, or the church is not in the giving pilot)
+  giving_collection_not_available: { status: 409, code: "giving_unavailable" },
   church_guardian_must_be_adult: { status: 422, code: "guardian_must_be_adult" },
   church_guardian_has_dependents: { status: 409, code: "guardian_has_dependents" },
   church_role_requires_adult: { status: 422, code: "role_requires_adult" },

@@ -24,6 +24,16 @@ export const PU_MIG = read("supabase/migrations/2027-01-08_church_push.sql");
 export const CO_MIG = read("supabase/migrations/2027-01-09_church_counselling.sql");
 export const GV_MIG = read("supabase/migrations/2027-01-10_church_giving.sql");
 export const GL_MIG = read("supabase/migrations/2027-01-11_church_giving_lock.sql");
+export const GI_MIG = read("supabase/migrations/2027-01-12_church_gifts.sql");
+/** What the gifts migration reads from the rest of the platform, reduced: the singleton settings row and the payout destination of a person. */
+export const GIFTS_SQL = `
+  create table if not exists public.platform_settings (id uuid primary key default gen_random_uuid(), fapshi_enabled boolean not null default true);
+  insert into public.platform_settings (fapshi_enabled) select true where not exists (select 1 from public.platform_settings);
+  alter table public.users add column if not exists affiliate_payout_method text;
+  alter table public.users add column if not exists affiliate_payout_details jsonb;
+`;
+/** Simulates the proposed activation (supabase/support/2027-01-13_church_giving_activate.PROPOSED.sql) for tests that need collection OPEN. Tests only, never a migration. */
+export const OPEN_SQL = `create or replace function public.church_giving_collection_open() returns boolean language sql stable as $$ select true $$;`;
 const TEAM01 = read("supabase/migrations/2026-10-01_team_management.sql").split("\n").slice(27, 261).join("\n");
 const TEAM03 = read("supabase/migrations/2026-10-03_team_rls_enterprise_gate.sql");
 const TEAM04 = read("supabase/migrations/2026-10-04_team_members_read_fix.sql");
@@ -93,7 +103,7 @@ export const CUSTOMERS_SQL = `
   );
 `;
 
-export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false, testimonies = false, landing = false, groupsPastors = false, customers = false, membership = false, bibleYear = false, push = false, counselling = false, giving = false, givingLock = false } = {}) {
+export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false, testimonies = false, landing = false, groupsPastors = false, customers = false, membership = false, bibleYear = false, push = false, counselling = false, giving = false, givingLock = false, gifts = false } = {}) {
   const db = new PGlite();
   await db.exec(BASE);
   await db.exec(TEAM01); await db.exec(TEAM03); await db.exec(TEAM04);
@@ -112,11 +122,12 @@ export async function newDb(PGlite, { dailyWords = false, events = false, attend
   // the visitor account tables the later phases read (the base fixture only has the id of ringo_customers, which is all the roster needs)
   if (customers || membership) await db.exec(CUSTOMERS_SQL);
   if (membership) await db.exec(MR_MIG);
-  if (bibleYear || push || giving || givingLock) { await db.exec(CUSTOMERS_SQL); await db.exec(BY_MIG); }
+  if (bibleYear || push || giving || givingLock || gifts) { await db.exec(CUSTOMERS_SQL); await db.exec(BY_MIG); }
   if (push) await db.exec(PU_MIG);
   if (counselling) await db.exec(CO_MIG);
-  if (giving || givingLock) await db.exec(GV_MIG);
-  if (givingLock) await db.exec(GL_MIG);
+  if (giving || givingLock || gifts) await db.exec(GV_MIG);
+  if (givingLock || gifts) await db.exec(GL_MIG);
+  if (gifts) { await db.exec(GIFTS_SQL); await db.exec(GI_MIG); }
   return db;
 }
 
@@ -275,6 +286,8 @@ export function sessionFor(db, userId, { role: dbRole = userId ? "authenticated"
         neq(c, v) { st.where.push(`${col(c)} <> ${lit(v)}`); return chain; },
         in(c, v) { st.where.push(v.length ? `${col(c)} in (${v.map(lit).join(",")})` : "false"); return chain; },
         is(c, v) { st.where.push(`${col(c)} is ${v === null ? "null" : lit(v)}`); return chain; },
+        // like PostgREST .not(col, "is", null): only the "is" operator is needed by the church code
+        not(c, op, v) { if (op !== "is") throw new Error("unsupported not() operator in the test client: " + op); st.where.push(`${col(c)} is not ${v === null ? "null" : lit(v)}`); return chain; },
         lt(c, v) { st.where.push(`${col(c)} < ${lit(v)}`); return chain; },
         lte(c, v) { st.where.push(`${col(c)} <= ${lit(v)}`); return chain; },
         gt(c, v) { st.where.push(`${col(c)} > ${lit(v)}`); return chain; },

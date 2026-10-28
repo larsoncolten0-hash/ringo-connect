@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { HandCoins, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
-import { FUND_LIMIT } from "@/lib/church/giving/kinds";
+import { FUND_LIMIT, FUND_TEMPLATES } from "@/lib/church/giving/kinds";
 import { churchErrorText } from "../lifecycle/errorText";
 import { Badge, BTN_PRIMARY, BTN_SECONDARY, ConfirmDialog, EmptyState, ErrorLine, Field, INPUT, ListSkeleton, NoticeBar, churchApi, useNotice } from "../people/shared";
+import GiftsPanel from "./GiftsPanel";
 
 interface FundRow {
   id: string;
@@ -29,15 +30,18 @@ interface FormState {
   goal: string;
   is_published: boolean;
   closed: boolean;
+  open: boolean;
 }
-const blank = (): FormState => ({ id: null, kind: "giving", title_en: "", title_fr: "", description_en: "", description_fr: "", goal: "", is_published: false, closed: false });
-const fromRow = (r: FundRow): FormState => ({ id: r.id, kind: r.kind, title_en: r.title_en, title_fr: r.title_fr, description_en: r.description_en ?? "", description_fr: r.description_fr ?? "", goal: r.goal_xaf === null ? "" : String(r.goal_xaf), is_published: r.is_published, closed: r.status === "closed" });
+const blank = (): FormState => ({ id: null, kind: "giving", title_en: "", title_fr: "", description_en: "", description_fr: "", goal: "", is_published: false, closed: false, open: false });
+const fromRow = (r: FundRow): FormState => ({ id: r.id, kind: r.kind, title_en: r.title_en, title_fr: r.title_fr, description_en: r.description_en ?? "", description_fr: r.description_fr ?? "", goal: r.goal_xaf === null ? "" : String(r.goal_xaf), is_published: r.is_published, closed: r.status === "closed", open: r.status === "open" });
 
 // The giving and care funds of the church. These are DEFINITIONS only: a title, a description and a goal. Nothing here collects or shows money, and the screen says so. Every change names the version
 // it is based on. The server and the database decide what is allowed; this screen only says it earlier and in the person's language.
 export default function GivingView() {
   const { t, locale } = useLanguage();
   const c = t.churchExpansion.giving;
+  const g = t.churchExpansion.gifts;
+  const [available, setAvailable] = useState(false);
   const [items, setItems] = useState<FundRow[] | null>(null);
   const [loadError, setLoadError] = useState("");
   const [form, setForm] = useState<FormState | null>(null);
@@ -51,6 +55,9 @@ export default function GivingView() {
     const r = await churchApi<{ items: FundRow[] }>("/api/church/giving-funds");
     if (r.ok) setItems(r.body.items);
     else setLoadError(churchErrorText(t, r.code));
+    // whether the platform has opened collection (the server answers; a failure just means "not available")
+    const f = await churchApi<{ giving_available?: boolean }>("/api/church/features");
+    setAvailable(f.ok && f.body.giving_available === true);
   }, [t]);
   useEffect(() => {
     load();
@@ -65,7 +72,7 @@ export default function GivingView() {
     const body: Record<string, unknown> = { title_en: form.title_en, title_fr: form.title_fr, description_en: form.description_en, description_fr: form.description_fr, goal_xaf: goal, is_published: form.is_published };
     if (current) {
       body.expected_updated_at = current.updated_at;
-      body.status = form.closed ? "closed" : "draft";
+      body.status = form.closed ? "closed" : form.open && available ? "open" : "draft";
     } else body.kind = form.kind;
     const r = await churchApi(form.id ? `/api/church/giving-funds/${form.id}` : "/api/church/giving-funds", { method: form.id ? "PATCH" : "POST", body });
     setSaving(false);
@@ -102,6 +109,19 @@ export default function GivingView() {
               <option value="care">{c.kind.care}</option>
             </select>
           </Field>
+          {!form.id && (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-ringo-text">{g.templateTitle}</p>
+              <p className="text-xs text-ringo-muted">{g.templateHint}</p>
+              <div className="flex flex-wrap gap-2">
+                {FUND_TEMPLATES.map((tpl) => (
+                  <button key={tpl.key} type="button" className={BTN_SECONDARY} onClick={() => setForm((f) => (f ? { ...f, kind: tpl.kind, title_en: tpl.title_en, title_fr: tpl.title_fr, description_en: tpl.description_en, description_fr: tpl.description_fr } : f))}>
+                    {locale === "fr" ? tpl.title_fr : tpl.title_en}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <Field id="fu-title-en" label={c.form.titleEn}>
             <input id="fu-title-en" className={INPUT} value={form.title_en} maxLength={120} onChange={(e) => set("title_en", e.target.value)} autoComplete="off" />
           </Field>
@@ -121,6 +141,20 @@ export default function GivingView() {
             <input id="fu-published" type="checkbox" className="h-5 w-5 rounded border-ringo-border accent-ringo-indigo" checked={form.is_published} onChange={(e) => set("is_published", e.target.checked)} />
             {c.form.published}
           </label>
+          {form.id && available && !form.closed && (
+            <label htmlFor="fu-open" className="flex min-h-[44px] items-center gap-3 text-sm font-medium text-ringo-text">
+              <input id="fu-open" type="checkbox" className="h-5 w-5 rounded border-ringo-border accent-ringo-indigo" checked={form.open} onChange={(e) => set("open", e.target.checked)} />
+              <span>
+                {g.open}
+                <span className="block text-xs font-normal text-ringo-muted">{g.openHelp}</span>
+              </span>
+            </label>
+          )}
+          {form.kind === "care" && (
+            <p role="note" className="rounded-card border border-ringo-border bg-ringo-bg p-3 text-sm leading-relaxed text-ringo-muted">
+              {g.careClosure}
+            </p>
+          )}
           {form.id && (
             <label htmlFor="fu-closed" className="flex min-h-[44px] items-center gap-3 text-sm font-medium text-ringo-text">
               <input id="fu-closed" type="checkbox" className="h-5 w-5 rounded border-ringo-border accent-ringo-indigo" checked={form.closed} onChange={(e) => set("closed", e.target.checked)} />
@@ -166,7 +200,7 @@ export default function GivingView() {
         </button>
       </header>
       <p role="note" className="rounded-card border border-ringo-border bg-ringo-surface p-3 text-sm leading-relaxed text-ringo-muted">
-        {c.notAvailable}
+        {available ? g.availableNote : c.notAvailable}
       </p>
       <NoticeBar message={notice} />
       {loadError ? (
@@ -195,7 +229,7 @@ export default function GivingView() {
                     <p className="truncate text-sm font-semibold text-ringo-text">{title}</p>
                     <p className="mt-0.5 text-xs text-ringo-muted">{f.goal_xaf === null ? c.kind[f.kind] : `${c.kind[f.kind]} · ${c.goalLine(money(f.goal_xaf))}`}</p>
                     <span className="mt-1 flex flex-wrap gap-1.5">
-                      <Badge tone={f.status === "closed" ? "inactive" : "pending"}>{f.status === "closed" ? c.status.closed : c.status.draft}</Badge>
+                      <Badge tone={f.status === "closed" ? "inactive" : f.status === "open" ? "active" : "pending"}>{f.status === "closed" ? c.status.closed : f.status === "open" ? g.statusOpen : c.status.draft}</Badge>
                       <Badge tone={f.is_published ? "active" : "inactive"}>{f.is_published ? c.status.published : c.status.hidden}</Badge>
                     </span>
                   </div>
@@ -209,6 +243,7 @@ export default function GivingView() {
           </ul>
         </>
       )}
+      {available && <GiftsPanel />}
     </section>
   );
 }

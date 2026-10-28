@@ -7454,7 +7454,7 @@ export const en = {
         navLabel: "Church sections",
         menu: "Menu",
         closeMenu: "Close menu",
-        sections: { visit: "Visit", word: "Daily Word", news: "News & events", groups: "Groups", pastors: "Pastors", bible: "Bible", bibleYear: "Bible in a year", counselling: "Counselling", testimonies: "Testimonies", care: "Care", music: "Music", store: "Store", links: "Links", contact: "Contact" },
+        sections: { visit: "Visit", word: "Daily Word", news: "News & events", groups: "Groups", pastors: "Pastors", bible: "Bible", bibleYear: "Bible in a year", giving: "Give", counselling: "Counselling", testimonies: "Testimonies", care: "Care", music: "Music", store: "Store", links: "Links", contact: "Contact" },
         planVisit: "Plan a visit",
         getDirections: "Get directions",
         whatsapp: "WhatsApp",

@@ -769,7 +769,7 @@ section = "H. privacy of the public surface and static guarantees (scenario 14):
   const noComments = (t) => t.replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/\/\*[\s\S]*?\*\//g, "");
   const bad = (re) => churchCode.filter((f) => re.test(noComments(fs.readFileSync(f, "utf8")))).map(rel);
   // Phase 5: the visitor-side Bible journey routes act for a signed-in My Ringo CUSTOMER (not a staff user), so they are the one place that uses the service client, behind the customer session and same-origin check.
-  eq("no service-role client in church code", bad(/createAdminClient|SUPABASE_SERVICE_ROLE_KEY/), ["src/lib/church/bible/customerRoute.ts"]);
+  eq("no service-role client in church code", bad(/createAdminClient|SUPABASE_SERVICE_ROLE_KEY/), ["src/lib/church/bible/customerRoute.ts", "src/lib/church/giving/gifts/http.ts", "src/lib/church/giving/gifts/receiptEmail.ts"]); // the gift files: a visitor has no account, so the public gift routes and the receipt email use the server client (church gifts only)
   eq("no has_org_permission / platform-admin helper in church code", bad(/has_org_permission|getOrgAccess|requireOrgAccess|assertAdmin|is_admin/), []);
   eq("no select(\"*\") on a church table", bad(/select\(\s*["'`]\*["'`]/), []);
   // Phase 10: the church REPORTS export aggregate counts (no names) as CSV. These four files are the only ones that may, and churchReports.test.mjs proves the files hold no person.
@@ -779,8 +779,8 @@ section = "H. privacy of the public surface and static guarantees (scenario 14):
   // Phase 5: two named database functions (bible_program_stats, bible_session_move) are called through the caller's own session; there is no raw SQL anywhere.
   // Phase 10: the report calls the SAME named function (bible_program_stats) through the caller's own session, only to show how many people follow a programme.
   // Testimonies: the public loader calls the one narrow database function (ministry_testimonies_public) that returns only approved, published, consented testimonies; visitors have no table access at all.
-  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), ["src/lib/church/bible/handlers.ts", "src/lib/church/membership/request.ts", "src/lib/church/public/testimonies.ts", "src/lib/church/push/run.ts", "src/lib/church/reports/build.ts"]);
-  eq("no profile id read from a request in the church routes", files.filter((f) => rel(f).startsWith("src/app/api/church/") && /profileId|profile_id|searchParams/.test(fs.readFileSync(f, "utf8").replace(/\/\/.*$/gm, ""))).map(rel), ["src/app/api/church/lists/[kind]/route.ts"]);
+  eq("no raw SQL / rpc from church code", bad(/\.rpc\(|\bexecute_sql\b/), ["src/lib/church/bible/handlers.ts", "src/lib/church/giving/gifts/handlers.ts", "src/lib/church/giving/gifts/store.ts", "src/lib/church/membership/request.ts", "src/lib/church/public/testimonies.ts", "src/lib/church/push/run.ts", "src/lib/church/reports/build.ts"]);
+  eq("no profile id read from a request in the church routes", files.filter((f) => rel(f).startsWith("src/app/api/church/") && /profileId|profile_id|searchParams/.test(fs.readFileSync(f, "utf8").replace(/\/\/.*$/gm, ""))).map(rel), ["src/app/api/church/gifts/route.ts", "src/app/api/church/lists/[kind]/route.ts"]); // gifts/route.ts reads actor.profileId, which the server resolved from the session (never from the request)
   eq("no use of localStorage / sessionStorage / console.log in church code", bad(/localStorage|sessionStorage|console\.log/), []);
   // the public profile surface is untouched
   const profileFiles = files.filter((f) => /src\/app\/\[username\]|src\/app\/api\/public|src\/components\/profile|src\/lib\/church\/publicPage/.test(f.replace(/\\/g, "/")));

@@ -31,9 +31,9 @@ const check = (name, cond, detail = "") => { if (cond) pass++; else { fail++; co
   check("GivingView.tsx: no hard-coded text, storage, markup injection, untyped button or unnamed field", p.length === 0, p.join(" | "));
   const view = noComments(read("src/" + f));
   const urls = [...view.matchAll(/["'`](\/api\/[^"'`$?]*)/g)].map((m) => m[1]);
-  check("the screen only calls /api/church/giving-funds", urls.length > 0 && urls.every((u) => u.startsWith("/api/church/giving-funds")), urls.join());
+  check("the screen only calls /api/church/giving-funds, plus /api/church/features to learn whether collection is available", urls.length > 0 && urls.every((u) => u.startsWith("/api/church/giving-funds") || u === "/api/church/features"), urls.join());
   check("the screen keeps nothing in the browser (no storage)", !/localStorage|sessionStorage|indexedDB/.test(view));
-  check("the screen can only ask for a draft or a closed fund (never 'open')", !/"open"/.test(view.replace(/status:\s*"draft"\s*\|\s*"open"\s*\|\s*"closed"/, "")) && /form\.closed \? "closed" : "draft"/.test(view));
+  check("the screen asks for an 'open' fund ONLY when the server says collection is available (the server and the database refuse it otherwise)", !/"open"/.test(view.replace(/status:\s*"draft"\s*\|\s*"open"\s*\|\s*"closed"/, "").replace(/form\.closed \? "closed" : form\.open && available \? "open" : "draft"/, "").replace(/[fr]\.status === "open"/g, "").replace(/set\("open"/, "")) && /form\.closed \? "closed" : form\.open && available \? "open" : "draft"/.test(view) && /giving_available === true/.test(view));
   check("the screen sends the version being changed with every edit and every delete", /expected_updated_at = current\.updated_at/.test(view) && /expected_updated_at=\$\{encodeURIComponent\(removing\.updated_at\)\}/.test(view));
   check("the screen asks before deleting", /ConfirmDialog/.test(view) && /removeConfirm/.test(view));
   check("the screen never mentions money received, donors, payments or a pay button", !/received|donor|payment|payout|checkout|pay\b/i.test(view));

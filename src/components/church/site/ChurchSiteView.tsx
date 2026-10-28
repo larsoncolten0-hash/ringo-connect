@@ -33,6 +33,7 @@ import { ChurchPastorsCard } from "./ChurchPastorsPublic";
 import ChurchMembershipJoin from "./ChurchMembershipJoin";
 import ChurchNotificationsCard from "./ChurchNotificationsCard";
 import ChurchBibleYearCard from "./ChurchBibleYearCard";
+import ChurchGiveCard from "./ChurchGiveCard";
 import ChurchCounsellingForm from "./ChurchCounsellingForm";
 import { CH, SERIF, SERIF_HREF, churchCardTheme, churchHeroTheme, churchPalette, safeAccent } from "./churchTheme";
 import Monogram from "./Monogram";
@@ -43,7 +44,7 @@ import Monogram from "./Monogram";
 // Nothing is invented: a section with no content is not on the page and not in the navigation. The shared sections (contact card, links, store) are built once by
 // ProfileView and passed in, so their behaviour (analytics, checkout, the public-content filters) is unchanged.
 
-type SectionId = "visit" | "news" | "word" | "groups" | "pastors" | "testimonies" | "bible" | "bibleYear" | "counselling" | "music" | "care" | "store" | "links" | "contact";
+type SectionId = "visit" | "news" | "word" | "groups" | "pastors" | "testimonies" | "bible" | "bibleYear" | "giving" | "counselling" | "music" | "care" | "store" | "links" | "contact";
 
 export interface ChurchSiteProps {
   profile: any;
@@ -90,6 +91,7 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
     testimonies: testimonies.length > 0 || !preview,
     bible: churchPublic.programs.length > 0,
     bibleYear: churchPublic.features?.bible_year === true,
+    giving: churchPublic.features?.giving === true,
     counselling: churchPublic.features?.counselling === true,
     music: churchPublic.music.length > 0,
     care: care.length > 0,
@@ -97,13 +99,13 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
     links: !!shared.links,
     contact: hasContact,
   };
-  const order: SectionId[] = ["visit", "news", "word", "groups", "pastors", "testimonies", "bible", "bibleYear", "counselling", "music", "care", "store", "links", "contact"];
+  const order: SectionId[] = ["visit", "news", "word", "groups", "pastors", "testimonies", "bible", "bibleYear", "giving", "counselling", "music", "care", "store", "links", "contact"];
   const nav = order.filter((id) => present[id]);
   const anchor = (id: SectionId) => `church-${id}`;
   // "See more" opens the section's landing page; the dashboard preview has no page to open, so it draws no link
   const see = (kind: ChurchLandingKind): string | undefined => (preview ? undefined : landingPath(profile.username, kind));
   // the group pages and the Pastors page have their own addresses beside the landing pages
-  const seePage = (page: "groups" | "pastors" | "bible-year"): string | undefined => (preview ? undefined : `/${encodeURIComponent(profile.username)}/church/${page}`);
+  const seePage = (page: "groups" | "pastors" | "bible-year" | "give"): string | undefined => (preview ? undefined : `/${encodeURIComponent(profile.username)}/church/${page}`);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -395,6 +397,12 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
           {present.bibleYear && (
             <div id={anchor("bibleYear")} className={sectionCls}>
               <ChurchBibleYearCard t={t} href={seePage("bible-year")} accent={pal.accent} accentText={pal.accentText} textColor={CH.ink} borderTint={CH.line} radiusClass="rounded-[22px]" />
+            </div>
+          )}
+
+          {present.giving && (
+            <div id={anchor("giving")} className={sectionCls}>
+              <ChurchGiveCard t={t} href={seePage("give")} accent={pal.accent} accentText={pal.accentText} textColor={CH.ink} borderTint={CH.line} radiusClass="rounded-[22px]" />
             </div>
           )}
 
