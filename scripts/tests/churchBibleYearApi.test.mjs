@@ -74,11 +74,14 @@ section("B. the owner's feature switches: ");
   is("a members manager (not the owner): 403", await feats(u.mgr1), 403);
   is("a platform admin who is not the owner: 403", await feats(u.admin), 403);
   const g = await feats(O);
-  check("the owner reads the defaults: everything OFF, giving not available", g.status === 200 && g.body.item.bible_year === false && g.body.item.counselling === false && g.body.item.giving === false && g.body.giving_available === false, JSON.stringify(g.body));
+  check("the owner reads the defaults: everything OFF, the application reports giving available (the database lock and the pilot list decide per church)", g.status === 200 && g.body.item.bible_year === false && g.body.item.counselling === false && g.body.item.giving === false && g.body.giving_available === true, JSON.stringify(g.body));
   is("a switch must be a boolean", await putFeats(O, { bible_year: "yes" }), 400);
   is("an unknown switch is refused", await putFeats(O, { bible_year: true, church_id: prof.c2 }), 400, "unexpected_field");
   is("nothing to change is refused", await putFeats(O, {}), 400, "empty_update");
-  is("giving cannot be switched on yet", await putFeats(O, { giving: true }), 409, "giving_unavailable");
+  // GIVING_AVAILABLE is true now: the application no longer refuses. This suite's database has no giving lock, so the write goes through; the per-church lock and the pilot list are proven in churchGiftsDb (section P).
+  const gv = await putFeats(O, { giving: true });
+  check("the application no longer blocks the giving switch", gv.status === 201 && gv.body.item.giving === true, JSON.stringify(gv.body));
+  await H.rows("delete from public.church_features");
   check("(nothing was written by the refused calls)", (await H.rows("select count(*)::int n from public.church_features"))[0].n === 0);
   const first = await putFeats(O, { bible_year: true });
   is("the first save creates the row", first, 201, "ok");

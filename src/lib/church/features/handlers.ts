@@ -14,7 +14,7 @@ const sameInstant = (a: unknown, b: unknown) => Date.parse(String(a)) === Date.p
 
 export const FEATURE_KEYS = ["bible_year", "counselling", "giving"] as const;
 /** Whether real-money features may be switched on. False until the owner of the platform settles the financial rules. */
-export const GIVING_AVAILABLE = false;
+export const GIVING_AVAILABLE = true;
 
 const parse = makeBodyParser({ texts: {}, fields: { bible_year: booleanField, counselling: booleanField, giving: booleanField } });
 const COLS = "bible_year, counselling, giving, updated_at";

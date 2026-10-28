@@ -43,7 +43,7 @@ section("A. pure rules: ");
   check("capability manageGiving comes from church.giving.manage only", PERM.churchCapabilities(["church.giving.manage"]).manageGiving === true && PERM.churchCapabilities(["church.members.manage", "church.care.publish", "church.counselling.manage", "church.export"]).manageGiving === false);
   const keys = (p, owner = false) => MODS.accessibleChurchModules(PERM.churchCapabilities(p), owner).map((m) => m.key);
   check("the Giving module appears only for a person with the giving permission", keys(["church.giving.manage"]).includes("giving") && !keys(["church.members.view", "church.care.manage"]).includes("giving") && keys(PERM.CHURCH_PERMISSIONS, true).includes("giving"));
-  eq("collection is not available in the application", FEAT.GIVING_AVAILABLE, false);
+  eq("the application flag is on (collection is still decided per church by the database lock and the pilot list)", FEAT.GIVING_AVAILABLE, true);
   const s = PG.shapeFund;
   check("public fund shape: a good row passes; a bad kind, a missing title or a negative goal does not leak through", s({ id: "x", kind: "giving", title_en: "A", title_fr: "B", description_en: " ", description_fr: "d", goal_xaf: 1000 }).description_en === null && s({ id: "x", kind: "loan", title_en: "A", title_fr: "B" }) === null && s({ id: "x", kind: "care", title_en: "", title_fr: "B" }) === null && s({ id: "x", kind: "care", title_en: "A", title_fr: "B", goal_xaf: -5 }).goal_xaf === null);
   check("public fund shape: only the public fields come out (no status, no dates, no profile id)", Object.keys(s({ id: "x", kind: "giving", title_en: "A", title_fr: "B", profile_id: "p", status: "open", created_at: "z", closed_at: "z", is_published: true })).sort().join() === "description_en,description_fr,goal_xaf,id,kind,title_en,title_fr");
@@ -118,7 +118,8 @@ section("D. a fund can never be opened: ");
   check("a fund can be closed, and the closing time is stamped by the database", closed.status === 200 && closed.body.item.status === "closed" && !!closed.body.item.closed_at, JSON.stringify(closed.body));
   const back = await patch(O, id, { status: "draft", expected_updated_at: await stamp(id) });
   check("and put back to draft, which clears it", back.status === 200 && back.body.item.status === "draft" && back.body.item.closed_at === null);
-  is("the owner cannot switch giving on (feature gate)", await H.call(O, "PUT", "church/features", { body: { giving: true } }), 409, "giving_unavailable");
+  is("the application no longer refuses the giving switch (this suite's database has no pilot lock; churchGiftsDb proves the per-church lock)", await H.call(O, "PUT", "church/features", { body: { giving: true } }), 201);
+  await H.rows("delete from public.church_features");
 }
 
 section("E. delete and the limit: ");
@@ -166,7 +167,7 @@ section("G. no money, no ledger (static): ");
   const routes = walk(path.join(SRC, "app/api")).filter((f) => /church|giving/.test(f));
   const visitor = routes.filter((f) => /customer[\\/]church-giving|public[\\/]church-giving/.test(f));
   check("there is no visitor route to give: nothing can be paid", visitor.length === 0, visitor.join());
-  check("GIVING_AVAILABLE is false in the source", /export const GIVING_AVAILABLE = false;/.test(fs.readFileSync(path.join(SRC, "lib/church/features/handlers.ts"), "utf8")));
+  check("GIVING_AVAILABLE is true in the source (pilot activation; the database still decides per church)", /export const GIVING_AVAILABLE = true;/.test(fs.readFileSync(path.join(SRC, "lib/church/features/handlers.ts"), "utf8")));
   check("the decisions document exists and names all five open decisions", (() => { const d = fs.readFileSync(path.join(SRC, "../docs/church-giving-decisions.md"), "utf8"); return ["Ringo's percentage", "Fapshi's fee", "Receipts", "Refunds", "Closing a care fund early"].every((k) => d.includes(k)); })());
 }
 

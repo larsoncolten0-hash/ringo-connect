@@ -380,7 +380,7 @@ section("M. the dashboard: who sees what ");
   check("no payer phone, no email, no token anywhere in the answer", !shown.includes(PHONE) && !shown.includes("jean@x.cm") && !/payer_phone|donor_email|access_token|token_hash/.test(shown), shown.slice(0, 200));
   const rep = owner.body.report;
   check("the report: 2 paid gifts of 14000 XAF, 1 failed; the owner sees fee 700 and net 13300", rep.paid.count === 2 && rep.paid.gross === 14000 && rep.failed === 1 && rep.earnings.fee === 700 && rep.earnings.net === 13300 && rep.reconciliation.ok === true, JSON.stringify(rep));
-  eq("giving is not available: the dashboard is told", owner.body.giving_available, false);
+  eq("the application flag is on: the dashboard is told", owner.body.giving_available, true);
 
   const staff = await H.call(MANAGER, "GET", "church/gifts");
   is("a giving manager reads the gifts", staff, 200, "ok");
