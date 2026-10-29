@@ -31,6 +31,8 @@ export function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
 }
 
+import { applyPendingEmail, grantConsent, latestDecision, recordConsent, withdrawConsent } from "./consent";
+
 export type ConnectableProfile = { id: string; name: string | null; username: string };
 
 /** The profile is always re-read server-side — a profile id from the
@@ -114,7 +116,7 @@ export async function connectCustomerToProfile(
     marketingConsent: boolean;
     source: string;
   }
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; consentRecorded?: boolean }> {
   const { customer, profile } = input;
   const now = new Date().toISOString();
 
@@ -140,8 +142,9 @@ export async function connectCustomerToProfile(
         customer_id: customer.id,
         profile_id: profile.id,
         source: input.source,
-        marketing_consent: input.marketingConsent,
-        marketing_consent_at: input.marketingConsent ? now : null,
+        // consent is never written here: an explicit tick is granted below, through the consent ledger
+        marketing_consent: false,
+        marketing_consent_at: null,
       })
       .select("id")
       .single();
@@ -168,33 +171,47 @@ export async function connectCustomerToProfile(
     existingSubscriberId = existing.community_subscriber_id;
     if (existing.status === "disconnected") {
       // Reconnecting never silently restores an old opt-in: consent comes
-      // only from the explicit tick made in THIS request.
+      // only from the explicit tick made in THIS request. The reset is written to the consent
+      // ledger (email is also switched off on the old Community row, so the row that is linked
+      // again below cannot carry the old opt-in back; an earlier push grant is vetoed).
+      await withdrawConsent(admin, { customerId: customer.id, profileId: profile.id, channel: "email", source: "reconnect_reset" });
+      // (an earlier EXPLICIT push grant is vetoed; push as plain Community membership, which never had a decision, is left as it always was)
+      if ((await latestDecision(admin, customer.id, profile.id, "push")) === "granted") {
+        await recordConsent(admin, { customerId: customer.id, profileId: profile.id, channel: "push", action: "revoked", source: "reconnect_reset" });
+      }
       await admin
         .from("customer_connections")
         .update({
           status: "active",
           disconnected_at: null,
-          marketing_consent: input.marketingConsent,
-          marketing_consent_at: input.marketingConsent ? now : null,
+          marketing_consent: false,
+          marketing_consent_at: null,
           community_subscriber_id: null,
           updated_at: now,
         })
         .eq("id", connectionId);
       existingSubscriberId = null;
-    } else if (input.marketingConsent && existing.marketing_consent !== true) {
-      // Only THIS request's explicit tick can turn consent on; an existing
-      // opt-in is left as-is and a missing tick never changes anything.
-      await admin
-        .from("customer_connections")
-        .update({ marketing_consent: true, marketing_consent_at: now, updated_at: now })
-        .eq("id", connectionId);
     }
+  }
+
+  // Only THIS request's explicit tick can turn consent on (email); an existing opt-in is left as-is
+  // and a missing tick never changes anything. FAILS CLOSED: if the consent ledger cannot record the
+  // grant, nothing is switched on (the connection itself still succeeds).
+  let consentRecorded = false;
+  if (input.marketingConsent) {
+    const granted = await grantConsent(
+      admin,
+      { customer: { id: customer.id, name: customer.name, email: customer.email, phone: customer.phone, emailConfirmed: customer.emailConfirmed }, profileId: profile.id, channel: "email", source: "connect_form" },
+      ensureCommunityMember
+    );
+    consentRecorded = granted.ok;
+    if (!granted.ok) console.error("consent not recorded at connect:", granted.code);
   }
 
   // Community membership: every connected customer is on the creator's community list.
   // Email updates are ON only for an explicit tick on a confirmed email (an unconfirmed
   // tick stays on the connection and is applied by syncMarketingSubscribers later).
-  const emailUpdates = input.marketingConsent && customer.emailConfirmed;
+  const emailUpdates = consentRecorded && customer.emailConfirmed;
   if (!existingSubscriberId) {
     await ensureCommunityMember(admin, { connectionId, customer, profileId: profile.id, emailUpdates });
   } else if (emailUpdates) {
@@ -204,10 +221,10 @@ export async function connectCustomerToProfile(
       .eq("subscriber_id", existingSubscriberId);
   }
 
-  return { ok: true };
+  return { ok: true, consentRecorded };
 }
 
-async function ensureCommunityMember(
+export async function ensureCommunityMember(
   admin: any,
   input: {
     connectionId: string;
@@ -327,29 +344,13 @@ export async function createUnconfirmedCustomer(
 }
 
 /**
- * Called when a customer confirms their email. Connections where they ticked
- * marketing now get email updates switched on for their community row (created
- * here if it is somehow missing), exactly as at connect time.
+ * Called when a customer confirms their email. Applies the email opt-ins that are VALID BUT NOT YET APPLIED (see decideConsent in ./consent): a consent that was recorded against an unconfirmed
+ * address. It never switches anything back on for a person who has since unsubscribed, withdrawn consent, been removed, or switched email off; one rule decides both this and the Community
+ * unsubscribe.
  */
 export async function syncMarketingSubscribers(
   admin: any,
   customer: { id: string; name: string; email: string; phone: string | null }
 ): Promise<void> {
-  const { data: connections } = await admin
-    .from("customer_connections")
-    .select("id, profile_id, community_subscriber_id")
-    .eq("customer_id", customer.id)
-    .eq("status", "active")
-    .eq("marketing_consent", true);
-
-  for (const c of connections || []) {
-    if (c.community_subscriber_id) {
-      await admin
-        .from("community_subscription_preferences")
-        .update({ email_updates: true, updated_at: new Date().toISOString() })
-        .eq("subscriber_id", c.community_subscriber_id);
-    } else {
-      await ensureCommunityMember(admin, { connectionId: c.id, customer, profileId: c.profile_id, emailUpdates: true });
-    }
-  }
+  await applyPendingEmail(admin, customer, ensureCommunityMember);
 }

@@ -4,6 +4,7 @@ import { sendPushToSubscriber } from "@/lib/push/send";
 import { notifyCustomer } from "@/lib/customer/inbox";
 import { itemPath } from "@/lib/deepLinks";
 import { safeExternalUrl } from "@/lib/linkUrl";
+import { withdrawnSubscribers } from "@/lib/customer/consent";
 
 // Shared by both send paths — the owner's manual "Send Announcement" and
 // the one-shot /api/community/notify product action — so there is exactly
@@ -59,7 +60,9 @@ export async function sendAnnouncementToSubscribers(
     .eq(`community_subscription_preferences.${notifyColumn}`, true)
     .not("email", "is", null);
 
-  const recipients = emailChannel ? subscribers || [] : [];
+  // A customer who withdrew email consent in the consent ledger is never emailed, whatever a stale switch says (see lib/customer/consent.ts). Only ever removes recipients.
+  const emailWithdrawn = emailChannel ? await withdrawnSubscribers(admin, profile.id, (subscribers || []).map((s: any) => s.id), "email") : new Set<string>();
+  const recipients = emailChannel ? (subscribers || []).filter((s: any) => !emailWithdrawn.has(s.id)) : [];
 
   // Idempotency: the unique (announcement_id, subscriber_id, channel)
   // constraint means a second attempt at this announcement never
@@ -151,7 +154,9 @@ export async function sendAnnouncementToSubscribers(
     // push_updates not created yet (migration pending): behave as before it existed.
     if (pushError) ({ data: pushCandidates } = await pushQuery(false));
 
-    const candidates = (pushCandidates || []) as any[];
+    // Same rule for push: a withdrawn customer is skipped even though push_updates defaults to true for new members. Transactional notifications (orders, bookings, loyalty) do not pass here.
+    const pushWithdrawn = await withdrawnSubscribers(admin, profile.id, ((pushCandidates || []) as any[]).map((c) => c.id), "push");
+    const candidates = ((pushCandidates || []) as any[]).filter((c) => !pushWithdrawn.has(c.id));
     pushCandidateCount = candidates.length;
 
     if (candidates.length > 0) {

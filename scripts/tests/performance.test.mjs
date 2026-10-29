@@ -19,6 +19,7 @@ import { PHASE36_FILES } from "./phase36Files.mjs";
 import { PHASE37_FILES } from "./phase37Files.mjs";
 import { PHASE31_FILES } from "./phase31Files.mjs";
 import { CHURCH_SERVICE_SCHEDULE_FILES } from "./churchServiceScheduleFiles.mjs"; // the church weekly-services phase sits on top of this one
+import { CUSTOMER_CONSENT_FILES } from "./customerConsentFiles.mjs"; // the Phase 3A consent work sits on top of this one: its exact files are exempt
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -351,7 +352,7 @@ await test("mobile: the connection to the storage host (where every picture come
 // =============================================================================== scope
 await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, orders, payouts, commissions and the 10-second preview are not touched", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].filter((f) => !f.startsWith("scripts/tests/_"));
-  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE37_FILES.has(f) && !PHASE31_FILES.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE37_FILES.has(f) && !PHASE31_FILES.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f) && !CUSTOMER_CONSENT_FILES.has(f)), [], "only the registered files changed");
   // Files whose NAME looks sensitive but whose change is a read-only performance edit, listed one by one (never by pattern): the public item checkout PAGE's profile read (the checkout flow itself,
   // the payment calls and the order logic are not in it), the shop page, the supabase proposal files and the admin branding save's cache refresh.
   const ALLOWED = new Set([
@@ -403,6 +404,12 @@ await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, ord
     "supabase/migrations/2027-01-16_church_service_schedule.sql",
     "supabase/support/2027-01-16_church_service_schedule.rollback.sql",
     "supabase/support/2027-01-16_church_service_schedule.verify.sql",
+    // The customer consent phase (customerConsentFiles.mjs): the consent API route, the Community unsubscribe route (it now records the withdrawal), and the un-applied, additive consent-ledger migration with its verify and rollback scripts.
+    "src/app/api/customer/consent/route.ts",
+    "src/app/api/community/manage/[token]/route.ts",
+    "supabase/migrations/2027-01-17_customer_consent_events.sql",
+    "supabase/support/2027-01-17_customer_consent_events.rollback.sql",
+    "supabase/support/2027-01-17_customer_consent_events.verify.sql",
   ]);
   const forbidden = /(^|\/)(middleware|fapshi|stripe|webhook|payout|commission|inventory|checkout|orders?|billing|protection|useTrackPlayback|previewLimit)|\/api\/|^supabase\//i;
   assert.deepEqual(changed.filter((f) => forbidden.test(f) && !ALLOWED.has(f) && !/phase2[0-9]Files|\.test\.mjs$/.test(f)), [], "no sensitive file is among the changed ones");

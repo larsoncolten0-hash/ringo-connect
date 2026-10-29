@@ -8,6 +8,7 @@ import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import { CHURCH_SERVICE_SCHEDULE_FILES } from "./churchServiceScheduleFiles.mjs"; // the church weekly-services phase sits on top of this one: its exact files are exempt
+import { CUSTOMER_CONSENT_FILES } from "./customerConsentFiles.mjs"; // the Phase 3A consent work sits on top of this one: its exact files are exempt
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -350,7 +351,7 @@ test("i18n: no new strings were needed (EN/FR dictionaries untouched by this cha
   // a later registered phase may ADD strings (no existing string removed or edited); any other change to a dictionary still fails
   const stat = execFileSync("git", ["diff", "--numstat", "HEAD"], { cwd: REPO, encoding: "utf8" }).split("\n").filter(Boolean).map((l) => l.split("\t"));
   const edited = (f) => stat.some(([, del, name]) => name === f && Number(del) !== 0);
-  assert.ok(!changed.some((f) => /translations\.(en|fr)\.ts$/.test(f) && (!CHURCH_SERVICE_SCHEDULE_FILES.has(f) || edited(f))));
+  assert.ok(!changed.some((f) => /translations\.(en|fr)\.ts$/.test(f) && ((!CHURCH_SERVICE_SCHEDULE_FILES.has(f) && !CUSTOMER_CONSENT_FILES.has(f)) || edited(f))));
 });
 
 // ---- scope ----
@@ -359,7 +360,7 @@ test("scope: only Save Contact files (and this test) changed", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
   // the four Save Contact files, this test, and the exact test-registry files phase36Files.mjs lists (the repo's scope-guard convention)
   const allowed = new Set(["src/components/SaveContactButton.tsx", "src/lib/vcard.ts", "src/components/music/profile/MusicArtistView.tsx", "scripts/tests/saveContactAndroid.test.mjs", "scripts/tests/phase36Files.mjs", "scripts/tests/ownerWorkspaceFiles.mjs", "scripts/tests/avatarShape.test.mjs", "scripts/tests/performance.test.mjs"]);
-  assert.deepEqual(changed.filter((f) => !allowed.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f)), []);
+  assert.deepEqual(changed.filter((f) => !allowed.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f) && !CUSTOMER_CONSENT_FILES.has(f)), []);
 });
 
 console.log(`${passed} passed, ${failures.length} failed`);

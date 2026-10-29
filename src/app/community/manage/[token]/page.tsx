@@ -33,6 +33,8 @@ export default function CommunityManagePage({ params }: { params: { token: strin
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // A turned-ON email or push choice for a My Ringo customer is a recorded decision: it is refused if they are no longer connected, or if it cannot be recorded. Turning OFF always works.
+  const [notSaved, setNotSaved] = useState<"" | "not_connected" | "unavailable">("");
   const [unsubscribed, setUnsubscribed] = useState(false);
   // Independent of `prefs`/save() above — a push subscription is a real
   // browser permission grant + PushManager registration, not a stored
@@ -76,13 +78,20 @@ export default function CommunityManagePage({ params }: { params: { token: strin
   const save = async () => {
     if (!prefs) return;
     setSaving(true);
-    await fetch(`/api/community/manage/${params.token}`, {
+    setNotSaved("");
+    const res = await fetch(`/api/community/manage/${params.token}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(prefs),
     });
+    if (!res.ok) {
+      // show what is really stored, not what was ticked
+      setNotSaved(res.status === 409 ? "not_connected" : "unavailable");
+      const again = await fetch(`/api/community/manage/${params.token}`);
+      if (again.ok) setPrefs((await again.json()).preferences);
+    }
     setSaving(false);
-    setSaved(true);
+    setSaved(res.ok);
   };
 
   const unsubscribeAll = async () => {
@@ -217,6 +226,11 @@ export default function CommunityManagePage({ params }: { params: { token: strin
               {saved && (
                 <span className="text-xs flex items-center gap-1" style={{ color: "#0D9488" }}>
                   <Check size={13} /> {t.community.saved}
+                </span>
+              )}
+              {notSaved && (
+                <span role="status" className="text-xs" style={{ color: "#B91C1C" }}>
+                  {notSaved === "not_connected" ? t.communityJoin.consentNotConnected : t.communityJoin.consentUnavailable}
                 </span>
               )}
             </div>
