@@ -9,6 +9,8 @@ import type { MyConnection } from "@/lib/customer/connections";
 import type { ActivityItem, LibraryTrack } from "@/lib/customer/activity";
 import ConnectionCard from "./ConnectionCard";
 import ConsentSection from "./ConsentSection";
+import OffersSection from "./OffersSection";
+import ReviewsSection from "./ReviewsSection";
 import CustomerAvatar from "./CustomerAvatar";
 import EmptyState from "./EmptyState";
 import SignOutButton from "./SignOutButton";
@@ -226,6 +228,8 @@ export function ConnectionsView({ connections, previous = [] }: { connections: M
   const [list, setList] = useState(connections);
   const [previousList, setPreviousList] = useState(previous);
   const [confirming, setConfirming] = useState<MyConnection | null>(null);
+  // bumped when a marketing switch changes, so the offers (which depend on it) are listed again
+  const [consentTick, setConsentTick] = useState(0);
 
   return (
     <div>
@@ -256,7 +260,9 @@ export function ConnectionsView({ connections, previous = [] }: { connections: M
         />
       )}
 
-      {list.length > 0 && <ConsentSection refreshKey={list.length} />}
+      {list.length > 0 && <ConsentSection refreshKey={list.length} onChanged={() => setConsentTick((n) => n + 1)} />}
+      {list.length > 0 && <OffersSection refreshKey={list.length * 1000 + consentTick} />}
+      {list.length > 0 && <ReviewsSection refreshKey={list.length} />}
 
       {previousList.length > 0 && (
         <div className="mt-8">

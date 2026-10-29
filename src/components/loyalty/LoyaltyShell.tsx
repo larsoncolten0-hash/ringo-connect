@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Gift, LayoutGrid, ListChecks, Package, ScanLine, Settings2 } from "lucide-react";
+import { Gift, LayoutGrid, ListChecks, Package, ScanLine, Settings2, Percent, PieChart, Star } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import SectionTabs from "@/components/dashboard/SectionTabs";
 
@@ -12,11 +12,14 @@ export default function LoyaltyShell({
   can,
   packagesOffered,
   hidden,
+  reviewsOffered = true,
   children,
 }: {
   can: { scan: boolean; manage: boolean; reverse: boolean };
   packagesOffered: boolean;
   hidden: boolean;
+  /** Reviews are not offered for Churches & Ministries. */
+  reviewsOffered?: boolean;
   children: React.ReactNode;
 }) {
   const { t } = useLanguage();
@@ -28,6 +31,9 @@ export default function LoyaltyShell({
     { href: "/dashboard/loyalty/scan", label: L.tabs.scan, icon: ScanLine, exact: false, show: can.scan },
     { href: "/dashboard/loyalty/activity", label: L.tabs.activity, icon: ListChecks, exact: false, show: can.scan },
     { href: "/dashboard/loyalty/packages", label: L.tabs.packages, icon: Package, exact: false, show: can.manage && packagesOffered },
+    { href: "/dashboard/loyalty/offers", label: L.tabs.offers, icon: Percent, exact: false, show: can.manage || can.scan },
+    { href: "/dashboard/loyalty/segments", label: L.tabs.segments, icon: PieChart, exact: false, show: can.manage },
+    { href: "/dashboard/loyalty/reviews", label: L.tabs.reviews, icon: Star, exact: false, show: can.manage && reviewsOffered },
     { href: "/dashboard/loyalty/setup", label: L.tabs.setup, icon: Settings2, exact: false, show: can.manage },
   ].filter((tab) => tab.show);
 

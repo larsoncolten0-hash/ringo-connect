@@ -22,7 +22,7 @@ function Switch({ checked, disabled, label, hint, name, onChange }: { checked: b
   );
 }
 
-export default function ConsentSection({ refreshKey = 0 }: { refreshKey?: number }) {
+export default function ConsentSection({ refreshKey = 0, onChanged }: { refreshKey?: number; onChanged?: () => void }) {
   const { t } = useLanguage();
   const c = t.myRingo.connections.consent;
   const [items, setItems] = useState<Item[] | null>(null);
@@ -49,6 +49,7 @@ export default function ConsentSection({ refreshKey = 0 }: { refreshKey?: number
       const item = res.data.item;
       setItems((prev) => (prev || []).map((i) => (i.profile_id === item.profile_id ? item : i)));
       setMessage({ kind: "ok", text: enabled ? c.savedOn : c.savedOff });
+      onChanged?.();
     } else if (res.status === 503) {
       setMessage({ kind: "error", text: c.unavailable });
     } else if (res.status === 409 || res.status === 404) {

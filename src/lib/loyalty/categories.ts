@@ -53,6 +53,9 @@ const BY_CATEGORY: Partial<Record<CategoryId, CategoryLoyalty>> = {
   business_ecommerce: { availability: "recommended", actions: ["purchase"], programTypes: ["visits", "spend", "points"], packages: false },
   professional_services: { availability: "optional", actions: ["service", "booking"], programTypes: ["visits", "spend"], packages: false },
   travel_hospitality: { availability: "optional", actions: ["stay", "booking"], programTypes: ["visits", "spend"], packages: false },
+  // Churches & Ministries are explicitly eligible, with VISITS programs only ("come 10 times, receive a gift"). Spend and points programs are NOT offered: a reward must never be tied to money, and
+  // giving, tithes and offerings are not loyalty activity (the engine has no gift reference kind, and the giving code never calls it). Packages are not offered either.
+  church_ministries: { availability: "optional", actions: ["visit"], programTypes: ["visits"], packages: false },
   // Traditional loyalty does not fit; referrals may come later. Nothing is offered by default.
   real_estate: { availability: "hidden", actions: [], programTypes: [], packages: false },
 };

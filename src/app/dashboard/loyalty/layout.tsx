@@ -1,6 +1,7 @@
 import { requireLoyaltyPage } from "@/lib/loyalty/access";
 import { getLoyaltyOptions } from "@/lib/loyalty/categories";
 import LoyaltyShell from "@/components/loyalty/LoyaltyShell";
+import { reviewsAvailable } from "@/lib/retention/reviews";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export default async function LoyaltyLayout({ children }: { children: React.Reac
   const options = getLoyaltyOptions(profile);
 
   return (
-    <LoyaltyShell can={can} packagesOffered={options.packages} hidden={options.availability === "hidden"}>
+    <LoyaltyShell can={can} packagesOffered={options.packages} hidden={options.availability === "hidden"} reviewsOffered={reviewsAvailable(profile)}>
       {children}
     </LoyaltyShell>
   );

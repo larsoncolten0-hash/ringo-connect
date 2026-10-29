@@ -364,3 +364,74 @@ export async function applyPendingEmail(db: ConsentDb, customer: { id: string; n
     }
   }
 }
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// One profile, many customers (the promotion sender and the segment audience preview)
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+export interface AudienceMember {
+  customerId: string;
+  name: string;
+  email: string;
+  language: "en" | "fr";
+  /** The Community unsubscribe token of this customer's row at this profile (the link every marketing email carries); null when there is no row. */
+  manageToken: string | null;
+  email_decision: ConsentDecision;
+  push_decision: ConsentDecision;
+}
+
+const chunk = <T>(items: readonly T[], size: number): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+};
+
+/**
+ * The effective consent of the given customers for ONE profile, decided by the same rule (decideConsent) as everything else. Nothing is inferred from a purchase, a membership or a
+ * connection: a customer is reachable on a channel only when the rule says "on". Server side only (service role); it returns contact details to the sender, never to a browser.
+ */
+export async function loadProfileAudience(db: ConsentDb, profileId: string, customerIds: readonly string[]): Promise<Map<string, AudienceMember>> {
+  const result = new Map<string, AudienceMember>();
+  for (const ids of chunk([...new Set(customerIds)], 150)) {
+    const { data: conns } = await db.from("customer_connections").select("customer_id, status, marketing_consent, community_subscriber_id").eq("profile_id", profileId).eq("status", "active").in("customer_id", ids);
+    if (!Array.isArray(conns) || conns.length === 0) continue;
+    const { data: customers } = await db.from("ringo_customers").select("id, name, email, preferred_language, email_verified_at").in("id", ids);
+    const byId = new Map<string, Row>(((customers || []) as Row[]).map((c) => [c.id as string, c]));
+    const latest = new Map<string, LedgerAction>();
+    const { data: events } = await db.from("customer_consent_events").select("customer_id, channel, action, seq").eq("profile_id", profileId).in("customer_id", ids).order("seq", { ascending: false });
+    for (const e of (Array.isArray(events) ? events : []) as Row[]) if (!latest.has(`${e.customer_id}:${e.channel}`)) latest.set(`${e.customer_id}:${e.channel}`, e.action);
+    const subIds = (conns as Row[]).map((c) => c.community_subscriber_id).filter((x): x is string => typeof x === "string");
+    const subs = new Map<string, Row>();
+    const prefs = new Map<string, Row>();
+    if (subIds.length > 0) {
+      const { data: srows } = await db.from("community_subscribers").select("id, status, created_at, unsubscribe_token").in("id", subIds);
+      for (const r of (srows || []) as Row[]) subs.set(r.id, r);
+      const { data: prows } = await db.from("community_subscription_preferences").select("*").in("subscriber_id", subIds);
+      for (const r of (prows || []) as Row[]) prefs.set(r.subscriber_id, r);
+    }
+    for (const c of conns as Row[]) {
+      const customer = byId.get(c.customer_id);
+      if (!customer) continue;
+      const s = c.community_subscriber_id ? subs.get(c.community_subscriber_id) ?? null : null;
+      const p = c.community_subscriber_id ? prefs.get(c.community_subscriber_id) ?? null : null;
+      const facts = (channel: ConsentChannel): ConsentFacts => ({
+        channel,
+        connection: { status: c.status, marketing_consent: c.marketing_consent === true },
+        emailConfirmed: !!customer.email_verified_at,
+        subscriber: s ? { status: s.status, created_at: s.created_at ?? null } : null,
+        prefs: p ? { email_updates: p.email_updates ?? null, push_updates: p.push_updates ?? null, updated_at: p.updated_at ?? null } : null,
+        latest: latest.get(`${c.customer_id}:${channel}`) ?? null,
+      });
+      result.set(c.customer_id, {
+        customerId: c.customer_id,
+        name: String(customer.name || ""),
+        email: String(customer.email || ""),
+        language: customer.preferred_language === "fr" ? "fr" : "en",
+        manageToken: s?.unsubscribe_token ?? null,
+        email_decision: decideConsent(facts("email")),
+        push_decision: decideConsent(facts("push")),
+      });
+    }
+  }
+  return result;
+}
