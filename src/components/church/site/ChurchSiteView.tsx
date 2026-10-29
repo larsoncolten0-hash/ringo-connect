@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowUp, BadgeCheck, Menu, Navigation, Phone, X } from "lucide-react";
+import { ArrowUp, BadgeCheck, Menu, Navigation, Phone, UserPlus, X } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { useLanguage } from "@/components/LanguageProvider";
 import { contrastRatio, hexToRgba } from "@/lib/color";
 import { getBackgroundStyle } from "@/lib/theme";
 import { avatarRadius, normalizeAvatarShape } from "@/lib/avatarShape";
 import { isUsablePhone } from "@/lib/heroAction";
+import { buildVCard, vCardFileName } from "@/lib/vcard";
+import { saveContactClick } from "@/components/SaveContactButton";
 import type { PublicWord } from "@/lib/church/content/publicWord";
 import type { ChurchPublicExtras } from "@/lib/church/public";
 import type { ChurchVisit } from "@/lib/church/publicPage";
@@ -21,6 +23,7 @@ import ConnectButton from "@/components/connect/ConnectButton";
 import AddToHomeScreen from "@/components/AddToHomeScreen";
 import PoweredByRingo from "@/components/PoweredByRingo";
 import ChurchVisitCard from "@/components/church/ChurchVisitCard";
+import ChurchServicesCard from "./ChurchServicesCard";
 import DailyWordCard from "@/components/church/DailyWordCard";
 import { ChurchAnnouncementsCard, ChurchEventsCard } from "@/components/church/ChurchEventsCards";
 import ChurchBibleCard from "@/components/church/ChurchBibleCard";
@@ -121,7 +124,9 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
-  const waHref = wa ? `https://wa.me/${wa.replace(/[^0-9]/g, "")}${profile.default_whatsapp_message ? `?text=${encodeURIComponent(profile.default_whatsapp_message)}` : ""}` : null;
+  // Save Contact reuses the shared vCard builder and click handler (the same as the Music page); it needs a number to be worth saving, like SaveContactButton.
+  const vcardHref = wa || phone ? `data:text/vcard;charset=utf-8,${encodeURIComponent(buildVCard(profile, typeof window !== "undefined" ? window.location.href : undefined))}` : null;
+  const waHref = wa ?`https://wa.me/${wa.replace(/[^0-9]/g, "")}${profile.default_whatsapp_message ? `?text=${encodeURIComponent(profile.default_whatsapp_message)}` : ""}` : null;
   const btnBase = "inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-5 text-[0.95rem] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98] motion-reduce:active:scale-100";
   // These buttons sit in the hero, so their focus ring reads on the hero background; an accent too close to the hero colour gets an edge so the button never disappears.
   const filled = { backgroundColor: pal.accent, color: pal.onAccent, outlineColor: hero.accentText, border: `1.5px solid ${contrastRatio(accent, hero.bg) < 3 ? hero.ink : "transparent"}` } as const;
@@ -322,6 +327,18 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
                     {s.call}
                   </a>
                 )}
+                {vcardHref && (
+                  <a
+                    href={preview ? undefined : vcardHref}
+                    download={preview ? undefined : vCardFileName(profile)}
+                    onClick={(e) => (preview ? e.preventDefault() : saveContactClick(e, profile))}
+                    className={`${btnBase} hover:bg-black/[0.03]`}
+                    style={outline}
+                  >
+                    <UserPlus size={16} className="shrink-0" aria-hidden="true" />
+                    {t.profilePage.saveContactButton}
+                  </a>
+                )}
                 {churchVisit?.directionsUrl && (
                   <a href={preview ? undefined : churchVisit.directionsUrl} target="_blank" rel="noopener noreferrer" className={`${btnBase} hover:bg-black/[0.03]`} style={outline}>
                     <Navigation size={16} className="shrink-0" aria-hidden="true" />
@@ -340,6 +357,12 @@ export default function ChurchSiteView({ profile, preview, isOwner, staffBadges,
           {churchVisit && (
             <div id={anchor("visit")} className={sectionCls}>
               <ChurchVisitCard t={t} visit={churchVisit} {...card} surface={CH.surface} />
+            </div>
+          )}
+
+          {(churchPublic.services ?? []).length > 0 && (
+            <div id="church-services" className={sectionCls}>
+              <ChurchServicesCard t={t} locale={locale} services={churchPublic.services} {...card} surface={CH.surface} />
             </div>
           )}
 

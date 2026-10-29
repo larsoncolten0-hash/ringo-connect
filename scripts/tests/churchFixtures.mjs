@@ -25,6 +25,7 @@ export const CO_MIG = read("supabase/migrations/2027-01-09_church_counselling.sq
 export const GV_MIG = read("supabase/migrations/2027-01-10_church_giving.sql");
 export const GL_MIG = read("supabase/migrations/2027-01-11_church_giving_lock.sql");
 export const GI_MIG = read("supabase/migrations/2027-01-12_church_gifts.sql");
+export const SV_MIG = read("supabase/migrations/2027-01-16_church_service_schedule.sql");
 /** What the gifts migration reads from the rest of the platform, reduced: the singleton settings row and the payout destination of a person. */
 export const GIFTS_SQL = `
   create table if not exists public.platform_settings (id uuid primary key default gen_random_uuid(), fapshi_enabled boolean not null default true);
@@ -103,7 +104,7 @@ export const CUSTOMERS_SQL = `
   );
 `;
 
-export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false, testimonies = false, landing = false, groupsPastors = false, customers = false, membership = false, bibleYear = false, push = false, counselling = false, giving = false, givingLock = false, gifts = false } = {}) {
+export async function newDb(PGlite, { dailyWords = false, events = false, attendance = false, bible = false, music = false, care = false, testimonies = false, landing = false, groupsPastors = false, customers = false, membership = false, bibleYear = false, push = false, counselling = false, giving = false, givingLock = false, gifts = false, services = false } = {}) {
   const db = new PGlite();
   await db.exec(BASE);
   await db.exec(TEAM01); await db.exec(TEAM03); await db.exec(TEAM04);
@@ -115,6 +116,7 @@ export async function newDb(PGlite, { dailyWords = false, events = false, attend
   if (bible) await db.exec(BI_MIG);
   if (attendance) await db.exec(AT_MIG);
   if (music) await db.exec(MU_MIG);
+  if (services) await db.exec(SV_MIG);
   if (care) await db.exec(CA_MIG);
   if (testimonies) await db.exec(TE_MIG);
   if (landing) await db.exec(LI_MIG);

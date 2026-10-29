@@ -18,6 +18,7 @@ import { PHASE34_FILES } from "./phase34Files.mjs";
 import { PHASE36_FILES } from "./phase36Files.mjs";
 import { PHASE37_FILES } from "./phase37Files.mjs";
 import { PHASE31_FILES } from "./phase31Files.mjs";
+import { CHURCH_SERVICE_SCHEDULE_FILES } from "./churchServiceScheduleFiles.mjs"; // the church weekly-services phase sits on top of this one
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -350,7 +351,7 @@ await test("mobile: the connection to the storage host (where every picture come
 // =============================================================================== scope
 await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, orders, payouts, commissions and the 10-second preview are not touched", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].filter((f) => !f.startsWith("scripts/tests/_"));
-  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE37_FILES.has(f) && !PHASE31_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE37_FILES.has(f) && !PHASE31_FILES.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f)), [], "only the registered files changed");
   // Files whose NAME looks sensitive but whose change is a read-only performance edit, listed one by one (never by pattern): the public item checkout PAGE's profile read (the checkout flow itself,
   // the payment calls and the order logic are not in it), the shop page, the supabase proposal files and the admin branding save's cache refresh.
   const ALLOWED = new Set([
@@ -396,6 +397,12 @@ await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, ord
     "supabase/support/2026-12-25_card_orders.preflight.sql",
     "supabase/support/2026-12-25_card_orders.verify.sql",
     "supabase/support/2026-12-25_card_orders.rollback.sql",
+    // The church weekly services phase (churchServiceScheduleFiles.mjs): its two authenticated routes and its un-applied, additive migration with the verify and rollback scripts.
+    "src/app/api/church/services/route.ts",
+    "src/app/api/church/services/[id]/route.ts",
+    "supabase/migrations/2027-01-16_church_service_schedule.sql",
+    "supabase/support/2027-01-16_church_service_schedule.rollback.sql",
+    "supabase/support/2027-01-16_church_service_schedule.verify.sql",
   ]);
   const forbidden = /(^|\/)(middleware|fapshi|stripe|webhook|payout|commission|inventory|checkout|orders?|billing|protection|useTrackPlayback|previewLimit)|\/api\/|^supabase\//i;
   assert.deepEqual(changed.filter((f) => forbidden.test(f) && !ALLOWED.has(f) && !/phase2[0-9]Files|\.test\.mjs$/.test(f)), [], "no sensitive file is among the changed ones");

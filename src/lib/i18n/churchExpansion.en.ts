@@ -140,6 +140,8 @@ export const churchExpansionEn = {
 
   // codes returned by the server for these screens (a raw code is never shown)
   errors: {
+    // same sentence as features.errors (which the screens resolve first), so the shared church error lookups also find the code
+    giving_unavailable: "Online giving is not available yet.",
     invalid_kind: "That group type isn't valid.",
     invalid_leader_name: "Enter a name of up to 80 characters.",
     invalid_description: "The welcome text can have up to 600 characters.",

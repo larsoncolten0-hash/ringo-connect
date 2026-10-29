@@ -137,6 +137,8 @@ export const churchExpansionFr: ChurchExpansionText = {
   },
 
   errors: {
+    // même phrase que features.errors (celle que les écrans résolvent en premier), pour que les recherches d'erreurs partagées trouvent aussi le code
+    giving_unavailable: "Les dons en ligne ne sont pas encore disponibles.",
     invalid_kind: "Ce type de groupe n'est pas valide.",
     invalid_leader_name: "Saisissez un nom de 80 caractères au plus.",
     invalid_description: "Le texte d'accueil peut avoir 600 caractères au plus.",

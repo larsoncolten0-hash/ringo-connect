@@ -19,6 +19,7 @@ import { PHASE34_FILES } from "./phase34Files.mjs";
 import { PHASE36_FILES } from "./phase36Files.mjs";
 import { PHASE37_FILES } from "./phase37Files.mjs";
 import { PHASE31_FILES } from "./phase31Files.mjs";
+import { CHURCH_SERVICE_SCHEDULE_FILES } from "./churchServiceScheduleFiles.mjs"; // the church weekly-services phase sits on top of this one
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -111,7 +112,7 @@ test("EN / FR: the label and both options exist, are translated, and the editor 
 });
 test("scope: every changed file is on this phase's list, nothing sensitive is on it, and no foreign currency crept in", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
-  assert.deepEqual(changed.filter((f) => !PHASE25_FILES.has(f) && !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE37_FILES.has(f) && !PHASE31_FILES.has(f)), [], "only the registered files changed (this phase, the performance project, the product-completeness phase, the Inbox push phase, the sales bot phase or the Inbox media phase that sit on top of it)");
+  assert.deepEqual(changed.filter((f) => !PHASE25_FILES.has(f) && !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE37_FILES.has(f) && !PHASE31_FILES.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f)), [], "only the registered files changed (this phase, the performance project, the product-completeness phase, the Inbox push phase, the sales bot phase or the Inbox media phase that sit on top of it)");
   assert.deepEqual([...PHASE25_FILES].filter((f) => /payment|fapshi|stripe|webhook|\/auth|whatsapp|track|pixel|useTrackPlayback|previewLimit|middleware|\/api\//i.test(f)), []);
   for (const f of changed.filter((x) => /\.(tsx?|mjs|sql)$/.test(x) && !x.startsWith("scripts/tests/") && fs.existsSync(path.join(REPO, x)))) {
     assert.ok(!/GH₵|GHS/.test(fs.readFileSync(path.join(REPO, f), "utf8")), "foreign currency in " + f);

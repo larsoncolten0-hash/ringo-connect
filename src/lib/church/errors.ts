@@ -52,6 +52,11 @@ const GUARD_CODES: Record<string, Outcome> = {
   music_profile_required: { status: 403, code: "not_available" },
   music_tenant_immutable: { status: 422, code: "invalid" },
   music_link_limit: { status: 422, code: "music_link_limit" },
+  // Recurring weekly services
+  schedule_profile_required: { status: 403, code: "not_available" },
+  schedule_tenant_immutable: { status: 422, code: "invalid" },
+  schedule_timezone_invalid: { status: 422, code: "invalid_timezone" },
+  schedule_limit: { status: 422, code: "schedule_limit" },
   // Phase 9 (care cases and consent)
   care_profile_required: { status: 403, code: "not_available" },
   care_tenant_immutable: { status: 422, code: "invalid" },
@@ -112,6 +117,10 @@ const CONSTRAINT_CODES: Array<[RegExp, Outcome]> = [
   [/ministry_music_links_url_check/, { status: 422, code: "invalid_url" }],
   [/ministry_music_links_title_check/, { status: 422, code: "invalid_title" }],
   [/ministry_music_links_platform_check/, { status: 422, code: "invalid_platform" }],
+  // Recurring weekly services: an end that is not after the start, a bad weekday, no title in either language
+  [/church_service_schedule_time_check/, { status: 422, code: "invalid_time_range" }],
+  [/church_service_schedule_weekday_check/, { status: 422, code: "invalid_weekday" }],
+  [/church_service_schedule_title(_len)?_check/, { status: 422, code: "needs_title" }],
   // Phase 9: a case needs a title and a summary in one language to be published; the category is a fixed list
   [/ministry_care_cases_publish_content_check/, { status: 422, code: "needs_title_and_summary" }],
   [/ministry_care_cases_category_check/, { status: 422, code: "invalid_category" }],
