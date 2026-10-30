@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import type { ChurchStock } from "@/lib/church/store/stock";
 import { BTN_PRIMARY } from "../people/shared";
+import ChurchStoreStock from "./ChurchStoreStock";
+import ChurchStoreSummary from "./ChurchStoreSummary";
 
 // The Church Store is the church's existing Ringo Shop, shown on its public page under the name "Church Store" (see catalogLabel in lib/categories.ts). This screen adds no store of its own: it explains
 // that and points the owner to the Shop. Products, orders, payments and earnings all stay exactly where they are.
-export default function ChurchStoreEntry({ shopAvailable }: { shopAvailable: boolean }) {
+export default function ChurchStoreEntry({ shopAvailable, stock = { state: "unavailable" } }: { shopAvailable: boolean; stock?: ChurchStock }) {
   const { t } = useLanguage();
   const c = t.churchStore;
   return (
@@ -22,9 +25,13 @@ export default function ChurchStoreEntry({ shopAvailable }: { shopAvailable: boo
         ))}
       </ul>
       {shopAvailable ? (
-        <Link href="/dashboard/shop" className={BTN_PRIMARY}>
-          {c.openShop}
-        </Link>
+        <>
+          <Link href="/dashboard/shop" className={BTN_PRIMARY}>
+            {c.openShop}
+          </Link>
+          <ChurchStoreStock stock={stock} />
+          <ChurchStoreSummary />
+        </>
       ) : (
         <p className="rounded-2xl border border-dashed border-ringo-border bg-ringo-surface/60 px-4 py-3 text-sm leading-relaxed text-ringo-muted">{c.unavailable}</p>
       )}

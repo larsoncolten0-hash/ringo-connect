@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { NoAccess } from "@/components/church/people/ChurchShell";
 import ChurchStoreEntry from "@/components/church/store/ChurchStoreEntry";
 import { resolveChurchActor } from "@/lib/church/actor";
+import { loadChurchStock, type ChurchStock } from "@/lib/church/store/stock";
 import { shopIsVisibleFor } from "@/lib/shopAuth";
 
 export const dynamic = "force-dynamic";
@@ -15,5 +16,6 @@ export default async function ChurchStorePage() {
   if (actor.kind !== "owner") return <NoAccess section="store" />;
   const { data: profile } = await actor.supabase.from("profiles").select("id, category, categories").eq("id", actor.profileId).maybeSingle();
   const shopAvailable = await shopIsVisibleFor(actor.supabase, profile as { id: string; category?: string | null; categories?: string[] | null } | null);
-  return <ChurchStoreEntry shopAvailable={shopAvailable} />;
+  const stock: ChurchStock = shopAvailable ? await loadChurchStock(actor.profileId) : { state: "unavailable" };
+  return <ChurchStoreEntry shopAvailable={shopAvailable} stock={stock} />;
 }

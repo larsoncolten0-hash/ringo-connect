@@ -205,6 +205,7 @@ export async function dispatch(db: Db, send: Sender, now: number = Date.now(), l
       }
       const payload = (row.payload ?? {}) as PushPayload;
       let finished = true;
+      let recordFailed = false;
       for (let batch = 0; batch < MAX_BATCHES; batch++) {
         if (Date.now() - started > budgetMs) {
           finished = false; // left in "sending": it is released after 10 minutes and the next run carries on (nobody is notified twice)
@@ -228,11 +229,18 @@ export async function dispatch(db: Db, send: Sender, now: number = Date.now(), l
               delivered = false;
             }
           }
-          await db.rpc("church_push_record", { p_outbox_id: row.id, p_customer_id: p.customer_id, p_delivered: delivered });
+          const noted = await db.rpc("church_push_record", { p_outbox_id: row.id, p_customer_id: p.customer_id, p_delivered: delivered });
           if (delivered) out.sent += 1;
           else out.failed += 1;
+          if (noted?.error) {
+            // The send went out but could not be noted, so the recipient list would offer this person again. Stop this notification here (it stays "sending" and is released later) instead of risking a second push.
+            console.error(JSON.stringify({ scope: "church_push", result: "record_error" }));
+            finished = false;
+            recordFailed = true;
+            break;
+          }
         }
-        if (list.length < BATCH) break;
+        if (recordFailed || list.length < BATCH) break;
       }
       if (finished) await db.rpc("church_push_finish", { p_outbox_id: row.id, p_status: "sent" });
     } catch {

@@ -21,6 +21,7 @@ import { PHASE31_FILES } from "./phase31Files.mjs";
 import { CHURCH_SERVICE_SCHEDULE_FILES } from "./churchServiceScheduleFiles.mjs"; // the church weekly-services phase sits on top of this one
 import { CUSTOMER_CONSENT_FILES } from "./customerConsentFiles.mjs"; // the Phase 3A consent work sits on top of this one: its exact files are exempt
 import { CUSTOMER_RETENTION_FILES } from "./customerRetentionFiles.mjs"; // the Phase 3 retention work likewise
+import { CHURCH_PHASE4_FILES } from "./churchPhase4Files.mjs"; // the church Phase 4 work likewise
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -353,7 +354,7 @@ await test("mobile: the connection to the storage host (where every picture come
 // =============================================================================== scope
 await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, orders, payouts, commissions and the 10-second preview are not touched", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])].filter((f) => !f.startsWith("scripts/tests/_"));
-  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE37_FILES.has(f) && !PHASE31_FILES.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f) && !CUSTOMER_CONSENT_FILES.has(f) && !CUSTOMER_RETENTION_FILES.has(f)), [], "only the registered files changed");
+  assert.deepEqual(changed.filter((f) => !PHASE26_FILES.has(f) && !PHASE27_FILES.has(f) && !PHASE28_FILES.has(f) && !PHASE29_FILES.has(f) && !PHASE30_FILES.has(f) && !PHASE32_FILES.has(f) && !PHASE33_FILES.has(f) && !PHASE34_FILES.has(f) && !PHASE36_FILES.has(f) && !PHASE37_FILES.has(f) && !PHASE31_FILES.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f) && !CUSTOMER_CONSENT_FILES.has(f) && !CUSTOMER_RETENTION_FILES.has(f) && !CHURCH_PHASE4_FILES.has(f)), [], "only the registered files changed");
   // Files whose NAME looks sensitive but whose change is a read-only performance edit, listed one by one (never by pattern): the public item checkout PAGE's profile read (the checkout flow itself,
   // the payment calls and the order logic are not in it), the shop page, the supabase proposal files and the admin branding save's cache refresh.
   const ALLOWED = new Set([
@@ -422,6 +423,9 @@ await test("scope: authentication, payments, Fapshi, Stripe, RLS, inventory, ord
     "src/app/api/loyalty/reviews/[id]/route.ts",
     "src/app/api/loyalty/reviews/route.ts",
     "src/app/api/loyalty/segments/route.ts",
+    // The church Phase 4 work (churchPhase4Files.mjs): one owner-only, read-only Church Store summary route (no migration).
+    "src/app/api/church/store-summary/route.ts",
+    "src/app/api/cron/reconcile-church-gifts/route.ts", // the church gift payment sweep: a secret-protected cron that only calls the existing gift sweep
     "supabase/migrations/2027-01-18_customer_retention.sql",
     "supabase/support/2027-01-18_customer_retention.rollback.sql",
     "supabase/support/2027-01-18_customer_retention.verify.sql",

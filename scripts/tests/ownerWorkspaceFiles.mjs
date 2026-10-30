@@ -26,6 +26,7 @@ import { SCALABILITY_PHASE0_FILES } from "./scalabilityPhase0Files.mjs"; // scal
 import { SCALABILITY_PHASE1TO5_FILES } from "./scalabilityPhase1to5Files.mjs"; // scalability and reliability Phases 1-5: likewise
 import { CUSTOMER_CONSENT_FILES } from "./customerConsentFiles.mjs"; // the Phase 3A customer marketing consent work: likewise
 import { CUSTOMER_RETENTION_FILES } from "./customerRetentionFiles.mjs"; // the Phase 3 customer retention work: likewise
+import { CHURCH_PHASE4_FILES } from "./churchPhase4Files.mjs"; // the Churches & Ministries Phase 4 work: likewise
 
 // The EXACT files the Owner Workspace UX simplification and polish pass (Bookkeeping, Record Sale, receipt, Invoices, Reports, Customers,
 // Ambassador, Team Leader, dashboard footer / hamburger / account menu, section tabs) changes or adds, on top of phase12Files.mjs.
@@ -61,6 +62,7 @@ export const OWNER_WORKSPACE_FILES = new Set([
   ...SCALABILITY_PHASE1TO5_FILES,
   ...CUSTOMER_CONSENT_FILES,
   ...CUSTOMER_RETENTION_FILES,
+  ...CHURCH_PHASE4_FILES,
   "scripts/tests/aiBusinessDrafts.test.mjs", // scope guard: exempts this list
   "scripts/tests/aiBusinessTools.test.mjs", // scope guard: exempts this list
   "scripts/tests/customerAttention.test.mjs", // scope guard: exempts this list
