@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getPublicActiveAddons } from "@/lib/publicCatalog";
 import { headers } from "next/headers";
 import { extractRequestContext } from "@/lib/requestContext";
 import { getPlatformSettings } from "@/lib/platformSettings";
@@ -15,13 +15,8 @@ import GetStartedFlow from "@/components/onboarding/GetStartedFlow";
 export const dynamic = "force-dynamic";
 
 export default async function GetStartedCardsPage() {
-  const supabase = createClient();
-
-  const { data: addons } = await supabase
-    .from("addons")
-    .select("*")
-    .eq("active", true)
-    .order("sort_order", { ascending: true });
+  // Display-only read from the shared short-lived catalogue cache (lib/publicCatalog.ts).
+  const addons = await getPublicActiveAddons();
 
   const { country } = extractRequestContext(headers());
   const settings = await getPlatformSettings();

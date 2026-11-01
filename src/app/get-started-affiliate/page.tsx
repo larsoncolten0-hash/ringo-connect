@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { affiliateAddonsFrom, getPublicActiveAddons, getPublicPlans, paidPlansFrom } from "@/lib/publicCatalog";
 import { headers } from "next/headers";
 import Link from "next/link";
 import Image from "next/image";
@@ -15,25 +15,15 @@ import GetStartedFlow from "@/components/onboarding/GetStartedFlow";
 export const dynamic = "force-dynamic";
 
 export default async function GetStartedAffiliatePage() {
-  const supabase = createClient();
-
   // Free is excluded — payment is mandatory on this page, and there's
   // nothing to charge for a $0 plan (see the "nothing to pay" guard in
-  // /api/signup-requests/[id]/pay).
-  const { data: allPlans } = await supabase
-    .from("plans")
-    .select("*")
-    .neq("name", "free")
-    .order("price_usd", { ascending: true });
+  // /api/signup-requests/[id]/pay). Display-only reads from the shared
+  // short-lived catalogue cache (lib/publicCatalog.ts).
+  const allPlans = paidPlansFrom(await getPublicPlans());
 
   // Curated independently of the public form's add-on list — an admin
   // may want a different (or empty) set shown to partner-driven traffic.
-  const { data: addons } = await supabase
-    .from("addons")
-    .select("*")
-    .eq("active", true)
-    .eq("show_on_affiliate_page", true)
-    .order("sort_order", { ascending: true });
+  const addons = affiliateAddonsFrom(await getPublicActiveAddons());
 
   const { country } = extractRequestContext(headers());
   const settings = await getPlatformSettings();

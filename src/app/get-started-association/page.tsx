@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ASSOCIATION_PUBLIC } from "@/lib/association/publicVisibility";
 import { createClient } from "@/lib/supabase/server";
+import { associationPlansFrom, getPublicPlans } from "@/lib/publicCatalog";
 import { getPlatformSettings } from "@/lib/platformSettings";
 import AssociationGetStartedFlow from "@/components/association/AssociationGetStartedFlow";
 
@@ -19,11 +20,8 @@ export default async function GetStartedAssociationPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: plans } = await supabase
-    .from("plans")
-    .select("*")
-    .eq("association_enabled", true)
-    .order("max_association_members", { ascending: true, nullsFirst: false });
+  // Display-only read from the shared short-lived catalogue cache (lib/publicCatalog.ts).
+  const plans = associationPlansFrom(await getPublicPlans());
 
   const settings = await getPlatformSettings();
 

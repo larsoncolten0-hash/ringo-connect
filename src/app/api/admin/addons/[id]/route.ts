@@ -2,6 +2,8 @@ import { assertAdmin } from "@/lib/assertAdmin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { recordAudit } from "@/lib/adminAudit";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { PUBLIC_CATALOG_TAG } from "@/lib/publicCatalog";
 
 const EDITABLE_FIELDS = ["name", "price_xaf", "price_usd", "required", "active", "show_on_affiliate_page", "bundle_features"];
 
@@ -35,6 +37,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const { data: before } = await adminClient.from("addons").select("price_xaf, price_usd, required, active").eq("id", params.id).maybeSingle();
   const { error } = await adminClient.from("addons").update(patch).eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // The public plans / add-ons catalogue is cached for a short window (lib/publicCatalog.ts); a save (including enabling / disabling an add-on) makes it visible everywhere at once.
+  try {
+    revalidateTag(PUBLIC_CATALOG_TAG);
+  } catch {
+    /* the cache expires by itself within CATALOG_REVALIDATE_SECONDS */
+  }
 
   // Who changed which add-on (card price), what changed, from what. Field names for everything; values only for price / required / active.
   const SCALAR = ["price_xaf", "price_usd", "required", "active"] as const;

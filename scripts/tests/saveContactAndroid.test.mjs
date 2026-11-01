@@ -11,6 +11,7 @@ import { CHURCH_SERVICE_SCHEDULE_FILES } from "./churchServiceScheduleFiles.mjs"
 import { CUSTOMER_CONSENT_FILES } from "./customerConsentFiles.mjs"; // the Phase 3A consent work sits on top of this one: its exact files are exempt
 import { CUSTOMER_RETENTION_FILES } from "./customerRetentionFiles.mjs"; // the Phase 3 retention work likewise
 import { CHURCH_PHASE4_FILES } from "./churchPhase4Files.mjs"; // the church Phase 4 work likewise
+import { PUBLIC_CATALOG_CACHE_FILES } from "./publicCatalogCacheFiles.mjs"; // the public plans / add-ons display cache: its exact files are exempt
 
 const require = createRequire(import.meta.url);
 const REPO = fileURLToPath(new URL("../../", import.meta.url));
@@ -362,7 +363,7 @@ test("scope: only Save Contact files (and this test) changed", () => {
   const changed = [...git(["diff", "--name-only", "HEAD"]), ...git(["ls-files", "--others", "--exclude-standard"])];
   // the four Save Contact files, this test, and the exact test-registry files phase36Files.mjs lists (the repo's scope-guard convention)
   const allowed = new Set(["src/components/SaveContactButton.tsx", "src/lib/vcard.ts", "src/components/music/profile/MusicArtistView.tsx", "scripts/tests/saveContactAndroid.test.mjs", "scripts/tests/phase36Files.mjs", "scripts/tests/ownerWorkspaceFiles.mjs", "scripts/tests/avatarShape.test.mjs", "scripts/tests/performance.test.mjs"]);
-  assert.deepEqual(changed.filter((f) => !allowed.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f) && !CUSTOMER_CONSENT_FILES.has(f) && !CUSTOMER_RETENTION_FILES.has(f) && !CHURCH_PHASE4_FILES.has(f)), []);
+  assert.deepEqual(changed.filter((f) => !allowed.has(f) && !CHURCH_SERVICE_SCHEDULE_FILES.has(f) && !CUSTOMER_CONSENT_FILES.has(f) && !CUSTOMER_RETENTION_FILES.has(f) && !CHURCH_PHASE4_FILES.has(f) && !PUBLIC_CATALOG_CACHE_FILES.has(f)), []);
 });
 
 console.log(`${passed} passed, ${failures.length} failed`);

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getPublicActiveAddons, getPublicPlans } from "@/lib/publicCatalog";
 import { headers } from "next/headers";
 import { extractRequestContext } from "@/lib/requestContext";
 import { getPlatformSettings } from "@/lib/platformSettings";
@@ -39,22 +39,18 @@ export default async function GetStartedPage({
   // there.
   searchParams: { plan?: string; intent?: string; card?: string; business?: string };
 }) {
-  const supabase = createClient();
-
   // All 5 plans now (free/basic/pro/business_basic/business_pro) — this
   // used to be filtered to the Business plan alone while the rest of this
   // flow had nowhere to offer them; that's exactly what this task restores.
-  const { data: allPlans } = await supabase.from("plans").select("*").order("price_usd", { ascending: true });
+  // Display-only reads from the shared short-lived catalogue cache (lib/publicCatalog.ts);
+  // what is actually charged is always recomputed from the live rows server-side.
+  const allPlans = await getPublicPlans();
 
   const plans = publicPlans(allPlans);
 
   const preselectedPlan = searchParams.plan ? plans.find((p) => p.name === searchParams.plan) || null : null;
 
-  const { data: addons } = await supabase
-    .from("addons")
-    .select("*")
-    .eq("active", true)
-    .order("sort_order", { ascending: true });
+  const addons = await getPublicActiveAddons();
 
   const { country } = extractRequestContext(headers());
   const settings = await getPlatformSettings();

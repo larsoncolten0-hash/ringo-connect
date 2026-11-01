@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { assertAdmin } from "@/lib/assertAdmin";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { PUBLIC_CATALOG_TAG } from "@/lib/publicCatalog";
 
 const EDITABLE_FIELDS = [
   "display_name",
@@ -42,6 +44,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const adminClient = createAdminClient();
   const { error } = await adminClient.from("plans").update(patch).eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // The public plans / add-ons catalogue is cached for a short window (lib/publicCatalog.ts); a save makes it visible everywhere at once.
+  try {
+    revalidateTag(PUBLIC_CATALOG_TAG);
+  } catch {
+    /* the cache expires by itself within CATALOG_REVALIDATE_SECONDS */
+  }
 
   await adminClient.from("admin_audit_log").insert({
     admin_id: admin.id,
